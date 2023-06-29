@@ -82,10 +82,12 @@ class Project():
         '''
         
         # load data from file
+        Xs, Yx, Zs = processASC(filename, lat, lon)
         
         # interpolate onto grid defined by grid_x, grid_y
         
         # save in object
+        
         
         # also save in RAFT, in its MoorPy System(s)
 
