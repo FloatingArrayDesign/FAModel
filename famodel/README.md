@@ -5,11 +5,9 @@ overall floating array project class and a series of data
 structures and functions for bathymetry, soil conditions, 
 and anchor holding capacity.
 
-## Core Class
+## The Project Class
 
-### Project
-
-The project class provides a standard data structure that combines
+The Project class provides a standard data structure that combines
 design information (through RAFT) and site information. 
 Currently the site information focuses on the seabed and lease area
 boundary. In the future, metocean data will also be included.
@@ -27,27 +25,6 @@ parameterization with the following fields:
 - soil_K     - undrained shear strength gradient [kPa/m] (clay soils)
 - soil_alpha - soil skin friction coefficient [-] (clay soils)
 - soil_phi   - angle of internal friction [deg] (sand soils)
-
-The soft, medium, and hard clay soil classes are distinguished by the following parameter ranges: 
-| Soil Type (Clay)  | N-Value  | Effective Sat. Unit Weight, kN/m3 | Void Ratio | Natural Water Content in Sat. State, % | Undrained Shear Strength, kN/m2 |
-|:-----------------:|:--------:|:---------------------------------:|:----------:|:--------------------------------------:|:-------------------------------:|
-|     Very Soft     |  0 - 2   |             5.5 - 8.5             |  0.9 - 1.4 |                30 - 50                 |            0 - 12.5             |
-|       Soft        |  2 - 4   |             5.5 - 8.5             |  0.9 - 1.4 |                30 - 50                 |            12.5 - 25            |
-|       Medium      |  4 - 8   |             5.5 - 8.5             |  0.9 - 1.4 |                30 - 50                 |             25 - 50             |
-|       Stiff       |  8 - 15  |             8.5 - 12              |    ~ 0.6   |                20 - 30                 |            50 - 100             |
-|     Very Stiff    | 15 - 30  |             8.5 - 12              |    ~ 0.6   |                20 - 30                 |            100 - 200            |
-|        Hard       |   < 30   |             8.5 - 12              |    ~ 0.6   |                20 - 30                 |              > 200              |
-
-
-Sand can also be classified ranging from soft to hard, however only a single sand class is supported at this time. In the future, sand classes will follow the parameter ranges in the following table:
-
-| Soil Type (sand) |  N-Value | Eff. Sat. Unit Weight, kN/m3 | Void Ratio | Natural Water Content in Sat. State, % | Eff. friction Angle | Relative density (%) |
-|:----------------:|:--------:|:----------------------------:|:----------:|:--------------------------------------:|:-------------------:|:--------------------:|
-|   Very   Loose   |    > 4   |            7 - 9.5           |    ~ 0.8   |                 25 - 30                |        < 30         |         < 15         |
-|       Loose      |  4 - 10  |            7 - 9.5           |    ~ 0.8   |                 25 - 30                |       30 - 35       |        15 - 35       |
-|     Compact      | 10 - 30  |          9.5 - 11.5          |   ~ 0.45   |                 12 - 16                |       35 - 40       |        35 - 65       |
-|      Dense       | 30 - 50  |          9.5 - 11.5          |   ~ 0.45   |                 12 - 16                |       40 - 45       |       65 - 85        |
-|    Very Dense    |   < 50   |          9.5 - 11.5          |   ~ 0.45   |                 12 - 16                |        > 45         |         > 85         |
 
 ## Subpackages
 
@@ -72,5 +49,54 @@ processing "seabed" information, including bathymetry, soil properties,
 and other spatial properties of a lease area such as the lease area
 boundary. 
 
+## Project Methods
 
+### setGrid
+        
+Set up the rectangular grid over which site or seabed
+data will be saved and worked with. Directions x and y are 
+generally assumed to be aligned with the East and North 
+directions, respectively, at the array reference point.
+    
+### loadBoundary
+Load a lease area boundary for the project from an input file.
+        
+### loadBathymetry
+
+Load bathymetry information from an input file (format TBD), convert to
+a rectangular grid, and save the grid to the floating array object (TBD).
+        
+### loadSoil
+
+Load geoetechnical information from an input file (format TBD), convert to
+a rectangular grid, and save the grid to the floating array object (TBD).
+
+The input file should provide rows with the following entries:
+- x coordinate
+- y coordinate
+- class  - soil classification name ('clay', 'sand', or 'rock' with optional modifiers)
+- gamma* - soil effective unit weight [kPa] (all soils)
+- Su0*   - undrained shear strength at mudline [kPa] (clay 
+- K*     - undrained shear strength gradient [kPa/m] (clay 
+- alpha* - soil skin friction coefficient [-] (clay soils)
+- phi*   - angle of internal friction [deg] (sand soils)
+
+Some (*) parameters are optional depending on the soil class and mode.   
+
+Irregular sampling points will be supported and interpolated to a 
+rectangular grid.
+
+### getSoilAtLocation
+
+Interpolate soil properties at specified location from the soil
+properties grid and return a dictionary of soil properties that
+can be used in anchor capacity calculations.
+
+### calcAnchorCapacity
+
+Compute holding capacity of a given anchor based on the soil
+info at its position. The anchor object's anchor properties and
+location will be used to determine the holding capacity, which
+will be saved to the anchor object.
+        
 

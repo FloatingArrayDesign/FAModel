@@ -7,13 +7,16 @@ boundary.
 
 ## Bathymetry
 
-MoorPy (the quasi-static mooring analysis tool) can be used to model mooring systems in geographically-accurate locations, including the local seabed bathymetry. An example mooring system and the bathymetry of the Humboldt Wind Energy Area are shown below, with the mooring lines of the mooring system following the slope of the local seabed.
+MoorPy (the quasi-static mooring analysis tool) can be used to model 
+mooring systems in geographically-accurate locations, including the 
+local seabed bathymetry. An example mooring system and the bathymetry 
+of the Humboldt Wind Energy Area are shown below, with the mooring 
+lines of the mooring system following the slope of the local seabed.
+The lease area boundaries are drawn in red at the water line.
 
 ![Humboldt](images/humboldt.PNG)
 
 ![Humboldt](images/slopeview4.PNG)
-
-![Humboldt](images/slopeview3.PNG)
 
 ![Humboldt](images/slopeview2.PNG)
 
