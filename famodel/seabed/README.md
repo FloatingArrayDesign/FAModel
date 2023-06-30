@@ -5,6 +5,28 @@ processing "seabed" information, including bathymetry, soil properties,
 and other spatial properties of a lease area such as the lease area
 boundary. 
 
+## images
+
+Views of a mooring system in the Humboldt Wind Energy Area over bathymetry.
+
+![Humboldt](images/humboldt.PNG)
+
+![Humboldt](images/perspective.PNG)
+
+
+## seabed slope
+
+Views showing the mooring lines of a mooring system following the local seabed slopes.
+
+![Humboldt](images/slopeview5.PNG)
+
+![Humboldt](images/slopeview2.PNG)
+
+![Humboldt](images/slopeview3.PNG)
+
+![Humboldt](images/slopeview4.PNG)
+
+
 ## functions
 
 ### processASC
