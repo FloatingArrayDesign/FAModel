@@ -2,8 +2,10 @@
 the site information and design information that make up a project."""
 
 import moorpy as mp
-from anchors.anchor_capacity import anchorCapacity
+# import raft
 
+from anchors.anchor_capacity import anchorCapacity
+import seabed_tools as sbt
 
 
 class Project():
@@ -22,17 +24,18 @@ class Project():
     
         #self.array = RAFT_model
         
-        self.lattitude  = lat  # lattitude of site reference point [deg]
-        self.longitude  = lon  # longitude of site reference point [deg]
+        self.lat0  = lat  # lattitude of site reference point [deg]
+        self.lon0  = lon  # longitude of site reference point [deg]
         
         self.grid_x      = np.array([0])
         self.grid_y      = np.array([0])
         self.grid_depth  = np.array([[depth]])  # depth at each grid point
         
-        self.seabed_type = 'clay'  # switch of which soil property set to use (TBD)
+        self.seabed_type = 'clay'  # switch of which soil property set to use ('clay', 'sand', or 'rock')
         
         # soil parameters at each grid point
-        self.soil_class = [["none"]]       # soil classification name (TBD)
+        self.soil_mode  = 0                # soil/anchor model level to use (0: none; 1: simple categories; 2: quantitative)
+        self.soil_class = [["none"]]       # soil classification name ('clay', 'sand', or 'rock' with optional modifiers)
         self.soil_gamma = np.zeros((1,1))  # soil effective unit weight [kPa] (all soils)
         self.soil_Su0   = np.zeros((1,1))  # undrained shear strength at mudline [kPa] (clay soils)
         self.soil_K     = np.zeros((1,1))  # undrained shear strength gradient [kPa/m] (clay soils)
@@ -42,9 +45,6 @@ class Project():
         # project boundaries
         self.boundary_Xs = np.zeros(0)
         self.boundary_Ys = np.zeros(0)
-
-    #Component property set processing functions
-    # ----- These functions set up component properties -----
 
 
     # ----- Site conditions processing functions -----
@@ -68,9 +68,31 @@ class Project():
         self.grid_y = np.array(yCoords)
         
         #TODO: add check for existing seabed data. If present, convert or raise warning <<<
+    
+    
+    def loadBoundary(self, filename):
+        '''
+        Load a lease area boundary for the project from an input file.
         
-        
+        Parameters
+        ----------
 
+        filename : path
+            path/name of file containing bathymetry data (format TBD)
+        '''
+        
+        # load data from file
+        Xs, Ys = sbt.processBoundary(filename, self.lat0, self.lon0)
+        
+        # check compatibility with project grid size
+        
+        # save as project boundaries
+        self.boundary_Xs = Xs
+        self.boundary_Ys = Ys
+        
+        # figure out masking to exclude grid data outside the project boundary
+        
+        
     def loadBathymetry(self, filename):
         '''
         Load bathymetry information from an input file (format TBD), convert to
@@ -83,16 +105,13 @@ class Project():
         '''
         
         # load data from file
-        Xs, Yx, Zs = processASC(filename, lat, lon)
+        Xs, Yx, Zs = sbt.processASC(filename, self.lat0, self.lon0)
         
         # interpolate onto grid defined by grid_x, grid_y
         
         # save in object
         
-        
         # also save in RAFT, in its MoorPy System(s)
-
-        pass
         
         
     def loadSoil(self, filename):
@@ -100,26 +119,40 @@ class Project():
         Load geoetechnical information from an input file (format TBD), convert to
         a rectangular grid, and save the grid to the floating array object (TBD).
         
-        The parameters contained in the input file should be:
-        k0
-        k
-        unit weight
-        friction angle
-        soil class
-        ...        
+        The input file should provide rows with the following entries:
+        - x coordinate
+        - y coordinate
+        - class  - soil classification name ('clay', 'sand', or 'rock' with optional modifiers)
+        - gamma* - soil effective unit weight [kPa] (all soils)
+        - Su0*   - undrained shear strength at mudline [kPa] (clay 
+        - K*     - undrained shear strength gradient [kPa/m] (clay 
+        - alpha* - soil skin friction coefficient [-] (clay soils)
+        - phi*   - angle of internal friction [deg] (sand soils)
+        
+        Some (*) parameters are optional depending on the soil class and mode.   
+
+        Irregular sampling points will be supported and interpolated to a 
+        rectangular grid.
         
         Paramaters
         ----------
         filename : path
-            path/name of file containing soil data (format TBD)
+            path/name of file containing soil data
         '''
         
         # load data from file
         
         # interpolate onto grid defined by grid_x, grid_y
         
-        # save in object
-        
+        # save
+        '''
+        self.soil_class
+        self.soil_gamma
+        self.soil_Su0  
+        self.soil_K    
+        self.soil_alpha
+        self.soil_phi  
+        '''
         pass
         
 
@@ -187,12 +220,17 @@ class Project():
         # interpolate soil properties/class based on anchor position
         anchor.soilProps = getSoilAtLocation(anchor.r[0], anchor.r[1])
         
-        # apply anchor capacity model
-        ...(call to appropriate model)
-            capacity, info = anchorCapacity(anchor, 
+        # fill in generic anchor properties if anchor info not provided
+        if not type(anchor.anchorProps) == dict:
+            anchor.anchorProps = dict(type='suction', diameter=6, length=12)
         
-        # save anchor capacity to anchor
-        anchor.capacity = capacity
+        # apply anchor capacity model
+        capacity, info = anchorCapacity(anchorProps, soilProps)
+        
+        # save all information to the anchor (attributes of the Point)
+        anchor.soilProps = soilProps
+        anchor.anchorCapacity = capacity
+        anchor.anchorInfo = info
         
         # also return it
         return capacity
