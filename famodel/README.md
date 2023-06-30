@@ -51,17 +51,21 @@ Sand can also be classified ranging from soft to hard, however only a single san
 
 ## Subpackages
 
-### anchors
+### Anchors
 
 The anchors subpackage contains modules for anchor capacity calculations
 as a function of soil type. It has the following:
-- level-1 capacity curves for general anchor types and soil classes
+- level-1 capacity curves for the following general anchor types and soil classes:
+  - DEAs in soft clay, medium clay, hard clay, or sand
+  - VLAs in soft clay or medium clay
+  - Suction anchors in soft clay or medium clay
+  - SEPLAs in soft clay
 - level-2 capacity functions for select anchor types and quantitative
   soil properties
 - a general anchor capacity calculation 'switchboard' that routes to the
   appropriate functions for specified anchor and soil types.
   
-### seabed
+### Seabed
 
 The seabed subpackage provides a set of functions for inputting and 
 processing "seabed" information, including bathymetry, soil properties,
