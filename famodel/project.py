@@ -38,9 +38,10 @@ class Project():
         self.soil_K     = np.zeros((1,1))  # undrained shear strength gradient [kPa/m] (clay soils)
         self.soil_alpha = np.zeros((1,1))  # soil skin friction coefficient [-] (clay soils)
         self.soil_phi   = np.zeros((1,1))  # angle of internal friction [deg] (sand soils)
-        
-        
 
+        # project boundaries
+        self.boundary_Xs = np.zeros(0)
+        self.boundary_Ys = np.zeros(0)
 
     #Component property set processing functions
     # ----- These functions set up component properties -----

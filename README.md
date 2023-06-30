@@ -7,11 +7,15 @@ the array's behavior considering the site conditions. For example, it combines
 information about site soil conditions and an array's anchor characteristics to
 estimate the holding capacity of each anchor.
 
+
 ## Subpackages
 
 - anchors: contains modules for anchor capacity calculations
+- seabed: contains modules for seabed bathymetry and boundary information
+
+Please navigate into the subfolders for additional information.
 
 
+## Authors
 
-
-
+The NREL Floating Wind Array Design team.
