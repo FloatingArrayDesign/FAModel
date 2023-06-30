@@ -1,38 +1,29 @@
-# seabed library
+# Seabed Library
 
 The seabed subpackage provides a set of functions for inputting and 
 processing "seabed" information, including bathymetry, soil properties,
 and other spatial properties of a lease area such as the lease area
 boundary. 
 
-## images
+## Bathymetry
 
-Views of a mooring system in the Humboldt Wind Energy Area over bathymetry.
+MoorPy (the quasi-static mooring analysis tool) can be used to model mooring systems in geographically-accurate locations, including the local seabed bathymetry. An example mooring system and the bathymetry of the Humboldt Wind Energy Area are shown below, with the mooring lines of the mooring system following the slope of the local seabed.
 
 ![Humboldt](images/humboldt.PNG)
 
-![Humboldt](images/perspective.PNG)
-
-
-## seabed slope
-
-Views showing the mooring lines of a mooring system following the local seabed slopes.
-
-![Humboldt](images/slopeview5.PNG)
-
-![Humboldt](images/slopeview2.PNG)
+![Humboldt](images/slopeview4.PNG)
 
 ![Humboldt](images/slopeview3.PNG)
 
-![Humboldt](images/slopeview4.PNG)
+![Humboldt](images/slopeview2.PNG)
 
 
-## functions
+## Functions
 
 ### processASC
 
-Processes an ASC file of bathymetry information and convert into
-a rectangular bathymetry grid in units of me relative to the 
+Processes an ASC file of bathymetry information and converts into
+a rectangular bathymetry grid in units of meters relative to the 
 project reference point.
 
 ### processBoundary
