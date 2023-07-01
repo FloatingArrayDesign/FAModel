@@ -1,4 +1,4 @@
-# Anchors library
+# Anchors Library
 
 This subpackage of FAModel contains modules for anchor capacity 
 calculations. There are two levels of fidelity in these models:
@@ -14,10 +14,9 @@ This plot gives an example of the capacity curves that can be
 produced by the intermediate model (holding capacity for a suction
 embedded plate anchor) as a function of surface shear strength:
 
-![Humboldt](images/SEPLA curves.png)
+![Capacities](images/SEPLA_curves.PNG)
 
-A summary of the anchor and soil types currently supported in the
-basic level 1 model is as follows:
+### Implemented level-1 model anchor and soil types
 
 |             | DEA | Suction | VLA | SEPLA |
 |-------------|-----|---------|-----|-------|
@@ -26,8 +25,7 @@ basic level 1 model is as follows:
 | Hard clay   | X   |         |     |       |
 | Sand        | X   |         |     |       |
 
-A summary of the soil and anchor properties used for the intermediate 
-models is as follows:
+###Parameters needed for level-2 anchor capacity models
 
 |        **Anchor type** | **Suction** | **Suction** | **VLA**  | **SEPLA** |
 |------------------------|-------------|-------------|----------|-----------|
