@@ -14,29 +14,28 @@ This plot gives an example of the capacity curves that can be
 produced by the intermediate model (holding capacity for a suction
 embedded plate anchor) as a function of surface shear strength:
 
-![Capacities](images/SEPLA_curves.PNG)
+![Capacities](images/SEPLA_curves_small.PNG)
 
 ### Implemented level-1 model anchor and soil types
 
-|             | DEA | Suction | VLA | SEPLA |
-|-------------|-----|---------|-----|-------|
-| Soft clay   | X   | X       | X   | X     |
-| Medium clay | X   | X       | X   | X     |
-| Hard clay   | X   |         |     |       |
-| Sand        | X   |         |     |       |
+|             | Drag emb. | Suction | VLA | SEPLA |
+|-------------|-----------|---------|-----|-------|
+| Soft clay   | X         | X       | X   | X     |
+| Medium clay | X         | X       | X   | X     |
+| Hard clay   | X         |         |     |       |
+| Sand        | X         |         |     |       |
 
-###Parameters needed for level-2 anchor capacity models
+### Parameters needed for level-2 anchor capacity models
 
 |        **Anchor type** | **Suction** | **Suction** | **VLA**  | **SEPLA** |
 |------------------------|-------------|-------------|----------|-----------|
 |        **Soil type**   | **Clay**    | **Sand**    | **Clay** | **Clay**  |
 | **Anchor parameters**  |             |             |          |           |
-|        D               | x           | x           |          |           |
-|        L               | x           | x           |          |           |
-|        A               |             |             | X        | X         |
-|        t               | ratio       | ratio       | ratio    | ratio     |
-|        Hs              |             |             | X        | X         |
-|        Bita            |             |             | X        | X         |
+|        Diameter        | x           | x           |          |           |
+|        Length          | x           | x           |          |           |
+|        Area            |             |             | X        | X         |
+|        Thickness       | ratio       | ratio       | ratio    | ratio     |
+|       Embedment depth  |             |             | X        | X         |
 | **Soil parameters**    |             |             |          |           |
 |        gamma           | X           | X           | X        | X         |
 |        Su0             | X           |             | X        | X         |
