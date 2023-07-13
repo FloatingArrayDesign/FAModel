@@ -150,7 +150,11 @@ def getCoast(Xbath, Ybath, depths):
     xcoast = np.zeros(len(Ybath))
     ycoast = np.zeros(len(Ybath))
     for i in range(len(depths)):
-        ixc = np.argmin(np.abs(depths[i]))
+        j = 0
+        while np.sign(depths[i,j])==1:
+            ixc = j
+            j += 1
+        #ixc = np.argmin(np.abs(depths[i]))
         iyc = len(depths) - i-1
         xcoast[i] = Xbath[ixc]
         ycoast[i] = Ybath[iyc]
@@ -189,6 +193,117 @@ def processBoundary(filename, lat, lon):
     Xs, Ys = convertLatLong2Meters(zerozero, lats, longs)
     
     return Xs, Ys
+
+
+def getInterpNums(xlist, xin, istart=0):  # should turn into function in helpers
+    '''
+    Paramaters
+    ----------
+    xlist : array
+        list of x values
+    xin : float
+        x value to be interpolated
+    istart : int
+        first lower index to try
+    
+    Returns
+    -------
+    i : int
+        lower index to interpolate from
+    fout : float
+        fraction to return   such that y* = y[i] + fout*(y[i+1]-y[i])
+    '''
+    
+    nx = len(xlist)
+  
+    if xin <= xlist[0]:  #  below lowest data point
+        i = 0
+        fout = 0.0
+  
+    elif xlist[-1] <= xin:  # above highest data point
+        i = nx-1
+        fout = 0.0
+  
+    else:  # within the data range
+ 
+        # if istart is below the actual value, start with it instead of 
+        # starting at 0 to save time, but make sure it doesn't overstep the array
+        if xlist[min(istart,nx)] < xin:
+            i1 = istart
+        else:
+            i1 = 0
+
+        for i in range(i1, nx-1):
+            if xlist[i+1] > xin:
+                fout = (xin - xlist[i] )/( xlist[i+1] - xlist[i] )
+                break
+    
+    return i, fout
+
+
+def getDepthFromBathymetry(x, y, bathGrid_Xs, bathGrid_Ys, bathGrid):   #BathymetryGrid, BathGrid_Xs, BathGrid_Ys, LineX, LineY, depth, nvec)
+    ''' interpolates local seabed depth and normal vector
+    
+    Parameters
+    ----------
+    x, y : float
+        x and y coordinates to find depth and slope at [m]
+    
+    Returns
+    -------        
+    depth : float
+        local seabed depth (positive down) [m]
+    nvec : array of size 3
+        local seabed surface normal vector (positive out) 
+    '''
+
+    # get interpolation indices and fractions for the relevant grid panel
+    ix0, fx = getInterpNums(bathGrid_Xs, x)
+    iy0, fy = getInterpNums(bathGrid_Ys, y)
+
+
+    # handle end case conditions
+    if fx == 0:
+        ix1 = ix0
+    else:
+        ix1 = min(ix0+1, bathGrid.shape[1])  # don't overstep bounds
+    
+    if fy == 0:
+        iy1 = iy0
+    else:
+        iy1 = min(iy0+1, bathGrid.shape[0])  # don't overstep bounds
+    
+
+    # get corner points of the panel
+    c00 = bathGrid[iy0, ix0]
+    c01 = bathGrid[iy1, ix0]
+    c10 = bathGrid[iy0, ix1]
+    c11 = bathGrid[iy1, ix1]
+
+    # get interpolated points and local value
+    cx0    = c00 *(1.0-fx) + c10 *fx
+    cx1    = c01 *(1.0-fx) + c11 *fx
+    c0y    = c00 *(1.0-fy) + c01 *fy
+    c1y    = c10 *(1.0-fy) + c11 *fy
+    depth  = cx0 *(1.0-fy) + cx1 *fy
+
+    # get local slope
+    dx = bathGrid_Xs[ix1] - bathGrid_Xs[ix0]
+    dy = bathGrid_Ys[iy1] - bathGrid_Ys[iy0]
+    
+    if dx > 0.0:
+        dc_dx = (c1y-c0y)/dx
+    else:
+        dc_dx = 0.0  # maybe this should raise an error
+    
+    if dx > 0.0:
+        dc_dy = (cx1-cx0)/dy
+    else:
+        dc_dy = 0.0  # maybe this should raise an error
+    
+    nvec = np.array([dc_dx, dc_dy, 1.0])/np.linalg.norm([dc_dx, dc_dy, 1.0])  # compute unit vector      
+
+    return depth, nvec
 
 
 def getPlotBounds(latsorlongs_boundary, zerozero, long=True):
