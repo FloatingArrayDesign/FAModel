@@ -8,7 +8,7 @@ import numpy as np
 
 def getCapacityPlate(A, B_t_aspect=40, Hs=20, Bita=30, Los=0.05, 
                      soil_type='clay', gamma=0, So0=2.39, k=1.41):
-    '''Calculate the inclined load capacity of a Suction Caisson Anchor in sand or clay.
+    '''Calculate the inclined load capacity of a suction-embedded plate anchor in clay.
     The calculation is based on the soil properties, anchor geometry, and the angle of inclined load.  
     
     Parameters
@@ -36,8 +36,10 @@ def getCapacityPlate(A, B_t_aspect=40, Hs=20, Bita=30, Los=0.05,
     -------
     
     '''
-
-    # >>> is gamma with or without water?? <<<
+    
+    if soil_type == 'sand':
+        raise Exception('Only clay soil is supported so far.')
+    
 
  
     St_density= 7850.0 # The steel density in kg/m3
@@ -98,7 +100,7 @@ def getCapacityPlate(A, B_t_aspect=40, Hs=20, Bita=30, Los=0.05,
 
     # ----- final results -----
 
-    Nc_final = np.minimum(Nco + (gamma * Hs)/Suh, Nco_s) # anchor pullout capacity factor [kN ??]
+    Nc_final = np.minimum(Nco + (gamma * Hs)/Suh, Nco_s) # anchor pullout capacity factor [kN]
 
     qu = Nc_final * Suh  # The bearing pressure capacity of the anchor plate
 
