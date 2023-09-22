@@ -5,10 +5,10 @@ from other modules depending on the soil and anchor information."""
 import matplotlib.pyplot as plt
 import numpy as np
 
-import moorpy.moorprops as mprop 
+import moorpy.MoorProps as mprop 
 
-from capacity_plate   import getCapacityPlate
-from capacity_suction import getCapacitySuction
+from anchors.capacity_plate import getCapacityPlate
+from anchors.capacity_suction import getCapacitySuction
 
 
 
@@ -88,7 +88,8 @@ def anchorCapacity(anchor, soil, display=0):
                                     A_angle=F_ang, gamma=gamma, Phi=phi)
             
             else:
-                raise Exception(f"soil class '{soil.class}' is not supported.")
+                #raise Exception(f"soil class '{soil.class}' is not supported.")
+                pass
                 
             
         elif anchor['type'] == 'VLA':
