@@ -16,6 +16,21 @@ of the Humboldt lease area is shown below.
 ![Humboldt](famodel/seabed/images/slopeview4.PNG)
 
 
+## Installation
+
+To run FAModel and ensure you have all the required Python packages, create a 
+new python virtual environment based on the included yaml listing the required 
+dependencies.
+
+In the terminal (Anaconda Powershell Prompt), clone this repository to a 
+directory of your choice, navigate into the main folder of the repository, and 
+run the following command:
+
+    conda env create -f famodel-env.yaml
+
+This command will install all the dependencies required to run FAModel.
+
+
 ## Subpackages
 
 The library has a core Project class for organizing information and an evolving
