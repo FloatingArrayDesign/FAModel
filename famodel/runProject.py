@@ -13,7 +13,7 @@ farm_centroid = (-124.73094, 40.133304)
 deepfarm = Project(centroid=farm_centroid)
 
 # set any maps to include in the plots
-deepfarm.addMap2GDF(filename='famodel/cb_2018_us_state_20m.shp', states=['California'])
+deepfarm.addMap2GDF(filename='cb_2018_us_state_20m.shp', states=['California'])
 
 # set the farm layout of the project
 deepfarm.setFarmLayout(style='grid', nrows=10, ncols=10, turbine_spacing=2000, nOSS=2)

@@ -31,6 +31,19 @@ class Project():
     
     def __init__(self, centroid, lat=0, lon=0, depth=100):
         
+        
+        # ----- design information -----
+        
+        self.nPtfm  = 0  # number of floating platforms
+        self.nAnch = 0   # number of anchors        
+        self.coords = np.zeros([self.nPtfm+self.nAnch, 2]) # x-y coordinate table of platforms and anchors
+        
+        #self.array = RAFT_model
+        
+        # cables >>>
+        
+        
+        # ----- site information -----
 
         # need to check if there is an input centroid or a shapefile (for a lease area)
         self.centroid = centroid
@@ -50,7 +63,6 @@ class Project():
         epsg_code = result.srs.split(":")[1]            # extract the numeric code
 
         self.target_crs = CRS.from_epsg(epsg_code)  # save the target CRS (UTM 10N = 32610)
-
 
         self.lat0  = lat  # lattitude of site reference point [deg]
         self.lon0  = lon  # longitude of site reference point [deg]
@@ -197,8 +209,56 @@ class Project():
 
 
 
+    def load(self, input):
+        '''
+        Load a full set of project information from a dictionary or 
+        YAML file. This calls other methods for each part of it.
+        
+        Parameters
+        ----------
+        input : dict or filename
+            Dictionary or YAML filename containing project info.
+        '''
+        
+        # standard function to load dict if input is yaml
+        
+        # look for site section
+        # call load site method
+        
+        # look for design section
+        # call load design method
+    
+
+    # ----- Design loading/processing methods -----
+    
+    def loadDesign(input):
+        '''Load design information from a dictionary or YAML file
+        (specified by input). This should be the design portion of
+        the floating wind array ontology.'''
+        
+        # standard function to load dict if input is yaml
+        
+        # load FAM-specific model parts
+        
+        # also load RAFT model parts
+        
+
     # ----- Site conditions processing functions -----
 
+    def loadSite(input):
+        '''Load site information from a dictionary or YAML file
+        (specified by input). This should be the site portion of
+        the floating wind array ontology.'''
+        
+        # standard function to load dict if input is yaml
+        
+        # load seabed portions
+        
+        # load lease area portions
+        
+        # load metocean portions
+        
+        
     def setGrid(self, xCoords, yCoords):
         '''
         Set up the rectangular grid over which site or seabed
@@ -392,6 +452,51 @@ class Project():
 
         # 3-D
         pass
+    
+    # ----- general design-related calculations -----
+    
+    def makeDistanceMatrix(self):
+        '''Compute the distance matrix for an array of turbines. This matrix
+        is filled with the horizontal distance between every turbine's 
+        undisplaced position.
+        '''
+        
+        dists = np.zeros([self.nPtfm, self.nPtfm])  # distance matrix
+        
+        for i in range(self.nPtfm):
+            for j in range(self.nPtfm):
+                delta = self.coords[i] - self.coords[j]
+                dists[i,j] = np.diag(delta)
+                dists[j,i] = dists[i,j]
+                
+        return dmat
+    
+    
+    # ----- cable calculation methods -----
+    
+    def calcCableLength(self, cable):
+        '''Calculates a cable's length based on its routing.
+        '''
+
+        # select cable
+        
+        # figure out cable length considering end coordinates and path
+        
+        return length
+    
+    
+    def checkCableExclusions(self, cable):
+        '''Checks whether a cable crosses over any exclusions
+        or other out of bounds areas.
+        '''
+
+        # select cable
+        
+        # check its path against any exclusion areas or boundaries
+        
+        # make a list of any exclusion/nodes that it is too close to
+        
+        return score, list_of_violations
     
 
 '''

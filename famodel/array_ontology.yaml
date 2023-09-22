@@ -1,0 +1,294 @@
+type: draft/example of floating array ontology under construction
+name: 
+comments: 
+
+
+site:
+    general:
+        water_depth : 200        # [m]      uniform water depth
+        rho_water   : 1025.0     # [kg/m^3] water density
+        rho_air     : 1.225      # [kg/m^3] air density
+        mu_air      : 1.81e-05   #          air dynamic 
+        
+    boundaries:
+        [some kind of x,y polygon...]
+    
+    exclusions:
+      - name:
+        type:
+        x_y_r:
+          - [1000, 1200, 20] 
+    
+    seabed:
+        [some gridded info]
+    
+    metocean:
+        extremes:  # extreme values for specified return periods (in years)
+            keys :   [ Hs  , Tp  , ... ]
+            data :
+                1:   [     ,     ,     ]
+                10:  [     ,     ,     ]
+                50:  [     ,     ,     ]
+                500: [     ,     ,     ]
+                
+        probabalistic_bins:
+            keys : [ prob , Hs  , Tp, ...  ]
+            data :
+                -  [ 0.010  ,   ,   ]
+                -  [ 0.006  ,   ,   ]
+                -  [ 0.005  ,   ,   ]
+    resource :
+        [see what's in Task 37 ontology section]
+
+
+array:         # [copy from RAFT style for the moment]
+    keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
+    data : #    ID#        ID#        ID#          [m]             [m]           [deg]
+        -  [     1,         1,         1,             0,              0,          180   ]    # 2 array, shared moorings
+        -  [     2,         1,         2,          1600,              0,            0   ]  
+
+    
+turbine(s):
+    [RAFT style  OR  WindIO] 
+
+
+platform(s):
+    [RAFT style  OR  WindIO]
+
+
+#layout (take the info in Stein's approach, but maybe in a table arrangement for easier adjusting?)
+
+    
+Anchors
+    keys : [type,  x,  y,  embedment ]
+    data :
+      -  [      ,   ,   ,     ]
+      -  [      ,   ,   ,     ]
+
+
+anchor_types:
+    Name: suction1
+        Diameter
+        Length
+        Embedment depth
+        …
+        
+    
+Mooring line layout:
+    MooringCOnfigID  ,  end A,   end B
+    Taut-Poly_1      ,  FOWT 1,  Anch 1
+    Taut-Poly_1      ,  FOWT 1,  Anch 2
+    Taut-Poly_2      ,  FOWT 1,  Anch 3
+
+
+Mooring configurations
+    
+    taut-poly_1
+        name: Taut polyester configuration 1
+        
+        sections:
+          - type: chain_160       # ID of a mooring line section type
+            length: 80            # [m] length (unstretched)
+            connector: h_link   # ID of a connector type (optional)
+            
+          - type: poly_180        # ID of a mooring line section type
+            length: 762           # [m] length (unstretched)
+            connector: shackle  # ID of a connector type (optional)
+            
+        attachment:
+            type: ?  # fairlead/pivot/other?
+            coordinate: [58,0,-14]?  # relative position on platform??
+
+
+    Name: shared-2-clump
+        Symmetric: True
+        Line Section 1
+            Name (section type)
+            Length
+        Connection Point
+            Mass Volume
+        Line Section 2
+            Name (section type)
+            Length
+        rAFair: [x,y,z]?
+        rBFair: [x,y,z]?
+        
+    
+mooring_line_section_types:
+    polyester_1 :
+        EA
+        MBL
+(or)
+       
+    keys :   name,   EA ,  MBL ...]
+    data :
+        -    poly1  , 3232, 23
+        -    chain27, 3232, 23
+    
+mooring_connector_types:
+    h_link:
+        mass   :
+        volume :
+
+
+
+array_cables:
+  - name : cable 27  # optional?   
+    type : static_cable_80   # cable section type ID
+    length  :             # (this would be redundant with routing info lower down)
+    
+    end A  
+        attachID: FOWT 1               # FOWT/substation/junction ID
+        heading:  180                  # [deg] heading of attachment at end A
+        dynamic: dynamic_lazy_wave1    # type of dynamic cable making this connection, if applicable
+    
+    end B 
+        attachID: 
+        heading B : 
+        dynamic B : 
+    
+    routing_x_y_r:  # vertex points along the cable route. Nonzero radius wraps around a point at that radius.
+      - [1000, 1200, 20] 
+      - [2000, 1500, 20] 
+    
+    burial:
+        station: [0, 1]      # length along cable
+        depth  : [0.1, 0.2]  # [m] burial depth
+
+
+
+
+
+array_cables_simple:   # more compact alternative, without routing info
+    # AttachA, AttachB,  DynCA,    DynCB,   headingA, headingB,   type
+    - [                                                               ]
+
+dynamic_cables:
+
+    dynamic_lazy_wave1
+        name: Lazy wave configuration 1 (simpler approach)
+        voltage: 66  [kV]
+        
+        spacing :     # [m] horizontal distance to end of dynamic cable (junction)
+        
+        sections:
+          - type: dynamic_cable_27        # ID of a cable section type1
+            length: 200                   # [m] length (unstretched)
+            
+          - type: dynamic_cable_27_w_buoy # (section properties including averaged effect of buoyancy modules)
+            length: 300                  
+            
+          - type: dynamic_cable_27 
+            length: 200            
+            
+        attachment:
+            type: j-tube
+            coordinate:   # relative location
+    
+
+    dynamic_lazy_wave2
+        name: Lazy wave configuration 1 (more detailed approach)
+        voltage: 66  [kV]
+        sections:
+          - type: dynamic_cable_27        # ID of a cable section type1
+            length: 200                   # [m] length (unstretched)
+            appendages:
+                type: buoyancy_module_1
+                locations: [10,12,13.5,15,18]
+                
+        attachment:
+            type: j-tube
+            coordinate:   # relative location
+       
+    
+cable_types:
+
+    static_80 :
+        A
+        V
+        I
+        EA
+        EI
+        MBL
+        MBR
+(or)    
+    
+    keys :   name,   EA ,  MBL ...]
+    data :
+        -    static_80 , 3232, 23
+        -    dynamic_80, 3232, 23
+
+
+
+cable JOINTS
+
+   
+mooring:
+    water_depth: 200                                  # [m]       uniform water depth
+    
+    points:
+        - name: line1_anchor
+          type: fixed
+          location: [-837, 0.0, -200.0]
+          anchor_type: drag_embedment
+
+        - name: line2_anchor
+          type: fixed
+          location: [418, 725, -200.0]
+          anchor_type: drag_embedment
+
+        - name: line3_anchor
+          type: fixed
+          location: [418, -725, -200.0]
+          anchor_type: drag_embedment
+
+        - name: line1_vessel
+          type: vessel
+          location: [-58,      0.0,     -14.0]
+
+        - name: line2_vessel
+          type: vessel
+          location: [29,      50,     -14.0]
+
+        - name: line3_vessel
+          type: vessel
+          location: [29,     -50,     -14.0]
+
+    lines:
+        - name: line1
+          endA: line1_anchor
+          endB: line1_vessel
+          type: chain
+          length: 850
+
+        - name: line2
+          endA: line2_anchor
+          endB: line2_vessel
+          type: chain
+          length: 850
+
+        - name: line3
+          endA: line3_anchor
+          endB: line3_vessel
+          type: chain
+          length: 850
+
+    line_types:
+        - name: chain
+          diameter:         0.185
+          mass_density:   685.0
+          stiffness:     3270e6
+          breaking_load:    1e8
+          cost: 100.0
+          transverse_added_mass: 1.0
+          tangential_added_mass: 0.0
+          transverse_drag: 1.6
+          tangential_drag: 0.1
+
+    anchor_types:
+        - name: drag_embedment
+          mass: 1e3
+          cost: 1e4
+          max_vertical_load: 0.0
+          max_lateral_load: 1e5
+    
