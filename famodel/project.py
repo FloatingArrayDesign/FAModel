@@ -11,6 +11,8 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 from pyproj import CRS
+from pyproj.aoi import AreaOfInterest
+from pyproj.database import query_utm_crs_info
 
 from anchors.anchor_capacity import anchorCapacity
 import seabed.seabed_tools as sbt
@@ -33,7 +35,21 @@ class Project():
         # need to check if there is an input centroid or a shapefile (for a lease area)
         self.centroid = centroid
         self.gdf = gpd.GeoDataFrame({'name':'centroid', 'geometry': [Point(self.centroid)]}, crs='EPSG:4326')
-        
+
+        # set the target coordinate reference system (CRS) that will switch between regular lat/long system and "meters from centroid" system
+        utm_crs_list = query_utm_crs_info(
+            datum_name="WGS 84",
+            area_of_interest=AreaOfInterest(
+                west_lon_degree=self.centroid[0],
+                east_lon_degree=self.centroid[0],
+                north_lat_degree=self.centroid[1],
+                south_lat_degree=self.centroid[1],
+            ),
+        )
+        result = CRS.from_epsg(utm_crs_list[0].code)    # get the CRS information
+        epsg_code = result.srs.split(":")[1]            # extract the numeric code
+
+        self.target_crs = CRS.from_epsg(epsg_code)  # save the target CRS (UTM 10N = 32610)
 
 
         self.lat0  = lat  # lattitude of site reference point [deg]
@@ -87,10 +103,6 @@ class Project():
 
     def setFarmLayout(self, style='grid', nrows=10, ncols=10, turbine_spacing=2000, nOSS=2):
 
-        # eventually, automatically calculate the UTM zone that the project is in based on the centroid/lease area
-        # for now, manually set the coordinate reference system (changes things into easting and northing coordinates)
-        target_crs = CRS.from_epsg(32610)       # 32610 = UTM zone 10N; uses pyproj
-
         if style=='grid':
             # for now, this is very custom code specific to the DeepFarm project
             farmxspacing = (nrows-1)*turbine_spacing
@@ -106,7 +118,7 @@ class Project():
             turbine_distances_from_centroid.append((11000.0, -5000.0))
 
         # create a copy of the global gdf and transform it into the easting/northing coordinate reference system
-        gdf_utm = self.gdf.copy().to_crs(target_crs)
+        gdf_utm = self.gdf.copy().to_crs(self.target_crs)
         xcentroid = gdf_utm.loc[gdf_utm['name']=='centroid'].centroid.x[0]
         ycentroid = gdf_utm.loc[gdf_utm['name']=='centroid'].centroid.y[0]
 
@@ -116,7 +128,7 @@ class Project():
             turbine_geoms.append( Point(xcentroid + x, ycentroid + y) )
         
         # make a new gdf to put this data together
-        turbine_gdf = gpd.GeoDataFrame({'name': ['turbine_pos']*len(turbine_geoms), 'geometry': turbine_geoms}, crs=target_crs)
+        turbine_gdf = gpd.GeoDataFrame({'name': ['turbine_pos']*len(turbine_geoms), 'geometry': turbine_geoms}, crs=self.target_crs)
 
         # convert the turbine coordinates back to regular latitude/longitude (EPSG: 4326)
         turbine_gdf = turbine_gdf.to_crs('EPSG:4326')
@@ -154,7 +166,6 @@ class Project():
         # to get the columns of a gdf: gdf.columns
         # merging gdf's
         # adding columns to gdf's
-
 
         return fig, ax
 
