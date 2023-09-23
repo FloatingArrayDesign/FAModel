@@ -19,8 +19,8 @@ deepfarm.addMap2GDF(filename='cb_2018_us_state_20m.shp', states=['California'])
 deepfarm.setFarmLayout(style='grid', nrows=10, ncols=10, turbine_spacing=2000, nOSS=2)
 
 # plot whatever you want of the Project using geopandas
-fig, ax = deepfarm.plot({'centroid': {'color':'black'}, 'map': {'color':'tab:blue', 'boundary':True}, 'farm': {'color':'r'}})
-
+fig, ax = deepfarm.plot({'centroid': {'color':'black', 'label':True}, 'map': {'color':'tab:blue', 'boundary':True}})#, 'farm': {'color':'r'}})
+'''
 # add other things that you want to the plot, if desired
 nrel_channel = Point(-120.66088, 34.188565)
 nrel_humboldt = Point(-124.73094, 40.133304)
@@ -30,7 +30,7 @@ pointlist = [ nrel_channel, nrel_humboldt, nrel_crescent_city, hawaii ]
 
 deepfarm.addPoints(ax=ax, pointlist=pointlist, kwargs={'pointlist': {'color':'g', 'marker':'x'}})
 deepfarm.addState(ax=ax, states=['Hawaii'], kwargs={'Hawaii': {'color':'tab:blue', 'boundary':True}})
-
+'''
 
 plt.show()
 

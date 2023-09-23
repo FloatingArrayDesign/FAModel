@@ -155,13 +155,16 @@ class Project():
 
         if 'centroid' in kwargs:
             centroid_settings = kwargs['centroid']
+            if 'label' in centroid_settings:
+                centroid_label = 'centroid'
         if 'map' in kwargs:
             map_settings = kwargs['map']
         if 'farm' in kwargs:
             farm_settings = kwargs['farm']
 
         fig, ax = plt.subplots(1,1)
-        self.gdf.loc[self.gdf['name']=='centroid'].plot(ax=ax, color=centroid_settings['color'])
+
+        self.gdf.loc[self.gdf['name']=='centroid'].plot(ax=ax, color=centroid_settings['color'], label=centroid_label)
 
         if 'boundary' in map_settings:
             map_boundary = self.gdf.loc[self.gdf['name']=='California'].boundary
@@ -172,6 +175,7 @@ class Project():
         
         ax.set_xlabel('Longitude')
         ax.set_ylabel('Latitude')
+        ax.legend()
         
         # Some GeoPandas Help
         # to plot just one entry of a geoseries: gdf.loc[[0],'geometry'].plot()
