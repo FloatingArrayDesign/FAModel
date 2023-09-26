@@ -1,4 +1,4 @@
-
+import os
 from project import Project
 from shapely.geometry import Point
 import matplotlib.pyplot as plt
@@ -13,13 +13,13 @@ farm_centroid = (-124.73094, 40.133304)
 deepfarm = Project(centroid=farm_centroid)
 
 # set any maps to include in the plots
-deepfarm.addMap2GDF(filename='cb_2018_us_state_20m.shp', states=['California'])
+deepfarm.addMap2GDF(filename=os.path.dirname(os.path.realpath(__file__))+'/cb_2018_us_state_20m.shp', states=['California'])
 
 # set the farm layout of the project
-deepfarm.setFarmLayout(style='grid', nrows=10, ncols=10, turbine_spacing=2000, nOSS=2)
+deepfarm.setFarmLayout(style='shared', nrows=10, ncols=10, turbine_spacing=2000, nOSS=2)
 
 # plot whatever you want of the Project using geopandas
-fig, ax = deepfarm.plot({'centroid': {'color':'black', 'label':True}, 'map': {'color':'tab:blue', 'boundary':True}})#, 'farm': {'color':'r'}})
+fig, ax = deepfarm.plot({'centroid': {'color':'black', 'label':True}, 'map': {'color':'tab:blue', 'boundary':True}, 'farm': {'turbine': {'color':'r'}, 'oss': {'color':'b'}}})
 '''
 # add other things that you want to the plot, if desired
 nrel_channel = Point(-120.66088, 34.188565)

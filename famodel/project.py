@@ -47,7 +47,7 @@ class Project():
 
         # need to check if there is an input centroid or a shapefile (for a lease area)
         self.centroid = centroid
-        self.gdf = gpd.GeoDataFrame({'name':'centroid', 'geometry': [Point(self.centroid)]}, crs='EPSG:4326')
+        self.gdf = gpd.GeoDataFrame({'type':'centroid', 'geometry': [Point(self.centroid)]}, crs='EPSG:4326')
 
         # set the target coordinate reference system (CRS) that will switch between regular lat/long system and "meters from centroid" system
         utm_crs_list = query_utm_crs_info(
@@ -102,51 +102,137 @@ class Project():
                          'Connecticut','New Jersey','Washington D.C.','North Carolina','Utah','North Dakota','South Carolina','Mississippi','Colorado',         # 34-42
                          'South Dakota','Oklahoma','Wyoming','West Virginia','Maine','Hawaii','New Hampshire','Arizona','Rhode Island']                         # 43-51
         # insert names of the states into the new gdf
-        usa.insert(0, 'name', statenamelist)
+        usa.insert(0, 'type', statenamelist)
         # set the CRS of the USA pdf to the right CRS
         usa.set_crs(crs="EPSG:4326", inplace=True)
         self.usa = usa
         
         for state in states:
-            state_gs = usa.loc[usa['name']==state]
+            state_gs = usa.loc[usa['type']==state]
             self.gdf = pd.concat([self.gdf, state_gs])
     
 
 
     def setFarmLayout(self, style='grid', nrows=10, ncols=10, turbine_spacing=2000, nOSS=2):
-
+        
         if style=='grid':
             # for now, this is very custom code specific to the DeepFarm project
             farmxspacing = (nrows-1)*turbine_spacing
             farmyspacing = (ncols-1)*turbine_spacing
+
             turbine_distances_from_centroid = []
+            oss_distances_from_centroid = []
             for j in reversed(range(ncols)):
                 for i in range(nrows):
                     xpos = -(farmxspacing/2)+(i*turbine_spacing)
                     ypos = -(farmyspacing/2)+(j*turbine_spacing)
                     turbine_distances_from_centroid.append((xpos, ypos))
+            
             # add positions of two offshore substations (OSSs)
-            turbine_distances_from_centroid.append((11000.0, 5000.0))
-            turbine_distances_from_centroid.append((11000.0, -5000.0))
+            oss_distances_from_centroid.append((11000.0, 5000.0))
+            oss_distances_from_centroid.append((11000.0, -5000.0))
+        
+        if style=='shared':
+            turbine_xspacing = np.sqrt(2000**2-1000**2)
+            turbine_yspacing = 2000
+            farmxspacing = turbine_xspacing*9
+            farmyspacing = turbine_yspacing*9
+
+            turbine_distances_from_centroid = []
+            oss_distances_from_centroid = []
+            for j in reversed(range(ncols)):
+                for i in range(nrows):
+                    xpos = -(farmxspacing/2)+(i*turbine_xspacing)
+                    ypos = -(farmyspacing/2)+(j*turbine_yspacing) - 1000*np.sin(np.radians(30)) + 1000*(i%2)
+                    turbine_distances_from_centroid.append((xpos, ypos))
+            
+            # add positions of two offshore substations (OSSs)
+            oss_distances_from_centroid.append((5.5*turbine_xspacing, 2.0*turbine_yspacing+1000*np.sin(np.radians(30))))
+            oss_distances_from_centroid.append((5.5*turbine_xspacing, -2.5*turbine_yspacing-1000*np.sin(np.radians(30))))
+        
+        if style=='small-shared':
+            turbine_xspacing = np.sqrt(2000**2-1000**2)
+            turbine_yspacing = 2000
+            farmxspacing = turbine_xspacing*1
+            farmyspacing = turbine_yspacing*2
+
+            turbine_distances_from_centroid = []
+            oss_distances_from_centroid = []
+            for j in reversed(range(3)):
+                for i in range(2):
+                    xpos = -(farmxspacing/2)+(i*turbine_xspacing)
+                    ypos = -(farmyspacing/2)+(j*turbine_yspacing) - 1000*np.sin(np.radians(30)) + 1000*(i%2)
+                    turbine_distances_from_centroid.append((xpos, ypos))
+            
+            # add positions of two offshore substations (OSSs)
+            oss_distances_from_centroid.append((-0.5*turbine_xspacing, 2.0*turbine_yspacing-1000*np.sin(np.radians(30))))
+        
 
         # create a copy of the global gdf and transform it into the easting/northing coordinate reference system
         gdf_utm = self.gdf.copy().to_crs(self.target_crs)
-        xcentroid = gdf_utm.loc[gdf_utm['name']=='centroid'].centroid.x[0]
-        ycentroid = gdf_utm.loc[gdf_utm['name']=='centroid'].centroid.y[0]
+        xcentroid = gdf_utm.loc[gdf_utm['type']=='centroid'].centroid.x[0]
+        ycentroid = gdf_utm.loc[gdf_utm['type']=='centroid'].centroid.y[0]
 
         # create shapely Point objects of the turbine positions relative to the centroid, in the UTM CRS
         turbine_geoms = []
         for i,(x,y) in enumerate(turbine_distances_from_centroid):
             turbine_geoms.append( Point(xcentroid + x, ycentroid + y) )
         
-        # make a new gdf to put this data together
-        turbine_gdf = gpd.GeoDataFrame({'name': ['turbine_pos']*len(turbine_geoms), 'geometry': turbine_geoms}, crs=self.target_crs)
+        oss_geoms = []
+        for i,(x,y) in enumerate(oss_distances_from_centroid):
+            oss_geoms.append( Point(xcentroid + x, ycentroid + y) )
+        
+        # make a new gdf to put the turbine data together
+        turbine_gdf = gpd.GeoDataFrame({'type': ['turbine']*len(turbine_geoms), 'geometry': turbine_geoms}, crs=self.target_crs)
+        # make a new gdf to put the substation data together
+        oss_gdf = gpd.GeoDataFrame({'type': 'substation', 'geometry': oss_geoms}, crs=self.target_crs)
+        # merge these two geodataframes together into one (best way I can find to "add" rows to a dataframe; ignoring index makes all indices a different number)
+        turbine_gdf = pd.concat([turbine_gdf, oss_gdf], ignore_index=True)
 
-        # convert the turbine coordinates back to regular latitude/longitude (EPSG: 4326)
+        # convert the turbine/oss coordinates back to regular latitude/longitude (EPSG: 4326)
         turbine_gdf = turbine_gdf.to_crs('EPSG:4326')
 
         # add the turbine gdf to the global gdf
-        self.gdf = pd.concat([self.gdf, turbine_gdf])
+        self.gdf = pd.concat([self.gdf, turbine_gdf], ignore_index=True)
+
+        # add local variables in this method to the turbine_gdf to be used later (but don't need for the global gdf)
+        turbine_gdf.insert(2, 'easting_northing_geometry', turbine_geoms + oss_geoms)
+        turbine_gdf.insert(3, 'meters_from_centroid', turbine_distances_from_centroid + oss_distances_from_centroid)
+
+        # save this new turbine_gdf for future use
+        self.turbine_gdf = turbine_gdf
+
+        # make a layout CSV (used for WHaLE/WAVES)
+        self.makeLayoutCSV()
+
+    
+
+    def makeLayoutCSV(self, filename='layout_test.csv'):
+
+        turbine_longs = [point.coords[0][0] for point in self.turbine_gdf.geometry]
+        turbine_lats = [point.coords[0][1] for point in self.turbine_gdf.geometry]
+
+        self.turbine_gdf.insert(2, 'longitude', turbine_longs)
+        self.turbine_gdf.insert(3, 'latitude', turbine_lats)
+
+        turbine_eastings = [point.coords[0][0] for point in self.turbine_gdf['easting_northing_geometry']]
+        turbine_northings = [point.coords[0][1] for point in self.turbine_gdf['easting_northing_geometry']]
+
+        #self.turbine_gdf.insert(5, 'easting', turbine_eastings)
+        #self.turbine_gdf.insert(6, 'northing', turbine_northings)
+
+        turbine_x_from_centroid = [point[0] for point in self.turbine_gdf['meters_from_centroid']]
+        turbine_y_from_centroid = [point[1] for point in self.turbine_gdf['meters_from_centroid']]
+
+        self.turbine_gdf.insert(5, 'easting', turbine_x_from_centroid)
+        self.turbine_gdf.insert(6, 'northing', turbine_y_from_centroid)
+
+        self.turbine_gdf.insert(8, 'floris_x', turbine_x_from_centroid)
+        self.turbine_gdf.insert(9, 'floris_y', turbine_y_from_centroid)
+
+        columns = ['type', 'longitude', 'latitude', 'easting', 'northing', 'floris_x', 'floris_y']
+        df = pd.DataFrame(self.turbine_gdf)
+        df.to_csv(filename, columns=columns)
 
 
         
@@ -164,14 +250,15 @@ class Project():
 
         fig, ax = plt.subplots(1,1)
 
-        self.gdf.loc[self.gdf['name']=='centroid'].plot(ax=ax, color=centroid_settings['color'], label=centroid_label)
+        self.gdf.loc[self.gdf['type']=='centroid'].plot(ax=ax, color=centroid_settings['color'], label=centroid_label)
 
         if 'boundary' in map_settings:
-            map_boundary = self.gdf.loc[self.gdf['name']=='California'].boundary
+            map_boundary = self.gdf.loc[self.gdf['type']=='California'].boundary
             map_boundary.plot(ax=ax, color=map_settings['color'])
         
         if 'farm' in kwargs:
-            self.gdf.loc[self.gdf['name']=='turbine_pos'].plot(ax=ax, color=farm_settings['color'])
+            self.gdf.loc[self.gdf['type']=='turbine'].plot(ax=ax, color=farm_settings['turbine']['color'], label='turbine')
+            self.gdf.loc[self.gdf['type']=='substation'].plot(ax=ax, color=farm_settings['oss']['color'], label='substation')
         
         ax.set_xlabel('Longitude')
         ax.set_ylabel('Latitude')
@@ -190,7 +277,7 @@ class Project():
 
         point_settings = kwargs['pointlist']
 
-        points = gpd.GeoDataFrame({'name':['nrel_channel','nrel_humboldt','nrel_crescent_city','hawaii'],
+        points = gpd.GeoDataFrame({'type':['nrel_channel','nrel_humboldt','nrel_crescent_city','hawaii'],
                                    'geometry': pointlist}, crs='EPSG:4326')
         
         points.plot(ax=ax, color=point_settings['color'], marker=point_settings['marker'])
@@ -201,11 +288,11 @@ class Project():
         for state in states:
             state_settings=kwargs[state]
 
-            state_geom = self.usa.loc[self.usa['name']==state]
+            state_geom = self.usa.loc[self.usa['type']==state]
             if 'boundary' in state_settings:
                 state_geom = state_geom.boundary
 
-            newstate = gpd.GeoDataFrame({'name':state, 'geometry':state_geom}, crs='EPSG:4326')
+            newstate = gpd.GeoDataFrame({'type':state, 'geometry':state_geom}, crs='EPSG:4326')
 
             newstate.plot(ax=ax, color=state_settings['color'])
 
