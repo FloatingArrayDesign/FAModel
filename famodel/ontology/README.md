@@ -15,30 +15,30 @@ Task 37 developed [plant-level and turbine-level ontologies](https://windio.read
 The current floating array ontology has a number of additions and differences that
 better suit the scope and emphasis of floating wind arrays. The sections are as follows:
 
-* [Site                              ](# site)
-  * [General                         ](# general)
-  * [Boundaries                      ](# boundaries)
-  * [Exclusions                      ](# exclusions)
-  * [Seabed                          ](# seabed)
-  * [Metocean                        ](# metocean)
-  * [Resource                        ](# resource)
-* [Array                             ](# array)
-  * [Array Layout                    ](# array-layout)
-  * [Array Mooring                   ](# array-mooring)
-  * [Array Cables                    ](# array-cables)
-* [Turbine(s)                        ](# turbines)
-* [Platform(s)                       ](# platforms)
-* [Mooring                           ](# mooring)
-  * [Mooring Systems                 ](# mooring-systems)
-  * [Mooring line configurations     ](# mooring-line-configurations)
-  * [Mooring line section properties ](# mooring-line-section-properties)
-  * [Mooring Connectors              ](# mooring-connectors)
-  * [Anchor types                    ](# anchor-types)
-* [Cables                            ](# cables)
-  * [Cables with Routing             ](# cables-with-routing)
-  * [Dynamic Cable Configurations    ](# dynamic-cable-configurations)
-  * [Cable Cross Sectional Properties](# cable-cross-sectional-properties)
-  * [Cable Appendages                ](# cable-appendages)
+* [Site](#site)
+  * [General                         ](#general)
+  * [Boundaries                      ](#boundaries)
+  * [Exclusions                      ](#exclusions)
+  * [Seabed                          ](#seabed)
+  * [Metocean                        ](#metocean)
+  * [Resource                        ](#resource)
+* [Array                             ](#array)
+  * [Array Layout                    ](#array-layout)
+  * [Array Mooring                   ](#array-mooring)
+  * [Array Cables                    ](#array-cables)
+* [Turbine(s)                        ](#turbines)
+* [Platform(s)                       ](#platforms)
+* [Mooring                           ](#mooring)
+  * [Mooring Systems                 ](#mooring-systems)
+  * [Mooring line configurations     ](#mooring-line-configurations)
+  * [Mooring line section properties ](#mooring-line-section-properties)
+  * [Mooring Connectors              ](#mooring-connectors)
+  * [Anchor types                    ](#anchor-types)
+* [Cables                            ](#cables)
+  * [Cables with Routing             ](#cables-with-routing)
+  * [Dynamic Cable Configurations    ](#dynamic-cable-configurations)
+  * [Cable Cross Sectional Properties](#cable-cross-sectional-properties)
+  * [Cable Appendages                ](#cable-appendages)
 
 The following sections give an overview of the array ontology makeup with examples. 
 
@@ -118,7 +118,7 @@ is needed for logistics analysis to inform vessel availability. To reduce the nu
 csv filename. 
 
 ```yaml
-	 metocean:
+    metocean:
         extremes:  # extreme values for specified return periods (in years)
             keys :   [ Hs  , Tp  , WindSpeed, TI, Shear, Gamma, CurrentSpeed ]
             data :
@@ -170,7 +170,7 @@ Alternatively, the mooringID can be set to zero and the mooring system can be
 input in the [array_mooring](#array-mooring) section.
 
 ```yaml
-    array:         # [copy from RAFT style for the moment]
+array:         # [copy from RAFT style for the moment]
     keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
         -  [     1,         1,         1,             0,              0,          180   ] 
@@ -191,7 +191,7 @@ array_mooring:
     anchor_data :
         - [  1,  suction1,   ,   ,     ]
         - [  2,  suction1,   ,   ,     ]
-	
+    
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  lengthAdjust]
     line_data :
@@ -396,12 +396,11 @@ The parameters align with the FAModel
 ```yaml        
 anchor_types:
     suction1:
-		name   : standard suction pile
+        name   : standard suction pile
         d      :    # [m] Diameter
-		L      :    # [m] Length
-		t      :    # [mm] Thickness
-		h      :    # [m] Embedment depth
-        …
+        L      :    # [m] Length
+        t      :    # [mm] Thickness
+        h      :    # [m] Embedment depth
 ```
 
 
