@@ -99,14 +99,18 @@ in the file, the resource section inputs a filename which contains the resource 
 ```
 
 ## Array
-The array section summarizes the floating wind turbines in the array. The section inputs a list where each entry corresponds to a wind turbine.
-The turbineID and platformID are specified for each, connecting to details in the Turbine and Platform sections. This allows the user to easily 
-specify different turbine or platform types throughout the array. Similarly, the mooringID is included and refers to the mooring_systems section.
+The array section summarizes the floating wind turbines in the array. The 
+section inputs a list where each entry corresponds to a wind turbine.
+The turbineID and platformID are specified for each, connecting to details in 
+the [Turbine](#turbines) and [Platform](#platforms) sections. This allows the user to easily 
+specify different turbine or platform types throughout the array. 
+Similarly, the mooringID is included and refers to the [mooring_systems](#mooring-systems) section.
 This allows the user to set up general mooring systems to be used throughout the array. Additionally, the x and y locations are input and the heading adjustment.
 The heading adjustment refers to a rotation of the mooring system, relative to how it is defined in the mooring_systems section. This allows the user to 
 easily define a single mooring system for various rotations throughout the array.
 
-Alternatively, the mooringID can be set to zero and the mooring system can be input in the array_mooring section.
+Alternatively, the mooringID can be set to zero and the mooring system can be 
+input in the [array_mooring](#array-mooring) section.
 
 ```python
     array:         # [copy from RAFT style for the moment]
@@ -148,12 +152,43 @@ array_mooring:  # this is an array-level list, in addition to any per-mooring-sy
 
 ```
 
-### Turbine(s)
-The turbine section can contain either a single turbine or a list of turbines, depending on the scenario. The information and layout of this 
-section was taken from RAFT. 
+### Array Cables
 
-###Platform(s)
-The platform section similarly can contain either a single platform or a list of platforms. The information and layout of this section was taken from RAFT.
+This section provides a straightforward and compact way to define the power
+cables in the array. For each end (A and B) of the cable, it specifies the
+turbine attached to, the 
+[dynamic cable configuration](#dynamic-cable-configurations) used, and the heading
+of the dynamic cable. The type of the static cable is also specified.
+This method does not consider routing, and would assume the static cable takes
+a straight path from the ends of the dynamic cables. 
+For additional detail related to cable routing, the alternative [cable](#cables-with-routing)
+section should be used.
+
+```yaml
+array_cables:
+    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB, headingA, headingB, cableType]
+    data:
+        - [ turbine1, turbine2, lazy_wave1, lazy_wave1,      180,       30, static_36] 
+        - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
+```
+
+### Turbine(s)
+
+The turbine section can contain either a single turbine or a list of turbines, 
+depending on the scenario. By default, the format follows that of
+[RAFT](openraft.readthedocs.io). However, support will be added for linking to
+turbine design descriptions that follow
+the WindIO ontology format, which is also used by [WEIS](weis.readthedocs.io).
+
+### Platform(s)
+
+This section defines the floating support structures used in the design. As in
+the previous section, it can contain a single turbine or a list of turbines. 
+By default, the format here follows that used by 
+[RAFT](openraft.readthedocs.io) input files. However,
+support will be added for also linking to platform descriptions that follow
+the WindIO ontology format, which is also used by [WEIS](weis.readthedocs.io).
+
 
 ## Mooring
 
@@ -310,15 +345,16 @@ anchor_types:
 This section describes the cables through the array including both static 
 and dynamic portions of cables. At the top level, each array cable going
 between a pair of turbines (or a turbine and a substation) is defined. 
-This definition can either occur in the [array_cables]() section or the
-[cables]() section. The latter provides additional options for defining
+This definition can either occur in the [array_cables](#array-cables) 
+section or the [cables](#cables-with-routing) section. 
+The latter provides additional options for defining
 the cable routing and burial depth.
 
-### Detailed Array Cable Descriptions
+### Cables with Routing
 
 The cables section contains a list of every cable in the array. Here, a cable
 is defined as the full assembly of electrical connection equipment between
-two turbines or a turbine and a substation. Similar to the [array_cables]() 
+two turbines or a turbine and a substation. Similar to the [array_cables](#array-cables) 
 section, 'type' links to the cross-section property description of the static
 portion of the cable. endA and endB sections define what each end of the cable
 is attached to, at what heading it comes off at, and what dynamic cable
@@ -361,13 +397,13 @@ Similar to the mooring_line_configs section, it details the assembly of
 cable section that make up a dynamic cable profile, with links to the cross
 sectional cable properties. Dynamic cable configurations have some special
 properties including specification of the voltage, and the option of 
-specifying 'appendages' along the cable length, which can represent discrete
-objects like buoyancy modules.
+specifying 'appendages' along the cable length, which can represent [discrete
+objects](#cable-appendages) like buoyancy modules.
 
 ```python
  dynamic_cable_configs:
 
-    dynamic_lazy_wave1
+    lazy_wave1
         name: Lazy wave configuration 1 (simpler approach)
         voltage: 66 # [kV]
         span :     # [m] horizontal distance to end of dynamic cable
@@ -387,7 +423,7 @@ objects like buoyancy modules.
             coordinate:   # relative location
     
 
-    dynamic_lazy_wave2
+    lazy_wave2
         name: Lazy wave configuration 1 (more detailed approach)
         voltage: # [kV]
         span :     # [m] horizontal distance to end of dynamic cable
@@ -444,7 +480,8 @@ This section lists any cable appendages that might be added to the cables,
 such as buoyancy modules or cable protection system components. Each entry
 is given an identifier and can have a variety of parameters that describe
 its lumped properties, such as mass, volume, and drag coefficient-area
-product. These appendages are used in the dynamic_cable_configs section.
+product. These appendages are used in the 
+[dynamic_cable_configs](#dynamic-cable-configurations) section.
 
 ```python
   cable_appendages:

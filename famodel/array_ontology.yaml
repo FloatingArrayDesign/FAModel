@@ -79,9 +79,10 @@ array_mooring:  # this is an array-level list, in addition to any per-mooring-sy
 
 
 array_cables:   # more compact alternative, without routing info
-    keys:  [AttachA, AttachB,  DynCA,  DynCB, headingA, headingB, cableType]
+    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB, headingA, headingB, cableType]
     data:
-        - [   
+        - [ turbine1, turbine2, lazy_wave1, lazy_wave1,      180,       30, static_36] 
+        - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
 
 # ----- turbines and platforms -----
 
