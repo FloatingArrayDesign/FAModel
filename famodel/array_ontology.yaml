@@ -283,7 +283,19 @@ cable_types:
         MBL  :       100   # [kN] minimum breaking load
         MBR  :       2.0   # [m] minimum bending radius
 
-
+  static_cable_36:
+  
+        dynamic :  False   # Flag for dynamic cable (default static)
+        DC   :     False   # Flag for DC (default AC)
+        kV   :        36   # [kV] voltage rating
+        A    :       300   # [mm^2] cross-sectional area of each conductor (3 conductors)
+        D    :    0.1248   # [m] outer diameter
+        m    :     12.90   # [kg/m] mass per unit length
+        EA   :    245e+3   # [kN] axial stiffness 
+        EI   :      5.10   # [kN.m^2] bending stiffness
+        MBL  :      54.0   # [kN] minimum breaking load
+        MBR  :     1.875   # [m] minimum bending radius
+        
     # alternative table-based format
     
     keys :   name,   EA ,  MBL ...]

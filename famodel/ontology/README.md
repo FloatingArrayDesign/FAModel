@@ -281,9 +281,22 @@ anchor_types:
 ## Cables
 
 This section describes the cables through the array including both static 
-and dynamic portions.
+and dynamic portions of cables. At the top level, each array cable going
+between a pair of turbines (or a turbine and a substation) is defined. 
+This definition can either occur in the [array_cables]() section or the
+[cables]() section. The latter provides additional options for defining
+the cable routing and burial depth.
 
 ### Detailed Array Cable Descriptions
+
+The cables section contains a list of every cable in the array. Here, a cable
+is defined as the full assembly of electrical connection equipment between
+two turbines or a turbine and a substation. Similar to the [array_cables]() 
+section, 'type' links to the cross-section property description of the static
+portion of the cable. endA and endB sections define what each end of the cable
+is attached to, at what heading it comes off at, and what dynamic cable
+profile it uses. Additional fields specify the routing of the static portion
+of the cable and the burial depth as as function of cable length.
 
 ```python
  cables:
@@ -316,10 +329,16 @@ and dynamic portions.
 
 ## Dynamic Cable Configurations
 
-
+This section lists the dynamic cable configurations used in the array design.
+Similar to the mooring_line_configs section, it details the assembly of 
+cable section that make up a dynamic cable profile, with links to the cross
+sectional cable properties. Dynamic cable configurations have some special
+properties including specification of the voltage, and the option of 
+specifying 'appendages' along the cable length, which can represent discrete
+objects like buoyancy modules.
 
 ```python
- dynamic_cables:
+ dynamic_cable_configs:
 
     dynamic_lazy_wave1
         name: Lazy wave configuration 1 (simpler approach)
@@ -359,7 +378,9 @@ and dynamic portions.
 ```       
     
 ### Cable Cross Sectional Properties
-	
+
+This section details the cross-sectional properties of each cable type.
+
 ```python
   cable_types:
 
@@ -375,15 +396,35 @@ and dynamic portions.
         EI   :      10.0   # [kN.m^2] bending stiffness
         MBL  :       100   # [kN] minimum breaking load
         MBR  :       2.0   # [m] minimum bending radius
+
+	static_cable_36:
+  
+        dynamic :  False
+        DC   :     False	
+        kV   :        36		
+        A    :       300		
+        D    :    0.1248		
+        m    :     12.90		
+        EA   :    245e+3		
+        EI   :      5.10		
+        MBL  :      54.0		
+        MBR  :     1.875		
 ```
 
 ### Cable Appendages
+
+This section lists any cable appendages that might be added to the cables,
+such as buoyancy modules or cable protection system components. Each entry
+is given an identifier and can have a variety of parameters that describe
+its lumped properties, such as mass, volume, and drag coefficient-area
+product. These appendages are used in the dynamic_cable_configs section.
 
 ```python
   cable_appendages:
 
     buoyancy_module_1:
-        mass:
-        volume:
-        CdA:      # product of cross-sectional area and drag coefficient
+        mass:    2700   # [kg]  mass
+        volume: 8.615   # [m^3] volumetric displacement 
+        CdA:     3.8    # [m^2] product of cross-sectional area and drag coefficient
+		length:  2.2    # [m]   length taked up along cable
 ```

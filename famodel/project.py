@@ -343,13 +343,13 @@ class Project():
         # standard function to load dict if input is yaml
         d = 
         
-        # --- load FAM-specific model parts ---
+        # ===== load FAM-specific model parts =====
         
         # cable types
         
         # dynamic cable basic properties (details are later via MoorPy)
         
-        # cables
+        # ----- table of cables -----
         if 'array_cables' in d:
         
             cableInfo = [dict(zip( d['array_cables']['keys'], row))
@@ -360,7 +360,16 @@ class Project():
                 
                 self.cables.addCable(...)
         
-        # --- also load RAFT model parts ---
+        # ----- cables one-by-one -----
+        if 'cables' in d:
+        
+            for ci in d['cables']:
+                ...
+                
+                self.cables.addCable(...)
+        
+        
+        # ===== load RAFT model parts =====
         
 
     # ----- Site conditions processing functions -----
