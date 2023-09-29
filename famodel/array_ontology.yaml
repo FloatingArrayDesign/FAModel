@@ -109,18 +109,19 @@ mooring_systems:  # this is where individual mooring systems can be listed
 # Mooring line configurations
 mooring_line_configs:
     
-    taut-poly_1
-        name: Taut polyester configuration 1
+    taut-poly_1:  # mooring line configuration identifier
+    
+        name: Taut polyester configuration 1  # descriptive name
         
         sections:
           - type: chain_160       # ID of a mooring line section type
-            length: 80            # [m] length (unstretched)
-            connector: h_link   # ID of a connector type (optional)
-            Adjustable: True  # flags that this section could be adjusted to accommodate different spacings...
+            length: 80            # [m] usntretched length of line section
+            connector: h_link     # ID of a connector type at the end of the line section (optional)
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
             
           - type: poly_180        # ID of a mooring line section type
             length: 762           # [m] length (unstretched)
-            connector: shackle  # ID of a connector type (optional)
+            connector: shackle    # ID of a connector type (optional)
             
         attachment:
             type: ?  # fairlead/pivot/padeye/other? (optional)
@@ -146,25 +147,48 @@ mooring_line_configs:
     
 # Mooring line section properties
 mooring_line_types:
-    polyester_1 :
-        EA
-        MBL
-(or)
-       
+
+    polyester_226mm:
+        d_nom:    0.262      # [m] nominal diameter
+        d_vol:    0.2258     # [m] volume-equivalent diameter
+        m:        55.0       # [kg/m] mass per unit length (linear density)
+        EA:       164e6      # [N] quasi-static stiffness
+        MBL:    11.75e6      # [N] minimum breaking load
+        EAd:    164.6e6      # [N] dynamic stiffness
+        EAd_Lm:    0.34      # [-] dynamic stiffness mean-load multiplier
+        cost:      194       # [$/m] cost per unit length
+        material: polyester  # [-] material composition descriptor
+        
+    chain_170mm::
+        d_nom:    0.170      # [m] nominal diameter
+        d_vol:    0.306      # [m] volume-equivalent diameter
+        m:        575.0      # [kg/m] mass per unit length (linear density)
+        EA:      2468e6      # [N] quasi-static stiffness
+        MBL:     25.2e6      # [N] minimum breaking load
+        cost:      1486      # [$/m] cost per unit length
+        material:  R3 studless chain  # [-] material composition descriptor
+
+    # alternative table-based format
     keys :   name,   EA ,  MBL ...]
     data :
         -    poly1  , 3232, 23
         -    chain27, 3232, 23
     
 mooring_connector_types:
+    
     h_link:
-        mass   :
-        volume :
+        mass   : 140    # [kg]  component mass
+        volume : 0.13   # [m^3] component volumetric displacement
         
     clump_weight_20:
         mass   : 20000  # [kg]
         volume :  0.8   # [m^3]
-
+        
+    buoy_10:
+        mass   :  560   # [kg]  component mass
+        volume : 10.2   # [m^3] component volumetric displacement
+        CdA    :  3.5   # [m^2] produce of cross sectional area and drag coefficient
+        
 anchor_types:
     Name: suction1
         Diameter
@@ -175,28 +199,34 @@ anchor_types:
 
 # ----- Cables -----
 
-array_cables:
-  - name : cable 27  # optional?   
+# Definition of all cables going between turbines (and substation) in an array
+# This is a more detailed alternative to the array_cables section.
+cables:
+
+  - name : array_cable1      # descriptive cable name
     type : static_cable_80   # cable section type ID
-    length  :             # (this would be redundant with routing info lower down)
     
     endA: 
-        attachID: FOWT 1               # FOWT/substation/junction ID
+        attachID: turbine_1            # FOWT/substation/junction ID
         heading:  180                  # [deg] heading of attachment at end A
-        dynamic: dynamic_lazy_wave1    # type of dynamic cable making this connection, if applicable
+        dynamicID: dynamic_lazy_wave1  # ID of dynamic cable configuration at this end
     
     endB:
-        attachID: 
-        heading: 
-        dynamic: 
+        attachID: turbine_2            # FOWT/substation/junction ID
+        heading:  30                   # [deg] heading of attachment at end B
+        dynamicID: dynamic_lazy_wave1  # ID of dynamic cable configuration at this end
     
     routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
       - [1000, 1200, 20] 
       - [2000, 1500, 20] 
     
-    burial:  # optional
-        station: [0, 1]      # length along cable
-        depth  : [0.1, 0.2]  # [m] burial depth
+    burial:  # optional definition of cable burial depth over its length
+        station: [0, 1]                # length along cable, normalized by first and last value
+        depth  : [0.1, 0.2]            # [m] burial depth
+
+  - name : array_cable_2     # descriptive cable name
+    type : static_cable_80   # cable section type ID
+    ...
 
 
 dynamic_cables:
@@ -240,28 +270,37 @@ dynamic_cables:
     
 cable_types:
 
-    static_cable_80 :
-        A
-        V
-        I
-        EA
-        EI
-        MBL
-        MBR
-(or)    
+    dynamic_cable_66 :     # cable type identifier
+        
+        dynamic :   True   # Flag for dynamic cable (default static)
+        DC   :     False   # Flag for DC (default AC)
+        kV   :        66   # [kV] voltage rating
+        A    :       300   # [mm^2] cross-sectional area of each conductor (3 conductors)
+        D    :      0.20   # [m] outer diameter
+        m    :     30.59   # [kg/m] mass per unit length
+        EA   :    700e+3   # [kN] axial stiffness 
+        EI   :      10.0   # [kN.m^2] bending stiffness
+        MBL  :       100   # [kN] minimum breaking load
+        MBR  :       2.0   # [m] minimum bending radius
+
+
+    # alternative table-based format
     
     keys :   name,   EA ,  MBL ...]
     data :
         -    static_80 , 3232, 23
         -    dynamic_80, 3232, 23
 
-
 cable_appendages:
+
     buoyancy_module_1:
         mass:
         volume:
-        CdA:
+        CdA:      # product of cross-sectional area and drag coefficient
+
 
 cable_joints # TBD
+
+
 
     

@@ -118,7 +118,7 @@ Alternatively, the mooringID can be set to zero and the mooring system can be in
 
 
 
-## Array Mooring
+### Array Mooring
 The array mooring section allows the user to input array-level mooring system details, instead of the more generalized mooring systems in mooring_systems.
 This section inputs a list of x,y anchor positions, anchor type, and embedment depth. The anchor type links to the list in the anchor_types section.
 Additionally, a list of mooring lines can be input with specified attachements at numbered FOWTs and anchors. The mooring lines each have a mooring 
@@ -153,3 +153,237 @@ The turbine section can contain either a single turbine or a list of turbines, d
 section was taken from RAFT. 
 
 ###Platform(s)
+
+
+## Mooring
+
+### Mooring Systems
+
+This section describes the mooring systems that could be for any individual turbine.
+
+```python
+mooring_systems:  # this is where individual mooring systems can be listed
+    ms1:
+        name: a great mooring system
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust?] 
+        data:
+          - [  taut-poly_1,   60 ,    suction 1,   0 ]
+          - [  taut-poly_1,  180 ,    suction 1,   0 ]
+          - [  taut-poly_1,  300 ,    suction 1,   0 ]
+```
+
+### Mooring line configurations
+
+```python
+  mooring_line_configs:
+    
+    taut-poly_1:  # mooring line configuration identifier
+    
+        name: Taut polyester configuration 1  # descriptive name
+        
+        sections:
+          - type: chain_160       # ID of a mooring line section type
+            length: 80            # [m] usntretched length of line section
+            connector: h_link     # ID of a connector type at the end of the line section (optional)
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+            
+          - type: poly_180        # ID of a mooring line section type
+            length: 762           # [m] length (unstretched)
+            connector: shackle    # ID of a connector type (optional)
+            
+        attachment:
+            type: ?  # fairlead/pivot/padeye/other? (optional)
+            coordinate: [58,0,-14]?  # relative position on platform??
+
+
+    Name: shared-2-clump
+        name: Shared line with two clump weights
+        symmetric: True
+        
+        sections:
+          - type: poly_180   
+            length: 80       
+            connector: clump_weight_20
+            
+          - type: poly_180
+            length: 762   
+        
+        attachment:
+            type:
+            coordinate:
+```    
+    
+### Mooring line section properties
+
+```python
+mooring_line_types:
+
+    polyester_226mm:
+        d_nom:    0.262      # [m] nominal diameter
+        d_vol:    0.2258     # [m] volume-equivalent diameter
+        m:        55.0       # [kg/m] mass per unit length (linear density)
+        EA:       164e6      # [N] quasi-static stiffness
+        MBL:    11.75e6      # [N] minimum breaking load
+        EAd:    164.6e6      # [N] dynamic stiffness
+        EAd_Lm:    0.34      # [-] dynamic stiffness mean-load multiplier
+        cost:      194       # [$/m] cost per unit length
+        material: polyester  # [-] material composition descriptor
+        
+    chain_170mm::
+        d_nom:    0.170      # [m] nominal diameter
+        d_vol:    0.306      # [m] volume-equivalent diameter
+        m:        575.0      # [kg/m] mass per unit length (linear density)
+        EA:      2468e6      # [N] quasi-static stiffness
+        MBL:     25.2e6      # [N] minimum breaking load
+        cost:      1486      # [$/m] cost per unit length
+        material:  R3 studless chain  # [-] material composition descriptor
+
+    # alternative table-based format
+    keys :   name,   EA ,  MBL ...]
+    data :
+        -    poly1  , 3232, 23
+        -    chain27, 3232, 23
+```
+
+
+### Mooring Connectors
+
+```python
+ mooring_connector_types:
+    
+    h_link:
+        mass   : 140    # [kg]  component mass
+        volume : 0.13   # [m^3] component volumetric displacement
+        
+    clump_weight_20:
+        mass   : 20000  # [kg]
+        volume :  0.8   # [m^3]
+        
+    buoy_10:
+        mass   :  560   # [kg]  component mass
+        volume : 10.2   # [m^3] component volumetric displacement
+        CdA    :  3.5   # [m^2] produce of cross sectional area and drag coefficient
+```
+
+## Anchor types
+
+```python        
+anchor_types:
+    Name: suction1
+        Diameter
+        Length
+        Embedment depth
+        …
+```
+
+
+## Cables
+
+This section describes the cables through the array including both static 
+and dynamic portions.
+
+### Detailed Array Cable Descriptions
+
+```python
+ cables:
+
+  - name : array_cable1      # descriptive cable name
+    type : static_cable_80   # cable section type ID
+    
+    endA: 
+        attachID: turbine_1            # FOWT/substation/junction ID
+        heading:  180                  # [deg] heading of attachment at end A
+        dynamicID: dynamic_lazy_wave1  # ID of dynamic cable configuration at this end
+    
+    endB:
+        attachID: turbine_2            # FOWT/substation/junction ID
+        heading:  30                   # [deg] heading of attachment at end B
+        dynamicID: dynamic_lazy_wave1  # ID of dynamic cable configuration at this end
+    
+    routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
+      - [1000, 1200, 20] 
+      - [2000, 1500, 20] 
+    
+    burial:  # optional definition of cable burial depth over its length
+        station: [0, 1]                # length along cable, normalized by first and last value
+        depth  : [0.1, 0.2]            # [m] burial depth
+
+  - name : array_cable_2     # descriptive cable name
+    type : static_cable_80   # cable section type ID
+    ...
+```
+
+## Dynamic Cable Configurations
+
+
+
+```python
+ dynamic_cables:
+
+    dynamic_lazy_wave1
+        name: Lazy wave configuration 1 (simpler approach)
+        voltage: 66 # [kV]
+        span :     # [m] horizontal distance to end of dynamic cable
+        
+        sections:
+          - type: dynamic_cable_27        # ID of a cable section type1
+            length: 200                   # [m] length (unstretched)
+            
+          - type: dynamic_cable_27_w_buoy # (section properties including averaged effect of buoyancy modules)
+            length: 300                  
+            
+          - type: dynamic_cable_27 
+            length: 200            
+            
+        attachment:
+            type: j-tube
+            coordinate:   # relative location
+    
+
+    dynamic_lazy_wave2
+        name: Lazy wave configuration 1 (more detailed approach)
+        voltage: # [kV]
+        span :     # [m] horizontal distance to end of dynamic cable
+        
+        sections:
+          - type: dynamic_cable_27        # ID of a cable section type1
+            length: 200                   # [m] length (unstretched)
+            appendages:
+                type: buoyancy_module_1
+                locations: [10,12,13.5,15,18]
+                
+        attachment:
+            type: j-tube
+            coordinate:   # relative location
+```       
+    
+### Cable Cross Sectional Properties
+	
+```python
+  cable_types:
+
+    dynamic_cable_66 :     # cable type identifier
+        
+        dynamic :   True   # Flag for dynamic cable (default static)
+        DC   :     False   # Flag for DC (default AC)
+        kV   :        66   # [kV] voltage rating
+        A    :       300   # [mm^2] cross-sectional area of each conductor (3 conductors)
+        D    :      0.20   # [m] outer diameter
+        m    :     30.59   # [kg/m] mass per unit length
+        EA   :    700e+3   # [kN] axial stiffness 
+        EI   :      10.0   # [kN.m^2] bending stiffness
+        MBL  :       100   # [kN] minimum breaking load
+        MBR  :       2.0   # [m] minimum bending radius
+```
+
+### Cable Appendages
+
+```python
+  cable_appendages:
+
+    buoyancy_module_1:
+        mass:
+        volume:
+        CdA:      # product of cross-sectional area and drag coefficient
+```
