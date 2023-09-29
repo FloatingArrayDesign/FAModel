@@ -107,30 +107,34 @@ mooring_line_configs:
           - type: chain_160       # ID of a mooring line section type
             length: 80            # [m] length (unstretched)
             connector: h_link   # ID of a connector type (optional)
+            Adjustable: True  # flags that this section could be adjusted to accommodate different spacings...
             
           - type: poly_180        # ID of a mooring line section type
             length: 762           # [m] length (unstretched)
             connector: shackle  # ID of a connector type (optional)
             
         attachment:
-            type: ?  # fairlead/pivot/other?
+            type: ?  # fairlead/pivot/padeye/other? (optional)
             coordinate: [58,0,-14]?  # relative position on platform??
 
 
     Name: shared-2-clump
-        Symmetric: True
-        Line Section 1
-            Name (section type)
-            Length
-            Adjustable: True  # flags that this section could be adjusted to accommodate different spacings...
-        Connection Point
-            Mass Volume
-        Line Section 2
-            Name (section type)
-            Length
-        rAFair: [x,y,z]?
-        rBFair: [x,y,z]?
+        name: Shared line with two clump weights
+        symmetric: True
         
+        sections:
+          - type: poly_180   
+            length: 80       
+            connector: clump_weight_20
+            
+          - type: poly_180
+            length: 762   
+        
+        attachment:
+            type:
+            coordinate:
+    
+    
 # Mooring line section properties
 mooring_line_types:
     polyester_1 :
@@ -147,6 +151,10 @@ mooring_connector_types:
     h_link:
         mass   :
         volume :
+        
+    clump_weight_20:
+        mass   : 20000  # [kg]
+        volume :  0.8   # [m^3]
 
 anchor_types:
     Name: suction1
@@ -163,21 +171,21 @@ array_cables:
     type : static_cable_80   # cable section type ID
     length  :             # (this would be redundant with routing info lower down)
     
-    end A  
+    endA: 
         attachID: FOWT 1               # FOWT/substation/junction ID
         heading:  180                  # [deg] heading of attachment at end A
         dynamic: dynamic_lazy_wave1    # type of dynamic cable making this connection, if applicable
     
-    end B 
+    endB:
         attachID: 
-        heading B : 
-        dynamic B : 
+        heading: 
+        dynamic: 
     
-    routing_x_y_r:  # vertex points along the cable route. Nonzero radius wraps around a point at that radius.
+    routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
       - [1000, 1200, 20] 
       - [2000, 1500, 20] 
     
-    burial:
+    burial:  # optional
         station: [0, 1]      # length along cable
         depth  : [0.1, 0.2]  # [m] burial depth
 
@@ -186,9 +194,8 @@ dynamic_cables:
 
     dynamic_lazy_wave1
         name: Lazy wave configuration 1 (simpler approach)
-        voltage: 66  [kV]
-        
-        spacing :     # [m] horizontal distance to end of dynamic cable (junction)
+        voltage: 66 # [kV]
+        span :     # [m] horizontal distance to end of dynamic cable
         
         sections:
           - type: dynamic_cable_27        # ID of a cable section type1
@@ -207,7 +214,9 @@ dynamic_cables:
 
     dynamic_lazy_wave2
         name: Lazy wave configuration 1 (more detailed approach)
-        voltage: 66  [kV]
+        voltage: # [kV]
+        span :     # [m] horizontal distance to end of dynamic cable
+        
         sections:
           - type: dynamic_cable_27        # ID of a cable section type1
             length: 200                   # [m] length (unstretched)
@@ -238,7 +247,12 @@ cable_types:
         -    dynamic_80, 3232, 23
 
 
+cable_appendages:
+    buoyancy_module_1:
+        mass:
+        volume:
+        CdA:
 
-cable JOINTS
+cable_joints # TBD
 
     
