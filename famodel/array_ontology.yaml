@@ -3,34 +3,38 @@ name:
 comments: 
 
 
+# Site condition information
 site:
     general:
         water_depth : 200        # [m]      uniform water depth
         rho_water   : 1025.0     # [kg/m^3] water density
         rho_air     : 1.225      # [kg/m^3] air density
-        mu_air      : 1.81e-05   #          air dynamic 
+        mu_air      : 1.81e-05   #          air dynamic viscosity
+        ...
         
-    boundaries: #list of polygon vertices in order
+    boundaries: # list of polygon vertices in order [m]
        -[x1, y1]
        -[x2, y2]
        -[x3, y3]
        -[x4, y4]
     
     exclusions:
-      - name:
-        type: circle
+      - name: round example
         x_y_r:
           - [x1, y1, r1] 
       
-      - name:
-        type: polygon
+      - name: polygon example with sharp corners (radius ommitted)
         x_y_r:
             -[x1, y1]
             -[x2, y2]
     
     seabed:
-        -[x1, y1, z1, "soft clay"]
-        -[x2, y2, z2, "medium clay"]    
+        keys: [x,  y, depth,  soil_type]
+        data:
+          - [ x1, y1, z1, "soft clay"]
+          - [ x2, y2, z1, "medium clay"]    
+          
+        filename: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)
@@ -54,17 +58,20 @@ site:
     resource :
         filename: 'windresource'
 
+
 # ----- Array-level inputs -----
 
-array:         # [copy from RAFT style for the moment]
+# Wind turbine array layout
+array:
     keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
         -  [     1,         1,         1,             0,              0,          180   ]    # 2 array, shared moorings
         -  [     2,         1,         2,          1600,              0,            0   ]  
 
 
-array_mooring:  # this is an array-level list, in addition to any per-mooring-system ones
-    anchor_keys : 
+# Array-level mooring system (in addition to any per-turbine entries later)
+array_mooring:
+    anchor_keys :
           [ID, type,  x,  y,  embedment ]
     anchor_data :
         - [  1,  suction1,   ,   ,     ]
@@ -78,29 +85,32 @@ array_mooring:  # this is an array-level list, in addition to any per-mooring-sy
         - [ Taut-Poly_2      ,  FOWT 1,  Anch 3,   0]
 
 
-array_cables:   # more compact alternative, without routing info
+# Array cables (compact table format, without routing info)
+array_cables:   
     keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB, headingA, headingB, cableType]
     data:
         - [ turbine1, turbine2, lazy_wave1, lazy_wave1,      180,       30, static_36] 
         - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
 
+
 # ----- turbines and platforms -----
 
 turbine(s):
-    [RAFT style  OR  WindIO] 
+    [link to RAFT or WindIO style turbine description] 
 
 
 platform(s):
-    [RAFT style  OR  WindIO]
+    [link to RAFT or WindIO style platform description]
 
 
 # ----- Mooring system -----
 
-mooring_systems:  # this is where individual mooring systems can be listed
+# Mooring system descriptions (each for an individual FOWT with no sharing)
+mooring_systems:
     ms1:
-        name: a great mooring system
+        name: 3-line taut polyester mooring system
         
-        keys: [MooringConfigID,  heading, anchorType, lengthAdjust?] 
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
           - [  taut-poly_1,   60 ,    suction 1,   0 ]
           - [  taut-poly_1,  180 ,    suction 1,   0 ]
@@ -146,7 +156,7 @@ mooring_line_configs:
             coordinate:
     
     
-# Mooring line section properties
+# Mooring line cross-sectional properties
 mooring_line_types:
 
     polyester_226mm:
@@ -174,7 +184,9 @@ mooring_line_types:
     data :
         -    poly1  , 3232, 23
         -    chain27, 3232, 23
-    
+
+
+# Mooring connector properties
 mooring_connector_types:
     
     h_link:
@@ -189,8 +201,11 @@ mooring_connector_types:
         mass   :  560   # [kg]  component mass
         volume : 10.2   # [m^3] component volumetric displacement
         CdA    :  3.5   # [m^2] produce of cross sectional area and drag coefficient
-        
+
+
+# Anchor type properties
 anchor_types:
+
     Name: suction1
         d      :  5  # [m] Diameter (optional)
         L      :  10 # [m] Length (optional)
@@ -231,8 +246,8 @@ cables:
     type : static_cable_80   # cable section type ID
     ...
 
-
-dynamic_cables:
+# Dynamic cable configurations
+dynamic_cable_configs:
 
     dynamic_lazy_wave1
         name: Lazy wave configuration 1 (simpler approach)
@@ -270,7 +285,8 @@ dynamic_cables:
             type: j-tube
             coordinate:   # relative location
        
-    
+       
+# Cable cross-sectional properties
 cable_types:
 
     dynamic_cable_66 :     # cable type identifier
@@ -306,16 +322,16 @@ cable_types:
         -    static_80 , 3232, 23
         -    dynamic_80, 3232, 23
 
+# Cable appendages
 cable_appendages:
 
     buoyancy_module_1:
-        mass:
-        volume:
-        CdA:      # product of cross-sectional area and drag coefficient
+        mass:    2700   # [kg]  mass
+        volume: 8.615   # [m^3] volumetric displacement 
+        CdA:     3.8    # [m^2] product of cross-sectional area and drag coefficient
+		length:  2.2    # [m]   length taked up along cable
 
 
 cable_joints # TBD
-
-
 
     

@@ -1,7 +1,22 @@
 # Floating Array Ontology
 
-This subpackage of FAModel contains information about the floating array ontology--a way of recording information that describes a floating wind farm project, including both site condition information and design information.
-The following sections outline the array ontology makeup. 
+This subpackage of FAModel contains information about the floating array 
+ontology--a way of recording information that describes a floating wind 
+farm project, including both site condition information and design information. 
+This ontology is in a draft form and will continue to be revised based
+on feedback from prospective users and collaborating projects.
+
+The goal of the ontology is to provide a standardized format for recording
+and exchanging a description of a floating wind farm design. This capability
+is aligned with the work of IEA Wind Task 49, which focuses on integrated 
+design of floating wind arrays. The ontology proposed here draws on elements
+from two established ontologies developed under a previous IEA Wind Task.
+Task 37 developed [plant-level and turbine-level ontologies](https://windio.readthedocs.io).
+The current floating array ontology has a number of additions and differences that
+better suit the scope and emphasis of floating wind arrays. 
+
+The following sections give an overview of the array ontology makeup with examples. 
+
 
 ## Site
 The site section contains information on the site conditions, including the boundaries of the array and exclusion zones. It also contains seabed conditions,
@@ -10,7 +25,7 @@ metocean data, and wind resource information for the selected site.
 ### General
 The general section includes water depth, density of water, density of air, and viscosity of air.
 
-```python
+```yaml
     general:
         water_depth : 200        # [m]      uniform water depth
         rho_water   : 1025.0     # [kg/m^3] water density
@@ -22,7 +37,7 @@ The general section includes water depth, density of water, density of air, and 
 The boundaries section contains the boundaries of the array. This information is provided with a list of polygon vertices in order, which are then connected linearly 
 to define the boundaries of the array. This information can be used to check that all the floating wind turbines are fully contained within the array boundaries.
 
-```python
+```yaml
     boundaries: #list of polygon vertices in order
        -[x1, y1]
        -[x2, y2]
@@ -36,7 +51,7 @@ those areas. For simplicity, the exclusion zones allow for two types: circle and
 of the center of the circle and the radius of the circle. The polygon option allows the user to input a list of x,y coordinates which are then 
 connected linearly to define the exclusion zone. The user can define as many exclusion zones as needed with a "name" to distinguish them. 
 
-```python
+```yaml
     exclusions:
       - name:
         type: circle
@@ -51,13 +66,22 @@ connected linearly to define the exclusion zone. The user can define as many exc
 ```
 
 ### Seabed
-The seabed section contains information on the depth and soil type throughout the array. The user provides a list of x,y,z and "soil type" points to define the depth. 
-In between provided points, the depth is linearly interpolated. For now, the soil type will be assumed to match that of the nearest point. 
+The seabed section contains information on the depth and soil type throughout the array. 
+The user provides a list of x, y, z and "soil type" points to define the depth
+and soil type classification. Alternatively, a file can be specified containing fully
+gridded data about depth and soil properties on a rectangular grid, with the option
+for quantitative soil index properties.
+In between provided points, the depth is linearly interpolated. 
+For now, the soil type will be assumed to match that of the nearest point. 
 	
-```python
-	seabed:
-        -[x1, y1, z1, "soft clay"]
-        -[x2, y2, z2, "medium clay"]    
+```yaml
+    seabed:
+        keys: [x,  y, depth,  soil_type]
+        data:
+          - [ x1, y1, z1, "soft clay"]
+          - [ x2, y2, z1, "medium clay"]    
+          
+        filename: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
 ```
 
 ### Metocean
@@ -68,7 +92,7 @@ so the probability of the bins should total to 1. Finally, the timeseries sectio
 is needed for logistics analysis to inform vessel availability. To reduce the number of lines in the file, the timeseries section inputs a 
 csv filename. 
 
-```python
+```yaml
 	    metocean:
         extremes:  # extreme values for specified return periods (in years)
             keys :   [ Hs  , Tp  , WindSpeed, TI, Shear, Gamma, CurrentSpeed ]
@@ -90,10 +114,12 @@ csv filename.
 ```
 
 ### Resource
-The resource section contains information on the wind resource for the site, which can be used to calculate AEP. To again reduce the number of lines
+The resource section contains information on the wind resource for the site, 
+which can be used to calculate AEP. To again reduce the number of lines
 in the file, the resource section inputs a filename which contains the resource data.
+This resource data will follow the [WindIO plant ontology](https://windio.readthedocs.io/en/latest/source/plant.html).
 
-```python
+```yaml
     resource :
         filename: 'windresource'
 ```
@@ -112,14 +138,13 @@ easily define a single mooring system for various rotations throughout the array
 Alternatively, the mooringID can be set to zero and the mooring system can be 
 input in the [array_mooring](#array-mooring) section.
 
-```python
+```yaml
     array:         # [copy from RAFT style for the moment]
     keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [     1,         1,         1,             0,              0,          180   ]    # 2 array, shared moorings
+        -  [     1,         1,         1,             0,              0,          180   ] 
         -  [     2,         1,         2,          1600,              0,            0   ]  
 ```
-
 
 
 ### Array Mooring
@@ -128,23 +153,17 @@ This section inputs a list of x,y anchor positions, anchor type, and embedment d
 Additionally, a list of mooring lines can be input with specified attachements at numbered FOWTs and anchors. The mooring lines each have a mooring 
 configuration ID which links to the mooring_line_configs section. There is also an option to adjust the length of the line, depending on the spacing. 
 
-```python
-    array:         # [copy from RAFT style for the moment]
-    keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
-    data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [     1,         1,         1,             0,              0,          180   ]    # 2 array, shared moorings
-        -  [     2,         1,         2,          1600,              0,            0   ]  
-
-
-array_mooring:  # this is an array-level list, in addition to any per-mooring-system ones
+```yaml
+array_mooring:
     anchor_keys : 
           [ID, type,  x,  y,  embedment ]
     anchor_data :
         - [  1,  suction1,   ,   ,     ]
         - [  2,  suction1,   ,   ,     ]
+		...
           
     line_keys : 
-          [MooringConfigID  ,  end A,   end B,  lengthAdjust?]
+          [MooringConfigID  ,  end A,   end B,  lengthAdjust]
     line_data :
         - [ Taut-Poly_1      ,  FOWT 1,  Anch 1,   0]
         - [ Taut-Poly_1      ,  FOWT 1,  Anch 2,   0]
@@ -176,21 +195,27 @@ array_cables:
 
 The turbine section can contain either a single turbine or a list of turbines, 
 depending on the scenario. By default, the format follows that of
-[RAFT](openraft.readthedocs.io). However, support will be added for linking to
+[RAFT](https://openraft.readthedocs.io). However, support will be added for linking to
 turbine design descriptions that follow
-the WindIO ontology format, which is also used by [WEIS](weis.readthedocs.io).
+the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
+by [WEIS](https://weis.readthedocs.io).
 
 ### Platform(s)
 
 This section defines the floating support structures used in the design. As in
 the previous section, it can contain a single turbine or a list of turbines. 
 By default, the format here follows that used by 
-[RAFT](openraft.readthedocs.io) input files. However,
+[RAFT](https://openraft.readthedocs.io) input files. However,
 support will be added for also linking to platform descriptions that follow
-the WindIO ontology format, which is also used by [WEIS](weis.readthedocs.io).
+the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
+by [WEIS](https://weis.readthedocs.io).
 
 
 ## Mooring
+
+This part of the ontology contains a set of sections that define parts of the 
+mooring system, down to the definition of line cross sectional properties and 
+anchor characteristics.
 
 ### Mooring Systems
 
@@ -200,12 +225,12 @@ mooring configuration ID links to the details about the segments lengths and typ
 counterclockwise from +X. The anchor type links to details about the anchor size and dimensions in the anchor types section. The length adjustment
 is an optional parameter that can adjust the mooring line length for a shallower or deeper depth, for example. 
 
-```python
-mooring_systems:  # this is where individual mooring systems can be listed
+```yaml
+mooring_systems:
     ms1:
-        name: a great mooring system
+        name: 3-line taut polyester mooring system
         
-        keys: [MooringConfigID,  heading, anchorType, lengthAdjust?] 
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
           - [  taut-poly_1,   60 ,    suction 1,   0 ]
           - [  taut-poly_1,  180 ,    suction 1,   0 ]
@@ -213,6 +238,7 @@ mooring_systems:  # this is where individual mooring systems can be listed
 ```
 
 ### Mooring line configurations
+
 The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
 as the MooringConfigID in the mooring systems section. Each line contains a list of sections that details the line section type and length. The line type name
 connects to information in the mooring line section properties. Additionally, each line has an optional input which can list the 
@@ -223,7 +249,7 @@ Additionally, the attachment specifies the x,y,z coordinates of the relative pos
 fairlead radius of a specific platform. The attachment coordinates are rotated, depending on the line heading in the mooring systems section.
 
 
-```python
+```yaml
   mooring_line_configs:
     
     taut-poly_1:  # mooring line configuration identifier
@@ -263,6 +289,7 @@ fairlead radius of a specific platform. The attachment coordinates are rotated, 
 ```    
     
 ### Mooring line section properties
+
 The mooring line section properties contains the properties needed to accurately model the mooring lines. Each mooring line type is listed with 
 a name that can be referenced in the mooring line configurations section. For each line type, the nominal and volume equivalent diameter are listed, 
 as well as the mass density, stiffness, cost, MBL, and material name. The ontology supports either a single stiffness value (like for chain)
@@ -270,8 +297,7 @@ or the static-dynamic stiffness of fiber lines. An example of this is shown belo
 
 Alternatively, the mooring line parameters can be provided in a table-based format to reduce the number of lines.
 
-
-```python
+```yaml
 mooring_line_types:
 
     polyester_226mm:
@@ -295,18 +321,18 @@ mooring_line_types:
         material:  R3 studless chain  # [-] material composition descriptor
 
     # alternative table-based format
-    keys :   name,   EA ,  MBL ...]
+    keys :  [ name,   EA ,  MBL,  ...]
     data :
-        -    poly1  , 3232, 23
-        -    chain27, 3232, 23
+        -   [ poly1  , 3e7, 10e6, ... ]
+        -   [ chain27, 3e9, 10e6, ... ]
 ```
 
-
 ### Mooring Connectors
+
 This section lists properties of the mooring connections that are referenced in the mooring line configurations section. 
 Each connector has a name that is used to identify it, as well as a mass and volume. Optionally, the CdA of the connector 
 can be specified to model the drag on the component. 
-```python
+```yaml
  mooring_connector_types:
     
     h_link:
@@ -324,11 +350,14 @@ can be specified to model the drag on the component.
 ```
 
 ## Anchor types
+
 The anchor types section lists dimensions and embedment depth for each anchor type. The anchor types section
 allows the user to input the diameter, length, area, thickness, and embedment depth. All parameters are optional,
-because the applicable information depends on the anchor type. The parameters align with the intermediate anchor model in FAModel. 
+because the applicable information depends on the anchor type. 
+The parameters align with the FAModel 
+[intermediate anchor model](https://github.com/FloatingArrayDesign/FAModel/tree/main/famodel/anchors#parameters-needed-for-level-2-anchor-capacity-models). 
 
-```python        
+```yaml        
 anchor_types:
     Name: suction1
         d      :    # [m] Diameter
@@ -361,7 +390,7 @@ is attached to, at what heading it comes off at, and what dynamic cable
 profile it uses. Additional fields specify the routing of the static portion
 of the cable and the burial depth as as function of cable length.
 
-```python
+```yaml
  cables:
 
   - name : array_cable1      # descriptive cable name
@@ -400,7 +429,7 @@ properties including specification of the voltage, and the option of
 specifying 'appendages' along the cable length, which can represent [discrete
 objects](#cable-appendages) like buoyancy modules.
 
-```python
+```yaml
  dynamic_cable_configs:
 
     lazy_wave1
@@ -444,7 +473,7 @@ objects](#cable-appendages) like buoyancy modules.
 
 This section details the cross-sectional properties of each cable type.
 
-```python
+```yaml
   cable_types:
 
     dynamic_cable_66 :     # cable type identifier
@@ -483,7 +512,7 @@ its lumped properties, such as mass, volume, and drag coefficient-area
 product. These appendages are used in the 
 [dynamic_cable_configs](#dynamic-cable-configurations) section.
 
-```python
+```yaml
   cable_appendages:
 
     buoyancy_module_1:

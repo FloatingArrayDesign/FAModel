@@ -10,6 +10,9 @@ estimate the holding capacity of each anchor.
 The library works in conjunction with the tools RAFT and MoorPy to model floating
 wind turbines and mooring systems, respectively.
 
+In addition to the code, this repository defines a [Floating Array Ontology](ontology), 
+which provides a standardized description format for floating wind farms. 
+
 An example of use of these tools to model three mooring lines over the bathymetry 
 of the Humboldt lease area is shown below.
 
@@ -38,6 +41,7 @@ collection of subpackages for specific functions. The two current subpackges are
 
 - anchors: contains modules for anchor capacity calculations
 - seabed: contains modules for seabed bathymetry and boundary information
+- cables: contains classes that assist with power cable-related calculations
 
 Please navigate into the subfolders above for additional information.
 
