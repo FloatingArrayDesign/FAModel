@@ -13,7 +13,32 @@ design of floating wind arrays. The ontology proposed here draws on elements
 from two established ontologies developed under a previous IEA Wind Task.
 Task 37 developed [plant-level and turbine-level ontologies](https://windio.readthedocs.io).
 The current floating array ontology has a number of additions and differences that
-better suit the scope and emphasis of floating wind arrays. 
+better suit the scope and emphasis of floating wind arrays. The sections are as follows:
+
+* [Site                              ](# site)
+  * [General                         ](# general)
+  * [Boundaries                      ](# boundaries)
+  * [Exclusions                      ](# exclusions)
+  * [Seabed                          ](# seabed)
+  * [Metocean                        ](# metocean)
+  * [Resource                        ](# resource)
+* [Array                             ](# array)
+  * [Array Layout                    ](# array-layout)
+  * [Array Mooring                   ](# array-mooring)
+  * [Array Cables                    ](# array-cables)
+* [Turbine(s)                        ](# turbines)
+* [Platform(s)                       ](# platforms)
+* [Mooring                           ](# mooring)
+  * [Mooring Systems                 ](# mooring-systems)
+  * [Mooring line configurations     ](# mooring-line-configurations)
+  * [Mooring line section properties ](# mooring-line-section-properties)
+  * [Mooring Connectors              ](# mooring-connectors)
+  * [Anchor types                    ](# anchor-types)
+* [Cables                            ](# cables)
+  * [Cables with Routing             ](# cables-with-routing)
+  * [Dynamic Cable Configurations    ](# dynamic-cable-configurations)
+  * [Cable Cross Sectional Properties](# cable-cross-sectional-properties)
+  * [Cable Appendages                ](# cable-appendages)
 
 The following sections give an overview of the array ontology makeup with examples. 
 
@@ -93,7 +118,7 @@ is needed for logistics analysis to inform vessel availability. To reduce the nu
 csv filename. 
 
 ```yaml
-	    metocean:
+	 metocean:
         extremes:  # extreme values for specified return periods (in years)
             keys :   [ Hs  , Tp  , WindSpeed, TI, Shear, Gamma, CurrentSpeed ]
             data :
@@ -125,6 +150,12 @@ This resource data will follow the [WindIO plant ontology](https://windio.readth
 ```
 
 ## Array
+
+This part of the ontology includes a section for the tubine layout, as
+well as optional array-level descriptions of the mooring system and 
+array cabling.
+
+### Array Layout
 The array section summarizes the floating wind turbines in the array. The 
 section inputs a list where each entry corresponds to a wind turbine.
 The turbineID and platformID are specified for each, connecting to details in 
@@ -160,8 +191,7 @@ array_mooring:
     anchor_data :
         - [  1,  suction1,   ,   ,     ]
         - [  2,  suction1,   ,   ,     ]
-		...
-          
+	
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  lengthAdjust]
     line_data :
@@ -191,7 +221,7 @@ array_cables:
         - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
 ```
 
-### Turbine(s)
+## Turbine(s)
 
 The turbine section can contain either a single turbine or a list of turbines, 
 depending on the scenario. By default, the format follows that of
@@ -200,7 +230,7 @@ turbine design descriptions that follow
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
 by [WEIS](https://weis.readthedocs.io).
 
-### Platform(s)
+## Platform(s)
 
 This section defines the floating support structures used in the design. As in
 the previous section, it can contain a single turbine or a list of turbines. 
@@ -222,7 +252,8 @@ anchor characteristics.
 This section describes the mooring systems that could be used for individual turbines and repeated throughout the array. Each mooring system contains a 
 list of mooring lines, which contains the mooring configuration ID, the heading, the anchor type, and a possible length adjustment. The 
 mooring configuration ID links to the details about the segments lengths and types in the mooring line configurations section. The heading refers to the angle of the mooring line and it rotates 
-counterclockwise from +X. The anchor type links to details about the anchor size and dimensions in the anchor types section. The length adjustment
+counterclockwise from +X. The anchor type links to details about the anchor 
+size and dimensions in the [anchor types section](#anchor-types). The length adjustment
 is an optional parameter that can adjust the mooring line length for a shallower or deeper depth, for example. 
 
 ```yaml
@@ -237,13 +268,17 @@ mooring_systems:
           - [  taut-poly_1,  300 ,    suction 1,   0 ]
 ```
 
-### Mooring line configurations
+### Mooring Line Configurations
 
 The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
 as the MooringConfigID in the mooring systems section. Each line contains a list of sections that details the line section type and length. The line type name
-connects to information in the mooring line section properties. Additionally, each line has an optional input which can list the 
-ID of a connection type. The connection could be an H-link or buoy. This information allows the weight and buoyancy of the connections to be included 
-in the model. There is also a True/False options for whether the section length is adjustable. Each configuration also has an attachment input. This 
+connects to information in the mooring [line section properties](#mooring-line-section-properties). 
+Additionally, each line has an optional input which can list the 
+ID of a [connector type](#mooring-connectors), such as an H-link or buoy. 
+This information allows the weight and buoyancy of the connections to be included 
+in the model. There is also a True/False options for whether the section length is adjustable. 
+
+Each configuration also has an attachment input. This 
 attachment generally provides information on the platform connection. The attachment information includes a type, which could be fairlead or padeye. 
 Additionally, the attachment specifies the x,y,z coordinates of the relative position on the platform. This is neccessary to account for the
 fairlead radius of a specific platform. The attachment coordinates are rotated, depending on the line heading in the mooring systems section.
@@ -267,8 +302,8 @@ fairlead radius of a specific platform. The attachment coordinates are rotated, 
             connector: shackle    # ID of a connector type (optional)
             
         attachment:
-            type: ?  # fairlead/pivot/padeye/other? (optional)
-            coordinate: [58,0,-14]?  # relative position on platform??
+            type:                 # fairlead/pivot/padeye/other (optional)
+            coordinate: [58,0,-14] # [m] relative position on platform
 
 
     Name: shared-2-clump
@@ -291,7 +326,8 @@ fairlead radius of a specific platform. The attachment coordinates are rotated, 
 ### Mooring line section properties
 
 The mooring line section properties contains the properties needed to accurately model the mooring lines. Each mooring line type is listed with 
-a name that can be referenced in the mooring line configurations section. For each line type, the nominal and volume equivalent diameter are listed, 
+a name that can be referenced in the [mooring line configurations section](#mooring-line-configurations). 
+For each line type, the nominal and volume equivalent diameter are listed, 
 as well as the mass density, stiffness, cost, MBL, and material name. The ontology supports either a single stiffness value (like for chain)
 or the static-dynamic stiffness of fiber lines. An example of this is shown below. 
 
@@ -359,10 +395,10 @@ The parameters align with the FAModel
 
 ```yaml        
 anchor_types:
-    Name: suction1
+    suction1:
+		name   : standard suction pile
         d      :    # [m] Diameter
 		L      :    # [m] Length
-		A      :    # [m^2] Area
 		t      :    # [mm] Thickness
 		h      :    # [m] Embedment depth
         …
@@ -474,10 +510,9 @@ objects](#cable-appendages) like buoyancy modules.
 This section details the cross-sectional properties of each cable type.
 
 ```yaml
-  cable_types:
+cable_types:
 
-    dynamic_cable_66 :     # cable type identifier
-        
+    dynamic_cable_66 :     # cable type identifier        
         dynamic :   True   # Flag for dynamic cable (default static)
         DC   :     False   # Flag for DC (default AC)
         kV   :        66   # [kV] voltage rating
@@ -489,8 +524,7 @@ This section details the cross-sectional properties of each cable type.
         MBL  :       100   # [kN] minimum breaking load
         MBR  :       2.0   # [m] minimum bending radius
 
-	static_cable_36:
-  
+    static_cable_36:  
         dynamic :  False
         DC   :     False	
         kV   :        36		
@@ -519,5 +553,5 @@ product. These appendages are used in the
         mass:    2700   # [kg]  mass
         volume: 8.615   # [m^3] volumetric displacement 
         CdA:     3.8    # [m^2] product of cross-sectional area and drag coefficient
-		length:  2.2    # [m]   length taked up along cable
+        length:  2.2    # [m]   length taked up along cable
 ```

@@ -10,7 +10,8 @@ estimate the holding capacity of each anchor.
 The library works in conjunction with the tools RAFT and MoorPy to model floating
 wind turbines and mooring systems, respectively.
 
-In addition to the code, this repository defines a [Floating Array Ontology](ontology), 
+In addition to the code, this repository defines a 
+[Floating Array Ontology](https://github.com/FloatingArrayDesign/FAModel/tree/main/famodel/ontology), 
 which provides a standardized description format for floating wind farms. 
 
 An example of use of these tools to model three mooring lines over the bathymetry 
