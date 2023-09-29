@@ -153,13 +153,17 @@ The turbine section can contain either a single turbine or a list of turbines, d
 section was taken from RAFT. 
 
 ###Platform(s)
-
+The platform section similarly can contain either a single platform or a list of platforms. The information and layout of this section was taken from RAFT.
 
 ## Mooring
 
 ### Mooring Systems
 
-This section describes the mooring systems that could be for any individual turbine.
+This section describes the mooring systems that could be used for individual turbines and repeated throughout the array. Each mooring system contains a 
+list of mooring lines, which contains the mooring configuration ID, the heading, the anchor type, and a possible length adjustment. The 
+mooring configuration ID links to the details about the segments lengths and types in the mooring line configurations section. The heading refers to the angle of the mooring line and it rotates 
+counterclockwise from +X. The anchor type links to details about the anchor size and dimensions in the anchor types section. The length adjustment
+is an optional parameter that can adjust the mooring line length for a shallower or deeper depth, for example. 
 
 ```python
 mooring_systems:  # this is where individual mooring systems can be listed
@@ -174,6 +178,15 @@ mooring_systems:  # this is where individual mooring systems can be listed
 ```
 
 ### Mooring line configurations
+The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
+as the MooringConfigID in the mooring systems section. Each line contains a list of sections that details the line section type and length. The line type name
+connects to information in the mooring line section properties. Additionally, each line has an optional input which can list the 
+ID of a connection type. The connection could be an H-link or buoy. This information allows the weight and buoyancy of the connections to be included 
+in the model. There is also a True/False options for whether the section length is adjustable. Each configuration also has an attachment input. This 
+attachment generally provides information on the platform connection. The attachment information includes a type, which could be fairlead or padeye. 
+Additionally, the attachment specifies the x,y,z coordinates of the relative position on the platform. This is neccessary to account for the
+fairlead radius of a specific platform. The attachment coordinates are rotated, depending on the line heading in the mooring systems section.
+
 
 ```python
   mooring_line_configs:
@@ -215,6 +228,13 @@ mooring_systems:  # this is where individual mooring systems can be listed
 ```    
     
 ### Mooring line section properties
+The mooring line section properties contains the properties needed to accurately model the mooring lines. Each mooring line type is listed with 
+a name that can be referenced in the mooring line configurations section. For each line type, the nominal and volume equivalent diameter are listed, 
+as well as the mass density, stiffness, cost, MBL, and material name. The ontology supports either a single stiffness value (like for chain)
+or the static-dynamic stiffness of fiber lines. An example of this is shown below. 
+
+Alternatively, the mooring line parameters can be provided in a table-based format to reduce the number of lines.
+
 
 ```python
 mooring_line_types:
@@ -248,7 +268,9 @@ mooring_line_types:
 
 
 ### Mooring Connectors
-
+This section lists properties of the mooring connections that are referenced in the mooring line configurations section. 
+Each connector has a name that is used to identify it, as well as a mass and volume. Optionally, the CdA of the connector 
+can be specified to model the drag on the component. 
 ```python
  mooring_connector_types:
     
@@ -263,17 +285,22 @@ mooring_line_types:
     buoy_10:
         mass   :  560   # [kg]  component mass
         volume : 10.2   # [m^3] component volumetric displacement
-        CdA    :  3.5   # [m^2] produce of cross sectional area and drag coefficient
+        CdA    :  3.5   # [m^2] product of cross sectional area and drag coefficient
 ```
 
 ## Anchor types
+The anchor types section lists dimensions and embedment depth for each anchor type. The anchor types section
+allows the user to input the diameter, length, area, thickness, and embedment depth. All parameters are optional,
+because the applicable information depends on the anchor type. The parameters align with the intermediate anchor model in FAModel. 
 
 ```python        
 anchor_types:
     Name: suction1
-        Diameter
-        Length
-        Embedment depth
+        d      :    # [m] Diameter
+		L      :    # [m] Length
+		A      :    # [m^2] Area
+		t      :    # [mm] Thickness
+		h      :    # [m] Embedment depth
         …
 ```
 

@@ -191,9 +191,11 @@ mooring_connector_types:
         
 anchor_types:
     Name: suction1
-        Diameter
-        Length
-        Embedment depth
+        d      :  5  # [m] Diameter (optional)
+        L      :  10 # [m] Length (optional)
+        A      :     # [m^2] Area (optional)
+        t      :     # [mm] Thickness (optional)
+        h      :     # [m] Embedment depth (optional)
         …
 
 
