@@ -37,9 +37,15 @@ site:
                 -  [ 0.010  ,   ,   ]
                 -  [ 0.006  ,   ,   ]
                 -  [ 0.005  ,   ,   ]
+                
+        time_series :
+            keys : [ prob , Hs  , Tp, ...  ]
+            data :
+            
     resource :
         [see what's in Task 37 ontology section]
 
+# ----- Array-level inputs -----
 
 array:         # [copy from RAFT style for the moment]
     keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
@@ -47,7 +53,29 @@ array:         # [copy from RAFT style for the moment]
         -  [     1,         1,         1,             0,              0,          180   ]    # 2 array, shared moorings
         -  [     2,         1,         2,          1600,              0,            0   ]  
 
-    
+
+array_mooring:  # this is an array-level list, in addition to any per-mooring-system ones
+    anchor_keys : 
+          [ID, type,  x,  y,  embedment ]
+    anchor_data :
+        - [  1,  suction1,   ,   ,     ]
+        - [  2,  suction1,   ,   ,     ]
+          
+    line_keys : 
+          [MooringConfigID  ,  end A,   end B,  lengthAdjust?]
+    line_data :
+        - [ Taut-Poly_1      ,  FOWT 1,  Anch 1,   0]
+        - [ Taut-Poly_1      ,  FOWT 1,  Anch 2,   0]
+        - [ Taut-Poly_2      ,  FOWT 1,  Anch 3,   0]
+
+
+array_cables:   # more compact alternative, without routing info
+    keys:  [AttachA, AttachB,  DynCA,  DynCB, headingA, headingB, cableType]
+    data:
+        - [   
+
+# ----- turbines and platforms -----
+
 turbine(s):
     [RAFT style  OR  WindIO] 
 
@@ -56,32 +84,21 @@ platform(s):
     [RAFT style  OR  WindIO]
 
 
-#layout (take the info in Stein's approach, but maybe in a table arrangement for easier adjusting?)
+# ----- Mooring system -----
 
-    
-Anchors
-    keys : [type,  x,  y,  embedment ]
-    data :
-      -  [      ,   ,   ,     ]
-      -  [      ,   ,   ,     ]
-
-
-anchor_types:
-    Name: suction1
-        Diameter
-        Length
-        Embedment depth
-        …
+mooring_systems:  # this is where individual mooring systems can be listed
+    ms1:
+        name: a great mooring system
         
-    
-Mooring line layout:
-    MooringCOnfigID  ,  end A,   end B
-    Taut-Poly_1      ,  FOWT 1,  Anch 1
-    Taut-Poly_1      ,  FOWT 1,  Anch 2
-    Taut-Poly_2      ,  FOWT 1,  Anch 3
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust?] 
+        data:
+          - [  taut-poly_1,   60 ,    suction 1,   0 ]
+          - [  taut-poly_1,  180 ,    suction 1,   0 ]
+          - [  taut-poly_1,  300 ,    suction 1,   0 ]
 
 
-Mooring configurations
+# Mooring line configurations
+mooring_line_configs:
     
     taut-poly_1
         name: Taut polyester configuration 1
@@ -105,6 +122,7 @@ Mooring configurations
         Line Section 1
             Name (section type)
             Length
+            Adjustable: True  # flags that this section could be adjusted to accommodate different spacings...
         Connection Point
             Mass Volume
         Line Section 2
@@ -113,8 +131,8 @@ Mooring configurations
         rAFair: [x,y,z]?
         rBFair: [x,y,z]?
         
-    
-mooring_line_section_types:
+# Mooring line section properties
+mooring_line_types:
     polyester_1 :
         EA
         MBL
@@ -130,7 +148,15 @@ mooring_connector_types:
         mass   :
         volume :
 
+anchor_types:
+    Name: suction1
+        Diameter
+        Length
+        Embedment depth
+        …
 
+
+# ----- Cables -----
 
 array_cables:
   - name : cable 27  # optional?   
@@ -155,13 +181,6 @@ array_cables:
         station: [0, 1]      # length along cable
         depth  : [0.1, 0.2]  # [m] burial depth
 
-
-
-
-
-array_cables_simple:   # more compact alternative, without routing info
-    # AttachA, AttachB,  DynCA,    DynCB,   headingA, headingB,   type
-    - [                                                               ]
 
 dynamic_cables:
 
@@ -203,7 +222,7 @@ dynamic_cables:
     
 cable_types:
 
-    static_80 :
+    static_cable_80 :
         A
         V
         I
@@ -222,73 +241,4 @@ cable_types:
 
 cable JOINTS
 
-   
-mooring:
-    water_depth: 200                                  # [m]       uniform water depth
-    
-    points:
-        - name: line1_anchor
-          type: fixed
-          location: [-837, 0.0, -200.0]
-          anchor_type: drag_embedment
-
-        - name: line2_anchor
-          type: fixed
-          location: [418, 725, -200.0]
-          anchor_type: drag_embedment
-
-        - name: line3_anchor
-          type: fixed
-          location: [418, -725, -200.0]
-          anchor_type: drag_embedment
-
-        - name: line1_vessel
-          type: vessel
-          location: [-58,      0.0,     -14.0]
-
-        - name: line2_vessel
-          type: vessel
-          location: [29,      50,     -14.0]
-
-        - name: line3_vessel
-          type: vessel
-          location: [29,     -50,     -14.0]
-
-    lines:
-        - name: line1
-          endA: line1_anchor
-          endB: line1_vessel
-          type: chain
-          length: 850
-
-        - name: line2
-          endA: line2_anchor
-          endB: line2_vessel
-          type: chain
-          length: 850
-
-        - name: line3
-          endA: line3_anchor
-          endB: line3_vessel
-          type: chain
-          length: 850
-
-    line_types:
-        - name: chain
-          diameter:         0.185
-          mass_density:   685.0
-          stiffness:     3270e6
-          breaking_load:    1e8
-          cost: 100.0
-          transverse_added_mass: 1.0
-          tangential_added_mass: 0.0
-          transverse_drag: 1.6
-          tangential_drag: 0.1
-
-    anchor_types:
-        - name: drag_embedment
-          mass: 1e3
-          cost: 1e4
-          max_vertical_load: 0.0
-          max_lateral_load: 1e5
     

@@ -29,18 +29,28 @@ class Project():
     
     '''
     
-    def __init__(self, centroid, lat=0, lon=0, depth=100):
+    def __init__(self, centroid, lat=0, lon=0, file=None, depth=100):
+        '''Initialize a Project. If input data is not provided, it will
+        be empty and can be filled in later.
+        
+        Parameters
+        ----------
+        file : string or dict, optional
+            Name of YAML file, or a python dictionary, containing input
+            information describing the project, following the ontology.
+        '''
         
         
         # ----- design information -----
         
+        # higher-level design data structures
         self.nPtfm  = 0  # number of floating platforms
         self.nAnch = 0   # number of anchors        
         self.coords = np.zeros([self.nPtfm+self.nAnch, 2]) # x-y coordinate table of platforms and anchors
         
-        #self.array = RAFT_model
-        
-        # cables >>>
+        # more detailed design data structures for submodels
+        self.array = None  # RAFT Array
+        self.cables = None  # CableSystem
         
         
         # ----- site information -----
@@ -71,8 +81,6 @@ class Project():
         self.boundary_Xs = np.zeros(0)
         self.boundary_Ys = np.zeros(0)
         
-        #self.array = RAFT_model
-
         self.grid_x      = np.array([0])
         self.grid_y      = np.array([0])
         self.grid_depth  = np.array([[depth]])  # depth at each grid point
@@ -88,6 +96,9 @@ class Project():
         self.soil_alpha = np.zeros((1,1))  # soil skin friction coefficient [-] (clay soils)
         self.soil_phi   = np.zeros((1,1))  # angle of internal friction [deg] (sand soils)
 
+        # ----- if an input file has been passed, load it -----
+        if file:
+            self.load(file)
     
 
     def addMap2GDF(self, filename='', states=None):
@@ -315,9 +326,11 @@ class Project():
         
         # look for site section
         # call load site method
+        self.loadSite(d['site'])
         
         # look for design section
         # call load design method
+        self.loadDesign(d)
     
 
     # ----- Design loading/processing methods -----
@@ -328,10 +341,26 @@ class Project():
         the floating wind array ontology.'''
         
         # standard function to load dict if input is yaml
+        d = 
         
-        # load FAM-specific model parts
+        # --- load FAM-specific model parts ---
         
-        # also load RAFT model parts
+        # cable types
+        
+        # dynamic cable basic properties (details are later via MoorPy)
+        
+        # cables
+        if 'array_cables' in d:
+        
+            cableInfo = [dict(zip( d['array_cables']['keys'], row))
+                         for row in d['array_cables']['data']]
+            
+            for ci in cableInfo:
+                ...
+                
+                self.cables.addCable(...)
+        
+        # --- also load RAFT model parts ---
         
 
     # ----- Site conditions processing functions -----
