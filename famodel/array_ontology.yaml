@@ -10,21 +10,31 @@ site:
         rho_air     : 1.225      # [kg/m^3] air density
         mu_air      : 1.81e-05   #          air dynamic 
         
-    boundaries:
-        [some kind of x,y polygon...]
+    boundaries: #list of polygon vertices in order
+       -[x1, y1]
+       -[x2, y2]
+       -[x3, y3]
+       -[x4, y4]
     
     exclusions:
       - name:
-        type:
+        type: circle
         x_y_r:
-          - [1000, 1200, 20] 
+          - [x1, y1, r1] 
+      
+      - name:
+        type: polygon
+        x_y_r:
+            -[x1, y1]
+            -[x2, y2]
     
     seabed:
-        [some gridded info]
+        -[x1, y1, z1, "soft clay"]
+        -[x2, y2, z2, "medium clay"]    
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)
-            keys :   [ Hs  , Tp  , ... ]
+            keys :   [ Hs  , Tp  , WindSpeed, TI, Shear, Gamma, CurrentSpeed ]
             data :
                 1:   [     ,     ,     ]
                 10:  [     ,     ,     ]
@@ -32,18 +42,17 @@ site:
                 500: [     ,     ,     ]
                 
         probabalistic_bins:
-            keys : [ prob , Hs  , Tp, ...  ]
+            keys : [ prob , Hs  , Tp, WindSpeed, TI, Shear, Gamma, CurrentSpeed, WindDir, WaveDir, CurrentDir  ]
             data :
                 -  [ 0.010  ,   ,   ]
                 -  [ 0.006  ,   ,   ]
                 -  [ 0.005  ,   ,   ]
                 
         time_series :
-            keys : [ prob , Hs  , Tp, ...  ]
-            data :
+            filename: 'metocean_timeseries.csv'
             
     resource :
-        [see what's in Task 37 ontology section]
+        filename: 'windresource'
 
 # ----- Array-level inputs -----
 
