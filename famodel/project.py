@@ -246,10 +246,9 @@ class Project():
         df.to_csv(filename, columns=columns)
 
 
-        
-
     def plot(self, kwargs):
-
+        '''2D map-like plot'''
+        
         if 'centroid' in kwargs:
             centroid_settings = kwargs['centroid']
             if 'label' in centroid_settings:
@@ -282,6 +281,26 @@ class Project():
         # adding columns to gdf's
 
         return fig, ax
+
+
+    def plot3d(self):
+        '''3d plot'''
+
+        # >>> to be adjusted to integrate >>>
+        xbmin, xbmax = sbt.getPlotBounds(longs, zerozero, long=True)
+        ybmin, ybmax = sbt.getPlotBounds(lats, zerozero, long=False)
+
+        ms = mp.System(file='example/sample_deep.txt', bathymetry=bathymetryfilename)
+        ms.initialize()
+
+        xcoast, ycoast = sbt.getCoast(Xbath, Ybath, depths)
+
+        fig, ax = ms.plot(hidebox=True, shadow=False, bathymetry=bathymetryfilename, cmap='gist_earth', rang=(-3200, 500), xbounds=(xbmin, xbmax), ybounds=(ybmin, ybmax))
+        ax.plot(Xbnds_ne, Ybnds_ne, np.zeros(len(Xbnds_ne)), color='r', zorder=100)
+        ax.plot(Xbnds_sw, Ybnds_sw, np.zeros(len(Xbnds_sw)), color='r', zorder=100)
+        ax.plot(Xbnds_ne, Ybnds_ne, -Dbnds_ne, color='k', zorder=10, alpha=0.5)
+        ax.plot(Xbnds_sw, Ybnds_sw, -Dbnds_sw, color='k', zorder=10, alpha=0.5)
+        ax.plot(xcoast, ycoast, np.zeros(len(Ybath)), color='k', zorder=100)
 
 
     def addPoints(self, ax, pointlist=[], kwargs={}):
@@ -444,11 +463,20 @@ class Project():
         '''
         
         # load data from file
-        Xs, Yx, Zs = sbt.processASC(filename, self.lat0, self.lon0)
+        Xs, Ys, Zs = sbt.processASC(filename, self.lat0, self.lon0)
         
+        # ----- map to existing grid -----
+        # if no grid, just use the bathymetry grid
+        if len(self.grid_x) == 0:
+            self.grid_x = np.array(Xs)
+            self.grid_y = np.array(Ys)
+            self.depths = np.array(Zs)
         # interpolate onto grid defined by grid_x, grid_y
+        else:
+            for i, x in enumerate(self.grid_x):
+                for j, y in enumerate(self.grid_y):
+                    self.depths[i,j], _ = sbt.getDepthFromBathymetry(x, y, Xs, Ys, Zs)
         
-        # save in object
         
         # also save in RAFT, in its MoorPy System(s)
         
@@ -540,6 +568,26 @@ class Project():
             
         return soilProps
         
+    
+    def projectAlongSeabed(self, x, y):
+        '''Project a set of x-y coordinates along a seabed surface (grid),
+        returning the corresponding z coordinates.'''
+        
+        if len(x) == len(y):
+            n = len(x)
+        else:
+            raise Exception('x and y inputs must be same length.')
+        
+        z = np.zeros(n)   # z coordinate of each point [m]
+        a = np.zeros(n)   # could also do slope (dz/dh)
+        
+        for i in range(n):
+            z[i], nvec = sbt.getDepthFromBathymetry(Xbnds_ne[i], Ybnds_ne[i], Xbath, Ybath, depths_flipped)
+            
+            # a = ...f(nvec)
+            
+        return z
+
 
     # ----- Anchor capacity calculation functions -----
 
