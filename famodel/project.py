@@ -260,9 +260,10 @@ class Project():
 
         fig, ax = plt.subplots(1,1)
 
-        self.gdf.loc[self.gdf['type']=='centroid'].plot(ax=ax, color=centroid_settings['color'], label=centroid_label)
+        if 'centroid' in kwargs:
+            self.gdf.loc[self.gdf['type']=='centroid'].plot(ax=ax, color=centroid_settings['color'], label=centroid_label)
 
-        if 'boundary' in map_settings:
+        if 'boundary' in kwargs:
             map_boundary = self.gdf.loc[self.gdf['type']=='California'].boundary
             map_boundary.plot(ax=ax, color=map_settings['color'])
         
@@ -273,6 +274,11 @@ class Project():
         ax.set_xlabel('Longitude')
         ax.set_ylabel('Latitude')
         ax.legend()
+
+        ax.set_xlim([-124.875, -124.55])
+        ax.set_ylim([40.025, 40.25])
+
+        fig.tight_layout()
         
         # Some GeoPandas Help
         # to plot just one entry of a geoseries: gdf.loc[[0],'geometry'].plot()
@@ -310,7 +316,7 @@ class Project():
         points = gpd.GeoDataFrame({'type':['nrel_channel','nrel_humboldt','nrel_crescent_city','hawaii'],
                                    'geometry': pointlist}, crs='EPSG:4326')
         
-        points.plot(ax=ax, color=point_settings['color'], marker=point_settings['marker'])
+        points.plot(ax=ax, color=point_settings['color'], marker=point_settings['marker'], label=point_settings['label'])
     
 
     def addState(self, ax, states=[], kwargs={}):
