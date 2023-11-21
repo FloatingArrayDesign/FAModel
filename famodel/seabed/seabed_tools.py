@@ -6,6 +6,40 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import geopy.distance
+from shapely import Point, LineString, Polygon
+
+
+
+
+
+
+def readBathymetryFile(filename):
+
+    f = open(filename, 'r')
+    # skip the header
+    line = next(f)
+    # collect the number of grid values in the x and y directions from the second and third lines
+    line = next(f)
+    nGridX = int(line.split()[1])
+    line = next(f)
+    nGridY = int(line.split()[1])
+    # allocate the Xs, Ys, and main bathymetry grid arrays
+    bathGrid_Xs = np.zeros(nGridX)
+    bathGrid_Ys = np.zeros(nGridY)
+    bathGrid = np.zeros([nGridY, nGridX])  # MH swapped order June 30
+    # read in the fourth line to the Xs array
+    line = next(f)
+    bathGrid_Xs = [float(line.split()[i]) for i in range(nGridX)]
+    # read in the remaining lines in the file into the Ys array (first entry) and the main bathymetry grid
+    for i in range(nGridY):
+        line = next(f)
+        entries = line.split()
+        bathGrid_Ys[i] = entries[0]
+        bathGrid[i,:] = entries[1:]
+    
+    return bathGrid_Xs, bathGrid_Ys, bathGrid
+
+
 
 
 
@@ -304,6 +338,96 @@ def getDepthFromBathymetry(x, y, bathGrid_Xs, bathGrid_Ys, bathGrid):   #Bathyme
     nvec = np.array([dc_dx, dc_dy, 1.0])/np.linalg.norm([dc_dx, dc_dy, 1.0])  # compute unit vector      
 
     return depth, nvec
+
+
+def getDepthFromBathymetryMesh(x, y, bathXs_mesh, bathYs_mesh, bath_depths, tol=1e4):
+    ''' interpolates local seabed depth from a non-square bathymetry mesh grid
+    
+    Parameters
+    ----------
+    x, y : float
+        x and y coordinates to find depth and slope at [m]
+    
+    Returns
+    -------        
+    depth : float
+        local seabed depth (positive down) [m]
+    nvec : array of size 3
+        local seabed surface normal vector (positive out) 
+    '''
+    found = False
+
+    # loop through the bathymetry meshes to find the polygon of the mesh where to interpolate the depths from
+    for j in range(len(bathYs_mesh)-1):
+        for i in range(len(bathXs_mesh[0])-1):
+
+            if np.abs(x-bathXs_mesh[j,i]) > tol or np.abs(y-bathYs_mesh[j,i]) > tol:
+                pass
+            else:
+                # save the point of interest in a shapely Point object
+                point = Point(x, y)
+
+                # create a polygon based on the corner points for each vertex in the bathymetry mesh
+                corner1 = (bathXs_mesh[j,i],bathYs_mesh[j,i])
+                corner2 = (bathXs_mesh[j+1,i],bathYs_mesh[j+1,i])
+                corner3 = (bathXs_mesh[j+1,i+1],bathYs_mesh[j+1,i+1])
+                corner4 = (bathXs_mesh[j,i+1],bathYs_mesh[j,i+1])
+                polygon = Polygon([corner1, corner2, corner3, corner4])
+                # create lines that connect between each vertex/corner - hard-coded to be a 4-sided polygon
+                line1 = LineString([corner1, corner2])
+                line2 = LineString([corner2, corner3])
+                line3 = LineString([corner3, corner4])
+                line4 = LineString([corner4, corner1])
+                # if the point of interest is within the polygon or lies on the line, then set interpolation variables
+                if point.within(polygon) or line1.distance(point) < 1e-8 or line2.distance(point) < 1e-8 or line3.distance(point) < 1e-8 or line4.distance(point) < 1e-8:
+                    # indices to use to reference depth values if point is in the current polygon
+                    ix0 = i
+                    ix1 = i+1
+                    iy0 = j
+                    iy1 = j+1
+                    # bathymetry depths at each index
+                    c00 = bath_depths[iy0, ix0]
+                    c01 = bath_depths[iy1, ix0]
+                    c10 = bath_depths[iy0, ix1]
+                    c11 = bath_depths[iy1, ix1]
+                    # create lines that go between the point of interest and each corner of the polygon
+                    lineC1P = LineString([corner1, point])
+                    lineC2P = LineString([corner2, point])
+                    lineC3P = LineString([corner3, point])
+                    lineC4P = LineString([corner4, point])
+                    # extrude those lines to make sure they intersect an outer line of the polygon
+                    def getExtrapolatedLine(p1, p2, ratio=1000):
+                        a = p1
+                        b = (p1[0]+ratio*(p2[0]-p1[0]), p1[1]+ratio*(p2[1]-p1[1]) )
+                        return LineString([a,b])
+                    lineC1P_extrude = getExtrapolatedLine(corner1, [point.x, point.y])
+                    lineC2P_extrude = getExtrapolatedLine(corner2, [point.x, point.y])
+                    lineC3P_extrude = getExtrapolatedLine(corner3, [point.x, point.y])
+                    lineC4P_extrude = getExtrapolatedLine(corner4, [point.x, point.y])
+                    # create interpolation ratios based on how close the point of interest is to the intersection point of the line going from the corner to extrude and an opposing line of the polygon
+                    def getInterpRatio(line_extruded, lineCP, line_check1, line_check2, corner):
+                        if line_extruded.intersection(line_check1).is_empty and line_extruded.intersection(line_check2).is_empty:
+                            fL = 0.0           # if the extruded line is empty, it means it didn't get extruded, which means the point of interest is on the corner
+                        else:
+                            if line_extruded.intersection(line_check1).is_empty != True:        # check to see if it crosses one of the opposing two lines of the polygon
+                                fL = lineCP.length / LineString([line_extruded.intersection(line_check1), corner]).length
+                            else:
+                                fL = lineCP.length / LineString([line_extruded.intersection(line_check2), corner]).length
+                        return fL
+                    fL1 = getInterpRatio(lineC1P_extrude, lineC1P, line2, line3, corner1)
+                    fL2 = getInterpRatio(lineC2P_extrude, lineC2P, line4, line3, corner2)
+                    fL3 = getInterpRatio(lineC3P_extrude, lineC3P, line1, line4, corner3)
+                    fL4 = getInterpRatio(lineC4P_extrude, lineC4P, line1, line2, corner4)
+
+                    # calculate the interpolated depth based on where the point of interest lies within the plane of the polygon, using the above ratios
+                    depth = c00*(1-fL1) + c01*(1-fL2) + c10*(1-fL3) + c11*(1-fL4)
+                    
+                    found = True
+                    break
+            if found:
+                break
+            
+    return depth
 
 
 def getPlotBounds(latsorlongs_boundary, zerozero, long=True):

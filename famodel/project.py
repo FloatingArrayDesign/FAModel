@@ -1,15 +1,18 @@
 """Project class for FAModel, containing information and key methods for
 the site information and design information that make up a project."""
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
 import moorpy as mp
+from moorpy.helpers import set_axes_equal
+import yaml
 # import raft
 
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon, LineString
 from pyproj import CRS
 from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
@@ -29,7 +32,7 @@ class Project():
     
     '''
     
-    def __init__(self, centroid, lat=0, lon=0, file=None, depth=100):
+    def __init__(self, lon=0, lat=0, file=None, depth=100):
         '''Initialize a Project. If input data is not provided, it will
         be empty and can be filled in later.
         
@@ -54,28 +57,29 @@ class Project():
         
         
         # ----- site information -----
-
-        # need to check if there is an input centroid or a shapefile (for a lease area)
-        self.centroid = centroid
-        self.gdf = gpd.GeoDataFrame({'type':'centroid', 'geometry': [Point(self.centroid)]}, crs='EPSG:4326')
-
-        # set the target coordinate reference system (CRS) that will switch between regular lat/long system and "meters from centroid" system
-        utm_crs_list = query_utm_crs_info(
-            datum_name="WGS 84",
-            area_of_interest=AreaOfInterest(
-                west_lon_degree=self.centroid[0],
-                east_lon_degree=self.centroid[0],
-                north_lat_degree=self.centroid[1],
-                south_lat_degree=self.centroid[1],
-            ),
-        )
-        result = CRS.from_epsg(utm_crs_list[0].code)    # get the CRS information
-        epsg_code = result.srs.split(":")[1]            # extract the numeric code
-
-        self.target_crs = CRS.from_epsg(epsg_code)  # save the target CRS (UTM 10N = 32610)
+        self.latlong_crs = CRS.from_epsg(4326)
 
         self.lat0  = lat  # lattitude of site reference point [deg]
         self.lon0  = lon  # longitude of site reference point [deg]
+
+        if self.lat0 != 0 and self.lon0 != 0:
+            # set the centroid of the project and save in a GeoDataFrame
+            self.centroid = (self.lon0, self.lat0)
+            self.gdf = gpd.GeoDataFrame({'type':'centroid', 'geometry': [Point(self.centroid)]}, crs=self.latlong_crs)
+            # set the target coordinate reference system (CRS) that will switch between regular lat/long system and "meters from centroid" system, based on centroid location
+            utm_crs_list = query_utm_crs_info(
+                datum_name="WGS 84",
+                area_of_interest=AreaOfInterest(
+                    west_lon_degree=self.centroid[0],
+                    east_lon_degree=self.centroid[0],
+                    north_lat_degree=self.centroid[1],
+                    south_lat_degree=self.centroid[1],
+                ),
+            )
+            result = CRS.from_epsg(utm_crs_list[0].code)    # get the CRS information
+            epsg_code = result.srs.split(":")[1]            # extract the numeric code
+            self.target_crs = CRS.from_epsg(epsg_code)  # save the target CRS (UTM 10N = 32610)
+
 
         # project boundaries
         self.boundary_Xs = np.zeros(0)
@@ -101,6 +105,499 @@ class Project():
             self.load(file)
     
 
+
+    def load(self, project_yaml):
+        '''
+        Load a full set of project information from a dictionary or 
+        YAML file. This calls other methods for each part of it.
+        
+        Parameters
+        ----------
+        input : dict or filename
+            Dictionary or YAML filename containing project info.
+        '''
+        
+        # standard function to load dict if input is yaml
+        with open(project_yaml) as file:
+            project = yaml.load(file, Loader=yaml.FullLoader)
+        
+        # look for site section
+        # call load site method
+        self.loadSite(project['site'])
+        
+        # look for design section
+        # call load design method
+        self.loadDesign(project)
+    
+
+    # ----- Design loading/processing methods -----
+    
+    def loadDesign(self, d):
+        '''Load design information from a dictionary or YAML file
+        (specified by input). This should be the design portion of
+        the floating wind array ontology.'''
+        
+        # standard function to load dict if input is yaml
+        #d = 
+        
+        # ===== load FAM-specific model parts =====
+        
+        # cable types
+        
+        # dynamic cable basic properties (details are later via MoorPy)
+        
+        # ----- table of cables -----
+        if 'array_cables' in d:
+        
+            cableInfo = [dict(zip( d['array_cables']['keys'], row))
+                         for row in d['array_cables']['data']]
+            
+            for ci in cableInfo:
+                ...
+                
+                self.cables.addCable(...)
+        
+        # ----- cables one-by-one -----
+        if 'cables' in d:
+        
+            for ci in d['cables']:
+                ...
+                
+                self.cables.addCable(...)
+        
+        
+        # ===== load RAFT model parts =====
+        
+
+    # ----- Site conditions processing functions -----
+
+    def loadSite(self, site):
+        '''Load site information from a dictionary or YAML file
+        (specified by input). This should be the site portion of
+        the floating wind array ontology.'''
+        # standard function to load dict if input is yaml
+        
+        # load general information
+        self.depth = getFromDict(site['general'], 'depth', default=100)
+        self.rho_water = getFromDict(site['general'], 'rho_water', default=1025.0)
+        self.rho_air = getFromDict(site['general'], 'rho_air', default=1.225)
+        self.mu_air = getFromDict(site['general'], 'mu_air', default=1.81e-5)
+
+        # load geographical information, if provided
+        self.centroid = getFromDict(site['location'], 'centroid', default='lease_area')             # >>>>>>>> might need another if statement or two to sort out the centroid
+        self.lease_area_name = getFromDict(site['location'], 'lease_area', dtype=str, default=None)
+        if self.lease_area_name is not None:
+            self.loadBoundary(self.lease_area_name, which_centroid=self.centroid)
+        
+        # load bathymetry information, if provided
+        self.bathymetry_gebco = getFromDict(site['bathymetry'], 'gebco_file', dtype=str, default='')
+        self.bathymetry_moorpy = getFromDict(site['bathymetry'], 'moorpy_file', dtype=str, default='')
+        if len(self.bathymetry_gebco) > 0:
+            self.loadBathymetry(self.bathymetry_gebco, self.bathymetry_moorpy)
+
+        # load project boundary/grid information
+        self.boundary_type = getFromDict(site['boundary'], 'type', dtype=str, default='default')
+
+        if self.boundary_type=='bathymetry':
+            if 'gebco_file' not in site['bathymetry']:      # check to make sure you've run loadBathymetry
+                raise ValueError("Need to include a bathymetry input file")
+
+            # set the x and y coordinates to be used for a grid based on the extent of the bathymetry file
+            bathX_min = np.max(self.bathXs_mesh[:,0])
+            bathX_max = np.min(self.bathXs_mesh[:,-1])
+            bathY_min = np.max(self.bathYs_mesh[-1,:])
+            bathY_max = np.min(self.bathYs_mesh[0,:])
+            # initialize the discretization of the grid
+            dbathX = np.abs(self.bathXs_mesh[0,1] - self.bathXs_mesh[0,0])*10
+            dbathY = np.abs(self.bathYs_mesh[1,0] - self.bathYs_mesh[0,0])*10
+            # create new grid x and y arrays however you want (default based on bathymetry)
+            xs = np.arange(bathX_min, bathX_max, dbathX)
+            ys = np.arange(bathY_min, bathY_max, dbathY)
+
+            #self.extent = [self.bathXs_mesh[:,0], self.bathXs_mesh[:,-1], self.bathYs_mesh[0,:], self.bathYs_mesh[-1,:]]
+            print("WARNING: The process to set the grid depth values for a large bathymetry grid can take a long time. Make sure you use a small grid or discretization")
+        
+        elif self.boundary_type=='lease_area':
+            if self.lease_area_name==None:
+                raise ValueError('Need to provide the name of a valid lease area to use this boundary type')
+            #self.extent = [np.min(self.lease_xs), np.max(self.lease_xs), np.max(self.lease_ys), np.min(self.lease_ys)]
+            xs = self.lease_xs
+            ys = self.lease_ys
+        
+        elif self.boundary_type=='extent':      # in long/lat units
+            self.extent = getFromDict(site['boundary'], 'data')
+        
+        elif self.boundary_type=='default':     # in long/lat units
+            self.extent = [-1000, 1000, 1000, -1000]
+        
+        else:
+            raise ValueError("Not a valid boundary name")
+        
+        # and set the project boundary/grid based on the loaded information
+        self.setGrid(xs, ys)
+
+
+        
+        # load seabed portions
+        
+        # load lease area portions
+        
+        # load metocean portions
+
+
+
+
+    def setGrid(self, xs, ys):
+        '''
+        Set up the rectangular grid over which site or seabed
+        data will be saved and worked with. Directions x and y are 
+        generally assumed to be aligned with the East and North 
+        directions, respectively, at the array reference point.
+        
+        Parameters
+        ----------        
+        xs : float array
+            x coordinates relative to array reference point [m]
+        ys : float array
+            y coordinates relative to array reference point [m]
+        '''
+        
+        xs = np.array(xs)
+        ys = np.array(ys)
+
+        dx = np.abs(np.linalg.norm([xs[1], ys[1]]) - np.linalg.norm([xs[0], ys[0]]))
+
+        self.grid_x = np.arange(np.min(xs), np.max(xs)+dx, dx)
+        self.grid_y = np.arange(np.min(ys), np.max(ys)+dx, dx)
+
+        self.boundaryXs = np.hstack([self.grid_x, np.ones(len(self.grid_y))*self.grid_x[-1], np.flip(self.grid_x), np.ones(len(self.grid_y))*self.grid_x[0]])
+        self.boundaryYs = np.hstack([np.ones(len(self.grid_x))*self.grid_y[0], self.grid_y, np.ones(len(self.grid_x))*self.grid_y[-1], np.flip(self.grid_y)])
+
+        # create a new depth matrix that uses interpolated values from the bathymetry data (be careful: this process can take a long time)
+        self.grid_depths = np.zeros([len(self.grid_y), len(self.grid_x)])
+        for i in range(len(self.grid_y)):
+            for j in range(len(self.grid_x)):
+                print(i, j, len(self.grid_x), len(self.grid_y))
+                self.grid_depths[i,j] = sbt.getDepthFromBathymetryMesh(self.grid_x[j], self.grid_y[i], self.bathXs_mesh, self.bathYs_mesh, self.bath_depths)
+        
+        
+        #TODO: add check for existing seabed data. If present, convert or raise warning <<<
+    
+
+
+
+    def loadBoundary(self, lease_name, which_centroid='lease_area'):
+        
+        # read in the BOEM Shapefile that contains all Wind Energy Lease Areas
+        lease_areas = gpd.read_file('shapefiles/Wind_Lease_Outlines_2_2023.shp')    # can use the other shapefile for aliquots
+
+        # extract the lease area of interest
+        if lease_name=='Humboldt_NE':
+            lease_area = lease_areas.loc[lease_areas['LEASE_NUMB']=='OCS-P0561 - Provisional']
+        elif lease_name=='Humboldt_SW':
+            lease_area = lease_areas.loc[lease_areas['LEASE_NUMB']=='OCS-P0562 - Provisional']
+        elif lease_name=='MorroBay_W':
+            lease_area = lease_areas.loc[lease_areas['LEASE_NUMB']=='OCS-P0563 - Provisional']
+        elif lease_name=='MorroBay_C':
+            lease_area = lease_areas.loc[lease_areas['LEASE_NUMB']=='OCS-P0564 - Provisional']
+        elif lease_name=='MorroBay_E':
+            lease_area = lease_areas.loc[lease_areas['LEASE_NUMB']=='OCS-P0565 - Provisional']
+        else:
+            raise ValueError(f"The lease area name '{lease_area}' is not supported yet")
+
+        # create a GeoDataFrame of that lease area
+        self.gdf = gpd.GeoDataFrame({'type': 'lease_area', 'geometry': lease_area.geometry}, crs=self.latlong_crs)      # gdf to only be used with 2D plotting/visualization
+
+        # set the target coordinate reference system (CRS) that will switch between regular lat/long system and "meters from centroid" system, based on lease area location
+        utm_crs_list = query_utm_crs_info(
+            datum_name="WGS 84",
+            area_of_interest=AreaOfInterest(
+                west_lon_degree=self.gdf.geometry.total_bounds[0],
+                east_lon_degree=self.gdf.geometry.total_bounds[2],
+                north_lat_degree=self.gdf.geometry.total_bounds[3],
+                south_lat_degree=self.gdf.geometry.total_bounds[1],
+            ),
+        )
+        result = CRS.from_epsg(utm_crs_list[0].code)    # get the CRS information
+        epsg_code = result.srs.split(":")[1]            # extract the numeric code
+        self.target_crs = CRS.from_epsg(epsg_code)  # save the target CRS (UTM 10N = 32610)
+
+        if which_centroid=='lease_area':
+            # make a blank copy of the gdf to switch to the target CRS to get the accurate centroid
+            gdf_utm = self.gdf.copy().to_crs(self.target_crs)
+            centroid_utm = (gdf_utm.geometry.centroid.values.x[0], gdf_utm.geometry.centroid.values.y[0])
+            gdf_centroid = gpd.GeoDataFrame({'type':'centroid', 'geometry': [Point(centroid_utm)]}, crs=self.target_crs)
+            self.centroid = (gdf_centroid.to_crs(self.latlong_crs).geometry.values.x[0], gdf_centroid.to_crs(self.latlong_crs).geometry.values.y[0]) # assume centroid is focal point of Project
+        else:
+            # assuming the input centroid is in a long/lat pair
+            gdf_centroid = gpd.GeoDataFrame({'type':'centroid', 'geometry': [Point(which_centroid)]}, crs=self.latlong_crs)
+            gdf_centroid.to_crs(self.target_crs)
+            self.centroid = (gdf_centroid.to_crs(self.latlong_crs).geometry.values.x[0], gdf_centroid.to_crs(self.latlong_crs).geometry.values.y[0]) # assume centroid is focal point of Project
+ 
+
+        # extract lease area bounds from gdf in units of lat/long
+        self.area_longs, self.area_lats = self.gdf.geometry.unary_union.exterior.coords.xy
+        # convert lat/long boundary/lease area points to meters away from the centroid
+        self.lease_xs, self.lease_ys = self.convertLatLong2Meters(self.area_longs, self.area_lats, self.centroid)
+        
+    
+
+
+
+    def loadBathymetry(self, gebcofilename, moorpy_bathymetry_filename='', dbath='gebco'):
+        '''Loads a GEBCO .asc bathymetry file into easy-to-use variables (helps with plotting)
+        
+        Parameters
+        ----------
+        gebcofilename : string/path
+            path name to the GEBCO .asc file
+        latlong_extent : array/list
+            array of size 4 for the rectangular extent of bathymetry to use
+            Convention is [west longitude, east longitude, north latitude, south latitude]
+        moorpy_bathymetry_filename : string/path
+            path or string to the name of the file to be created, formatted to input
+            bathymetry to MoorPy or MoorDyn
+        dbath : float
+            discretization spacing of bathymetry grid
+
+        Returns
+        -------
+
+        '''
+        # load the GEBCO bathymetry file
+        depths = -np.loadtxt(gebcofilename, skiprows=6)
+        # flip the depths matrix upside down because the first value ([0,0]) in the top left corner corresponds to the first longitude, but last latitude
+        depths = np.flipud(depths)
+        nrows = len(depths)
+        ncols = len(depths[0])
+        newlinedata = []
+        with open(gebcofilename) as f:
+            lines = f.readlines()
+        for i,line in enumerate(lines):
+            if i < 6: newlinedata.append(line.split())
+            if i==2: xllcorner = float(line.split()[1])
+            if i==3: yllcorner = float(line.split()[1])
+            if i==4: cellsize = float(line.split()[1])
+        
+        # create an array of latitudes and longitudes of the GEBCO bathymetry matrix, using above inputs
+        longs = np.linspace(xllcorner, xllcorner+ncols*cellsize, ncols)
+        lats  = np.linspace(yllcorner, yllcorner+nrows*cellsize, nrows)
+
+        # save the long/lat points in a mesh grid (to be more easily converted into meters)
+        longs_mesh, lats_mesh = np.meshgrid(longs, lats)
+
+        # convert long/lat mesh grid point into meters, relative to the centroid (hstack used for ease of use)
+        bathXs_hstack, bathYs_hstack = self.convertLatLong2Meters(np.hstack(longs_mesh), np.hstack(lats_mesh), self.centroid)
+
+        # convert back to mesh grid form
+        self.bathXs_mesh = np.zeros([len(lats), len(longs)])
+        self.bathYs_mesh = np.zeros([len(lats), len(longs)])
+        for i in range(len(bathXs_hstack)):
+            iy = i - int(i/len(longs))*len(longs)       # extract the row index from the hstack array
+            ix = (len(lats)-1) - int(i/len(longs))      # extract the column index from the hstack array (the addition of len(lats)-1 flips the matrix upside down to what we want)
+            self.bathXs_mesh[ix,iy] = bathXs_hstack[i]  # size [len(longs), len(lats)] matrix of x values, using long/lat convention of [0,0] in NW corner of the matrix
+            self.bathYs_mesh[ix,iy] = bathYs_hstack[i]  # same comment as above for y values
+        self.bath_depths = depths                       # save the depths matrix that came from the GEBCO data
+
+        self.bathYs_mesh = np.flipud(self.bathYs_mesh)
+
+        # save a MoorDyn/MoorPy-style bathymetry, file if desired
+        if len(moorpy_bathymetry_filename) > 0:
+
+            f = open(os.path.join(os.getcwd(), moorpy_bathymetry_filename), 'w')
+            f.write('--- MoorPy Bathymetry Input File ---\n')
+            f.write(f'nGridX {ncols}\n')
+            f.write(f'nGridY {nrows}\n')
+            f.write(f'      ')
+            for ix in range(len(self.bathXs_mesh[0,:])):        # different array of x's depending on the latitude (y) - defaults to top row
+                f.write(f'{self.bathXs_mesh[0,ix]:.2f} ')
+            f.write('\n')
+            for iy in range(len(self.bathYs_mesh)):
+                f.write(f'{self.bathYs_mesh[iy,0]:.2f} ')         # different array of y's depending on the longitude (x) - defaults to left column
+                for id in range(len(self.bath_depths[iy])):
+                    f.write(f'{self.bath_depths[iy,id]} ')
+                f.write('\n')
+            f.close()
+            # results in a skewed picture of the bathymetry grid, since the Xs and Ys converted from long/lat are not perfectly rectangular
+        
+        # NOTE:
+        # the data from GEBCO assumes a square long/lat grid, with longs on x-axis and lats on y-axis
+        # however, when you convert that to a meters coordinate system, it distorts the square grid (due to curvature of the Earth)
+        # for example, the GEBCO grid assumes the world can be mapped on to a rectangaular shape and discretized by longs/lats with horizontal and vertical lines
+        # but, the earth is actually curved, so the long/lat grid is actually slanted (in units of meters) and the square grid becomes distorted
+        # to use the bathymetry grid how we want it, we will need to make our own grid in the regular coordinate system, and interpolate the bathymetry depths from the GEBCO data
+
+        
+
+
+
+
+
+    def plot3d(self, ax=None, figsize=(6,4), area=None, bathymetry=None, boundary=None, area_on_bath=None, args_bath={}):
+        '''Plot aspects of the Project object in matplotlib in 3D'''
+
+        # organize the bathymetry arguments
+        if len(args_bath)==0:
+            args_bath = {'zlim':[-3200,500], 'cmap':'gist_earth'}
+
+        # if axes not passed in, make a new figure
+        if ax == None:    
+            fig = plt.figure(figsize=figsize)
+            ax = plt.axes(projection='3d')
+        else:
+            fig = ax.get_figure()
+
+        # plot the lease area in a red color, if desired
+        if area:
+            ax.plot(self.lease_xs, self.lease_ys, np.zeros(len(self.lease_xs)), color='r', zorder=100)
+        
+        # plot the bathymetry in matplotlib using a plot_surface
+
+        # !!!! include option to plot entire bathymetry file or not
+
+        if isinstance(bathymetry, str):
+            bathGrid_Xs, bathGrid_Ys, bathGrid = sbt.readBathymetryFile(bathymetry)         # parse through the MoorDyn/MoorPy-formatted bathymetry file
+            X, Y = np.meshgrid(bathGrid_Xs, bathGrid_Ys)                                    # create a 2D mesh of the x and y values
+            bath = ax.plot_surface(X, Y, -bathGrid, vmin=args_bath['zlim'][0], vmax=args_bath['zlim'][1], cmap=args_bath['cmap'])
+        else:           # >>>>>>>> fix this up
+            self.default_depth = 600
+            xextent = np.array([-1e5, 1e5])
+            yextent = np.array([-1e5, 1e5])
+            X, Y = np.meshgrid(xextent, yextent)
+            depth = np.ones_like(X)*-self.default_depth
+            bath = ax.plot_surface(X, Y, depth, color='b', alpha=0.25)
+        
+        # plot the project boundary
+        if boundary:
+            ax.plot(self.boundaryXs, self.boundaryYs, np.zeros(len(self.boundaryXs)), color='k', zorder=100)
+            
+        # plot the projection of the lease area bounds on the seabed, if desired
+        if area_on_bath:
+            self.lease_zs = self.projectAlongSeabed(self.lease_xs, self.lease_ys)
+            ax.plot(self.lease_xs, self.lease_ys, -self.lease_zs, color='k', zorder=10, alpha=0.5)
+
+
+            
+
+        set_axes_equal(ax)
+        ax.axis('off')
+        
+
+
+        # TODO
+
+        # reference entire CA bathymetry file (maybe)
+        # plot2d method and a plotGDF method (with bathymetry in the geodataframe using contours)
+
+        # add the coastline
+        #xcoast, ycoast = sbt.getCoast(self.Xs, self.Ys, self.depths)
+        #ax.plot(xcoast, ycoast, np.zeros(len(self.Ys)), color='k', zorder=100)
+
+        # need to fix up bounds
+        #xbmin, xbmax = sbt.getPlotBounds(self.longs_bath, self.centroid, long=True)
+        #ybmin, ybmax = sbt.getPlotBounds(self.lats_bath, self.centroid, long=False)
+
+        plt.show()
+
+
+
+
+
+
+    # Helper functions
+
+    def projectAlongSeabed(self, x, y):
+        '''Project a set of x-y coordinates along a seabed surface (grid),
+        returning the corresponding z coordinates.'''
+        
+        if len(x) == len(y):
+            n = len(x)        
+            z = np.zeros(n)   # z coordinate of each point [m]
+            a = np.zeros(n)   # could also do slope (dz/dh)
+            for i in range(n):
+                z[i], nvec = sbt.getDepthFromBathymetry(x[i], y[i], self.bathXs, self.bathYs, self.bath_depths)
+        
+        else:
+            z = np.zeros([len(y), len(x)])
+            for i in range(len(y)):
+                for j in range(len(x)):
+                    z[i,j], nvec = sbt.getDepthFromBathymetry(x[j], y[i], self.bathXs_mesh, self.bathYs_mesh, self.bath_depths)
+            
+        return z
+
+    def convertLatLong2Meters(self, longs, lats, centroid):
+        '''input longs/lats need to be in EPSG:4326 CRS
+        Longs and Lats need to be in pairs, i.e., the first entry to longs and 
+        the first entry of lats needs to correspond to a specific point
+        
+        Parameters
+        ----------
+        longs : array/list
+            array of longitude coordinates (x positions)
+        lats : array/list
+            array of latitude coordinates (y positions)
+        centroid : tuple
+            A tuple or list of two values, x and y, of the project 
+            reference point or centroid
+
+        Returns
+        -------
+        xs : array
+            x values relative to centroid (from longitudes) [m]
+        ys : array
+            y values relative to centroid (from latitudes) [m]
+        '''
+
+        if len(longs) != len(lats):
+            raise ValueError('The list of longs needs to be the same length as the list of lats')
+        '''
+        points = np.zeros([len(longs), len(lats)])
+        for i in range(len(longs)):
+            for j in range(len(lats)):
+                points[i,j] = Point(longs[i], lats[j])
+        '''
+        # organize all the long/lat points into a shapely Polygon
+        points = [Point(longs[i],lats[i]) for i in range(len(longs))]
+
+        # input the Polygon of longs/lats and the centroid into a GeoDataFrame in EPSG:4326
+        gdf = gpd.GeoDataFrame({'type':'shape','geometry':points}, crs=self.latlong_crs)
+        gdf_centroid = gpd.GeoDataFrame({'type':'centroid','geometry': [Point(centroid)]}, crs=self.latlong_crs)
+        gdf = pd.concat([gdf, gdf_centroid])        # combine the geodataframes into one (adding rows to a gdf)
+        gdf_utm = gdf.to_crs(self.target_crs)       # convert the GeoDataFrame to UTM coordinates (i.e., meters)
+        xcentroid = gdf_utm[gdf_utm['type']=='centroid'].geometry.x.values[0]   # extract the centroid in x [m]
+        ycentroid = gdf_utm[gdf_utm['type']=='centroid'].geometry.y.values[0]   # extract the centroid in y [m]
+
+        # calculate all the long/lat points distances from the centroid, in units of meters
+        xs = np.zeros(len(longs))
+        ys = np.zeros(len(lats))
+        for i,x in enumerate(gdf_utm[gdf_utm['type']=='shape'].geometry.get_coordinates().x.values):
+            xs[i] = np.array(x - xcentroid)
+        for i,y in enumerate(gdf_utm[gdf_utm['type']=='shape'].geometry.get_coordinates().y.values):
+            ys[i] = np.array(y - ycentroid)
+        
+        return xs, ys
+
+
+
+    
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    # METHODS USED SPECIFICALLY FOR DEEPFARM LCOE ANALYSIS
+    
     def addMap2GDF(self, filename='', states=None):
         '''function to include a shapefile of a provided map'''
 
@@ -246,7 +743,7 @@ class Project():
         df.to_csv(filename, columns=columns)
 
 
-    def plot(self, kwargs):
+    def plotGDF(self, kwargs):
         '''2D map-like plot'''
         
         if 'centroid' in kwargs:
@@ -289,25 +786,6 @@ class Project():
         return fig, ax
 
 
-    def plot3d(self):
-        '''3d plot'''
-
-        # >>> to be adjusted to integrate >>>
-        xbmin, xbmax = sbt.getPlotBounds(longs, zerozero, long=True)
-        ybmin, ybmax = sbt.getPlotBounds(lats, zerozero, long=False)
-
-        ms = mp.System(file='example/sample_deep.txt', bathymetry=bathymetryfilename)
-        ms.initialize()
-
-        xcoast, ycoast = sbt.getCoast(Xbath, Ybath, depths)
-
-        fig, ax = ms.plot(hidebox=True, shadow=False, bathymetry=bathymetryfilename, cmap='gist_earth', rang=(-3200, 500), xbounds=(xbmin, xbmax), ybounds=(ybmin, ybmax))
-        ax.plot(Xbnds_ne, Ybnds_ne, np.zeros(len(Xbnds_ne)), color='r', zorder=100)
-        ax.plot(Xbnds_sw, Ybnds_sw, np.zeros(len(Xbnds_sw)), color='r', zorder=100)
-        ax.plot(Xbnds_ne, Ybnds_ne, -Dbnds_ne, color='k', zorder=10, alpha=0.5)
-        ax.plot(Xbnds_sw, Ybnds_sw, -Dbnds_sw, color='k', zorder=10, alpha=0.5)
-        ax.plot(xcoast, ycoast, np.zeros(len(Ybath)), color='k', zorder=100)
-
 
     def addPoints(self, ax, pointlist=[], kwargs={}):
 
@@ -336,157 +814,8 @@ class Project():
 
 
 
-    def load(self, input):
-        '''
-        Load a full set of project information from a dictionary or 
-        YAML file. This calls other methods for each part of it.
-        
-        Parameters
-        ----------
-        input : dict or filename
-            Dictionary or YAML filename containing project info.
-        '''
-        
-        # standard function to load dict if input is yaml
-        
-        # look for site section
-        # call load site method
-        self.loadSite(d['site'])
-        
-        # look for design section
-        # call load design method
-        self.loadDesign(d)
-    
+    # METHODS TO USE WITH ANCHOR TOOLS
 
-    # ----- Design loading/processing methods -----
-    
-    def loadDesign(input):
-        '''Load design information from a dictionary or YAML file
-        (specified by input). This should be the design portion of
-        the floating wind array ontology.'''
-        
-        # standard function to load dict if input is yaml
-        d = 
-        
-        # ===== load FAM-specific model parts =====
-        
-        # cable types
-        
-        # dynamic cable basic properties (details are later via MoorPy)
-        
-        # ----- table of cables -----
-        if 'array_cables' in d:
-        
-            cableInfo = [dict(zip( d['array_cables']['keys'], row))
-                         for row in d['array_cables']['data']]
-            
-            for ci in cableInfo:
-                ...
-                
-                self.cables.addCable(...)
-        
-        # ----- cables one-by-one -----
-        if 'cables' in d:
-        
-            for ci in d['cables']:
-                ...
-                
-                self.cables.addCable(...)
-        
-        
-        # ===== load RAFT model parts =====
-        
-
-    # ----- Site conditions processing functions -----
-
-    def loadSite(input):
-        '''Load site information from a dictionary or YAML file
-        (specified by input). This should be the site portion of
-        the floating wind array ontology.'''
-        
-        # standard function to load dict if input is yaml
-        
-        # load seabed portions
-        
-        # load lease area portions
-        
-        # load metocean portions
-        
-        
-    def setGrid(self, xCoords, yCoords):
-        '''
-        Set up the rectangular grid over which site or seabed
-        data will be saved and worked with. Directions x and y are 
-        generally assumed to be aligned with the East and North 
-        directions, respectively, at the array reference point.
-        
-        Parameters
-        ----------        
-        xCoords : float array
-            x coordinates relative to array reference point [m]
-        yCoords : float array
-            x coordinates relative to array reference point [m]
-        '''
-        
-        self.grid_x = np.array(xCoords)
-        self.grid_y = np.array(yCoords)
-        
-        #TODO: add check for existing seabed data. If present, convert or raise warning <<<
-    
-    
-    def loadBoundary(self, filename):
-        '''
-        Load a lease area boundary for the project from an input file.
-        
-        Parameters
-        ----------
-
-        filename : path
-            path/name of file containing bathymetry data (format TBD)
-        '''
-        
-        # load data from file
-        Xs, Ys = sbt.processBoundary(filename, self.lat0, self.lon0)
-        
-        # check compatibility with project grid size
-        
-        # save as project boundaries
-        self.boundary_Xs = Xs
-        self.boundary_Ys = Ys
-        
-        # figure out masking to exclude grid data outside the project boundary
-        
-        
-    def loadBathymetry(self, filename):
-        '''
-        Load bathymetry information from an input file (format TBD), convert to
-        a rectangular grid, and save the grid to the floating array object (TBD).
-        
-        Paramaters
-        ----------
-        filename : path
-            path/name of file containing bathymetry data (format TBD)
-        '''
-        
-        # load data from file
-        Xs, Ys, Zs = sbt.processASC(filename, self.lat0, self.lon0)
-        
-        # ----- map to existing grid -----
-        # if no grid, just use the bathymetry grid
-        if len(self.grid_x) == 0:
-            self.grid_x = np.array(Xs)
-            self.grid_y = np.array(Ys)
-            self.depths = np.array(Zs)
-        # interpolate onto grid defined by grid_x, grid_y
-        else:
-            for i, x in enumerate(self.grid_x):
-                for j, y in enumerate(self.grid_y):
-                    self.depths[i,j], _ = sbt.getDepthFromBathymetry(x, y, Xs, Ys, Zs)
-        
-        
-        # also save in RAFT, in its MoorPy System(s)
-        
-        
     def loadSoil(self, filename):
         '''
         Load geoetechnical information from an input file (format TBD), convert to
@@ -573,26 +902,6 @@ class Project():
             raise ValueError(f"Unsupported seabed type '{self.seabed_type}'.")
             
         return soilProps
-        
-    
-    def projectAlongSeabed(self, x, y):
-        '''Project a set of x-y coordinates along a seabed surface (grid),
-        returning the corresponding z coordinates.'''
-        
-        if len(x) == len(y):
-            n = len(x)
-        else:
-            raise Exception('x and y inputs must be same length.')
-        
-        z = np.zeros(n)   # z coordinate of each point [m]
-        a = np.zeros(n)   # could also do slope (dz/dh)
-        
-        for i in range(n):
-            z[i], nvec = sbt.getDepthFromBathymetry(Xbnds_ne[i], Ybnds_ne[i], Xbath, Ybath, depths_flipped)
-            
-            # a = ...f(nvec)
-            
-        return z
 
 
     # ----- Anchor capacity calculation functions -----
@@ -680,6 +989,145 @@ class Project():
         # make a list of any exclusion/nodes that it is too close to
         
         return score, list_of_violations
+    
+
+
+
+    """
+    def loadBoundary(self, filename):
+        '''
+        Load a lease area boundary for the project from an input file.
+        
+        Parameters
+        ----------
+
+        filename : path
+            path/name of file containing bathymetry data (format TBD)
+        '''
+        
+        # load data from file
+        Xs, Ys = sbt.processBoundary(filename, self.lat0, self.lon0)
+        
+        # check compatibility with project grid size
+        
+        # save as project boundaries
+        self.boundary_Xs = Xs
+        self.boundary_Ys = Ys
+        
+        # figure out masking to exclude grid data outside the project boundary
+        
+        
+    def loadBathymetry(self, filename):
+        '''
+        Load bathymetry information from an input file (format TBD), convert to
+        a rectangular grid, and save the grid to the floating array object (TBD).
+        
+        Paramaters
+        ----------
+        filename : path
+            path/name of file containing bathymetry data (format TBD)
+        '''
+        
+        # load data from file
+        Xs, Ys, Zs = sbt.processASC(filename, self.lat0, self.lon0)
+        
+        # ----- map to existing grid -----
+        # if no grid, just use the bathymetry grid
+        if len(self.grid_x) == 0:
+            self.grid_x = np.array(Xs)
+            self.grid_y = np.array(Ys)
+            self.depths = np.array(Zs)
+        # interpolate onto grid defined by grid_x, grid_y
+        else:
+            for i, x in enumerate(self.grid_x):
+                for j, y in enumerate(self.grid_y):
+                    self.depths[i,j], _ = sbt.getDepthFromBathymetry(x, y, Xs, Ys, Zs)
+        
+        
+        # also save in RAFT, in its MoorPy System(s)
+    """
+
+
+
+def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
+    '''
+    Function to streamline getting values from design dictionary from YAML file, including error checking.
+
+    Parameters
+    ----------
+    dict : dict
+        the dictionary
+    key : string
+        the key in the dictionary
+    shape : list, optional
+        The desired shape of the output. If not provided, assuming scalar output. If -1, any input shape is used.
+    dtype : type
+        Must be a python type than can serve as a function to format the input value to the right type.
+    default : number or list, optional
+        The default value to fill in if the item isn't in the dictionary. 
+        Otherwise will raise error if the key doesn't exist. It may be a list
+        (to be tiled shape times if shape > 1) but may not be a numpy array.
+    '''
+    # in future could support nested keys   if type(key)==list: ...
+
+    if key in dict:
+        val = dict[key]                                      # get the value from the dictionary
+        if shape==0:                                         # scalar input expected
+            if np.isscalar(val):
+                return dtype(val)
+            else:
+                raise ValueError(f"Value for key '{key}' is expected to be a scalar but instead is: {val}")
+        elif shape==-1:                                      # any input shape accepted
+            if np.isscalar(val):
+                return dtype(val)
+            else:
+                return np.array(val, dtype=dtype)
+        else:
+            if np.isscalar(val):                             # if a scalar value is provided and we need to produce an array (of any shape)
+                return np.tile(dtype(val), shape)
+
+            elif np.isscalar(shape):                         # if expecting a 1D array (or if wanting the result to have the same length as the input)
+                if len(val) == shape:                        # throw an error if the input is not the same length as the shape, meaning the user is missing data
+                    if index == None:
+                        return np.array([dtype(v) for v in val])    # if no index is provided, do normally and return the array input
+                    else:
+                        keyshape = np.array(val).shape              # otherwise, use the index to create the output arrays desired
+                        if len(keyshape) == 1:                      # if the input is 1D, shape=n, and index!=None, then tile the indexed value of length shape
+                            if index in range(keyshape[0]):
+                                return np.tile(val[index], shape)
+                            else:
+                                raise ValueError(f"Value for index '{index}' is not within the size of {val} (len={keyshape[0]})")
+                        else:                                               # if the input is 2D, len(val)=shape, and index!=None
+                            if index in range(keyshape[1]):
+                                return np.array([v[index] for v in val])    # then pull the indexed value out of each row of 2D input
+                            else:
+                                raise ValueError(f"Value for index '{index}' is not within the size of {val} (len={keyshape[0]})")
+                else:
+                    raise ValueError(f"Value for key '{key}' is not the expected size of {shape} and is instead: {val}")
+
+            else:                                            # must be expecting a multi-D array
+                vala = np.array(val, dtype=dtype)            # make array
+
+                if list(vala.shape) == shape:                      # if provided with the right shape
+                    return vala
+                elif len(shape) > 2:
+                    raise ValueError("Function getFromDict isn't set up for shapes larger than 2 dimensions")
+                elif vala.ndim==1 and len(vala)==shape[1]:   # if we expect an MxN array, and an array of size N is provided, tile it M times
+                    return np.tile(vala, [shape[0], 1] )
+                else:
+                    raise ValueError(f"Value for key '{key}' is not a compatible size for target size of {shape} and is instead: {val}")
+
+    else:
+        if default == None:
+            raise ValueError(f"Key '{key}' not found in input file...")
+        else:
+            if shape==0 or shape==-1:
+                return default
+            else:
+                if np.isscalar(default):
+                    return np.tile(default, shape)
+                else:
+                    return np.tile(default, [shape, 1])
     
 
 '''

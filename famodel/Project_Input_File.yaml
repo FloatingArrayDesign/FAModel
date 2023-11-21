@@ -1,0 +1,24 @@
+name: example input file for a FAModel Project
+
+# Site condition information
+site:
+    general:
+        water_depth : 600           # [m]      uniform water depth
+        rho_water   : 1025.0        # [kg/m^3] water density
+        rho_air     : 1.225         # [kg/m^3] air density
+        mu_air      : 1.81e-05      #          air dynamic viscosity
+    
+    location:
+        #centroid: lease_area        # can be a long/lat pair, the string 'lease_area' (which requires a lease_area name), or could be 'None' with no dependence on geography
+        lease_area: Humboldt_SW     # default is None (can maybe rename to 'project_area' or something where we can list other ordered pairs)
+    
+    bathymetry:
+        gebco_file: bathymetry/gebco_2023_n41.3196_s40.3857_w-125.2881_e-123.9642.asc       # can either be a GEBCO file, or ordered truples (xyz coords)
+        moorpy_file: 'bathymetry_humboldt-sw_gebco.txt'
+        
+    boundary:
+        type: lease_area            # can be the string 'bathymetry' to default to the extent of the GEBCO bathymetry file
+                                    # can be the string 'lease_area' to default to the extent of the lease area
+                                    # can be a list of 4 long/lat pairs defining the extent of the rectangle to define the project grid
+                                    # or can be 'default', which sets an arbitrary grid of arbitrary length
+    
