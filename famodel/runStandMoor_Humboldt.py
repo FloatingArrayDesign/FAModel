@@ -20,7 +20,7 @@ humboldt_sw = Project(file=os.path.dirname(os.path.realpath(__file__)) + '\Proje
 #humboldt_sw.loadBathymetry(bathymetry_gebco, moorpy_bathymetry_filename=bathymetry_moorpy)
 
 # plot the project in 3D
-humboldt_sw.plot3d(area=True, bathymetry=bathymetry_moorpy, boundary=False, area_on_bath=False)
+humboldt_sw.plot3d(area=True, bathymetry=bathymetry_moorpy, boundary=False, area_on_bath=True)
 
 
 

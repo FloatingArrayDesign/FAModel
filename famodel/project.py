@@ -205,8 +205,8 @@ class Project():
             # set the x and y coordinates to be used for a grid based on the extent of the bathymetry file
             bathX_min = np.max(self.bathXs_mesh[:,0])
             bathX_max = np.min(self.bathXs_mesh[:,-1])
-            bathY_min = np.max(self.bathYs_mesh[-1,:])
-            bathY_max = np.min(self.bathYs_mesh[0,:])
+            bathY_min = np.max(self.bathYs_mesh[0,:])  # flipped bc of the index change
+            bathY_max = np.min(self.bathYs_mesh[-1,:])
             # initialize the discretization of the grid
             dbathX = np.abs(self.bathXs_mesh[0,1] - self.bathXs_mesh[0,0])*10
             dbathY = np.abs(self.bathYs_mesh[1,0] - self.bathYs_mesh[0,0])*10
@@ -277,8 +277,7 @@ class Project():
         self.grid_depths = np.zeros([len(self.grid_y), len(self.grid_x)])
         for i in range(len(self.grid_y)):
             for j in range(len(self.grid_x)):
-                print(i, j, len(self.grid_x), len(self.grid_y))
-                self.grid_depths[i,j] = sbt.getDepthFromBathymetryMesh(self.grid_x[j], self.grid_y[i], self.bathXs_mesh, self.bathYs_mesh, self.bath_depths)
+                self.grid_depths[i,j], nvec = sbt.getDepthFromBathymetry(self.grid_x[j], self.grid_y[i], self.bathXs, self.bathYs, self.bath_depths)
         
         
         #TODO: add check for existing seabed data. If present, convert or raise warning <<<
@@ -394,14 +393,16 @@ class Project():
         self.bathYs_mesh = np.zeros([len(lats), len(longs)])
         for i in range(len(bathXs_hstack)):
             iy = i - int(i/len(longs))*len(longs)       # extract the row index from the hstack array
-            ix = (len(lats)-1) - int(i/len(longs))      # extract the column index from the hstack array (the addition of len(lats)-1 flips the matrix upside down to what we want)
+            ix = int(i/len(longs))                      # extract the column index from the hstack array (adding '(len(lats)-1)-' to the beginning flips the matrix upside down)
             self.bathXs_mesh[ix,iy] = bathXs_hstack[i]  # size [len(longs), len(lats)] matrix of x values, using long/lat convention of [0,0] in NW corner of the matrix
             self.bathYs_mesh[ix,iy] = bathYs_hstack[i]  # same comment as above for y values
         self.bath_depths = depths                       # save the depths matrix that came from the GEBCO data
 
-        self.bathYs_mesh = np.flipud(self.bathYs_mesh)
+        self.bathXs = self.bathXs_mesh[0,:]         # these are technically not right, but using now to simplify
+        self.bathYs = self.bathYs_mesh[:,0]         # these are technically not right, but using now to simplify
+        # NOTE: picking an x and y that fits these arrays will not produce the exact depth value. It will be close, but not exact.
 
-        # save a MoorDyn/MoorPy-style bathymetry, file if desired
+        # save a MoorDyn/MoorPy-style bathymetry, file if desired (lower latitudes/ys are near top of input file - not conducive to format python matrices)
         if len(moorpy_bathymetry_filename) > 0:
 
             f = open(os.path.join(os.getcwd(), moorpy_bathymetry_filename), 'w')
@@ -409,11 +410,11 @@ class Project():
             f.write(f'nGridX {ncols}\n')
             f.write(f'nGridY {nrows}\n')
             f.write(f'      ')
-            for ix in range(len(self.bathXs_mesh[0,:])):        # different array of x's depending on the latitude (y) - defaults to top row
-                f.write(f'{self.bathXs_mesh[0,ix]:.2f} ')
+            for ix in range(len(self.bathXs)):        # different array of x's depending on the latitude (y) - defaults to top row
+                f.write(f'{self.bathXs[ix]:.2f} ')
             f.write('\n')
-            for iy in range(len(self.bathYs_mesh)):
-                f.write(f'{self.bathYs_mesh[iy,0]:.2f} ')         # different array of y's depending on the longitude (x) - defaults to left column
+            for iy in range(len(self.bathYs)):
+                f.write(f'{self.bathYs[iy]:.2f} ')         # different array of y's depending on the longitude (x) - defaults to left column
                 for id in range(len(self.bath_depths[iy])):
                     f.write(f'{self.bath_depths[iy,id]} ')
                 f.write('\n')
@@ -469,7 +470,7 @@ class Project():
         
         # plot the project boundary
         if boundary:
-            ax.plot(self.boundaryXs, self.boundaryYs, np.zeros(len(self.boundaryXs)), color='k', zorder=100)
+            ax.plot(self.boundaryXs, self.boundaryYs, np.zeros(len(self.boundaryXs)), color='b', zorder=100, alpha=0.5)
             
         # plot the projection of the lease area bounds on the seabed, if desired
         if area_on_bath:
