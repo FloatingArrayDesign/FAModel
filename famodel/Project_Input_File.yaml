@@ -21,4 +21,5 @@ site:
                                     # can be the string 'lease_area' to default to the extent of the lease area
                                     # can be a list of 4 long/lat pairs defining the extent of the rectangle to define the project grid
                                     # or can be 'default', which sets an arbitrary grid of arbitrary length
+        discretization: 10      # arbitrary value for now
     

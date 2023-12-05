@@ -197,38 +197,29 @@ class Project():
 
         # load project boundary/grid information
         self.boundary_type = getFromDict(site['boundary'], 'type', dtype=str, default='default')
-
+        self.boundary_dx = getFromDict(site['boundary'], 'discretization', dtype=float, default=10)
+        # and set the grid
         if self.boundary_type=='bathymetry':
             if 'gebco_file' not in site['bathymetry']:      # check to make sure you've run loadBathymetry
                 raise ValueError("Need to include a bathymetry input file")
+            xs = self.bathXs
+            ys = self.bathYs
 
-            # set the x and y coordinates to be used for a grid based on the extent of the bathymetry file
-            bathX_min = np.max(self.bathXs_mesh[:,0])
-            bathX_max = np.min(self.bathXs_mesh[:,-1])
-            bathY_min = np.max(self.bathYs_mesh[0,:])  # flipped bc of the index change
-            bathY_max = np.min(self.bathYs_mesh[-1,:])
-            # initialize the discretization of the grid
-            dbathX = np.abs(self.bathXs_mesh[0,1] - self.bathXs_mesh[0,0])*10
-            dbathY = np.abs(self.bathYs_mesh[1,0] - self.bathYs_mesh[0,0])*10
-            # create new grid x and y arrays however you want (default based on bathymetry)
-            xs = np.arange(bathX_min, bathX_max, dbathX)
-            ys = np.arange(bathY_min, bathY_max, dbathY)
-
-            #self.extent = [self.bathXs_mesh[:,0], self.bathXs_mesh[:,-1], self.bathYs_mesh[0,:], self.bathYs_mesh[-1,:]]
-            print("WARNING: The process to set the grid depth values for a large bathymetry grid can take a long time. Make sure you use a small grid or discretization")
-        
         elif self.boundary_type=='lease_area':
             if self.lease_area_name==None:
                 raise ValueError('Need to provide the name of a valid lease area to use this boundary type')
-            #self.extent = [np.min(self.lease_xs), np.max(self.lease_xs), np.max(self.lease_ys), np.min(self.lease_ys)]
-            xs = self.lease_xs
-            ys = self.lease_ys
+            xs = np.linspace(np.min(self.lease_xs), np.max(self.lease_xs), 10)
+            ys = np.linspace(np.min(self.lease_ys), np.max(self.lease_ys), 10)
         
-        elif self.boundary_type=='extent':      # in long/lat units
+        elif self.boundary_type=='extent':      # in units of meters
             self.extent = getFromDict(site['boundary'], 'data')
+            xs = np.linspace(self.extent[0], self.extent[1], 10)
+            ys = np.linspace(self.extent[2], self.extent[3], 10)    # arbitrary spacing of 10 - can adjust later
         
-        elif self.boundary_type=='default':     # in long/lat units
+        elif self.boundary_type=='default':     # in units of meters
             self.extent = [-1000, 1000, 1000, -1000]
+            xs = np.linspace(self.extent[0], self.extent[1], 10)
+            ys = np.linspace(self.extent[2], self.extent[3], 10)    # arbitrary spacing of 10 - can adjust later
         
         else:
             raise ValueError("Not a valid boundary name")
@@ -262,23 +253,24 @@ class Project():
             y coordinates relative to array reference point [m]
         '''
         
+        # format the input arrays
         xs = np.array(xs)
         ys = np.array(ys)
 
-        dx = np.abs(np.linalg.norm([xs[1], ys[1]]) - np.linalg.norm([xs[0], ys[0]]))
+        # set the grid x/y arrays
+        self.grid_x = xs
+        self.grid_y = ys
 
-        self.grid_x = np.arange(np.min(xs), np.max(xs)+dx, dx)
-        self.grid_y = np.arange(np.min(ys), np.max(ys)+dx, dx)
-
-        self.boundaryXs = np.hstack([self.grid_x, np.ones(len(self.grid_y))*self.grid_x[-1], np.flip(self.grid_x), np.ones(len(self.grid_y))*self.grid_x[0]])
-        self.boundaryYs = np.hstack([np.ones(len(self.grid_x))*self.grid_y[0], self.grid_y, np.ones(len(self.grid_x))*self.grid_y[-1], np.flip(self.grid_y)])
-
-        # create a new depth matrix that uses interpolated values from the bathymetry data (be careful: this process can take a long time)
-        self.grid_depths = np.zeros([len(self.grid_y), len(self.grid_x)])
-        for i in range(len(self.grid_y)):
-            for j in range(len(self.grid_x)):
-                self.grid_depths[i,j], nvec = sbt.getDepthFromBathymetry(self.grid_x[j], self.grid_y[i], self.bathXs, self.bathYs, self.bath_depths)
-        
+        # set the grid depths
+        if self.boundary_type=='bathymetry':
+            self.grid_depths = self.bath_depths
+        else:
+            # create a new depth matrix that uses interpolated values from the bathymetry data
+            self.grid_depths = np.zeros([len(self.grid_y), len(self.grid_x)])
+            for i in range(len(self.grid_y)):
+                for j in range(len(self.grid_x)):
+                    self.grid_depths[i,j], nvec = sbt.getDepthFromBathymetry(self.grid_x[j], self.grid_y[i], self.bathXs, self.bathYs, self.bath_depths)
+            
         
         #TODO: add check for existing seabed data. If present, convert or raise warning <<<
     
@@ -326,12 +318,13 @@ class Project():
             gdf_utm = self.gdf.copy().to_crs(self.target_crs)
             centroid_utm = (gdf_utm.geometry.centroid.values.x[0], gdf_utm.geometry.centroid.values.y[0])
             gdf_centroid = gpd.GeoDataFrame({'type':'centroid', 'geometry': [Point(centroid_utm)]}, crs=self.target_crs)
-            self.centroid = (gdf_centroid.to_crs(self.latlong_crs).geometry.values.x[0], gdf_centroid.to_crs(self.latlong_crs).geometry.values.y[0]) # assume centroid is focal point of Project
         else:
             # assuming the input centroid is in a long/lat pair
             gdf_centroid = gpd.GeoDataFrame({'type':'centroid', 'geometry': [Point(which_centroid)]}, crs=self.latlong_crs)
             gdf_centroid.to_crs(self.target_crs)
-            self.centroid = (gdf_centroid.to_crs(self.latlong_crs).geometry.values.x[0], gdf_centroid.to_crs(self.latlong_crs).geometry.values.y[0]) # assume centroid is focal point of Project
+        
+        self.centroid_utm = (gdf_centroid.geometry.values.x[0], gdf_centroid.geometry.values.y[0])
+        self.centroid = (gdf_centroid.to_crs(self.latlong_crs).geometry.values.x[0], gdf_centroid.to_crs(self.latlong_crs).geometry.values.y[0]) # assume centroid is focal point of Project
  
 
         # extract lease area bounds from gdf in units of lat/long
@@ -382,25 +375,34 @@ class Project():
         longs = np.linspace(xllcorner, xllcorner+ncols*cellsize, ncols)
         lats  = np.linspace(yllcorner, yllcorner+nrows*cellsize, nrows)
 
-        # save the long/lat points in a mesh grid (to be more easily converted into meters)
-        longs_mesh, lats_mesh = np.meshgrid(longs, lats)
+        # calculate the corners of the lat/long grid in target_crs space (meters from centroid); this will not be a rectangle, but a 4-sided polygon with 4 side lengths
+        grid_corner_xs, grid_corner_ys = self.convertLatLong2Meters(np.array([longs[0], longs[-1], longs[-1], longs[0]]),
+                                                                    np.array([lats[0], lats[0], lats[-1], lats[-1]]), self.centroid)
 
-        # convert long/lat mesh grid point into meters, relative to the centroid (hstack used for ease of use)
-        bathXs_hstack, bathYs_hstack = self.convertLatLong2Meters(np.hstack(longs_mesh), np.hstack(lats_mesh), self.centroid)
+        # create rectangular grid in meters based on minimums of corner points of the lat/long points (like finding the rectangle that fits inside the polygon created above)
+        grid_xs = np.linspace(grid_corner_xs[0], grid_corner_xs[1], ncols)
+        grid_ys = np.linspace(grid_corner_ys[0], grid_corner_ys[-1], nrows)
 
-        # convert back to mesh grid form
-        self.bathXs_mesh = np.zeros([len(lats), len(longs)])
-        self.bathYs_mesh = np.zeros([len(lats), len(longs)])
-        for i in range(len(bathXs_hstack)):
-            iy = i - int(i/len(longs))*len(longs)       # extract the row index from the hstack array
-            ix = int(i/len(longs))                      # extract the column index from the hstack array (adding '(len(lats)-1)-' to the beginning flips the matrix upside down)
-            self.bathXs_mesh[ix,iy] = bathXs_hstack[i]  # size [len(longs), len(lats)] matrix of x values, using long/lat convention of [0,0] in NW corner of the matrix
-            self.bathYs_mesh[ix,iy] = bathYs_hstack[i]  # same comment as above for y values
-        self.bath_depths = depths                       # save the depths matrix that came from the GEBCO data
+        # convert those points to meshgrid form (in a similar but not exact discretization as the GEBCO file)
+        X, Y = np.meshgrid(grid_xs, grid_ys)
 
-        self.bathXs = self.bathXs_mesh[0,:]         # these are technically not right, but using now to simplify
-        self.bathYs = self.bathYs_mesh[:,0]         # these are technically not right, but using now to simplify
-        # NOTE: picking an x and y that fits these arrays will not produce the exact depth value. It will be close, but not exact.
+        # for each x/y point in the new bathymtry mesh grid, convert back to lat/long
+        grid_mesh_longs_list, grid_mesh_lats_list = self.convertMeters2LatLong(X, Y, self.centroid_utm, mesh=True)
+
+        # from the list of lat/long pairs that make up the bathymetry mesh that is now a different 4 sided polygon in lat/long space (in constrast to GEBCO file)...
+        # find the interpolated depths of each of those new points using the existing, outer lat/long GEBCO file data
+        bath_depths = np.zeros([len(grid_ys), len(grid_xs)])
+        for i in range(len(grid_mesh_longs_list)):
+            depth, _ = sbt.getDepthFromBathymetry(grid_mesh_longs_list[i], grid_mesh_lats_list[i], longs, lats, depths)
+            iy = int(i/len(grid_xs))
+            ix = i - int(i/len(grid_xs))*len(grid_xs)
+            bath_depths[iy,ix] = depth
+        
+        # save the relevant variables
+        self.bathXs = grid_xs
+        self.bathYs = grid_ys
+        self.bath_depths = bath_depths
+
 
         # save a MoorDyn/MoorPy-style bathymetry, file if desired (lower latitudes/ys are near top of input file - not conducive to format python matrices)
         if len(moorpy_bathymetry_filename) > 0:
@@ -426,7 +428,7 @@ class Project():
         # however, when you convert that to a meters coordinate system, it distorts the square grid (due to curvature of the Earth)
         # for example, the GEBCO grid assumes the world can be mapped on to a rectangaular shape and discretized by longs/lats with horizontal and vertical lines
         # but, the earth is actually curved, so the long/lat grid is actually slanted (in units of meters) and the square grid becomes distorted
-        # to use the bathymetry grid how we want it, we will need to make our own grid in the regular coordinate system, and interpolate the bathymetry depths from the GEBCO data
+        # to use the bathymetry grid how we want it, we will need to make our own grid in the projected coordinate system, and interpolate the bathymetry depths from the GEBCO data
 
         
 
@@ -577,6 +579,50 @@ class Project():
             ys[i] = np.array(y - ycentroid)
         
         return xs, ys
+
+
+    def convertMeters2LatLong(self, xs, ys, centroid, mesh=False):
+        '''Input xs and ys need to be in the target CRS
+        Xs and Ys need to be in pairs, i.e. the first entry to xs and the 
+        first entry to ys needs to correspond to a specific point
+        
+        Parameters
+        ----------
+        xs : array/list
+            array of x coordinates
+        ys : array/list
+            array of y coordinates
+        centroid : tuple
+            A tuple or list of two values, x and y, of the project 
+            reference point or centroid
+
+        Returns
+        -------
+        longs : array
+            longitudes relative to centroid [m]
+        lats : array
+            latitudes relative to centroid [m]
+        '''
+
+        if len(xs) != len(ys):
+            raise ValueError('The list of xs needs to be the same length as the list of ys')
+
+        if mesh:
+            points = [Point(xs[i,j] + centroid[0], ys[i,j] + centroid[1]) for i in range(len(xs)) for j in range(len(xs[0]))]
+        else:
+            # organize all the long/lat points into a shapely Polygon
+            points = [Point(xs[i,j] + centroid[0], ys[i,j] + centroid[1]) for i in range(len(xs))]
+
+        # input the Polygon of longs/lats and the centroid into a GeoDataFrame in EPSG:4326
+        gdf = gpd.GeoDataFrame({'type':'shape','geometry':points}, crs=self.target_crs)
+        # convert back to lat/long coordinates
+        gdf_wgs = gdf.to_crs(self.latlong_crs)
+
+        # calculate all the long/lat points distances from the centroid
+        longs = np.array(gdf_wgs[gdf_wgs['type']=='shape'].geometry.get_coordinates().x.values)
+        lats = np.array(gdf_wgs[gdf_wgs['type']=='shape'].geometry.get_coordinates().y.values)
+        
+        return longs, lats
 
 
 
