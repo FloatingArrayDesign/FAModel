@@ -19,6 +19,7 @@ better suit the scope and emphasis of floating wind arrays. The sections are as 
   * [General                         ](#general)
   * [Boundaries                      ](#boundaries)
   * [Exclusions                      ](#exclusions)
+  * [Seabed                          ](#bathymetry)
   * [Seabed                          ](#seabed)
   * [Metocean                        ](#metocean)
   * [Resource                        ](#resource)
@@ -63,11 +64,13 @@ The boundaries section contains the boundaries of the array. This information is
 to define the boundaries of the array. This information can be used to check that all the floating wind turbines are fully contained within the array boundaries.
 
 ```yaml
-    boundaries: #list of polygon vertices in order
-       -[x1, y1]
-       -[x2, y2]
-       -[x3, y3]
-       -[x4, y4]
+    boundaries:  # project or lease area boundary, via file or vertex list
+        file:   # filename of x-y vertex coordinates [m]
+        x_y:    # list of polygon vertices in order [m]
+           -[x1, y1]
+           -[x2, y2]
+           -[x3, y3]
+           -[x4, y4]
 ```
 
 ### Exclusions
@@ -89,6 +92,17 @@ connected linearly to define the exclusion zone. The user can define as many exc
             -[x1, y1]
             -[x2, y2]
 ```
+
+### Bathymetry
+The bathymetry section currently just provides a link to a MoorDyn-style
+bathymetry grid file. There is potential redundancy with the seabed section
+and we likely want to support other file formats as well. To be improved.
+	
+```yaml
+    bathymetry:
+        file:   # MoorDyn-style bathymetry file
+```
+
 
 ### Seabed
 The seabed section contains information on the depth and soil type throughout the array. 

@@ -12,11 +12,13 @@ site:
         mu_air      : 1.81e-05   #          air dynamic viscosity
         ...
         
-    boundaries: # list of polygon vertices in order [m]
-       -[x1, y1]
-       -[x2, y2]
-       -[x3, y3]
-       -[x4, y4]
+    boundaries:  # project or lease area boundary, via file or vertex list
+        file:   # filename of x-y vertex coordinates [m]
+        x_y:    # list of polygon vertices in order [m]
+           -[x1, y1]
+           -[x2, y2]
+           -[x3, y3]
+           -[x4, y4]
     
     exclusions:
       - name: round example
@@ -28,13 +30,16 @@ site:
             -[x1, y1]
             -[x2, y2]
     
+    bathymetry:
+        file:   # MoorDyn-style bathymetry file
+    
     seabed:
         keys: [x,  y, depth,  soil_type]
         data:
           - [ x1, y1, z1, "soft clay"]
           - [ x2, y2, z1, "medium clay"]    
           
-        filename: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
+        file: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)
@@ -53,10 +58,10 @@ site:
                 -  [ 0.005  ,   ,   ]
                 
         time_series :
-            filename: 'metocean_timeseries.csv'
+            file: 'metocean_timeseries.csv'
             
     resource :
-        filename: 'windresource'
+        file: 'windresource'
 
 
 # ----- Array-level inputs -----
