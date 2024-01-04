@@ -164,8 +164,20 @@ class Project():
 
         # load bathymetry information, if provided
         if 'bathymetry' in site:
-            if 'file' in site['bathymetry']['file']:
+            if 'file' in site['bathymetry']:
                 self.loadBathymetry(site['bathymetry']['file'])
+            elif 'x_y_z' in site['bathymetry']:
+                xyz = site['bathymetry']['x_y_z']
+                xs = np.unique( [point[0] for point in xyz] )
+                ys = np.unique( [point[1] for point in xyz] )
+                depths = np.zeros( [len(ys), len(xs)] )
+                for iy in range(len(depths)):
+                    for ix in range(len(depths[0])):
+                        x = xs[ix]; y = ys[iy]
+                        for point in xyz:
+                            if point[0]==x and point[1]==y:
+                                depths[iy,ix] = point[2]
+                depths = np.flipud(depths)      # flip upside down to equate to N-S on local coordinate system
 
         # Load project boundary, if provided
         if 'boundaries' in site:
@@ -175,7 +187,7 @@ class Project():
                 xy = site['boundaries']['x_y']
                 self.boundary_x = np.zeros(len(xy))
                 self.boundary_y = np.zeros(len(xy))
-                for i in len(xy):
+                for i in range(len(xy)):
                     self.boundary_x[i] = xy[i][0]
                     self.boundary_y[i] = xy[i][1]
 
