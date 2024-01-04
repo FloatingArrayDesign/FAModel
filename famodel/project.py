@@ -19,6 +19,7 @@ from pyproj.database import query_utm_crs_info
 
 from anchors.anchor_capacity import anchorCapacity
 import seabed.seabed_tools as sbt
+from mooring import Mooring
 
 
 class Project():
@@ -53,6 +54,7 @@ class Project():
         
         # more detailed design data structures for submodels
         self.array = None  # RAFT Array
+        self.mooringList = []  # A list of Mooring objects
         self.cables = None  # CableSystem
         
         
