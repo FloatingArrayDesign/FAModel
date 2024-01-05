@@ -10,17 +10,17 @@ class Mooring():
     Work in progress. Eventually will inherit from Edge.
     '''
     
-    def __init__(self):
+    def __init__(self, subsystem=None, rA=[0,0,0], rB=[0,0,0]):
         '''
         Initialize an empty object for a mooring line.
         Eventually this will fully set one up from ontology inputs.
         '''
         
-        self.subsystem = None  # The MoorPy subsystem that corresponds to the mooring line
+        self.subsystem = subsystem  # The MoorPy subsystem that corresponds to the mooring line
         
         # end points, to be set later
-        self.rA = np.zeros(3)
-        self.rB = np.zeros(3)
+        self.rA = rA
+        self.rB = rB
         
     
     def setEndPosition(self, r, end):
