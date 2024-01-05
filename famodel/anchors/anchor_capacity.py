@@ -7,8 +7,8 @@ import numpy as np
 
 import moorpy.MoorProps as mprop 
 
-from anchors.capacity_plate import getCapacityPlate
-from anchors.capacity_suction import getCapacitySuction
+from .capacity_plate import getCapacityPlate
+from .capacity_suction import getCapacitySuction
 
 
 

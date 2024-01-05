@@ -4,9 +4,6 @@
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import geopy.distance
-from shapely import Point, LineString, Polygon
 
 
 
@@ -64,7 +61,9 @@ def convertLatLong2Meters(zerozero, lats, longs):
     Ys : array
         y values of grid points (from latitudes) [m]
     '''
-
+    
+    import geopy.distance
+    
     Xs = np.zeros(len(longs))
     Ys = np.zeros(len(lats))
     for i in range(len(longs)):
@@ -218,6 +217,8 @@ def processBoundary(filename, lat, lon):
         y values of grid points [m]
     '''
     
+    import pandas as pd
+    
     zerozero = (lat, lon)  # lattitude and longitude of reference point (grid origin)
     
     delin = pd.read_csv(filename)
@@ -355,6 +356,10 @@ def getDepthFromBathymetryMesh(x, y, bathXs_mesh, bathYs_mesh, bath_depths, tol=
     nvec : array of size 3
         local seabed surface normal vector (positive out) 
     '''
+    
+    import geopy.distance
+    from shapely import Point, LineString, Polygon
+
     found = False
 
     # loop through the bathymetry meshes to find the polygon of the mesh where to interpolate the depths from
@@ -454,6 +459,8 @@ def getPlotBounds(latsorlongs_boundary, zerozero, long=True):
         the project reference point [m]
     '''
     
+    import geopy.distance
+        
     if long:
         il = 1
     else:

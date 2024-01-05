@@ -8,18 +8,12 @@ import matplotlib.pyplot as plt
 import moorpy as mp
 from moorpy.helpers import set_axes_equal
 import yaml
-# import raft
 
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import Point, Polygon, LineString
-from pyproj import CRS
-from pyproj.aoi import AreaOfInterest
-from pyproj.database import query_utm_crs_info
+#from shapely.geometry import Point, Polygon, LineString
 
-from anchors.anchor_capacity import anchorCapacity
-import seabed.seabed_tools as sbt
-from mooring import Mooring
+from .anchors.anchor_capacity import anchorCapacity
+from .seabed import seabed_tools as sbt
+from .mooring.mooring import Mooring
 
 
 class Project():
