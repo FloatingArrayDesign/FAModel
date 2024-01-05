@@ -254,7 +254,7 @@ def getMapBathymetry(gebcofilename):
     return longs, lats, depths, ncols, nrows
 
 
-def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, latlong_crs, target_crs):
+def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, latlong_crs, target_crs, ncols, nrows):
 
     # If converted straight to meters, these longs/lats would not equate to a perfect square due to the distortion of projecting a spherical map into 2D
     # So, what we do is take the four corners of the long/lat rectangle and convert those 4 points to UTM [m] x/y coordinates, relative to a centroid, 
@@ -270,8 +270,8 @@ def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, latlon
 
     # now create a new, arbitrary square in the UTM coordinate system based on minimums of corner points (find the rectangle inside the irregular polygon); 
     # default to use the same ncols and nrows as the original GEBCO data (but don't need to)    # ncols, nrows
-    grid_xs = np.linspace(np.max([corner_xs[0], corner_xs[-1]]), np.min([corner_xs[1], corner_xs[-2]]), 318)
-    grid_ys = np.linspace(np.max([corner_ys[0], corner_ys[1]]), np.min([corner_ys[-2], corner_ys[-1]]), 224)
+    grid_xs = np.linspace(np.max([corner_xs[0], corner_xs[-1]]), np.min([corner_xs[1], corner_xs[-2]]), ncols)
+    grid_ys = np.linspace(np.max([corner_ys[0], corner_ys[1]]), np.min([corner_ys[-2], corner_ys[-1]]), nrows)
 
     # create a mesh of these new x/y points
     X, Y = np.meshgrid(grid_xs, grid_ys)
@@ -308,7 +308,7 @@ def writeBathymetryFile(moorpy_bathymetry_filename, ncols, nrows, bathXs, bathYs
     for iy in range(len(bathYs)):
         f.write(f'{bathYs[iy]:.2f} ')
         for id in range(len(bath_depths[iy])):
-            f.write(f'{bath_depths[iy,id]} ')
+            f.write(f'{bath_depths[iy,id]:8.3f} ')
         f.write('\n')
     f.close()
 
@@ -687,8 +687,12 @@ if __name__ == '__main__':
     latlong_crs = getLatLongCRS()
 
     # get lease area coordinates based on BOEM shapefile
-    lease_name = 'Humboldt_NE'
-    lease_longs, lease_lats, centroid = getLeaseCoords(lease_name)
+    #lease_name = 'Humboldt_NE'
+    #lease_longs, lease_lats, centroid = getLeaseCoords(lease_name)
+
+    centroid = (-130.342, 40.759)
+    lease_longs = [centroid[0]]
+    lease_lats = [centroid[1]]
 
     # based on the lease area, find the target UTM CRS (in m)
     target_crs = getTargetCRS(lease_longs, lease_lats)
@@ -697,15 +701,17 @@ if __name__ == '__main__':
     lease_xs, lease_ys, centroid_utm = convertLatLong2Meters(lease_longs, lease_lats, centroid, latlong_crs, target_crs, return_centroid=True)
 
     # get bathymetry information from a GEBCO file (or other)
-    bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry('bathymetry/gebco_2023_n41.3196_s40.3857_w-125.2881_e-123.9642.asc')
+    bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry('bathymetry/gebco_2023_n48.6255_s32.6733_w-138.1201_e-122.6074.asc')
     # convert bathymetry to meters
-    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, target_crs)
+    ncols = 500
+    nrows = 500
+    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, target_crs, ncols, nrows)
     # export to MoorPy-readable file
-    bathymetryfile = 'bathymetry_humboldt-sw_gebco.txt'
+    bathymetryfile = 'bathymetry_large_gebco.txt'
     writeBathymetryFile(bathymetryfile, ncols, nrows, bath_xs, bath_ys, bath_depths)
 
     # plot everything
-    plot3d(lease_xs, lease_ys, bathymetryfile, area_on_bath=True)
+    plot3d(lease_xs, lease_ys, bathymetryfile, area_on_bath=True, args_bath={'zlim':[-6000, 500]})
 
 
 
