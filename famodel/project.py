@@ -282,6 +282,16 @@ class Project():
 
     # Helper functions
 
+    def getDepthAtLocation(self, x, y):
+        '''Compute the depth at a specified x-y location based on the
+        bathymetry grid stored in the project.
+        '''
+        
+        z, _ = sbt.getDepthFromBathymetry(x, y, self.grid_x, self.grid_y, 
+                                          self.grid_depth)
+        return z
+
+
     def projectAlongSeabed(self, x, y):
         '''Project a set of x-y coordinates along a seabed surface (grid),
         returning the corresponding z coordinates.'''
@@ -291,13 +301,13 @@ class Project():
             z = np.zeros(n)   # z coordinate of each point [m]
             a = np.zeros(n)   # could also do slope (dz/dh)
             for i in range(n):
-                z[i], nvec = sbt.getDepthFromBathymetry(x[i], y[i], self.bathXs, self.bathYs, self.bath_depths)
+                z[i] = self.getDepthAtLocation(x[i], y[i])
         
         else:
             z = np.zeros([len(y), len(x)])
             for i in range(len(y)):
                 for j in range(len(x)):
-                    z[i,j], nvec = sbt.getDepthFromBathymetry(x[j], y[i], self.bathXs_mesh, self.bathYs_mesh, self.bath_depths)
+                    z[i,j] = getDepthAtLocation(x[j], y[i])
             
         return z
 
@@ -504,7 +514,7 @@ class Project():
         # figure out masking to exclude grid data outside the project boundary
         
         
-    def loadBathymetry(self, filename):
+    def loadBathymetry(self, filename, interpolate=False):
         '''
         Load bathymetry information from an input file (format TBD), convert to
         a rectangular grid, and save the grid to the floating array object (TBD).
@@ -516,26 +526,60 @@ class Project():
         '''
         
         # load data from file
-        Xs, Ys, Zs = sbt.readBathymetryFile(site['bathymetry']['file'])  # read MoorDyn-style file
+        Xs, Ys, Zs = sbt.readBathymetryFile(filename)  # read MoorDyn-style file
         # Xs, Ys, Zs = sbt.processASC(filename, self.lat0, self.lon0)
         
         # ----- map to existing grid -----
         # if no grid, just use the bathymetry grid
-        if len(self.grid_x) == 0: 
+        if not interpolate: #len(self.grid_x) == 0: 
             self.grid_x = np.array(Xs)
             self.grid_y = np.array(Ys)
-            self.depths = np.array(Zs)
+            self.grid_depth = np.array(Zs)
+            
         # interpolate onto grid defined by grid_x, grid_y
         else:
             for i, x in enumerate(self.grid_x):
                 for j, y in enumerate(self.grid_y):
-                    self.depths[i,j], _ = sbt.getDepthFromBathymetry(x, y, Xs, Ys, Zs)
+                    self.grid_depth[i,j], _ = sbt.getDepthFromBathymetry(x, y, Xs, Ys, Zs)
         
         
         # also save in RAFT, in its MoorPy System(s)
     
 
+    def plot3d(self, plot_seabed=True, plot_boundary=True, area_on_bath=False, args_bath={}):
+        '''Plot aspects of the Project object in matplotlib in 3D.
+        
+        Parameters
+        ----------
+        WORK IN PROGRESS
+        '''
+     
+        fig = plt.figure(figsize=(6,4))
+        ax = plt.axes(projection='3d')
 
+        
+        # plot the bathymetry in matplotlib using a plot_surface
+        if self.grid_depth.shape[0] > 0 and plot_seabed:
+            X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+            bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
+        
+        # plot the project boundary
+        if plot_boundary:
+            ax.plot(self.boundary_x, self.boundary_y, np.zeros(len(self.boundary_y)), 
+                    color='b', zorder=100, alpha=0.5)
+        
+        # plot the projection of the lease area bounds on the seabed, if desired
+        '''
+        if area_on_bath:
+            lease_zs = projectAlongSeabed(lease_xs, lease_ys, bathGrid_Xs, bathGrid_Ys, bathGrid)
+            ax.plot(lease_xs, lease_ys, -lease_zs, color='k', zorder=10, alpha=0.5)
+        '''
+
+        ax.set_zlim([-np.max(self.grid_depth), 0])
+
+        set_axes_equal(ax)
+        #ax.axis('off')
+        
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''
