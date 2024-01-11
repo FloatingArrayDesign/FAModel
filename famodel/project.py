@@ -56,10 +56,10 @@ class Project():
         self.lat0  = lat  # lattitude of site reference point [deg]
         self.lon0  = lon  # longitude of site reference point [deg]
 
-        # project boundaries
-        self.boundary_x = np.zeros(0)
-        self.boundary_y = np.zeros(0)
+        # Project boundary (list of x,y coordinate pairs [m])
+        self.boundary = np.zeros([0,2])
         
+        # Seabed grid
         self.grid_x      = np.array([0])
         self.grid_y      = np.array([0])
         self.grid_depth  = np.array([[depth]])  # depth at each grid point
@@ -181,11 +181,10 @@ class Project():
                 self.loadBoundary(site['boundaries']['file'])
             elif 'x_y' in site['boundaries']:  # process list of buondary x,y vertices
                 xy = site['boundaries']['x_y']
-                self.boundary_x = np.zeros(len(xy))
-                self.boundary_y = np.zeros(len(xy))
+                self.boundary = np.zeros([len(xy),2])
                 for i in range(len(xy)):
-                    self.boundary_x[i] = xy[i][0]
-                    self.boundary_y[i] = xy[i][1]
+                    self.boundary[i,0] = xy[i][0]
+                    self.boundary[i,1] = xy[i][1]
 
         # and set the project boundary/grid based on the loaded information
         # TBD, may not be necessary in the short term. self.setGrid(xs, ys)
@@ -508,8 +507,7 @@ class Project():
         # check compatibility with project grid size
         
         # save as project boundaries
-        self.boundary_Xs = Xs
-        self.boundary_Ys = Ys
+        self.boundary = np.vstack([Xs, Ys])
         
         # figure out masking to exclude grid data outside the project boundary
         
@@ -565,7 +563,7 @@ class Project():
         
         # plot the project boundary
         if plot_boundary:
-            ax.plot(self.boundary_x, self.boundary_y, np.zeros(len(self.boundary_y)), 
+            ax.plot(self.boundary[:,0], self.boundary[:,1], np.zeros(self.boundary.shape[0]), 
                     color='b', zorder=100, alpha=0.5)
         
         # plot the projection of the lease area bounds on the seabed, if desired
@@ -575,6 +573,13 @@ class Project():
             ax.plot(lease_xs, lease_ys, -lease_zs, color='k', zorder=10, alpha=0.5)
         '''
 
+        # plot the Moorings
+        for mooring in self.mooringList:
+            #mooring.subsystem.plot(ax = ax, draw_seabed=False)
+            if mooring.subsystem:
+                mooring.subsystem.drawLine(0, ax)
+        
+        
         ax.set_zlim([-np.max(self.grid_depth), 0])
 
         set_axes_equal(ax)

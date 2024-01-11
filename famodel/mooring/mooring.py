@@ -10,7 +10,8 @@ class Mooring():
     Work in progress. Eventually will inherit from Edge.
     '''
     
-    def __init__(self, subsystem=None, rA=[0,0,0], rB=[0,0,0]):
+    def __init__(self, subsystem=None, rA=[0,0,0], rB=[0,0,0],
+                 rad_anch=500, rad_fair=50, z_anch=-10, z_fair=-100):
         '''
         Initialize an empty object for a mooring line.
         Eventually this will fully set one up from ontology inputs.
@@ -18,10 +19,38 @@ class Mooring():
         
         self.subsystem = subsystem  # The MoorPy subsystem that corresponds to the mooring line
         
-        # end points, to be set later
+        # end point absolute coordinates, to be set later
         self.rA = rA
         self.rB = rB
+        self.heading = 0
         
+        # relative positions
+        self.rad_anch = rad_anch
+        self.rad_fair = rad_fair
+        self.z_anch   = z_anch  
+        self.z_fair   = z_fair  
+    
+    
+    def adjust(self, r_center, heading=None):
+        '''Adjusts mooring position based on changed platform location or
+        heading [deg].'''
+        
+        # Adjust heading if provided
+        if not heading == None:
+            self.heading = np.radians(heading)
+            
+        # heading 2D unit vector
+        u = np.array([np.cos(theta), np.sin(theta)])
+        
+        r_center = np.array(r)[:2]
+        
+        # could adjust anchor depth based on bathymetry ...
+        
+        # Position the ends
+        self.setEndPosition(np.hstack([r_center + self.rad_anch*u, self.z_anch]), 'a')
+        self.setEndPosition(np.hstack([r_center + self.rad_fair*u, self.z_fair]), 'a')
+        
+    
     
     def setEndPosition(self, r, end):
         '''Set the position of an end of the mooring.
@@ -50,7 +79,7 @@ class Mooring():
             raise Exception('End A or B must be specified with either the letter, 0/1, or False/True.')
       
     
-"""
+
 class Platform():
     '''
     Class for a mooring floating platform.
@@ -70,16 +99,24 @@ class Platform():
             relative headings of mooring lines [deg].
         '''
         
-        self.r = np.array(r)
+        self.r = np.array(r)  # coordinate of platform
         
-        self.theta = np.radians(heading)
+        self.theta = np.radians(heading)  # heading offset of platform
         
-        self.mooring_headings = np.radians(mooring_headings)
+        self.mooring_headings = np.radians(mooring_headings) # headings of mooring lines [rad]
         
+        self.n_mooring = len(mooring_headings) # number of mooring lines
+        
+        # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
+        # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
+        
+        self.mooringList = []  # to be filled by references to Mooring objects
     
-    def setPosition(self, r, heading=0):
+    
+    def setPosition(self, r, heading=None):
         '''
-        Set the position of the node, as well as any attached objects.
+        Set the position/orientation of the platform as well as the associated
+        anchor points.
         
         Parameters
         ----------
@@ -89,25 +126,28 @@ class Platform():
             The heading of the object [deg].
         '''
         
+        '''
+        # Future approach could be
+        # first call the Node method to take care of the platform and what's directly attached
+        Node.setPosition(self, r, heading=heading)
+        # then also adjust the anchor points
+        '''
+        
         # Store updated position and orientation
         self.r = np.array(r)
-        self.theta = np.radians(heading)
         
+        if not heading == None:
+            self.theta = np.radians(heading)
         
         # Get rotation matrix...
         self.R = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
         
+        # Update the position of any Moorings
+        for i, mooring in enumerate(self.mooringList):
         
-        # Update the position of any attach objects
-        for id, att in self.attachments.items():
-        
-            # Compute the attachment's position
-            r_att = self.r + np.matmul(self.R, att['r_rel'])
+            # heading of the mooring line
+            heading_i = self.mooring_headings[i] + self.theta
             
-            if att['type'] == 'node':
-                att['ref'].setPosition(r_att)
-                
-            elif att['type'] == 'edge':
-                att['ref'].setEndPosition(r_att, att['end'])
-"""
- 
+            # adjust the whole Mooring
+            mooring.adjust(self.r, heading=heading_i)
+        
