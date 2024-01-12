@@ -48,7 +48,9 @@ class Project():
         
         # more detailed design data structures for submodels
         self.array = None  # RAFT Array
+        self.turbineList = []
         self.mooringList = []  # A list of Mooring objects
+        self.anchorList  = []
         self.cables = None  # CableSystem
         
         
@@ -192,8 +194,6 @@ class Project():
         # load metocean portions
 
 
-
-
     def setGrid(self, xs, ys):
         '''
         Set up the rectangular grid over which site or seabed
@@ -222,73 +222,21 @@ class Project():
         self.grid_depth = depths
 
 
-    def plot3d(self, ax=None, figsize=(6,4), bathymetry=None, boundary=None, boundary_on_bath=None, args_bath={}):
-        '''Plot aspects of the Project object in matplotlib in 3D.
-        
-        Parameters
-        ----------
-        ...
-        '''
-
-        # organize the bathymetry arguments
-        if len(args_bath)==0:
-            args_bath = {'zlim':[-3200,500], 'cmap':'gist_earth'}
-
-        # if axes not passed in, make a new figure
-        if ax == None:    
-            fig = plt.figure(figsize=figsize)
-            ax = plt.axes(projection='3d')
-        else:
-            fig = ax.get_figure()
-
-        # plot the bathymetry in matplotlib using a plot_surface
-
-        # !!!! include option to plot entire bathymetry file or not
-
-        X, Y = np.meshgrid(self.grid_x, self.grid_y)  # create a 2D mesh of the x and y values
-        bath = ax.plot_surface(X, Y, -self.grid_depth, vmin=args_bath['zlim'][0], 
-                               vmax=args_bath['zlim'][1], cmap=args_bath['cmap'])
-        
-        # plot the project boundary
-        if boundary:
-            ax.plot(self.boundary_xs, self.boundary_ys, np.zeros(len(self.boundary_xs)), color='b', zorder=100, alpha=0.5)
-            
-        # plot the projection of the boundary on the seabed, if desired
-        if boundary_on_bath:
-            self.lease_zs = self.projectAlongSeabed(self.lease_xs, self.lease_ys)
-            ax.plot(self.lease_xs, self.lease_ys, -self.lease_zs, color='k', zorder=10, alpha=0.5)
-
-        set_axes_equal(ax)
-        ax.axis('off')
-        
-
-        # TODO
-
-        # reference entire CA bathymetry file (maybe)
-        # plot2d method and a plotGDF method (with bathymetry in the geodataframe using contours)
-
-        # add the coastline
-        #xcoast, ycoast = sbt.getCoast(self.Xs, self.Ys, self.depths)
-        #ax.plot(xcoast, ycoast, np.zeros(len(self.Ys)), color='k', zorder=100)
-
-        # need to fix up bounds
-        #xbmin, xbmax = sbt.getPlotBounds(self.longs_bath, self.centroid, long=True)
-        #ybmin, ybmax = sbt.getPlotBounds(self.lats_bath, self.centroid, long=False)
-
-        plt.show()
-
-
-
     # Helper functions
 
-    def getDepthAtLocation(self, x, y):
+    def getDepthAtLocation(self, x, y, return_n=False):
         '''Compute the depth at a specified x-y location based on the
-        bathymetry grid stored in the project.
+        bathymetry grid stored in the project. Setting return_n to 
+        True will return depth and the seabed normal vector.
         '''
         
-        z, _ = sbt.getDepthFromBathymetry(x, y, self.grid_x, self.grid_y, 
+        z, n = sbt.getDepthFromBathymetry(x, y, self.grid_x, self.grid_y, 
                                           self.grid_depth)
-        return z
+        
+        if return_n:
+            return z, n
+        else:
+            return z
 
 
     def projectAlongSeabed(self, x, y):
@@ -534,8 +482,8 @@ class Project():
             self.grid_y = np.array(Ys)
             self.grid_depth = np.array(Zs)
             
-        # interpolate onto grid defined by grid_x, grid_y
         else:
+        # interpolate onto grid defined by grid_x, grid_y
             for i, x in enumerate(self.grid_x):
                 for j, y in enumerate(self.grid_y):
                     self.grid_depth[i,j], _ = sbt.getDepthFromBathymetry(x, y, Xs, Ys, Zs)
@@ -544,34 +492,38 @@ class Project():
         # also save in RAFT, in its MoorPy System(s)
     
 
-    def plot3d(self, plot_seabed=True, plot_boundary=True, area_on_bath=False, args_bath={}):
+
+    def plot3d(self, ax=None, figsize=(6,4), 
+               draw_boundary=None, boundary_on_bath=None, args_bath={}, draw_axes=True):
         '''Plot aspects of the Project object in matplotlib in 3D.
+        
+        TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
         
         Parameters
         ----------
-        WORK IN PROGRESS
+        ...
         '''
-     
-        fig = plt.figure(figsize=(6,4))
-        ax = plt.axes(projection='3d')
 
-        
+        # if axes not passed in, make a new figure
+        if ax == None:    
+            fig = plt.figure(figsize=figsize)
+            ax = plt.axes(projection='3d')
+        else:
+            fig = ax.get_figure()
+
         # plot the bathymetry in matplotlib using a plot_surface
-        if self.grid_depth.shape[0] > 0 and plot_seabed:
-            X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
-            bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
+        X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+        bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
         
         # plot the project boundary
-        if plot_boundary:
+        if draw_boundary:
             ax.plot(self.boundary[:,0], self.boundary[:,1], np.zeros(self.boundary.shape[0]), 
                     color='b', zorder=100, alpha=0.5)
-        
-        # plot the projection of the lease area bounds on the seabed, if desired
-        '''
-        if area_on_bath:
-            lease_zs = projectAlongSeabed(lease_xs, lease_ys, bathGrid_Xs, bathGrid_Ys, bathGrid)
-            ax.plot(lease_xs, lease_ys, -lease_zs, color='k', zorder=10, alpha=0.5)
-        '''
+            
+        # plot the projection of the boundary on the seabed, if desired
+        if boundary_on_bath:
+            self.lease_zs = self.projectAlongSeabed(self.lease_xs, self.lease_ys)
+            ax.plot(self.lease_xs, self.lease_ys, -self.lease_zs, color='k', zorder=10, alpha=0.5)
 
         # plot the Moorings
         for mooring in self.mooringList:
@@ -579,11 +531,31 @@ class Project():
             if mooring.subsystem:
                 mooring.subsystem.drawLine(0, ax)
         
-        
+        # Show full depth range
         ax.set_zlim([-np.max(self.grid_depth), 0])
 
         set_axes_equal(ax)
-        #ax.axis('off')
+        if not draw_axes:
+            ax.axis('off')
+        
+
+
+    def plot2d(self, ax=None, plot_seabed=True, plot_boundary=True):
+        '''Plot aspects of the Project object in matplotlib in 3D.
+        
+        TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
+        
+        Parameters
+        ----------
+        Placeholder
+        '''
+     
+        # if axes not passed in, make a new figure
+        if ax == None:
+            fig, ax = plt.subplots(1,1, figsize=figsize)
+        else:
+            fig = ax.get_figure()
+       
         
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
