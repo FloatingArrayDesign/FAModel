@@ -2,7 +2,7 @@
 
 
 class Cable():
-    def __init__(self, system, number, rtA, rtB, cableType):
+    def __init__(self, d, system, number, rtA, rtB, cableType):
         ''' '
         d : dict
             Dictionary of cable information (see ontology).

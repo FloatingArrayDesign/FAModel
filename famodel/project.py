@@ -143,6 +143,36 @@ class Project():
                 self.cables.addCable(...)
         
         
+        # ----- mooring line section types -----
+        # add support for both list- and table-based formats 
+        lineTypes = {}
+        
+        if 'mooring_line_types' in d:
+            
+            for k, v in d['mooring_line_types'].items():
+                
+                lineTypes[k] = v
+        
+        # ----- mooring connectors -----
+        # to be added
+        
+        # ----- anchor types -----
+        # to be added
+        
+        # ----- mooring line configurations -----
+        lineTypes = {}
+        
+        if 'mooring_line_configs' in d:
+            
+            for k, v in d['mooring_line_configs'].items():
+                pass
+                #set up mooring config... (k, v)
+                
+                # I think we want to just store it as a dictionary
+                # validate it,
+                # then have it available for use when making Mooring objects and subsystems
+        
+        
         # ===== load RAFT model parts =====
         
 
@@ -239,6 +269,61 @@ class Project():
             return z
 
 
+    def seabedIntersect(self, r, u):
+        '''
+        Compute location at which a ray (defined by coordinate i and direction
+        vector u) crosses the seabed.
+        
+        Paramaters
+        ----------
+        r : float, array
+            Absolute xyz coordinate of a point along the ray [m].
+        u : float, array
+            3D direction vector of the ray.
+
+        Returns
+        -------
+        r_i: float, array
+            xyz coordinate of the seabed intersection [m].
+        '''
+        
+        # Initialize 
+        r_i = np.array(r)  # calculated seabed intersect starts at the r provided
+        ix_last = -1  # index of intersected grid panel (from previous iteration)
+        iy_last = -1
+        
+        for i in range(10):  # iterate up to 10 times (only needed for fine grids)
+            
+            # Get depth of seabed beneath r_i, and index of grid panel
+            depth, nvec, ix, iy = sbt.getDepthFromBathymetry(r_i[0], r_i[1], self.grid_x, 
+                                       self.grid_y, self.grid_depth, index=True)
+            
+            #print(f" {i}  {depth:6.0f}   {ix}, {iy}   {r_i[0]:5.0f},{r_i[1]:5.0f},{r_i[2]:5.0f}")
+            
+            # Convergence check (if we're on the same grid panel, we're good)
+            if ix==ix_last and iy==iy_last:
+                break
+
+            # Save some values for convergence checking
+            ix_last = ix
+            iy_last = iy
+            r_last  = np.array(r_i)
+            
+            # vectors from r_i to a point on the bathymetry panel beneath it
+            # w = np.array([r_anch[0], r_anch[1], -depth]) - r_i
+            w = np.array([0, 0, -depth - r_i[2]]) # same!! as above
+            
+            # fraction along u where it crosses the seabed (can be greater than 1)
+            fac = np.dot(nvec, w) / np.dot(nvec, u)
+            
+            r_i = r_i + u*fac  # updated seabed crossing estimate 
+
+            if any(np.isnan(r_i)):
+                breakpoint()
+        
+        return r_i
+
+
     def projectAlongSeabed(self, x, y):
         '''Project a set of x-y coordinates along a seabed surface (grid),
         returning the corresponding z coordinates.'''
@@ -288,6 +373,14 @@ class Project():
             path/name of file containing soil data
         '''
         
+        # SIMPLE HACK FOR NOW
+        Xs, Ys, Rockys = sbt.readBathymetryFile(filename)  # read MoorDyn-style file
+        
+        self.soil_x = np.array(Xs)
+        self.soil_y = np.array(Ys)
+        self.soil_rocky = np.array(Rockys)
+        
+        
         # load data from file
         
         # interpolate onto grid defined by grid_x, grid_y
@@ -323,6 +416,12 @@ class Project():
             Dictionary of standard MoorPy soil properties.
         '''
         
+        # SIMPLE HACK FOR NOW        
+        rocky, _,_,_,_ = sbt.interpFromGrid(x, y, self.soil_x, self.soil_y, self.soil_rocky)
+        
+        return rocky
+        
+        '''
         soilProps = {}
         
 
@@ -348,7 +447,7 @@ class Project():
             raise ValueError(f"Unsupported seabed type '{self.seabed_type}'.")
             
         return soilProps
-
+        '''
 
     # ----- Anchor capacity calculation functions -----
 
@@ -493,8 +592,8 @@ class Project():
     
 
 
-    def plot3d(self, ax=None, figsize=(6,4), 
-               draw_boundary=None, boundary_on_bath=None, args_bath={}, draw_axes=True):
+    def plot3d(self, ax=None, figsize=(10,8), fowt=None, save=False,
+               draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -503,6 +602,14 @@ class Project():
         ----------
         ...
         '''
+        
+        # color map for soil plotting
+        import matplotlib.cm as cm
+        from matplotlib.colors import Normalize
+        cmap = cm.cividis_r
+        norm = Normalize(vmin=-0.5, vmax=1.5)
+        #print(cmap(norm(np.array([0,1]))))
+        
 
         # if axes not passed in, make a new figure
         if ax == None:    
@@ -511,25 +618,56 @@ class Project():
         else:
             fig = ax.get_figure()
 
+        # try icnraesing grid density
+        xs = np.arange(-1000,8000,500)
+        ys = np.arange(-1000,9500,500)
+        self.setGrid(xs, ys)
+
         # plot the bathymetry in matplotlib using a plot_surface
         X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+        '''
+        # interpolate soil rockyness factor onto this grid
+        xs = self.grid_x
+        ys = self.grid_y
+        rocky = np.zeros([len(ys), len(xs)])
+        for i in range(len(ys)):
+            for j in range(len(xs)):
+                rocky[i,j], _,_,_,_ = sbt.interpFromGrid(xs[j], ys[i], 
+                           self.soil_x, self.soil_y, self.soil_rocky)
+        # apply colormap
+        rc = cmap(norm(rocky))
+        bath = ax.plot_surface(X, Y, -self.grid_depth, facecolors=rc, **args_bath)
+        '''
         bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
+        
+        
+        # also if there are rocky bits... (TEMPORARY)
+        X, Y = np.meshgrid(self.soil_x, self.soil_y)
+        ax.scatter(X, Y, c=self.soil_rocky, s=4, cmap='cividis_r', vmin=-0.5, vmax=1.5)
         
         # plot the project boundary
         if draw_boundary:
-            ax.plot(self.boundary[:,0], self.boundary[:,1], np.zeros(self.boundary.shape[0]), 
-                    color='b', zorder=100, alpha=0.5)
+            boundary = np.vstack([self.boundary, self.boundary[0,:]])
+            ax.plot(boundary[:,0], boundary[:,1], np.zeros(boundary.shape[0]), 
+                    'b--', zorder=100, lw=1, alpha=0.5)
             
         # plot the projection of the boundary on the seabed, if desired
         if boundary_on_bath:
-            self.lease_zs = self.projectAlongSeabed(self.lease_xs, self.lease_ys)
-            ax.plot(self.lease_xs, self.lease_ys, -self.lease_zs, color='k', zorder=10, alpha=0.5)
+            boundary_z = self.projectAlongSeabed(boundary[:,0], boundary[:,1])
+            ax.plot(boundary[:,0], boundary[:,1], -boundary_z, 'k--', zorder=10, lw=1, alpha=0.7)
 
         # plot the Moorings
         for mooring in self.mooringList:
             #mooring.subsystem.plot(ax = ax, draw_seabed=False)
             if mooring.subsystem:
                 mooring.subsystem.drawLine(0, ax)
+        
+        # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
+        if fowt:
+            for i in range(self.nt):
+                xy = self.turb_coords[i,:]
+                fowt.setPosition([xy[0], xy[1], 0,0,0,0])
+                fowt.plot(ax, zorder=20)
         
         # Show full depth range
         ax.set_zlim([-np.max(self.grid_depth), 0])
@@ -538,6 +676,21 @@ class Project():
         if not draw_axes:
             ax.axis('off')
         
+        ax.view_init(20, -130)
+        ax.dist -= 3
+        fig.tight_layout()
+        
+        # ----- Save plot with an incremented number if it already exists
+        if save:
+            counter = 1
+            output_filename = f'wind farm 3d_{counter}.png'
+            while os.path.exists(output_filename):
+                counter += 1
+                output_filename = f'wind farm 3d_{counter}.png'
+            
+            # Increase the resolution when saving the plot
+            plt.savefig(output_filename, dpi=300, bbox_inches='tight')  # Adjust the dpi as needed
+            
 
 
     def plot2d(self, ax=None, plot_seabed=True, plot_boundary=True):

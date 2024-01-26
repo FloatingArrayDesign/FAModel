@@ -249,6 +249,9 @@ def getInterpNums(xlist, xin, istart=0):  # should turn into function in helpers
         fraction to return   such that y* = y[i] + fout*(y[i+1]-y[i])
     '''
     
+    if np.isnan(xin):
+        raise Exception('xin value is NaN.')
+    
     nx = len(xlist)
   
     if xin <= xlist[0]:  #  below lowest data point
@@ -276,7 +279,58 @@ def getInterpNums(xlist, xin, istart=0):  # should turn into function in helpers
     return i, fout
 
 
-def getDepthFromBathymetry(x, y, bathGrid_Xs, bathGrid_Ys, bathGrid):   #BathymetryGrid, BathGrid_Xs, BathGrid_Ys, LineX, LineY, depth, nvec)
+def interpFromGrid(x, y, grid_x, grid_y, values):
+    '''Interpolate from a rectangular grid of values.'''
+
+    # get interpolation indices and fractions for the relevant grid panel
+    ix0, fx = getInterpNums(grid_x, x)
+    iy0, fy = getInterpNums(grid_y, y)
+
+    # handle end case conditions
+    if fx == 0:
+        ix1 = ix0
+    else:
+        ix1 = min(ix0+1, values.shape[1])  # don't overstep bounds
+    
+    if fy == 0:
+        iy1 = iy0
+    else:
+        iy1 = min(iy0+1, values.shape[0])  # don't overstep bounds
+    
+    # get corner points of the panel
+    c00 = values[iy0, ix0]
+    c01 = values[iy1, ix0]
+    c10 = values[iy0, ix1]
+    c11 = values[iy1, ix1]
+
+    # get interpolated points and local value
+    cx0    = c00 *(1.0-fx) + c10 *fx
+    cx1    = c01 *(1.0-fx) + c11 *fx
+    c0y    = c00 *(1.0-fy) + c01 *fy
+    c1y    = c10 *(1.0-fy) + c11 *fy
+    value  = cx0 *(1.0-fy) + cx1 *fy
+
+    # get local slope
+    dx = grid_x[ix1] - grid_x[ix0]
+    dy = grid_y[iy1] - grid_y[iy0]
+    
+    # deal with being on an edge or a zero-width grid increment
+    if dx > 0.0:
+        dc_dx = (c1y-c0y)/dx
+    else:
+        dc_dx = 0.0  # maybe this should raise an error
+    
+    if dy > 0.0:
+        dc_dy = (cx1-cx0)/dy
+    else:
+        dc_dy = 0.0  # maybe this should raise an error
+    
+    # return the interpolated value, the derivatives, and the grid indices
+    return value, dc_dx, dc_dy, ix0, iy0
+
+
+
+def getDepthFromBathymetry(x, y, grid_x, grid_y, grid_depth, index=False):
     ''' interpolates local seabed depth and normal vector
     
     Parameters
@@ -290,55 +344,21 @@ def getDepthFromBathymetry(x, y, bathGrid_Xs, bathGrid_Ys, bathGrid):   #Bathyme
         local seabed depth (positive down) [m]
     nvec : array of size 3
         local seabed surface normal vector (positive out) 
+    index : bool, optional
+        If True, will also retun ix and iy - the indices of the intersected
+        grid panel.
     '''
-
-    # get interpolation indices and fractions for the relevant grid panel
-    ix0, fx = getInterpNums(bathGrid_Xs, x)
-    iy0, fy = getInterpNums(bathGrid_Ys, y)
-
-
-    # handle end case conditions
-    if fx == 0:
-        ix1 = ix0
+    
+    # Call general function for 2d interpolation
+    depth, dc_dx, dc_dy, ix0, iy0 = interpFromGrid(x, y, grid_x, grid_y, grid_depth)
+    
+    # Compute unit vector of the seabed panel
+    nvec = np.array([dc_dx, dc_dy, 1.0])/np.linalg.norm([dc_dx, dc_dy, 1.0])
+    
+    if index:
+        return depth, nvec, ix0, iy0
     else:
-        ix1 = min(ix0+1, bathGrid.shape[1])  # don't overstep bounds
-    
-    if fy == 0:
-        iy1 = iy0
-    else:
-        iy1 = min(iy0+1, bathGrid.shape[0])  # don't overstep bounds
-    
-
-    # get corner points of the panel
-    c00 = bathGrid[iy0, ix0]
-    c01 = bathGrid[iy1, ix0]
-    c10 = bathGrid[iy0, ix1]
-    c11 = bathGrid[iy1, ix1]
-
-    # get interpolated points and local value
-    cx0    = c00 *(1.0-fx) + c10 *fx
-    cx1    = c01 *(1.0-fx) + c11 *fx
-    c0y    = c00 *(1.0-fy) + c01 *fy
-    c1y    = c10 *(1.0-fy) + c11 *fy
-    depth  = cx0 *(1.0-fy) + cx1 *fy
-
-    # get local slope
-    dx = bathGrid_Xs[ix1] - bathGrid_Xs[ix0]
-    dy = bathGrid_Ys[iy1] - bathGrid_Ys[iy0]
-    
-    if dx > 0.0:
-        dc_dx = (c1y-c0y)/dx
-    else:
-        dc_dx = 0.0  # maybe this should raise an error
-    
-    if dx > 0.0:
-        dc_dy = (cx1-cx0)/dy
-    else:
-        dc_dy = 0.0  # maybe this should raise an error
-    
-    nvec = np.array([dc_dx, dc_dy, 1.0])/np.linalg.norm([dc_dx, dc_dy, 1.0])  # compute unit vector      
-
-    return depth, nvec
+        return depth, nvec
 
 
 def getDepthFromBathymetryMesh(x, y, bathXs_mesh, bathYs_mesh, bath_depths, tol=1e4):

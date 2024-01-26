@@ -1,6 +1,6 @@
 # class for a mooring line in a floating array
 
-
+import numpy as np
 
 class Mooring():
     '''
@@ -11,7 +11,7 @@ class Mooring():
     '''
     
     def __init__(self, subsystem=None, rA=[0,0,0], rB=[0,0,0],
-                 rad_anch=500, rad_fair=50, z_anch=-10, z_fair=-100):
+                 rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14):
         '''
         Initialize an empty object for a mooring line.
         Eventually this will fully set one up from ontology inputs.
@@ -28,31 +28,55 @@ class Mooring():
         self.rad_anch = rad_anch
         self.rad_fair = rad_fair
         self.z_anch   = z_anch  
-        self.z_fair   = z_fair  
+        self.z_fair   = z_fair
+        
+        self.cost = {}
     
     
-    def adjust(self, r_center, heading=None):
+    def adjust(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
         '''Adjusts mooring position based on changed platform location or
-        heading [deg].'''
+        heading [deg]. It will call a custom "designer" function if one is
+        provided. Otherwise it will just update the end positions.
+        
+        Parameters
+        ----------
+        r_center
+            The x, y coordinates of the platform (undisplaced) [m].
+        heading : float
+            The absolute heading of the mooring line [deg].
+        project : FAModel Project, optional
+            A Project-type object for site-specific information used in custom
+            mooring line adjustment functions (mooring.designer).
+        **kwargs : dict
+            Additional arguments passed through to the designer function.
+        '''
         
         # Adjust heading if provided
         if not heading == None:
-            self.heading = np.radians(heading)
+            if degrees:
+                self.heading = np.radians(heading)
+            else:
+                self.heading = heading
             
         # heading 2D unit vector
-        u = np.array([np.cos(theta), np.sin(theta)])
+        u = np.array([np.cos(self.heading), np.sin(self.heading)])
         
-        r_center = np.array(r)[:2]
+        r_center = np.array(r_center)[:2]
         
-        # could adjust anchor depth based on bathymetry ...
+        # Set the updated fairlead location
+        self.setEndPosition(np.hstack([r_center + self.rad_fair*u, self.z_fair]), 'b')
         
-        # Position the ends
-        self.setEndPosition(np.hstack([r_center + self.rad_anch*u, self.z_anch]), 'a')
-        self.setEndPosition(np.hstack([r_center + self.rad_fair*u, self.z_fair]), 'a')
+        # run custom function to update the mooring design (and anchor position)
+        # this would also szie the anchor maybe?
+        if self.designer:
+            self.designer(self, project, r_center, u, **kwargs)
+        
+        else: # otherwise just set the anchor position based on a set spacing
+            self.setEndPosition(np.hstack([r_center + self.rad_anch*u, self.z_anch]), 'a', sink=True)
         
     
     
-    def setEndPosition(self, r, end):
+    def setEndPosition(self, r, end, sink=False):
         '''Set the position of an end of the mooring.
         
         Parameters
@@ -61,24 +85,43 @@ class Mooring():
             Cordinates to set the end at [m].
         end
             Which end of the edge is being positioned, 'a' or 'b'.
+        sink : bool
+            If true, and if there is a subsystem, the z position will be on the seabed.
         '''
         
         if end in ['a', 'A', 0]:
             self.rA = np.array(r)
             
             if self.subsystem:
-                self.subsystem.setEndPosition(self.rA, False)
+                self.subsystem.setEndPosition(self.rA, False, sink=sink)
             
         elif end in ['b', 'B', 1]:
             self.rB = np.array(r)
             
             if self.subsystem:
-                self.subsystem.setEndPosition(self.rB, True)
+                self.subsystem.setEndPosition(self.rB, True, sink=sink)
                 
         else:
             raise Exception('End A or B must be specified with either the letter, 0/1, or False/True.')
-      
     
+    
+    def getCost(self):
+        
+        # mooring line cost
+        line_cost = 0
+        if self.subsystem:
+            for line in self.subsystem.lineList:
+                line_cost += line.getCost()
+        else:
+            pass # could have some proxy cost calculation
+        
+        self.cost['line'] = line_cost
+        
+        # anchor cost  (it should already be computed)
+        
+        # sum up the costs in the dictionary and return
+        return sum(self.cost.values()) 
+        
 
 class Platform():
     '''
