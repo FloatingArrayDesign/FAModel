@@ -1,6 +1,7 @@
-# class for a mooring line in a floating array
+# class for a mooring line
 
 import numpy as np
+
 
 class Mooring():
     '''
@@ -15,27 +16,41 @@ class Mooring():
         '''
         Initialize an empty object for a mooring line.
         Eventually this will fully set one up from ontology inputs.
+        
+        >>> This init method is a placeholder that currently may need
+        some additional manual setup of the mooring object after it is
+        called. <<<
+        
         '''
         
-        self.subsystem = subsystem  # The MoorPy subsystem that corresponds to the mooring line
+        # Design description dictionary for this Mooring
+        self.dd = {}
+        
+        # MoorPy subsystem that corresponds to the mooring line
+        self.subsystem = subsystem  
         
         # end point absolute coordinates, to be set later
         self.rA = rA
         self.rB = rB
         self.heading = 0
         
-        # relative positions
+        # relative positions (variables could be renamed)
         self.rad_anch = rad_anch
         self.rad_fair = rad_fair
         self.z_anch   = z_anch  
         self.z_fair   = z_fair
         
+        self.adjuster = None  # custom function that can adjust the mooring
+        
+        # Dictionaries for addition information
+        self.loads = {}
+        self.reliability = {}
         self.cost = {}
     
     
-    def adjust(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
+    def reposition(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
         '''Adjusts mooring position based on changed platform location or
-        heading [deg]. It will call a custom "designer" function if one is
+        heading. It can call a custom "adjuster" function if one is
         provided. Otherwise it will just update the end positions.
         
         Parameters
@@ -43,10 +58,11 @@ class Mooring():
         r_center
             The x, y coordinates of the platform (undisplaced) [m].
         heading : float
-            The absolute heading of the mooring line [deg].
+            The absolute heading of the mooring line [deg or rad] depending on
+            degrees parameter (True or False).
         project : FAModel Project, optional
             A Project-type object for site-specific information used in custom
-            mooring line adjustment functions (mooring.designer).
+            mooring line adjustment functions (mooring.adjuster).
         **kwargs : dict
             Additional arguments passed through to the designer function.
         '''
@@ -66,10 +82,10 @@ class Mooring():
         # Set the updated fairlead location
         self.setEndPosition(np.hstack([r_center + self.rad_fair*u, self.z_fair]), 'b')
         
-        # run custom function to update the mooring design (and anchor position)
+        # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
-        if self.designer:
-            self.designer(self, project, r_center, u, **kwargs)
+        if self.adjuster:
+            self.adjuster(self, project, r_center, u, **kwargs)
         
         else: # otherwise just set the anchor position based on a set spacing
             self.setEndPosition(np.hstack([r_center + self.rad_anch*u, self.z_anch]), 'a', sink=True)
@@ -121,76 +137,4 @@ class Mooring():
         
         # sum up the costs in the dictionary and return
         return sum(self.cost.values()) 
-        
-
-class Platform():
-    '''
-    Class for a mooring floating platform.
-    Eventually will inherit from Node.
-    '''
-    
-    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300]):
-        '''
-        
-        Parameters
-        ----------
-        r 
-            x and y coordinates [m].
-        theta, float (optional)
-            The heading of the object [deg].
-        mooring_headings (optional)
-            relative headings of mooring lines [deg].
-        '''
-        
-        self.r = np.array(r)  # coordinate of platform
-        
-        self.theta = np.radians(heading)  # heading offset of platform
-        
-        self.mooring_headings = np.radians(mooring_headings) # headings of mooring lines [rad]
-        
-        self.n_mooring = len(mooring_headings) # number of mooring lines
-        
-        # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
-        # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
-        
-        self.mooringList = []  # to be filled by references to Mooring objects
-    
-    
-    def setPosition(self, r, heading=None):
-        '''
-        Set the position/orientation of the platform as well as the associated
-        anchor points.
-        
-        Parameters
-        ----------
-        r : list
-            x and y coordinates to position the node at [m].
-        heading, float (optional)
-            The heading of the object [deg].
-        '''
-        
-        '''
-        # Future approach could be
-        # first call the Node method to take care of the platform and what's directly attached
-        Node.setPosition(self, r, heading=heading)
-        # then also adjust the anchor points
-        '''
-        
-        # Store updated position and orientation
-        self.r = np.array(r)
-        
-        if not heading == None:
-            self.theta = np.radians(heading)
-        
-        # Get rotation matrix...
-        self.R = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
-        
-        # Update the position of any Moorings
-        for i, mooring in enumerate(self.mooringList):
-        
-            # heading of the mooring line
-            heading_i = self.mooring_headings[i] + self.theta
-            
-            # adjust the whole Mooring
-            mooring.adjust(self.r, heading=heading_i)
         

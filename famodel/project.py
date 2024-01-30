@@ -47,11 +47,21 @@ class Project():
         self.coords = np.zeros([self.nPtfm+self.nAnch, 2]) # x-y coordinate table of platforms and anchors
         
         # more detailed design data structures for submodels
-        self.array = None  # RAFT Array
+        self.array = None  # RAFT model for dynamics analysis
+        self.flow = None  # FLORIS interface instance for wake analysis
+        
+        # Lists describing the array, divided by structure type
         self.turbineList = []
+        self.platormList = []
         self.mooringList = []  # A list of Mooring objects
         self.anchorList  = []
         self.cables = None  # CableSystem
+        
+        # Dictionaries of component/product properties used in the array
+        self.turbineTypes = None
+        self.lineTypes = None
+        self.anchorTypes = None
+        self.cableTypes = None
         
         
         # ----- site information -----

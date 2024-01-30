@@ -19,7 +19,7 @@ from moorpy.subsystem import Subsystem
 from copy import deepcopy
 
 #load yaml Ontology file
-with open('C:/Users/LSIRKIS/Documents/Python Scripts/Ontology/mooringOntology.yaml','r') as stream:
+with open('mooringOntology.yaml','r') as stream:
     try:
         ont = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
