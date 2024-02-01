@@ -11,7 +11,7 @@ class Mooring():
     Work in progress. Eventually will inherit from Edge.
     '''
     
-    def __init__(self, subsystem=None, rA=[0,0,0], rB=[0,0,0],
+    def __init__(self, dd=None, subsystem=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14):
         '''
         Initialize an empty object for a mooring line.
@@ -24,7 +24,7 @@ class Mooring():
         '''
         
         # Design description dictionary for this Mooring
-        self.dd = {}
+        self.dd = dd
         
         # MoorPy subsystem that corresponds to the mooring line
         self.subsystem = subsystem  
@@ -138,3 +138,31 @@ class Mooring():
         # sum up the costs in the dictionary and return
         return sum(self.cost.values()) 
         
+    def createSubsystem(self):
+        from moorpy.subsystem import Subsystem
+        ''' Create a subsystem for a line configuration from the design dictionary
+
+        '''
+        if self.subsystem:
+            print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
+        #create subsystem
+        self.subsystem=Subsystem(depth=-self.dd['zAnchor'], spacing=self.dd['rAnchor'], rBfair=self.dd['EndPositions']['endB'])
+        lengths = []
+        types = []
+        for i,lt in enumerate(self.dd['line_types']):
+            self.subsystem.setLineType(self.dd['line_types'][lt]['d_nom']*1000,self.dd['line_types'][lt]['material'], name=lt)
+            self.subsystem.lineTypes[lt]['d_vol'] = self.dd['line_types'][lt]['d_vol']
+            self.subsystem.lineTypes[lt]['m'] = self.dd['line_types'][lt]['m']
+            self.subsystem.lineTypes[lt]['EA'] = self.dd['line_types'][lt]['EA']
+            if 'EAd' in self.dd['line_types'][lt]:
+                self.subsystem.lineTypes[lt]['EAd'] = self.dd['line_types'][lt]['EAd']
+                self.subsystem.lineTypes[lt]['EAd_Lm'] = self.dd['line_types'][lt]['EAd_Lm']
+            self.subsystem.lineTypes[lt]['MBL'] = self.dd['line_types'][lt]['MBL']
+            self.subsystem.lineTypes[lt]['cost'] = self.dd['line_types'][lt]['cost']
+            lengths.append(self.dd['line_types'][lt]['length'])
+            types.append(lt)
+            
+        self.subsystem.makeGeneric(lengths,types)
+        self.subsystem.setEndPosition(self.dd['EndPositions']['endA'],endB=0)
+        self.subsystem.setEndPosition(self.dd['EndPositions']['endB'],endB=1)
+        self.subsystem.staticSolve()
