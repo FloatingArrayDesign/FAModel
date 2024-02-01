@@ -2,12 +2,7 @@
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
-import moorpy as mp
-from moorpy.MoorProps import getLineProps
-from moorpy.subsystem import Subsystem
 from famodel import Mooring
-
-from copy import deepcopy
 
 #load yaml Ontology file
 with open('mooringOntology.yaml','r') as stream:
@@ -17,9 +12,6 @@ with open('mooringOntology.yaml','r') as stream:
         print(exc)
 
 #reorganize data . . .
-
-
-#create manual subsystem
 
 
 #find out how many different mooring configurations are used in each system
@@ -43,6 +35,7 @@ for key, val in ont['mooring_systems'].items():
 
 
 mlist = []  # List to hold created Mooring objects
+
 
 #loop through all lines
 for i,lc in enumerate(lineconfig):

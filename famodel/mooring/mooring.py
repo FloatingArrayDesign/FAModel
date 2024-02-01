@@ -14,6 +14,22 @@ class Mooring():
     def __init__(self, dd=None, subsystem=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14):
         '''
+        Parameters
+        ----------
+        dd: dictionary
+            Design dictionary that contains all information on a mooring line needed to create a MoorPy subsystem
+            Layout: {line_types:
+                         {line_type_0: {
+                                 d_nom, material, d_vol, m, EA, EAd, EAd_Lm, MBL, cost, length
+                                 }
+                         }
+                         rAnchor
+                         zAnchor
+                         rFair
+                         zFair
+                         EndPositions:{
+                             endA, endB}
+                    }
         Initialize an empty object for a mooring line.
         Eventually this will fully set one up from ontology inputs.
         
