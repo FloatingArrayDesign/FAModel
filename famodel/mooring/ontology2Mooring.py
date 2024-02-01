@@ -21,35 +21,49 @@ with open('mooringOntology.yaml','r') as stream:
 
 #create manual subsystem
 
+
 #find out how many different mooring configurations are used in each system
-lineconfig = []#set()
-msNum = []
-lNum = []
-for i in range(0,len(ont['mooring_systems'])):
-    for j in range(0,len(ont['mooring_systems']['ms'+str(i+1)]['data'])):
-        lineconfig.append(ont['mooring_systems']['ms'+str(i+1)]['data'][j][0])
+lineconfig = []  # Name of mooring line configuration of every mooring line listed in the yaml
+msNum = []       # Number of the mooring system (1...) corresponding to every mooring line listed in the yaml
+lNum = []        # Each mooring line's row number in the mooring system table it appears in
+
+# Loop through each mooring system name and contents
+for key, val in ont['mooring_systems'].items():  
+
+    # Parse mooring system table into a list of dictionaries
+    ms_info = [dict(zip(val['keys'], row))  for row in val['data']]
+    
+    for j in range(len(ms_info)):  # go through each row of the mooring system info
+        lineconfig.append(ms_info[j]['MooringConfigID'])
         msNum.append(i+1)#mooring system number
         lNum.append(j)#row number in the mooring system table (essentially mooring line number)
-        if ont['mooring_systems']['ms'+str(i+1)]['data'][j][3]>0:
+        
+        if ms_info[j]['lengthAdjust'] > 0:
             print('Length adjust is listed as non-zero, but currently there is no functionality for adjusting length. Will be updated soon.')
 
 
-mlist = []
+mlist = []  # List to hold created Mooring objects
 
 #loop through all lines
 for i,lc in enumerate(lineconfig):
     #set up dictionary of information on the mooring configurations
-    m_config = {'line_types':{},'rAnchor':{},'zAnchor':{},'rFair':{},'zFair':{},'EndPositions':{}}   
+    m_config = {'line_types':{},'rAnchor':{},'zAnchor':{},'rFair':{},'zFair':{},'EndPositions':{}}
+    
     #loop through all line sections of each line
     for j in range(0,len(ont['mooring_line_configs'][lc]['sections'])):
         yamltype = ont['mooring_line_configs'][lc]['sections'][j]['type']#get the name of the line section type from the yaml file
         ltype = str(j)+'_'+yamltype #assign unique name for line section w/increasing # to keep linetype order correct (you could have 2 sections w/same line type so need unique name)
+        
         #set up a sub-dictionary that will contain all the information on the line section type
         m_config['line_types'][ltype] = {}
         
         if not yamltype in ont['mooring_line_types']:
             print('Mooring line type ',yamltype,' listed in mooring_line_configs is not found in mooring_line_types')
+            
         #set properties for line type
+        
+        ont_ltype = ont['mooring_line_types'][yamltype]  # short handle to condense the next 10 lines
+        
         m_config['line_types'][ltype]['d_nom'] =  ont['mooring_line_types'][yamltype]['d_nom']
         m_config['line_types'][ltype]['material'] = ont['mooring_line_types'][yamltype]['material']
         m_config['line_types'][ltype]['d_vol'] = float(ont['mooring_line_types'][yamltype]['d_vol'])
@@ -66,6 +80,8 @@ for i,lc in enumerate(lineconfig):
         m_config['line_types'][ltype]['length'] = float(ont['mooring_line_configs'][lc]['sections'][j]['length'])
     
     #set general information on the whole line (not just a section/line type)
+    heading = ont['mooring_systems']['ms'+str(msNum[i])]['data'][lNum[i]][1]  # (to make later code lines shorter and clearer)
+    
     m_config['rAnchor'] = ont['mooring_line_configs'][lc]['anchoring_radius']
     m_config['zAnchor'] = -ont['site']['general']['water_depth']
     m_config['zFair'] = ont['mooring_line_configs'][lc]['fairlead_depth']
