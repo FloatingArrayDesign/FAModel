@@ -85,3 +85,64 @@ class Platform():
             # Reposition the whole Mooring
             mooring.reposition(self.r, heading=heading_i)
         
+    def mooringSystem(self,rotateBool=0,mList=None):
+        '''
+        Create a MoorPy system for the platform based on the mooring subsystems provided in 
+        the mooringList of Mooring classes and the mooring headings
+
+        Parameters
+        ----------
+        rotateBool : boolean
+            controls whether the list of subsystems needs rotation at the mooring headings (1) or if it is already rotated (0)
+        mList : list
+            List of mooring subsystems on the platform
+
+        Returns
+        -------
+        None
+
+        '''
+        import moorpy as mp
+        
+        #check if the subsystems were passed in from the function call
+        if mList:
+            if self.mooringList:
+                print('There is a mooring list already in the platform class instance. This is being overwritten because a mooring list was specified in the function call.')
+            #if so, set the platfrom mooringList to the passed-in list
+            self.mooringList = mList
+        
+        #create new MoorPy system and set its depth
+        self.ms = mp.System(depth=self.mooringList[0].subsystem.depth)
+        
+        if rotateBool:
+            #rotation
+            for i in range(0,len(self.mooringList)):
+                ssloc = self.mooringList[i].subsystem
+                #get anchor and fairlead radius
+                anch_rad = np.sqrt(ssloc.rA[0]**2+ssloc.rA[1]**2)
+                fair_rad = np.sqrt(ssloc.rB[0]**2+ssloc.rB[1]**2)
+                #set anchor and fairlead new location based on headings
+                ssloc.setEndPosition([anch_rad*np.cos(self.phi[i]), anch_rad*np.sin(self.phi[i]), -ssloc.depth], endB=0)
+                ssloc.setEndPosition([fair_rad*np.cos(self.phi[i]), fair_rad*np.sin(self.phi[i]), ssloc.rB[2]], endB=1)
+        
+        #make mooring system from subsystems
+        for i in range(0,len(self.mooringList)):
+            ssloc = self.mooringList[i].subsystem
+            #add subsystem as a line to the linelist
+            self.ms.lineList.append(ssloc)
+            ssloc.number = i
+            #add anchor point as a fixed point
+            self.ms.addPoint(1,ssloc.rA)
+            #attach subsystem line to the anchor point
+            self.ms.pointList[-1].attachLine(i,0)
+            #add fairlead point as a coupled point
+            self.ms.addPoint(-1,ssloc.rB)
+            #attach subsystem line to the fairlead point
+            self.ms.pointList[-1].attachLine(i,1)
+        
+        #initialize and plot
+        self.ms.initialize()
+        self.ms.solveEquilibrium()
+        fig,ax = self.ms.plot()
+        
+        

@@ -27,7 +27,7 @@ for key, val in ont['mooring_systems'].items():
     
     for j in range(len(ms_info)):  # go through each row of the mooring system info
         lineconfig.append(ms_info[j]['MooringConfigID'])
-        msNum.append(i+1)#mooring system number
+        msNum.append(j+1)#mooring system number
         lNum.append(j)#row number in the mooring system table (essentially mooring line number)
         
         if ms_info[j]['lengthAdjust'] > 0:
@@ -57,19 +57,19 @@ for i,lc in enumerate(lineconfig):
         
         ont_ltype = ont['mooring_line_types'][yamltype]  # short handle to condense the next 10 lines
         
-        m_config['line_types'][ltype]['d_nom'] =  ont['mooring_line_types'][yamltype]['d_nom']
-        m_config['line_types'][ltype]['material'] = ont['mooring_line_types'][yamltype]['material']
-        m_config['line_types'][ltype]['d_vol'] = float(ont['mooring_line_types'][yamltype]['d_vol'])
-        m_config['line_types'][ltype]['m'] = float(ont['mooring_line_types'][yamltype]['m'])
-        m_config['line_types'][ltype]['EA'] = float(ont['mooring_line_types'][yamltype]['EA'])
+        m_config['line_types'][ltype]['d_nom'] =  ont_ltype['d_nom']
+        m_config['line_types'][ltype]['material'] = ont_ltype['material']
+        m_config['line_types'][ltype]['d_vol'] = float(ont_ltype['d_vol'])
+        m_config['line_types'][ltype]['m'] = float(ont_ltype['m'])
+        m_config['line_types'][ltype]['EA'] = float(ont_ltype['EA'])
         
         #add dynamic stretching if there is any
         if 'EAd' in ont['mooring_line_types'][yamltype]: 
-            m_config['line_types'][ltype]['EAd'] = float(ont['mooring_line_types'][yamltype]['EAd'])
-            m_config['line_types'][ltype]['EAd_Lm'] = float(ont['mooring_line_types'][yamltype]['EAd_Lm'])
+            m_config['line_types'][ltype]['EAd'] = float(ont_ltype['EAd'])
+            m_config['line_types'][ltype]['EAd_Lm'] = float(ont_ltype['EAd_Lm'])
         #set more properties
-        m_config['line_types'][ltype]['MBL'] = float(ont['mooring_line_types'][yamltype]['MBL'])
-        m_config['line_types'][ltype]['cost'] = float(ont['mooring_line_types'][yamltype]['cost'])
+        m_config['line_types'][ltype]['MBL'] = float(ont_ltype['MBL'])
+        m_config['line_types'][ltype]['cost'] = float(ont_ltype['cost'])
         m_config['line_types'][ltype]['length'] = float(ont['mooring_line_configs'][lc]['sections'][j]['length'])
     
     #set general information on the whole line (not just a section/line type)
@@ -79,8 +79,8 @@ for i,lc in enumerate(lineconfig):
     m_config['zAnchor'] = -ont['site']['general']['water_depth']
     m_config['zFair'] = ont['mooring_line_configs'][lc]['fairlead_depth']
     m_config['rFair'] = ont['mooring_line_configs'][lc]['fairlead_radius']
-    m_config['EndPositions']['endA'] = [np.cos(np.radians(ont['mooring_systems']['ms'+str(msNum[i])]['data'][lNum[i]][1]))*ont['mooring_line_configs'][lc]['anchoring_radius'],np.sin(np.radians(ont['mooring_systems']['ms'+str(msNum[i])]['data'][lNum[i]][1]))*ont['mooring_line_configs'][lc]['anchoring_radius'],-float(ont['site']['general']['water_depth'])]
-    m_config['EndPositions']['endB'] = [np.cos(np.radians(ont['mooring_systems']['ms'+str(msNum[i])]['data'][lNum[i]][1]))*ont['mooring_line_configs'][lc]['fairlead_radius'],np.sin(np.radians(ont['mooring_systems']['ms'+str(msNum[i])]['data'][lNum[i]][1]))*ont['mooring_line_configs'][lc]['fairlead_radius'], float(ont['mooring_line_configs'][lc]['fairlead_depth'])]
+    m_config['EndPositions']['endA'] = [np.cos(np.radians(heading))*ont['mooring_line_configs'][lc]['anchoring_radius'],np.sin(np.radians(heading))*ont['mooring_line_configs'][lc]['anchoring_radius'],-float(ont['site']['general']['water_depth'])]
+    m_config['EndPositions']['endB'] = [np.cos(np.radians(heading))*ont['mooring_line_configs'][lc]['fairlead_radius'],np.sin(np.radians(heading))*ont['mooring_line_configs'][lc]['fairlead_radius'], float(ont['mooring_line_configs'][lc]['fairlead_depth'])]
 
     #create mooring class instance for this line
     mlist.append(Mooring(dd = m_config, rA = m_config['EndPositions']['endA'], rB = m_config['EndPositions']['endB'], rad_anch =  m_config['rAnchor'], rad_fair = m_config['rFair'], z_anch = -ont['site']['general']['water_depth'], z_fair = m_config['zFair']))
