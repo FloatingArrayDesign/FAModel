@@ -165,17 +165,9 @@ class Mooring():
         self.subsystem=Subsystem(depth=-self.dd['zAnchor'], spacing=self.dd['rAnchor'], rBfair=self.dd['EndPositions']['endB'])
         lengths = []
         types = []
-        for i,lt in enumerate(self.dd['line_types']):
-            self.subsystem.setLineType(self.dd['line_types'][lt]['d_nom']*1000,self.dd['line_types'][lt]['material'], name=lt)
-            self.subsystem.lineTypes[lt]['d_vol'] = self.dd['line_types'][lt]['d_vol']
-            self.subsystem.lineTypes[lt]['m'] = self.dd['line_types'][lt]['m']
-            self.subsystem.lineTypes[lt]['EA'] = self.dd['line_types'][lt]['EA']
-            if 'EAd' in self.dd['line_types'][lt]:
-                self.subsystem.lineTypes[lt]['EAd'] = self.dd['line_types'][lt]['EAd']
-                self.subsystem.lineTypes[lt]['EAd_Lm'] = self.dd['line_types'][lt]['EAd_Lm']
-            self.subsystem.lineTypes[lt]['MBL'] = self.dd['line_types'][lt]['MBL']
-            self.subsystem.lineTypes[lt]['cost'] = self.dd['line_types'][lt]['cost']
-            lengths.append(self.dd['line_types'][lt]['length'])
+        for i,lt in enumerate(self.dd['sections']):
+            self.subsystem.lineTypes[lt] = self.dd['sections'][lt]['type']
+            lengths.append(self.dd['sections'][lt]['length'])
             types.append(lt)
             
         self.subsystem.makeGeneric(lengths,types)
