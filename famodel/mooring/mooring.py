@@ -18,17 +18,27 @@ class Mooring():
         ----------
         dd: dictionary
             Design dictionary that contains all information on a mooring line needed to create a MoorPy subsystem
-            Layout: {line_types:
-                         {line_type_0: {
-                                 d_nom, material, d_vol, m, EA, EAd, EAd_Lm, MBL, cost, length
+            Layout: {
+                     sections:
+                         {
+                             name: 
+                                 {
+                                  type:
+                                      {
+                                         d_nom, material, d_vol, m, EA, EAd, EAd_Lm, MBL, cost, length
+                                      }
+                                  length
                                  }
                          }
-                         rAnchor
-                         zAnchor
-                         rFair
-                         zFair
-                         EndPositions:{
-                             endA, endB}
+                     connectors: {}
+                     rAnchor
+                     zAnchor
+                     rFair
+                     zFair
+                     EndPositions:
+                                  {
+                                    endA, endB
+                                  }
                     }
         Initialize an empty object for a mooring line.
         Eventually this will fully set one up from ontology inputs.
