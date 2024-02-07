@@ -14,7 +14,7 @@ import yaml
 from .anchors.anchor_capacity import anchorCapacity
 from .seabed import seabed_tools as sbt
 from .mooring.mooring import Mooring
-
+from .platform.platform import Platform
 
 class Project():
     '''
@@ -52,7 +52,7 @@ class Project():
         
         # Lists describing the array, divided by structure type
         self.turbineList = []
-        self.platormList = []
+        self.platformList = []
         self.mooringList = []  # A list of Mooring objects
         self.anchorList  = []
         self.cables = None  # CableSystem
@@ -125,6 +125,8 @@ class Project():
         the floating wind array ontology.'''
         
         # standard function to load dict if input is yaml
+        if not isinstance(d,dict):#if the input is not a dictionary, it is a yaml
+            self.load(d)#load yaml into dictionary
         #d = 
         
         # ===== load FAM-specific model parts =====
@@ -139,10 +141,10 @@ class Project():
             cableInfo = [dict(zip( d['array_cables']['keys'], row))
                          for row in d['array_cables']['data']]
             
-            for ci in cableInfo:
-                ...
+            # for ci in cableInfo:
+            #     ...
                 
-                self.cables.addCable(...)
+            #     self.cables.addCable(...)
         
         # ----- cables one-by-one -----
         if 'cables' in d:
@@ -152,16 +154,21 @@ class Project():
                 
                 self.cables.addCable(...)
         
+        # ----- mooring systems ------
+        mSystems = {}
+        if 'mooring_systems' in d:
+            for k, v in d['mooring_systems'].items():
+                #set up mooring systems dictionary
+                mSystems[k] = v       
         
         # ----- mooring line section types -----
         # add support for both list- and table-based formats 
-        lineTypes = {}
+        self.lineTypes = {}
         
         if 'mooring_line_types' in d:
-            
             for k, v in d['mooring_line_types'].items():
-                
-                lineTypes[k] = v
+                #set up line types dictionary
+                self.lineTypes[k] = v
         
         # ----- mooring connectors -----
         # to be added
@@ -170,19 +177,96 @@ class Project():
         # to be added
         
         # ----- mooring line configurations -----
-        lineTypes = {}
+        lineConfigs = {}
         
         if 'mooring_line_configs' in d:
-            
             for k, v in d['mooring_line_configs'].items():
-                pass
                 #set up mooring config... (k, v)
-                
+                lineConfigs[k] = v
+                #check line types listed in line configs matches those in linetypes section
+                if self.lineTypes:#if linetypes section is included in dictionary
+                    for j in range(0,len(v['sections'])):#loop through each line config section 
+                        if not v['sections'][j]['type'] in self.lineTypes:#check if they match
+                            raise Exception(f"Mooring line type '{v['sections'][j]['type']}' listed in mooring_line_configs is not found in mooring_line_types")
+            #check line configurations listed in mooring systems matches those in line configs list
+            if mSystems:#if mooring_systems section is included in dictionary
+                for j,m_s in enumerate(mSystems): #loop through each mooring system
+                    for i in range(0,len(mSystems[m_s]['data'])):#loop through each line listed in the system
+                        if not mSystems[m_s]['data'][i][0] in lineConfigs:#check if they match
+                            raise Exception(f"Mooring line configuration '{mSystems[m_s]['data'][i][0]}' listed in mooring_systems is not found in mooring_line_configs")
+
                 # I think we want to just store it as a dictionary
                 # validate it,
                 # then have it available for use when making Mooring objects and subsystems
+                
         
-        
+        # ----- set up dictionary for each mooring line, create mooring and platform classes ----
+        #check that all necessary sections of design dictionary exist
+        if self.lineTypes and lineConfigs and mSystems:
+            
+            #get the mooring system information
+            for i,m_s in enumerate(mSystems):#loop through each mooring system
+                #create a new platform class instance for each mooring system
+                #get platform location and heading
+                PFloc = [d['array']['data'][i][3],d['array']['data'][i][4]]
+                PFheading = d['array']['data'][i][5]
+                #get mooring headings (need this to create platform class)
+                headings = []
+                for ii in range(0,len(mSystems[m_s]['data'])):
+                    headings.append(mSystems[m_s]['data'][ii][1])
+                #create platform class instance
+                self.platformList.append(Platform(r=PFloc,heading=PFheading,mooring_headings=headings))
+                
+                #get the mooring line information 
+                for j in range(0,len(mSystems[m_s]['data'])):#loop through each line in the mooring system
+                    #set up dictionary of information on the mooring configurations
+                    m_config = {'sections':{},'connectors':{},'rAnchor':{},'zAnchor':{},'rFair':{},'zFair':{},'EndPositions':{}}
+                    lineconfig = mSystems[m_s]['data'][j][0] #get the configuration for that line in the mooring system
+                    for k in range(0,len(lineConfigs[lineconfig]['sections'])):#loop through each section in the line
+                        
+                        lc = lineConfigs[lineconfig]['sections'][k] #set location for code clarity later
+                        lt = self.lineTypes[lc['type']] #set location for code clarity and brevity later
+                        name = str(k)+'_'+lc['type']
+                        #set up sub-dictionaries that will contain info on the line type
+                        m_config['sections'][name] = {}
+                        m_config['sections'][name]['type'] = {}
+                        m_config['sections'][name]['type']['name'] = name
+                        m_config['sections'][name]['type']['d_nom'] =  lt['d_nom']
+                        m_config['sections'][name]['type']['material'] = lt['material']
+                        m_config['sections'][name]['type']['d_vol'] = float(lt['d_vol'])
+                        m_config['sections'][name]['type']['m'] = float(lt['m'])
+                        m_config['sections'][name]['type']['EA'] = float(lt['EA'])
+                        #need to calculate the submerged weight of the line (not currently available in ontology yaml file)
+                        m_config['sections'][name]['type']['w'] = (lt['m']-np.pi/4*lt['d_vol']**2*1025)*9.81
+                        
+                        #add dynamic stretching if there is any
+                        if 'EAd' in lt: 
+                            m_config['sections'][name]['type']['EAd'] = float(lt['EAd'])
+                            m_config['sections'][name]['type']['EAd_Lm'] = float(lt['EAd_Lm'])
+                            
+                        #set more line section properties
+                        m_config['sections'][name]['type']['MBL'] = float(lt['MBL'])
+                        m_config['sections'][name]['type']['cost'] = float(lt['cost'])
+                        m_config['sections'][name]['length'] = float(lc['length'])
+                        m_config['sections'][name]['connector'] = lc['connector']
+                    
+                    #set connector info
+                    #???? Need to fill in
+                    
+                    #set general information on the whole line (not just a section/line type)
+                    m_config['rAnchor'] = lineConfigs[lineconfig]['anchoring_radius']
+                    m_config['zAnchor'] = -self.depth
+                    m_config['zFair'] = lineConfigs[lineconfig]['fairlead_depth']
+                    m_config['rFair'] = lineConfigs[lineconfig]['fairlead_radius']
+                    ####To do: add lookup for actual depth at location, add platform x,y offset to end positions
+                    m_config['EndPositions']['endA'] = [np.cos(np.radians(headings[j]))*m_config['rAnchor'],np.sin(np.radians(headings[j]))*m_config['rAnchor'],-float(self.depth)]
+                    m_config['EndPositions']['endB'] = [np.cos(np.radians(headings[j]))*m_config['rFair'],np.sin(np.radians(headings[j]))*m_config['rFair'], float(m_config['zFair'])]
+                    
+                    #create mooring class instance
+                    self.mooringList.append(Mooring(dd = m_config, rA = m_config['EndPositions']['endA'],rB = m_config['EndPositions']['endB'],rad_anch = m_config['rAnchor'],rad_fair = m_config['rFair'],z_anch=m_config['zAnchor'],z_fair=m_config['zFair']))
+                    #add mooring class instance to mooring list in the platform class instance
+                    self.platformList[i].mooringList.append(self.mooringList[-1])
+                    
         # ===== load RAFT model parts =====
         
 
@@ -195,7 +279,7 @@ class Project():
         # standard function to load dict if input is yaml
         
         # load general information
-        self.depth = getFromDict(site['general'], 'depth', default=100)
+        self.depth = getFromDict(site['general'], 'water_depth', default=100)
         self.rho_water = getFromDict(site['general'], 'rho_water', default=1025.0)
         self.rho_air = getFromDict(site['general'], 'rho_air', default=1.225)
         self.mu_air = getFromDict(site['general'], 'mu_air', default=1.81e-5)
@@ -719,6 +803,57 @@ class Project():
         else:
             fig = ax.get_figure()
        
+    def getMoorPyArray(self,plt=0):
+        '''
+
+        Parameters
+        ----------
+        plt : boolean, optional
+            Controls whether to create a plot of the MoorPy array. 1=create plot, 0=no plot The default is 0.
+
+        Returns
+        -------
+        ms : class instance
+            MoorPy system for the whole array based on the subsystems in the mooringList
+
+        '''
+        ms = mp.System(depth=self.depth)
+        
+        counter = 0 #keep track of number of times through the loop (since # of lines per turbine might not be consistent)
+        for i in range(0,len(self.platformList)):#loop through for each body/platform
+            PF = self.platformList[i]
+            #get number of mooring lines for this platform from YAML file
+            nLines = PF.n_mooring
+            print(nLines)
+            #add a moorpy body at the correct location
+            r6 = [PF.r[0],PF.r[1],0,0,0,0]
+            ms.addBody(0,r6,m=1.784e7,v=20206,rM=100,AWP=1011)
+            #loop through each line on the body (for now assuming 3 lines per body)
+            for j in range(0,nLines):
+                #create subsystem
+                self.mooringList[counter].createSubsystem()
+                #set the location of subsystem to make next few lines shorter
+                ssloc = self.mooringList[counter].subsystem
+                
+                #add start and end points adjusted to include location offsets, attach subsystem
+                ms.addPoint(1,[ssloc.rA[0]+PF.r[0],ssloc.rA[1]+PF.r[1],ssloc.rA[2]])#anchor
+                #add subsystem to mp system line list
+                ms.lineList.append(ssloc)
+                ssloc.number = counter+1
+                ms.pointList[-1].attachLine(counter+1,0)
+                ms.addPoint(1,[ssloc.rB[0]+PF.r[0],ssloc.rB[1]+PF.r[1],ssloc.rB[2]])#fairlead
+                ms.pointList[-1].attachLine(counter+1,1)
+                #attach body to fairlead line
+                ms.bodyList[i].attachPoint(len(ms.pointList),ssloc.rB)#attach to fairlead
+                #increase counter
+                counter = counter + 1
+        #initialize, solve equilibrium, and plot the system       
+        ms.initialize()
+        ms.solveEquilibrium()
+        if plt:
+            fig,ax = ms.plot()
+            
+        return(ms)
         
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
@@ -801,6 +936,7 @@ def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
                 else:
                     return np.tile(default, [shape, 1])
     
+
 
 '''
 Other future items:

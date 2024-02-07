@@ -10,13 +10,13 @@ site:
         mu_air      : 1.81e-05   #          air dynamic viscosity
         #...
         
-    boundaries:  # project or lease area boundary, via file or vertex list
-        file:   # filename of x-y vertex coordinates [m]
-        x_y:    # list of polygon vertices in order [m]
-           -[x1, y1]
-           -[x2, y2]
-           -[x3, y3]
-           -[x4, y4]
+    #boundaries:  # project or lease area boundary, via file or vertex list
+        #file:   # filename of x-y vertex coordinates [m]
+        #x_y:    # list of polygon vertices in order [m]
+           # -[x1, y1]
+           # -[x2, y2]
+           # -[x3, y3]
+           # -[x4, y4]
     
     exclusions:
       - name: round example
@@ -28,8 +28,8 @@ site:
             -[x1, y1]
             -[x2, y2]
     
-    bathymetry:
-        file:   # MoorDyn-style bathymetry file
+   # bathymetry:
+        #file:   # MoorDyn-style bathymetry file
     
     seabed:
         keys: [x,  y, depth,  soil_type]
@@ -68,8 +68,15 @@ site:
 array:
     keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [     1,         1,         1,             0,              0,          180   ]    # 2 array, shared moorings
-        -  [     2,         1,         2,          1600,              0,            0   ]  
+        -  [     1,         1,         1,          -1200,         -1200,          0   ]    # 2 array, shared moorings
+        -  [     2,         1,         2,          0,           -1200,            0   ] 
+        -  [     2,         1,         3,          1200,           -1200,            0   ]
+        -  [     2,         1,         4,          -1200,              0,            0   ]
+        -  [     2,         1,         5,          0,              0,            0   ]
+        -  [     2,         1,         6,          1200,              0,            0   ]
+        -  [     2,         1,         7,          -1200,           1200,            0   ]
+        -  [     2,         1,         8,          0,              1200,            0   ]
+        -  [     2,         1,         9,          1200,           1200,            0   ] 
 
 
 # Array-level mooring system (in addition to any per-turbine entries later)
@@ -110,6 +117,7 @@ platform(s):
 
 # Mooring system descriptions (each for an individual FOWT with no sharing)
 mooring_systems:
+ 
     ms1:
         name: 3-line semi-taut polyester mooring system
         
@@ -118,7 +126,6 @@ mooring_systems:
           - [  semitaut-poly_1,   60 ,    suction1,   0 ]
           - [  semitaut-poly_1,  180 ,    suction1,   0 ]
           - [  semitaut-poly_1,  300 ,    suction1,   0 ]
-          
     ms2:
         name: 3-line taut polyester mooring system
         
@@ -136,7 +143,61 @@ mooring_systems:
           - [  shared-2-clump,   60 ,    suction1,   0 ]
           - [  shared-2-clump,  180 ,    suction1,   0 ]
           - [  shared-2-clump,  300 ,    suction1,   0 ]
+          
+    ms4:
+        name: 3-line shared 2-clump
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  shared-2-clump,   60 ,    suction1,   0 ]
+          - [  shared-2-clump,  180 ,    suction1,   0 ]
+          - [  shared-2-clump,  300 ,    suction1,   0 ]
+          
+    ms5:
+        name: 4-line shared 2-clump
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  shared-2-clump,   0 ,    suction1,   0 ]
+          - [  shared-2-clump,  90 ,    suction1,   0 ]
+          - [  shared-2-clump,  180 ,    suction1,   0 ]
+          - [  shared-2-clump,  270 ,    suction1,   0 ]
+          
+    ms6:
+        name: 3-line taut polyester mooring system
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  taut-poly_1,   60 ,    suction1,   0 ]
+          - [  taut-poly_1,  180 ,    suction1,   0 ]
+          - [  taut-poly_1,  300 ,    suction1,   0 ]
 
+    ms7:
+        name: 3-line taut polyester mooring system
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  taut-poly_1,   60 ,    suction1,   0 ]
+          - [  taut-poly_1,  180 ,    suction1,   0 ]
+          - [  taut-poly_1,  300 ,    suction1,   0 ]
+
+    ms8:
+        name: 3-line taut polyester mooring system
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  taut-poly_1,   60 ,    suction1,   0 ]
+          - [  taut-poly_1,  180 ,    suction1,   0 ]
+          - [  taut-poly_1,  300 ,    suction1,   0 ]    
+
+    ms9:
+        name: 3-line semi-taut polyester mooring system
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  semitaut-poly_1,   60 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  180 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  300 ,    suction1,   0 ]
 
 # Mooring line configurations
 mooring_line_configs:
@@ -169,7 +230,7 @@ mooring_line_configs:
         
         sections:
           - type: chain_170mm       # ID of a mooring line section type
-            length: 80            # [m] usntretched length of line section
+            length: 120            # [m] usntretched length of line section
             connector: h_link     # ID of a connector type at the end of the line section (optional)
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
             
@@ -197,11 +258,12 @@ mooring_line_configs:
             connector: clump_weight_20
             
           - type: chain_155mm
-            length: 497.7   
+            length: 497.7
+            connector: clump_weight_20   
         
-        attachment:
-            type:
-            coordinate:
+        # attachment:
+        #     type:
+        #     coordinate:
     
     
 # Mooring line cross-sectional properties

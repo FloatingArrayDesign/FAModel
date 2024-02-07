@@ -25,7 +25,7 @@ class Mooring():
                                  {
                                   type:
                                       {
-                                         d_nom, material, d_vol, m, EA, EAd, EAd_Lm, MBL, cost, length
+                                         name, d_nom, material, d_vol, m, EA, EAd, EAd_Lm, MBL, cost, weight
                                       }
                                   length
                                  }
