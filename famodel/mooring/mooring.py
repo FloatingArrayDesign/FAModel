@@ -102,9 +102,8 @@ class Mooring():
             
         # heading 2D unit vector
         u = np.array([np.cos(self.heading), np.sin(self.heading)])
-        
+        #print(u)
         r_center = np.array(r_center)[:2]
-        
         # Set the updated fairlead location
         self.setEndPosition(np.hstack([r_center + self.rad_fair*u, self.z_fair]), 'b')
         
@@ -172,7 +171,7 @@ class Mooring():
         if self.subsystem:
             print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
         #create subsystem
-        self.subsystem=Subsystem(depth=-self.dd['zAnchor'], spacing=self.dd['rAnchor'], rBfair=self.dd['EndPositions']['endB'])
+        self.subsystem=Subsystem(depth=-self.dd['zAnchor'], spacing=self.dd['rAnchor'], rBfair=self.rB)
         lengths = []
         types = []
         for i,lt in enumerate(self.dd['sections']):
@@ -181,6 +180,6 @@ class Mooring():
             types.append(lt)
             
         self.subsystem.makeGeneric(lengths,types)
-        self.subsystem.setEndPosition(self.dd['EndPositions']['endA'],endB=0)
-        self.subsystem.setEndPosition(self.dd['EndPositions']['endB'],endB=1)
+        self.subsystem.setEndPosition(self.rA,endB=0)
+        self.subsystem.setEndPosition(self.rB,endB=1)
         self.subsystem.staticSolve()

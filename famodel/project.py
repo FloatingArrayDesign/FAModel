@@ -27,7 +27,7 @@ class Project():
     
     '''
     
-    def __init__(self, lon=0, lat=0, file=None, depth=100):
+    def __init__(self, lon=0, lat=0, file=None, depth=202):
         '''Initialize a Project. If input data is not provided, it will
         be empty and can be filled in later.
         
@@ -220,7 +220,7 @@ class Project():
                 #get the mooring line information 
                 for j in range(0,len(mSystems[m_s]['data'])):#loop through each line in the mooring system
                     #set up dictionary of information on the mooring configurations
-                    m_config = {'sections':{},'connectors':{},'rAnchor':{},'zAnchor':{},'rFair':{},'zFair':{},'EndPositions':{}}
+                    m_config = {'sections':{},'connectors':{},'rAnchor':{},'zAnchor':{},'rFair':{},'zFair':{}}#,'EndPositions':{}}
                     lineconfig = mSystems[m_s]['data'][j][0] #get the configuration for that line in the mooring system
                     for k in range(0,len(lineConfigs[lineconfig]['sections'])):#loop through each section in the line
                         
@@ -254,19 +254,45 @@ class Project():
                     #???? Need to fill in
                     
                     #set general information on the whole line (not just a section/line type)
+                    #find depth at platform location first (will adjust to anchor location after repositioning finds new anchor location)
+                    #if 'bathymetry' in d['site']:
+                    m_config['zAnchor'] = -self.getDepthAtLocation(self.platformList[i].r[0], self.platformList[i].r[1])
+                    #else:
+                        #m_config['zAnchor'] = -self.depth
+                    # #find array index in grid for the platform from the platform xy location
+                    # if any(self.grid_x==self.platformList[i].r[0]):
+                    #     idx = np.where(self.grid_x==self.platformList[i].r[0])
+                    #     if any(self.grid_y==self.platformList[i].r[1]):
+                    #         idy = np.where(self.grid_y==self.platformList[i].r[1])
+                    #         #set depth based on depth at grid location
+                    #         m_config['zAnchor'] = -float(self.grid_depth[idx,idy])#self.depth
+                    #     else:
+                    #         print('platform y-location ',self.platformList[i].r[1],' does not exist on grid. Using farm depth instead of location depth.')
+                    #         m_config['zAnchor'] = -self.depth
+                    # else:
+                    #     m_config['zAnchor'] = -self.depth
+                        
                     m_config['rAnchor'] = lineConfigs[lineconfig]['anchoring_radius']
-                    m_config['zAnchor'] = -self.depth
                     m_config['zFair'] = lineConfigs[lineconfig]['fairlead_depth']
                     m_config['rFair'] = lineConfigs[lineconfig]['fairlead_radius']
-                    ####To do: add lookup for actual depth at location, add platform x,y offset to end positions
-                    m_config['EndPositions']['endA'] = [np.cos(np.radians(headings[j]))*m_config['rAnchor'],np.sin(np.radians(headings[j]))*m_config['rAnchor'],-float(self.depth)]
-                    m_config['EndPositions']['endB'] = [np.cos(np.radians(headings[j]))*m_config['rFair'],np.sin(np.radians(headings[j]))*m_config['rFair'], float(m_config['zFair'])]
+                    #set general end positions based on anchor and fairlead radii and depths
+                    #m_config['EndPositions']['endA'] = [m_config['rAnchor'],0,m_config['zAnchor']]#[np.cos(np.radians(headings[j]))*m_config['rAnchor'],np.sin(np.radians(headings[j]))*m_config['rAnchor'],m_config['zAnchor']]
+                    #m_config['EndPositions']['endB'] = [m_config['rFair'],m_config['rFair'],m_config['zFair']]#[np.cos(np.radians(headings[j]))*m_config['rFair'],np.sin(np.radians(headings[j]))*m_config['rFair'], float(m_config['zFair'])]
                     
-                    #create mooring class instance
-                    self.mooringList.append(Mooring(dd = m_config, rA = m_config['EndPositions']['endA'],rB = m_config['EndPositions']['endB'],rad_anch = m_config['rAnchor'],rad_fair = m_config['rFair'],z_anch=m_config['zAnchor'],z_fair=m_config['zFair']))
+                    #create mooring class instance as part of mooring list in the project class instance
+                    mc = (Mooring(dd=m_config, rA=[m_config['rAnchor'],0,m_config['zAnchor']], rB=[m_config['rFair'],0,m_config['zFair']], rad_anch=m_config['rAnchor'], rad_fair=m_config['rFair'], z_anch=m_config['zAnchor'], z_fair=m_config['zFair']))
+                    #adjust end positions based on platform location and mooring heading
+                    mc.reposition(r_center=self.platformList[i].r, heading=headings[j], project=self, degrees=True)
+                    #adjust anchor z location and rA based on location of anchor
+                    zAnew = -self.getDepthAtLocation(mc.rA[0], mc.rA[1])
+                    mc.rA[2] = zAnew
+                    mc.dd['zAnchor'] = zAnew
+                    mc.z_anch = zAnew
+                    #add mooring class instance to mooringlist in project class
+                    self.mooringList.append(mc)
                     #add mooring class instance to mooring list in the platform class instance
-                    self.platformList[i].mooringList.append(self.mooringList[-1])
-                    
+                    self.platformList[i].mooringList.append(mc)
+         
         # ===== load RAFT model parts =====
         
 
@@ -824,7 +850,6 @@ class Project():
             PF = self.platformList[i]
             #get number of mooring lines for this platform from YAML file
             nLines = PF.n_mooring
-            print(nLines)
             #add a moorpy body at the correct location
             r6 = [PF.r[0],PF.r[1],0,0,0,0]
             ms.addBody(0,r6,m=1.784e7,v=20206,rM=100,AWP=1011)
@@ -834,17 +859,17 @@ class Project():
                 self.mooringList[counter].createSubsystem()
                 #set the location of subsystem to make next few lines shorter
                 ssloc = self.mooringList[counter].subsystem
-                
                 #add start and end points adjusted to include location offsets, attach subsystem
-                ms.addPoint(1,[ssloc.rA[0]+PF.r[0],ssloc.rA[1]+PF.r[1],ssloc.rA[2]])#anchor
+                ms.addPoint(1,ssloc.rA)#[ssloc.rA[0]+PF.r[0],ssloc.rA[1]+PF.r[1],ssloc.rA[2]])#anchor
                 #add subsystem to mp system line list
                 ms.lineList.append(ssloc)
                 ssloc.number = counter+1
                 ms.pointList[-1].attachLine(counter+1,0)
-                ms.addPoint(1,[ssloc.rB[0]+PF.r[0],ssloc.rB[1]+PF.r[1],ssloc.rB[2]])#fairlead
+                ms.addPoint(1,ssloc.rB)#[ssloc.rB[0]+PF.r[0],ssloc.rB[1]+PF.r[1],ssloc.rB[2]])#fairlead
                 ms.pointList[-1].attachLine(counter+1,1)
                 #attach body to fairlead line
-                ms.bodyList[i].attachPoint(len(ms.pointList),ssloc.rB)#attach to fairlead
+                #Note: must use an rB location that is centered on 0, otherwise the rB location will be incorrect after initialization
+                ms.bodyList[i].attachPoint(len(ms.pointList),[ssloc.rB[0]-PF.r[0],ssloc.rB[1]-PF.r[1],ssloc.rB[2]])#attach to fairlead
                 #increase counter
                 counter = counter + 1
         #initialize, solve equilibrium, and plot the system       

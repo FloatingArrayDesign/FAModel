@@ -94,8 +94,10 @@ class Platform():
         ----------
         rotateBool : boolean
             controls whether the list of subsystems needs rotation at the mooring headings (1) or if it is already rotated (0)
+            Default is 0 (false)
         mList : list
             List of mooring subsystems on the platform
+            Default is None
 
         Returns
         -------
@@ -116,14 +118,15 @@ class Platform():
         
         if rotateBool:
             #rotation
-            for i in range(0,len(self.mooringList)):
-                ssloc = self.mooringList[i].subsystem
-                #get anchor and fairlead radius
-                anch_rad = np.sqrt(ssloc.rA[0]**2+ssloc.rA[1]**2)
-                fair_rad = np.sqrt(ssloc.rB[0]**2+ssloc.rB[1]**2)
-                #set anchor and fairlead new location based on headings
-                ssloc.setEndPosition([anch_rad*np.cos(self.phi[i]), anch_rad*np.sin(self.phi[i]), -ssloc.depth], endB=0)
-                ssloc.setEndPosition([fair_rad*np.cos(self.phi[i]), fair_rad*np.sin(self.phi[i]), ssloc.rB[2]], endB=1)
+            self.setPosition(self.r)
+            # for i in range(0,len(self.mooringList)):
+                # ssloc = self.mooringList[i].subsystem
+                # #get anchor and fairlead radius
+                # anch_rad = np.sqrt(ssloc.rA[0]**2+ssloc.rA[1]**2)
+                # fair_rad = np.sqrt(ssloc.rB[0]**2+ssloc.rB[1]**2)
+                # #set anchor and fairlead new location based on headings
+                # ssloc.setEndPosition([anch_rad*np.cos(self.phi[i]), anch_rad*np.sin(self.phi[i]), -ssloc.depth], endB=0)
+                # ssloc.setEndPosition([fair_rad*np.cos(self.phi[i]), fair_rad*np.sin(self.phi[i]), ssloc.rB[2]], endB=1)
         
         #make mooring system from subsystems
         for i in range(0,len(self.mooringList)):
