@@ -11,12 +11,12 @@ cable_types:
         MBR_D_coefs : [15.0, 0.0]                       # MBR[m] = (1st)*D[m] + (2nd)
         D_A_coefs   : [3, 89]                           # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
         P_A_coefs   : [0.525, 2.12]                     # P[MW] = A[mm^2]^(1st) * (2nd)
-        cost_A      : [0.7845, 257.32] #400             # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
+        cost_A      : [0.7845, 257.32]                  # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
     
     Buoyancy_750m:                                      # buoyancy module data for 750m water depth
         cost_B      : [8.38, 3083.6]                    # cost of buoyancy module [$/m] = = (1st)*[WD] + (2nd)
-        L_BM        :                               # length of each buoyancy module [m]
-        D_BM        :                              # diameter of buoyancy module [m]
+        L_BM        :                                 # length of each buoyancy module [m]
+        D_BM        :                                 # diameter of buoyancy module [m]
         
     Buoyancy_1500m:                                     # buoyancy module data for 1500m water depth
         cost_B      : [9.64, 3226.6]                    # cost of buoyancy module [$/m] = (1st)*[WD] + (2nd)
