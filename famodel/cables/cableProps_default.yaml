@@ -9,7 +9,7 @@ cable_types:
         EI_d        : [0.006302, -1.290.8, 68.11]       # bending stiffness [kN.m^2] = (1st)*D_2[m] + (2nd)*D[m] + (3rd)
         MBL_D_coefs : [0.05703,  -9.672.3, 660.81]      # MBL[kN] = (1st)*D_2[m] + (2nd)*D[m] + (3rd)
         MBR_D_coefs : [0.015, 0.0]                      # MBR[m] = (1st)*D[m] + (2nd)
-        D_A_coefs   : [3, 89]                           # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
+        D_A_coefs   : [3.0, 89]                           # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
         P_A_coefs   : [0.525, 2.12]                     # P[MW] = A[mm^2]^(1st) * (2nd)
         cost_A      : [0.7845, 257.32]                  # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
     
@@ -31,6 +31,6 @@ cable_types:
         EI_d3       :  [0.006302, -1.290.8, 68.11]        # bending stiffness per diameter^3 [Nm^2]
         MBL_D_coefs :  [0.0829, -21.178, 1707.7]          # MBL[N] = (1st)*D[mm] + (2nd)
         MBR_D_coefs :  [0.015, 0.0]                       # MBR[m] = (1st)*D[mm] + (2nd)
-        D_A_coefs   :  [    3, 106]                       # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
+        D_A_coefs   :  [  3.0, 106]                       # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
         P_A_coefs   :  [0.525, 2.12]                      # P[MW] = A[mm^2]^(1st entry) * (2nd entry)
         cost_A      :  [0.7845, 257.32]                   # cost[$/m] = (1st)*A[mm^2]
