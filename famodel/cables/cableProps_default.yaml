@@ -24,7 +24,7 @@ cable_types:                                            # standard size of condu
         cost_B      : [2.167, 3226.6]                   # cost of buoyancy module [$/module] = (1st)*[buoy size (N)] + (2nd)
         L_BM        :                               # length of each buoyancy module [m]
         D_BM        :                              # diameter of buoyancy module [m]
-        density     : 560                               # density [m^3]
+        density     : 560                               # density [kg/m^3]
         volume      :                                   # volume of module [m^3]
     
     
