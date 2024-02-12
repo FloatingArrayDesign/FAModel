@@ -4,11 +4,11 @@ cable_types:
 
     dynamic_cable_33:                                   # standard size of conductors [mm^2]: [800, 630, 400, 300, 150, 95]
         kV          : 33                                # voltage rating [kV]    
-        mass_d      : [5418.1, -929.92, 51.586]         # linear mass density [kg/m]  = (1st)*D_2[m] + (2nd)*D[m] + (3rd)       
-        EA_d        : [46339,  -7641.5, 475.32]         # stiffness [MN] = (1st)*D_2[m] + (2nd)*D[m] + (3rd)  
-        EI_d        : [6302.4, -1290.8, 68.11]          # bending stiffness [kN.m^2] = (1st)*D_2[m] + (2nd)*D[m] + (3rd)
-        MBL_D_coefs : [57030,  -9672.3, 660.81]         # MBL[kN] = (1st)*D_2[m] + (2nd)*D[m] + (3rd)
-        MBR_D_coefs : [15.0, 0.0]                       # MBR[m] = (1st)*D[m] + (2nd)
+        mass_d      : [0.005418, -0.93, 51.586]         # linear mass density [kg/m]  = (1st)*D_2[m] + (2nd)*D[m] + (3rd)       
+        EA_d        : [0.0463,  -7.641, 475.32]         # stiffness [MN] = (1st)*D_2[m] + (2nd)*D[m] + (3rd)  
+        EI_d        : [0.006302, -1.290.8, 68.11]       # bending stiffness [kN.m^2] = (1st)*D_2[m] + (2nd)*D[m] + (3rd)
+        MBL_D_coefs : [0.05703,  -9.672.3, 660.81]      # MBL[kN] = (1st)*D_2[m] + (2nd)*D[m] + (3rd)
+        MBR_D_coefs : [0.015, 0.0]                      # MBR[m] = (1st)*D[m] + (2nd)
         D_A_coefs   : [3, 89]                           # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
         P_A_coefs   : [0.525, 2.12]                     # P[MW] = A[mm^2]^(1st) * (2nd)
         cost_A      : [0.7845, 257.32]                  # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
@@ -25,12 +25,12 @@ cable_types:
     
     
     dynamic_cable_66:
-        kV          :  66              # voltage rating [kV]    
-        mass_d2     :  1.80e3          # linear mass density per diameter^2 [kg/m^2]         
-        EA_d        :  1.44e9          # stiffness per diameter [N/m^2]  
-        EI_d3       :  3.0e6           # bending stiffness per diameter^3 [Nm^2]
-        MBL_D_coefs : [500, 0]         # MBL[N] = (1st)*D[mm] + (2nd)
-        MBR_D_coefs : [15.44, -0.0075] # MBR[m] = (1st)*D[mm] + (2nd)
-        D_A_coefs   : [    3, 106]     # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
-        P_A_coefs   : [0.525, 2.12]    # P[MW] = A[mm^2]^(1st entry) * (2nd entry)
-        cost_A      :   484            # cost[$/m] = (1st)*A[mm^2]
+        kV          :  66                                 # voltage rating [kV]    
+        mass_d2     :  [0.005418, -0.93, 51.586]          # linear mass density per diameter^2 [kg/m^2]         
+        EA_d        :  [0.0463,  -7.641, 475.32]          # stiffness per diameter [N/m^2]  
+        EI_d3       :  [0.006302, -1.290.8, 68.11]        # bending stiffness per diameter^3 [Nm^2]
+        MBL_D_coefs :  [0.0829, -21.178, 1707.7]          # MBL[N] = (1st)*D[mm] + (2nd)
+        MBR_D_coefs :  [0.015, 0.0]                       # MBR[m] = (1st)*D[mm] + (2nd)
+        D_A_coefs   :  [    3, 106]                       # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
+        P_A_coefs   :  [0.525, 2.12]                      # P[MW] = A[mm^2]^(1st entry) * (2nd entry)
+        cost_A      :  [0.7845, 257.32]                   # cost[$/m] = (1st)*A[mm^2]
