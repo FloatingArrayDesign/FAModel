@@ -11,7 +11,7 @@ class Mooring():
     Work in progress. Eventually will inherit from Edge.
     '''
     
-    def __init__(self, dd=None, subsystem=None, rA=[0,0,0], rB=[0,0,0],
+    def __init__(self, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14):
         '''
         Parameters
@@ -21,7 +21,7 @@ class Mooring():
             Layout: {
                      sections:
                          {
-                             name: 
+                             0 
                                  {
                                   type:
                                       {
@@ -53,7 +53,10 @@ class Mooring():
         self.dd = dd
         
         # MoorPy subsystem that corresponds to the mooring line
-        self.subsystem = subsystem  
+        self.subsystem = subsystem
+        
+        # Anchor class instance associated with the line
+        self.anchor = anchor
         
         # end point absolute coordinates, to be set later
         self.rA = rA
@@ -168,18 +171,24 @@ class Mooring():
         ''' Create a subsystem for a line configuration from the design dictionary
 
         '''
+        # check if a subsystem already exists
         if self.subsystem:
             print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
-        #create subsystem
+        # create subsystem
         self.subsystem=Subsystem(depth=-self.dd['zAnchor'], spacing=self.dd['rAnchor'], rBfair=self.rB)
         lengths = []
         types = []
-        for i,lt in enumerate(self.dd['sections']):
-            self.subsystem.lineTypes[lt] = self.dd['sections'][lt]['type']
-            lengths.append(self.dd['sections'][lt]['length'])
-            types.append(lt)
-            
+        # run through each line section and collect the length and type
+        for i in range(0,len(self.dd['sections'])):
+            lengths.append(self.dd['sections'][i]['length'])
+            types.append(self.dd['sections'][i]['type']['name'])
+            self.subsystem.lineTypes[types[-1]] = self.dd['sections'][i]['type']
+
+        
+        # make the lines and set the points 
         self.subsystem.makeGeneric(lengths,types)
         self.subsystem.setEndPosition(self.rA,endB=0)
         self.subsystem.setEndPosition(self.rB,endB=1)
+        
+        # solve the system
         self.subsystem.staticSolve()
