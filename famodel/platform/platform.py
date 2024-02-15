@@ -106,44 +106,44 @@ class Platform():
         '''
         import moorpy as mp
         
-        #check if the subsystems were passed in from the function call
+        # check if the subsystems were passed in from the function call
         if mList:
             if self.mooringList:
                 print('There is a mooring list already in the platform class instance. This is being overwritten because a mooring list was specified in the function call.')
-            #if so, set the platfrom mooringList to the passed-in list
+            # if so, set the platfrom mooringList to the passed-in list
             self.mooringList = mList
         
-        #create new MoorPy system and set its depth
+        # create new MoorPy system and set its depth
         self.ms = mp.System(depth=self.mooringList[0].subsystem.depth)
         
         if rotateBool:
-            #rotation
+            # rotation
             self.setPosition(self.r)
-            # for i in range(0,len(self.mooringList)):
-                # ssloc = self.mooringList[i].subsystem
-                # #get anchor and fairlead radius
-                # anch_rad = np.sqrt(ssloc.rA[0]**2+ssloc.rA[1]**2)
-                # fair_rad = np.sqrt(ssloc.rB[0]**2+ssloc.rB[1]**2)
-                # #set anchor and fairlead new location based on headings
-                # ssloc.setEndPosition([anch_rad*np.cos(self.phi[i]), anch_rad*np.sin(self.phi[i]), -ssloc.depth], endB=0)
-                # ssloc.setEndPosition([fair_rad*np.cos(self.phi[i]), fair_rad*np.sin(self.phi[i]), ssloc.rB[2]], endB=1)
         
-        #make mooring system from subsystems
+        # make mooring system from subsystems
         for i in range(0,len(self.mooringList)):
             ssloc = self.mooringList[i].subsystem
-            #add subsystem as a line to the linelist
+            # add subsystem as a line to the linelist
             self.ms.lineList.append(ssloc)
             ssloc.number = i
-            #add anchor point as a fixed point
-            self.ms.addPoint(1,ssloc.rA)
-            #attach subsystem line to the anchor point
+            # check whether a moorpy anchor object exists for this mooring line
+            if not self.mooringList[i].anchor.mpAnchor:
+                # create anchor moorpy object
+                self.mooringList[i].anchor.makeMoorPyAnchor()
+            # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
+            self.ms.pointList.append(self.mooringList[i].anchor.mpAnchor) # anchor
+            # add anchor point as a fixed point
+            # # self.ms.addPoint(1,ssloc.rA)
+            # record point number for anchor
+            self.mooringList[i].anchNum = len(self.ms.pointList)
+            # attach subsystem line to the anchor point
             self.ms.pointList[-1].attachLine(i,0)
-            #add fairlead point as a coupled point
+            # add fairlead point as a coupled point
             self.ms.addPoint(-1,ssloc.rB)
-            #attach subsystem line to the fairlead point
+            # attach subsystem line to the fairlead point
             self.ms.pointList[-1].attachLine(i,1)
         
-        #initialize and plot
+        # initialize and plot
         self.ms.initialize()
         self.ms.solveEquilibrium()
         fig,ax = self.ms.plot()

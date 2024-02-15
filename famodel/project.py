@@ -15,6 +15,7 @@ from .anchors.anchor_capacity import anchorCapacity
 from .seabed import seabed_tools as sbt
 from .mooring.mooring import Mooring
 from .platform.platform import Platform
+from .mooring.anchor import Anchor
 
 class Project():
     '''
@@ -86,7 +87,11 @@ class Project():
         self.soil_K     = np.zeros((1,1))  # undrained shear strength gradient [kPa/m] (clay soils)
         self.soil_alpha = np.zeros((1,1))  # soil skin friction coefficient [-] (clay soils)
         self.soil_phi   = np.zeros((1,1))  # angle of internal friction [deg] (sand soils)
-
+        self.soil_x     = None
+        
+        
+        
+        
         # ----- if an input file has been passed, load it -----
         if file:
             self.load(file)
@@ -154,145 +159,284 @@ class Project():
                 
                 self.cables.addCable(...)
         
+        # ----- array mooring -----
+        arrayMooring = {}
+        arrayAnchor = {}
+        if 'array_mooring' in d:
+            # for mooring lines: save a list of dictionaries from each row in the data section
+            arrayMooring = [dict(zip(d['array_mooring']['line_keys'], row)) for row in d['array_mooring']['line_data']]
+            # for anchors: save a list of dictionaries from each row in the data section
+            arrayAnchor = [dict(zip(d['array_mooring']['anchor_keys'], row)) for row in d['array_mooring']['anchor_data']]
         # ----- mooring systems ------
         mSystems = {}
         if 'mooring_systems' in d:
             for k, v in d['mooring_systems'].items():
-                #set up mooring systems dictionary
-                mSystems[k] = v       
+                # set up mooring systems dictionary
+                mSystems[k] = v
         
-        # ----- mooring line section types -----
-        # add support for both list- and table-based formats 
+        # # load in shared mooring
+        # if 'array_mooring' in d:
+            
+        
+        # ----- mooring line section types ----- 
         self.lineTypes = {}
         
         if 'mooring_line_types' in d:
+            # check if table format was used at all
+            if 'keys' and 'data' in d['mooring_line_types']: # table-based
+                dt = d['mooring_line_types'] # save location for code clarity
+                # save a list of dictionaries from each row in the data section
+                ms_info = [dict(zip(dt['keys'], row)) for row in dt['data']]
+                # save the list into lineTypes dictionary and rename the index as the linetype name
+                for k in range(0,len(ms_info)):
+                    self.lineTypes[ms_info[k]['name']] = ms_info[k]
+            # read in line types from list format as well(will overwrite any repeats from table)
             for k, v in d['mooring_line_types'].items():
-                #set up line types dictionary
+                # set up line types dictionary
                 self.lineTypes[k] = v
         
         # ----- mooring connectors -----
-        # to be added
+        connectorTypes = {}
+        
+        if 'mooring_connector_types' in d:
+            for k, v in d['mooring_connector_types'].items():
+                connectorTypes[k] = v
         
         # ----- anchor types -----
-        # to be added
+        self.anchorTypes = {}
+        
+        if 'anchor_types' in d:
+            for k, v in d['anchor_types'].items():
+                self.anchorTypes[k] = v
         
         # ----- mooring line configurations -----
         lineConfigs = {}
         
         if 'mooring_line_configs' in d:
             for k, v in d['mooring_line_configs'].items():
-                #set up mooring config... (k, v)
+                # set up mooring config... (k, v)
                 lineConfigs[k] = v
-                #check line types listed in line configs matches those in linetypes section
-                if self.lineTypes:#if linetypes section is included in dictionary
-                    for j in range(0,len(v['sections'])):#loop through each line config section 
-                        if not v['sections'][j]['type'] in self.lineTypes:#check if they match
+                # check line types listed in line configs matches those in linetypes section
+                if self.lineTypes: # if linetypes section is included in dictionary
+                    for j in range(0,len(v['sections'])): # loop through each line config section 
+                        if not v['sections'][j]['type'] in self.lineTypes: # check if they match
                             raise Exception(f"Mooring line type '{v['sections'][j]['type']}' listed in mooring_line_configs is not found in mooring_line_types")
-            #check line configurations listed in mooring systems matches those in line configs list
-            if mSystems:#if mooring_systems section is included in dictionary
-                for j,m_s in enumerate(mSystems): #loop through each mooring system
-                    for i in range(0,len(mSystems[m_s]['data'])):#loop through each line listed in the system
-                        if not mSystems[m_s]['data'][i][0] in lineConfigs:#check if they match
+            # check line configurations listed in mooring systems matches those in line configs list
+            if mSystems: # if mooring_systems section is included in dictionary
+                for j,m_s in enumerate(mSystems): # loop through each mooring system
+                    for i in range(0,len(mSystems[m_s]['data'])): # loop through each line listed in the system
+                        if not mSystems[m_s]['data'][i][0] in lineConfigs: # check if they match
                             raise Exception(f"Mooring line configuration '{mSystems[m_s]['data'][i][0]}' listed in mooring_systems is not found in mooring_line_configs")
 
                 # I think we want to just store it as a dictionary
                 # validate it,
                 # then have it available for use when making Mooring objects and subsystems
+        def getMoorings(lineconfig,i):
+            '''
+
+            Parameters
+            ----------
+            lineconfig : string
+                Line configuration type
+            i : int
+                index of outer loop it is called in
+
+            Returns
+            -------
+            m_config : dict
+                mooring configuration dictionary
+
+            '''
+            # set up dictionary of information on the mooring configurations
+            m_config = {'sections':[],'connectors':{},'anchor':{},'rAnchor':{},'zAnchor':{},'rFair':{},'zFair':{}}#,'EndPositions':{}}
+            for k in range(0,len(lineConfigs[lineconfig]['sections'])): # loop through each section in the line
                 
-        
-        # ----- set up dictionary for each mooring line, create mooring and platform classes ----
-        #check that all necessary sections of design dictionary exist
-        if self.lineTypes and lineConfigs and mSystems:
+                lc = lineConfigs[lineconfig]['sections'][k] # set location for code clarity later
+                lt = self.lineTypes[lc['type']] # set location for code clarity and brevity later
+                # set up sub-dictionaries that will contain info on the line type
+                m_config['sections'].append({'type':{'name':str(k)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA']),'MBL':lt['MBL'],'cost':lt['cost']}})
+                # need to calculate the submerged weight of the line (not currently available in ontology yaml file)
+                m_config['sections'][k]['type']['w'] = (lt['m']-np.pi/4*lt['d_vol']**2*1025)*9.81
+                
+                # add dynamic stretching if there is any
+                if 'EAd' in lt: 
+                    m_config['sections'][k]['type']['EAd'] = lt['EAd']
+                    m_config['sections'][k]['type']['EAd_Lm'] = lt['EAd_Lm']
+                    
+                # set line length
+                m_config['sections'][k]['length'] = lc['length']
+                # make a connector dictionary, set info
+                m_config['sections'][k]['connector'] = connectorTypes[lc['connector']]           
             
-            #get the mooring system information
-            for i,m_s in enumerate(mSystems):#loop through each mooring system
-                #create a new platform class instance for each mooring system
-                #get platform location and heading
-                PFloc = [d['array']['data'][i][3],d['array']['data'][i][4]]
-                PFheading = d['array']['data'][i][5]
-                #get mooring headings (need this to create platform class)
-                headings = []
-                for ii in range(0,len(mSystems[m_s]['data'])):
-                    headings.append(mSystems[m_s]['data'][ii][1])
-                #create platform class instance
-                self.platformList.append(Platform(r=PFloc,heading=PFheading,mooring_headings=headings))
+            # set general information on the whole line (not just a section/line type)
+            # find depth at platform location first (will adjust to anchor location after repositioning finds new anchor location)
+            m_config['zAnchor'] = -self.getDepthAtLocation(self.platformList[i].r[0], self.platformList[i].r[1]) 
+            m_config['rAnchor'] = lineConfigs[lineconfig]['anchoring_radius']
+            m_config['zFair'] = lineConfigs[lineconfig]['fairlead_depth']
+            m_config['rFair'] = lineConfigs[lineconfig]['fairlead_radius']
+   
+            return(m_config)
+        
+        def getAnchors(lineAnch, mc=None,aNum=0):
+            '''Create anchor design dictionary based on a given anchor type
+
+            Parameters
+            ----------
+            lineAnch : string
+                anchor type, for reference in the 'anchor_types' dictionary
+            mc : mooring class instance, optional
+                mooring class that the anchor is a part of (used only if not a shared anchor). The default is None.
+            aNum : int, optional
+                anchor ID in the anchor data table (used only if it is a shared anchor). The default is 0.
+
+            Returns
+            -------
+            ad : dict
+                anchor design dictionary
+
+            '''
+            ad = {'design':{}, 'cost':{}} 
+            ad['design'] = self.anchorTypes[lineAnch]
+            if self.soil_x: # get soil conditions at anchor location if soil info available
+                if mc:
+                    ad['soil_type'] = self.getSoilAtLocation(mc.rA[0], mc.rA[1])
+                else:
+                    ad['soil_type'] = self.getSoilAtLocation(arrayAnchor[aNum]['x'],arrayAnchor[aNum]['y'])
+            ad['type'] = lineAnch[0:-2]
+            ad['name'] = lineAnch
+            
+            return(ad)
+        
+        # ----- set up dictionary for each mooring line, create anchor, mooring, and platform classes ----
                 
-                #get the mooring line information 
-                for j in range(0,len(mSystems[m_s]['data'])):#loop through each line in the mooring system
-                    #set up dictionary of information on the mooring configurations
-                    m_config = {'sections':{},'connectors':{},'rAnchor':{},'zAnchor':{},'rFair':{},'zFair':{}}#,'EndPositions':{}}
-                    lineconfig = mSystems[m_s]['data'][j][0] #get the configuration for that line in the mooring system
-                    for k in range(0,len(lineConfigs[lineconfig]['sections'])):#loop through each section in the line
-                        
-                        lc = lineConfigs[lineconfig]['sections'][k] #set location for code clarity later
-                        lt = self.lineTypes[lc['type']] #set location for code clarity and brevity later
-                        name = str(k)+'_'+lc['type']
-                        #set up sub-dictionaries that will contain info on the line type
-                        m_config['sections'][name] = {}
-                        m_config['sections'][name]['type'] = {}
-                        m_config['sections'][name]['type']['name'] = name
-                        m_config['sections'][name]['type']['d_nom'] =  lt['d_nom']
-                        m_config['sections'][name]['type']['material'] = lt['material']
-                        m_config['sections'][name]['type']['d_vol'] = float(lt['d_vol'])
-                        m_config['sections'][name]['type']['m'] = float(lt['m'])
-                        m_config['sections'][name]['type']['EA'] = float(lt['EA'])
-                        #need to calculate the submerged weight of the line (not currently available in ontology yaml file)
-                        m_config['sections'][name]['type']['w'] = (lt['m']-np.pi/4*lt['d_vol']**2*1025)*9.81
-                        
-                        #add dynamic stretching if there is any
-                        if 'EAd' in lt: 
-                            m_config['sections'][name]['type']['EAd'] = float(lt['EAd'])
-                            m_config['sections'][name]['type']['EAd_Lm'] = float(lt['EAd_Lm'])
-                            
-                        #set more line section properties
-                        m_config['sections'][name]['type']['MBL'] = float(lt['MBL'])
-                        m_config['sections'][name]['type']['cost'] = float(lt['cost'])
-                        m_config['sections'][name]['length'] = float(lc['length'])
-                        m_config['sections'][name]['connector'] = lc['connector']
+        # check that all necessary sections of design dictionary exist
+        if self.lineTypes and lineConfigs:
+            # create any anchor objects connected to a platform with a shared line/anchor
+            if arrayAnchor:
+                for i in range(0,len(arrayAnchor)):
+                    # set line anchor type and get dictionary of anchor information
+                    lineAnch = arrayAnchor[i]['type']
+                    ad = getAnchors(lineAnch,aNum=i) # call method to create dictionary
+                    # get anchor x,y location
+                    aloc = [arrayAnchor[i]['x'],arrayAnchor[i]['y']]
+                    # get depth at anchor x,y location and seabed angle
+                    zA, ad['angle'] = self.getDepthAtLocation(aloc[0], aloc[1], return_n=True)
+                    # create anchor object
+                    self.anchorList.append(Anchor(dd=ad, r=[aloc[0],aloc[1],zA]))
+            
+            # create all the platform objects (need to do this from the beginning bc shared line may be part of a platform not yet created if you make a platform each time through the loop)        
+            if d['array']:
+                for i in range(0,len(d['array']['data'])):
+                    # create empty platform object 
+                    self.platformList.append(Platform())
                     
-                    #set connector info
-                    #???? Need to fill in
+            lNum = [] # keep track of shared line IDs
+            
+            for i in range(0, len(d['array']['data'])): # loop through each platform in array
+                # get platform location and heading
+                self.platformList[i].r = [d['array']['data'][i][3],d['array']['data'][i][4]]
+                self.platformList[i].phi = d['array']['data'][i][5]
+                
+                if d['array']['data'][i][2] > 0: #if no shared mooring on this platform
+                    m_s = 'ms'+str(d['array']['data'][i][2]) # get mooring system number
                     
-                    #set general information on the whole line (not just a section/line type)
-                    #find depth at platform location first (will adjust to anchor location after repositioning finds new anchor location)
-                    #if 'bathymetry' in d['site']:
-                    m_config['zAnchor'] = -self.getDepthAtLocation(self.platformList[i].r[0], self.platformList[i].r[1])
-                    #else:
-                        #m_config['zAnchor'] = -self.depth
-                    # #find array index in grid for the platform from the platform xy location
-                    # if any(self.grid_x==self.platformList[i].r[0]):
-                    #     idx = np.where(self.grid_x==self.platformList[i].r[0])
-                    #     if any(self.grid_y==self.platformList[i].r[1]):
-                    #         idy = np.where(self.grid_y==self.platformList[i].r[1])
-                    #         #set depth based on depth at grid location
-                    #         m_config['zAnchor'] = -float(self.grid_depth[idx,idy])#self.depth
-                    #     else:
-                    #         print('platform y-location ',self.platformList[i].r[1],' does not exist on grid. Using farm depth instead of location depth.')
-                    #         m_config['zAnchor'] = -self.depth
-                    # else:
-                    #     m_config['zAnchor'] = -self.depth
+                    # get mooring headings (need this for platform class)
+                    headings = []
+                    for ii in range(0,len(mSystems[m_s]['data'])):
+                        headings.append(mSystems[m_s]['data'][ii][1]) 
+                    self.platformList[i].mooring_headings = headings
+                    
+                    # get the mooring line information 
+                    for j in range(0,len(mSystems[m_s]['data'])): # loop through each line in the mooring system
+                        # get the configuration for that line in the mooring system
+                        lineconfig = mSystems[m_s]['data'][j][0] 
+                   
+                        # create mooring dictionary
+                        m_config = getMoorings(lineconfig,i)
                         
-                    m_config['rAnchor'] = lineConfigs[lineconfig]['anchoring_radius']
-                    m_config['zFair'] = lineConfigs[lineconfig]['fairlead_depth']
-                    m_config['rFair'] = lineConfigs[lineconfig]['fairlead_radius']
-                    #set general end positions based on anchor and fairlead radii and depths
-                    #m_config['EndPositions']['endA'] = [m_config['rAnchor'],0,m_config['zAnchor']]#[np.cos(np.radians(headings[j]))*m_config['rAnchor'],np.sin(np.radians(headings[j]))*m_config['rAnchor'],m_config['zAnchor']]
-                    #m_config['EndPositions']['endB'] = [m_config['rFair'],m_config['rFair'],m_config['zFair']]#[np.cos(np.radians(headings[j]))*m_config['rFair'],np.sin(np.radians(headings[j]))*m_config['rFair'], float(m_config['zFair'])]
+                        # create mooring class instance as part of mooring list in the project class instance
+                        mc = (Mooring(dd=m_config, rA=[m_config['rAnchor'],0,m_config['zAnchor']], rB=[m_config['rFair'],0,m_config['zFair']], rad_anch=m_config['rAnchor'], rad_fair=m_config['rFair'], z_anch=m_config['zAnchor'], z_fair=m_config['zFair']))
+                        # adjust end positions based on platform location and mooring heading
+                        mc.reposition(r_center=self.platformList[i].r, heading=headings[j], project=self, degrees=True)
+                        # adjust anchor z location and rA based on location of anchor
+                        zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
+                        mc.rA[2] = -zAnew
+                        mc.dd['zAnchor'] = -zAnew
+                        mc.z_anch = -zAnew
+                        
+                        # set anchor info
+                        lineAnch = mSystems[m_s]['data'][j][2] # get the anchor type for the line
+                        ad = getAnchors(lineAnch, mc=mc) # call method to create anchor dictionary
+                        ad['angle'] = nAngle
+                        # add anchor class instance to anchorList in project class
+                        self.anchorList.append(Anchor(dd=ad, r=mc.rA))
+                        # assign anchor instance to correct mooring instance
+                        mc.anchor = self.anchorList[-1]
+                        # add mooring class instance to mooringlist in project class
+                        self.mooringList.append(mc)
+                        # add mooring class instance to mooring list in the platform class instance
+                        self.platformList[i].mooringList.append(mc)
+        
+                else: # platform contains shared mooring
                     
-                    #create mooring class instance as part of mooring list in the project class instance
-                    mc = (Mooring(dd=m_config, rA=[m_config['rAnchor'],0,m_config['zAnchor']], rB=[m_config['rFair'],0,m_config['zFair']], rad_anch=m_config['rAnchor'], rad_fair=m_config['rFair'], z_anch=m_config['zAnchor'], z_fair=m_config['zFair']))
-                    #adjust end positions based on platform location and mooring heading
-                    mc.reposition(r_center=self.platformList[i].r, heading=headings[j], project=self, degrees=True)
-                    #adjust anchor z location and rA based on location of anchor
-                    zAnew = -self.getDepthAtLocation(mc.rA[0], mc.rA[1])
-                    mc.rA[2] = zAnew
-                    mc.dd['zAnchor'] = zAnew
-                    mc.z_anch = zAnew
-                    #add mooring class instance to mooringlist in project class
-                    self.mooringList.append(mc)
-                    #add mooring class instance to mooring list in the platform class instance
-                    self.platformList[i].mooringList.append(mc)
-         
+                    # find which lines in arrayMooring are connected to turbine i
+                    Lp = [] # list of all lines connected to turbine i (that haven't already been made)
+                    for j in range(0, len(arrayMooring)): # run through each line
+                        # if one of the ends is connected to turbine i, add number to list
+                        if arrayMooring[j]['end A'] or arrayMooring[j]['end B'] == 'FOWT '+str(i+1):
+                            if any(lNum==j): # don't create a line if it's been made already
+                                pass
+                            else:
+                                lNum.append[j] # lNum needed to see if that line has ever been made before
+                                Lp.append[j] # Lp needed to keep track of which lines for this turbine 
+                    
+                    # get mooring line info for all lines connected that haven't been made before 
+                    for j in Lp: 
+                        # get configuration for that line 
+                        lineconfig = arrayMooring[Lp[j]]['MooringConfigID']                       
+                        # create mooring dictionary for that line
+                        m_config = getMoorings(lineconfig,i)
+                        
+                        PFNum = [] # platform ID(s) connected to the mooring line
+                        
+                        # determine if end A is an anchor or a platform
+                        if arrayMooring[j]['end A'][0:3] == 'FOWT': # shared mooring line (no anchor)
+                            # get ID of platforms connected to line
+                            PFNum.append(int(arrayMooring[j]['end B'][-1]))
+                            PFNum.append(int(arrayMooring[j]['end A'][-1]))
+                            # set locations of row for platform connected to end A and end B for simpler code
+                            rowB = d['array']['data'][PFNum[0]]
+                            rowA = d['array']['data'][PFNum[1]]
+                            # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
+                            Aloc = [rowA[3]+np.cos(np.radians(arrayMooring[j]['headingA']))*m_config['rFair'], rowA[4]+np.sin(np.radians(arrayMooring[j]['headingA']))*m_config['rFair'], m_config['zFair']]
+                            Bloc = [rowB[3]+np.cos(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], rowB[4]+np.sin(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], m_config['zFair']]
+                            # create mooring class instance
+                            mc = (Mooring(dd=m_config, rA=Aloc, rB=Bloc, rad_fair=m_config['rFair'], z_fair=m_config['zFair']))
+                        else: # end A is an anchor
+                            # get ID of platform connected to line
+                            PFNum.append(int(arrayMooring[j]['end B'][-1]))
+                            # create mooring class instance
+                            mc = (Mooring(dd=m_config, rA=[m_config['rAnchor'],0,m_config['zAnchor']], rB=[m_config['rFair'],0,m_config['zFair']], rad_anch=m_config['rAnchor'], rad_fair=m_config['rFair'], z_anch=m_config['zAnchor'], z_fair=m_config['zFair']))
+                            # adjust end positions based on platform location and mooring heading
+                            mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=arrayMooring[Lp[j]]['headingB'], project=self, degrees=True)
+                            # adjust anchor z location and rA based on location of anchor
+                            zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
+                            mc.rA[2] = -zAnew
+                            mc.dd['zAnchor'] = -zAnew
+                            mc.z_anch = -zAnew
+                            #find correct anchor class instance, set its seabed angle, add to mooring class instance 
+                            aNum = int(arrayMooring[j]['end A'][-1])
+                            self.anchorList[aNum].dd['angle'] = nAngle # set seabed angle
+                            mc.anchor = self.anchorList[aNum]
+                        # add mooring class instance to project mooring list and platform mooring list    
+                        self.mooringList.append(mc)
+                        self.platformList[PFNum[0]].mooringList.append(mc)
+                        # add heading
+                        self.platformList[PFNum[0]].mooring_headings.append(arrayMooring[j]['headingB'])
+                        if len(PFNum)>1: # if shared line
+                            # record shared line on the other platform as well
+                            self.platformList[PFNum[1]].mooringList.append(mc)
+                            self.platformList[PFNum[1]].mooring_headings.append(arrayMooring[j]['headingA']) # add heading
         # ===== load RAFT model parts =====
         
 
@@ -845,34 +989,34 @@ class Project():
         '''
         ms = mp.System(depth=self.depth)
         
-        counter = 0 #keep track of number of times through the loop (since # of lines per turbine might not be consistent)
-        for i in range(0,len(self.platformList)):#loop through for each body/platform
+        counter = 0 # keep track of number of times through the loop (since # of lines per turbine might not be consistent)
+        for i in range(0,len(self.platformList)): # loop through for each body/platform
             PF = self.platformList[i]
-            #get number of mooring lines for this platform from YAML file
+            # get number of mooring lines for this platform
             nLines = PF.n_mooring
-            #add a moorpy body at the correct location
+            # add a moorpy body at the correct location
             r6 = [PF.r[0],PF.r[1],0,0,0,0]
             ms.addBody(0,r6,m=1.784e7,v=20206,rM=100,AWP=1011)
-            #loop through each line on the body (for now assuming 3 lines per body)
+            # loop through each line on the body
             for j in range(0,nLines):
-                #create subsystem
+                # create subsystem
                 self.mooringList[counter].createSubsystem()
-                #set the location of subsystem to make next few lines shorter
+                # set the location of subsystem to make next few lines shorter
                 ssloc = self.mooringList[counter].subsystem
-                #add start and end points adjusted to include location offsets, attach subsystem
-                ms.addPoint(1,ssloc.rA)#[ssloc.rA[0]+PF.r[0],ssloc.rA[1]+PF.r[1],ssloc.rA[2]])#anchor
-                #add subsystem to mp system line list
+                # create anchor moorpy object
+                ms = self.mooringList[counter].anchor.makeMoorPyAnchor(ms)
+                # add subsystem to mp system line list
                 ms.lineList.append(ssloc)
                 ssloc.number = counter+1
                 ms.pointList[-1].attachLine(counter+1,0)
-                ms.addPoint(1,ssloc.rB)#[ssloc.rB[0]+PF.r[0],ssloc.rB[1]+PF.r[1],ssloc.rB[2]])#fairlead
+                ms.addPoint(1,ssloc.rB) # fairlead
                 ms.pointList[-1].attachLine(counter+1,1)
-                #attach body to fairlead line
-                #Note: must use an rB location that is centered on 0, otherwise the rB location will be incorrect after initialization
+                # attach body to fairlead line
+                # Note: must use an rB location that is centered on 0, otherwise the rB location will be incorrect after initialization
                 ms.bodyList[i].attachPoint(len(ms.pointList),[ssloc.rB[0]-PF.r[0],ssloc.rB[1]-PF.r[1],ssloc.rB[2]])#attach to fairlead
-                #increase counter
+                # increase counter
                 counter = counter + 1
-        #initialize, solve equilibrium, and plot the system       
+        # initialize, solve equilibrium, and plot the system       
         ms.initialize()
         ms.solveEquilibrium()
         if plt:

@@ -5,9 +5,59 @@
 # from famodel import Mooring
 
 from famodel.project import Project
-#create project class instance from yaml file
+# create project class instance from yaml file
 Array = Project(file='mooringOntology.yaml')
 ms = Array.getMoorPyArray(plt = 1)
+
+
+# create a shared anchor (for visualization purposes)
+import moorpy as mp
+import numpy as np
+mss = mp.System(depth=600)
+
+angles = np.radians([60,180,300])
+rAnchor = 1600
+zFair = -21
+rFair = 20
+lineLength = 1800
+
+mss.setLineType(120, material='chain', name='chain')
+# Add a free, body at [0,0,0] to the system (including some properties to make it hydrostatically stiff)
+mss.addBody(0, np.zeros(6), m=1e6, v=1e3, rM=100, AWP=1e3)
+
+for i, angle in enumerate(angles):
+    mss.addPoint(1, [rAnchor*np.cos(angle), rAnchor*np.sin(angle), -600])
+    mss.addPoint(1, [  rFair*np.cos(angle),   rFair*np.sin(angle),  zFair])
+    
+    # attach the fairlead Point to the Body (so it's fixed to the Body rather than the ground)
+    mss.bodyList[0].attachPoint(2*i+2, [rFair*np.cos(angle), rFair*np.sin(angle), zFair])     
+    
+    # add a Line going between the anchor and fairlead Points
+    mss.addLine(lineLength, 'chain', pointA=2*i+1, pointB=2*i+2)
+
+i=len(mss.pointList)
+
+yy = 2*rAnchor*np.sin(np.radians(60))
+# Add a free, body at [0,0,0] to the system (including some properties to make it hydrostatically stiff)
+mss.addBody(0, [0,yy,0,0,0,0], m=1e6, v=1e3, rM=100, AWP=1e3)
+for j, angle in enumerate(angles[0:2]):
+    mss.addPoint(1, [rAnchor*np.cos(angle), yy+rAnchor*np.sin(angle), -600])
+    mss.addPoint(1, [rFair*np.cos(angle),   yy+rFair*np.sin(angle),  zFair])
+    
+    # attach the fairlead Point to the Body (so it's fixed to the Body rather than the ground)
+    mss.bodyList[1].attachPoint(i+2*j+2, [rFair*np.cos(angle), rFair*np.sin(angle), zFair])     
+    
+    # add a Line going between the anchor and fairlead Points
+    mss.addLine(lineLength, 'chain', pointA=i+2*j+1, pointB=i+2*j+2)
+
+mss.addPoint(1, [ rFair*np.cos(angles[2]), yy+rFair*np.sin(angles[2]),  zFair])
+mss.bodyList[1].attachPoint(len(mss.pointList), [mss.pointList[-1].r[0],mss.pointList[-1].r[1]-yy,mss.pointList[-1].r[2]])
+mss.addLine(lineLength, 'chain', pointA=1, pointB=len(mss.pointList))
+
+mss.initialize()                                             # make sure everything's connected
+
+mss.solveEquilibrium()                                       # equilibrate
+fig2, ax2 = mss.plot()
 
 #fill in project class instance information with yaml file
 #Array.load('mooringOntology.yaml')

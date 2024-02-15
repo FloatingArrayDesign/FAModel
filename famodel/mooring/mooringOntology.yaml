@@ -28,8 +28,8 @@ site:
             -[x1, y1]
             -[x2, y2]
     
-   # bathymetry:
-        #file:   # MoorDyn-style bathymetry file
+    bathymetry:
+        file:   '../bathymetry200m_sample.txt'
     
     seabed:
         keys: [x,  y, depth,  soil_type]
@@ -88,11 +88,11 @@ array_mooring:
         - [  2,  suction1,  1 ,  2 ,  2   ]
           
     line_keys : 
-          [MooringConfigID  ,  end A,   end B,  lengthAdjust]
+          [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
-        - [ Taut-Poly_1      ,  FOWT 1,  Anch 1,   0]
-        - [ Taut-Poly_1      ,  FOWT 1,  Anch 2,   0]
-        - [ Taut-Poly_2      ,  FOWT 1,  Anch 3,   0]
+        - [ Taut-Poly_1      ,  FOWT 1,  Anch 1,  NA, 60, 0]
+        - [ Taut-Poly_1      ,  FOWT 1,  Anch 2, NA, 180,  0]
+        - [ Taut-Poly_2      ,  FOWT 1,  Anch 3, NA, 300,  0]
 
 
 # Array cables (compact table format, without routing info)
@@ -311,11 +311,11 @@ mooring_line_types:
         material:  chain  # [-] material composition descriptor
         material details: R3 studless
 
-    # alternative table-based format
-    keys :   [name,   EA ,  MBL ]
-    data :
-        -    [poly1  , 3232, 23]
-        -    [chain27, 3232, 23]
+    # # alternative table-based format
+    # keys :   [name,   EA ,  MBL ]
+    # data :
+    #     -    [poly1  , 3232, 23]
+    #     -    [chain27, 3232, 23]
 
 
 # Mooring connector properties
@@ -333,7 +333,9 @@ mooring_connector_types:
         mass   :  560   # [kg]  component mass
         volume : 10.2   # [m^3] component volumetric displacement
         CdA    :  3.5   # [m^2] produce of cross sectional area and drag coefficient
-
+    
+    shackle:
+        mass   : 1000
 
 # Anchor type properties
 anchor_types:
@@ -341,7 +343,12 @@ anchor_types:
     suction1:
         d      :  5  # [m] Diameter (optional)
         L      :  10 # [m] Length (optional)
+        m      :  10000 # [kg] Mass (optional)
         A      :     # [m^2] Area (optional)
         t      :     # [mm] Thickness (optional)
         h      :     # [m] Embedment depth (optional)
+    drag-embedment1:
+        d      :  7 
+        L      :  8 
+        m      :  8242
 
