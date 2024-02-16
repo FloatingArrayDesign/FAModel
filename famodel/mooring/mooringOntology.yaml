@@ -84,15 +84,22 @@ array_mooring:
     anchor_keys :
           [ID, type,  x,  y,  embedment ]
     anchor_data :
-        - [  1,  suction1, -600  , 0  ,  2   ]
-        - [  2,  suction1,  1 ,  2 ,  2   ]
+        - [  1,  suction1, -850  , -593  ,  2   ]
+        # - [  2,  suction1,  -1900 ,  -1200 ,  2   ]
+        # - [  3,  suction1,  -850 ,  -1806 ,  2   ]
+        # - [  4,  suction1,  -850 ,  600 ,  2   ]
+        # - [  5,  suction1,  -1900 ,  0 ,  2   ]
           
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
-        - [ Taut-Poly_1      ,  FOWT 1,  Anch 1,  NA, 60, 0]
-        - [ Taut-Poly_1      ,  FOWT 1,  Anch 2, NA, 180,  0]
-        - [ Taut-Poly_2      ,  FOWT 1,  Anch 3, NA, 300,  0]
+        - [ semitaut-poly_1      ,  Anch 1,  FOWT 1,  NA, 60, 0]
+        # - [ semitaut-poly_1      ,  Anch 2,  FOWT 1, NA, 180,  0]
+        # - [ semitaut-poly_1      ,  Anch 3,  FOWT 1, NA, 300,  0]
+        # - [ semitaut-poly_1      ,  Anch 4,  FOWT 4, NA, 60,  0]
+        # - [ semitaut-poly_1      ,  Anch 5,  FOWT 4, NA, 180,  0]
+        - [ semitaut-poly_1      ,  Anch 1,  FOWT 4, NA, 300,  0]
+        - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  180,  0]
 
 
 # Array cables (compact table format, without routing info)
@@ -119,49 +126,48 @@ platform(s):
 mooring_systems:
  
     ms1:
-        name: 3-line semi-taut polyester mooring system
+        name: 3-line semi-taut polyester mooring system with one line shared anchor
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          # - [  semitaut-poly_1,   60 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  180 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  300 ,    suction1,   0 ]
+    ms2:
+        name: 2-line semitaut with a third shared line
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  semitaut-poly_1,   120 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  240 ,    suction1,   0 ]
+          
+    ms3:
+        name: 2 line semitaut with a third shared line
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  semitaut-poly_1,   60 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  300 ,    suction1,   0 ]
+
+          
+    ms4:
+        name: 3-line semitaut with one line shared anchor
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
           - [  semitaut-poly_1,   60 ,    suction1,   0 ]
           - [  semitaut-poly_1,  180 ,    suction1,   0 ]
-          - [  semitaut-poly_1,  300 ,    suction1,   0 ]
-    ms2:
-        name: 3-line taut polyester mooring system
-        
-        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-        data:
-          - [  taut-poly_1,   60 ,    suction1,   0 ]
-          - [  taut-poly_1,  180 ,    suction1,   0 ]
-          - [  taut-poly_1,  300 ,    suction1,   0 ]
-          
-    ms3:
-        name: 3-line shared 2-clump
-        
-        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-        data:
-          - [  shared-2-clump,   60 ,    suction1,   0 ]
-          - [  shared-2-clump,  180 ,    suction1,   0 ]
-          - [  shared-2-clump,  300 ,    suction1,   0 ]
-          
-    ms4:
-        name: 3-line shared 2-clump
-        
-        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-        data:
-          - [  shared-2-clump,   60 ,    suction1,   0 ]
-          - [  shared-2-clump,  180 ,    suction1,   0 ]
-          - [  shared-2-clump,  300 ,    suction1,   0 ]
+          # - [  semitaut-poly_1,  300 ,    suction1,   0 ]
           
     ms5:
-        name: 4-line shared 2-clump
+        name: 4-line semitaut
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  shared-2-clump,   0 ,    suction1,   0 ]
-          - [  shared-2-clump,  90 ,    suction1,   0 ]
-          - [  shared-2-clump,  180 ,    suction1,   0 ]
-          - [  shared-2-clump,  270 ,    suction1,   0 ]
+          - [  semitaut-poly_1,   0 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  90 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  180 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  270 ,    suction1,   0 ]
           
     ms6:
         name: 3-line taut polyester mooring system
@@ -248,16 +254,16 @@ mooring_line_configs:
         name: Shared line with two clump weights
         symmetric: True
         
-        anchoring_radius: 700
+        anchoring_radius: 1142
         fairlead_radius: 58
         fairlead_depth: -14        
         
         sections:
-          - type: chain_155mm   
-            length: 199.8       
+          - type: polyester_182mm   
+            length: 595       
             connector: clump_weight_20
             
-          - type: chain_155mm
+          - type: polyester_182mm
             length: 497.7
             connector: clump_weight_20   
         

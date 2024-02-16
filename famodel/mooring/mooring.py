@@ -55,9 +55,6 @@ class Mooring():
         # MoorPy subsystem that corresponds to the mooring line
         self.subsystem = subsystem
         
-        # Anchor class instance associated with the line
-        self.anchor = anchor
-        
         # end point absolute coordinates, to be set later
         self.rA = rA
         self.rB = rB
@@ -166,10 +163,17 @@ class Mooring():
         # sum up the costs in the dictionary and return
         return sum(self.cost.values()) 
         
-    def createSubsystem(self):
+    def createSubsystem(self, case=0):
         from moorpy.subsystem import Subsystem
         ''' Create a subsystem for a line configuration from the design dictionary
-
+        
+        Parameters
+        ----------
+        case : int
+            Selector shared/suspended cases:
+                - 0 (default): end A is on the seabed
+                - 1: assembly is suspended and end A is at another floating system
+                - 2: the assembly is suspended and assumed symmetric, end A is the midpoint
         '''
         # check if a subsystem already exists
         if self.subsystem:
@@ -186,9 +190,9 @@ class Mooring():
 
         
         # make the lines and set the points 
-        self.subsystem.makeGeneric(lengths,types)
+        self.subsystem.makeGeneric(lengths,types,suspended=case)
         self.subsystem.setEndPosition(self.rA,endB=0)
         self.subsystem.setEndPosition(self.rB,endB=1)
-        
+        return(self.subsystem)
         # solve the system
         self.subsystem.staticSolve()

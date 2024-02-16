@@ -6,7 +6,7 @@ import numpy as np
 
 class Anchor():
     
-    def __init__(self, dd=None, ms=None, r=[0,0,0]):
+    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None):
         '''
         Parameters
         ----------
@@ -45,6 +45,12 @@ class Anchor():
         
         # x,y,z location of anchor
         self.r = r
+        
+        # anchor index in array mooring list (only used for shared moorings/anchors)
+        self.aNum = aNum
+        
+        # list of mooring lines connected to the anchor
+        self.mooringList = []
         
         # MoorPy anchor object
         self.mpAnchor = None
