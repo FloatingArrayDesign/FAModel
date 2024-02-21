@@ -318,12 +318,12 @@ def interpFromGrid(x, y, grid_x, grid_y, values):
     if dx > 0.0:
         dc_dx = (c1y-c0y)/dx
     else:
-        dc_dx = 0.0  # maybe this should raise an error
+        dc_dx = c0y*0  # maybe this should raise an error
     
     if dy > 0.0:
         dc_dy = (cx1-cx0)/dy
     else:
-        dc_dy = 0.0  # maybe this should raise an error
+        dc_dy = cx0*0  # maybe this should raise an error
     
     # return the interpolated value, the derivatives, and the grid indices
     return value, dc_dx, dc_dy, ix0, iy0

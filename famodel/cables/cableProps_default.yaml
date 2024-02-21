@@ -1,40 +1,65 @@
 # Cable cross-sectional property scaling coefficients
 
-cable_types:                                            # standard size of conductors [mm^2]: [800, 630, 400, 300, 150, 95]
+cable_types:          # standard size of conductors [mm^2]: [800, 630, 400, 300, 150, 95]
 
     dynamic_cable_33:                                   
-        kV          : 33                                # voltage rating [kV]    
-        mass_d      : [0.005418, -0.93, 51.586]         # linear mass density [kg/m]  = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)       
-        EA_d        : [0.0463,  -7.641, 475.32]         # stiffness [MN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)  
-        EI_d        : [0.006302, -1.2918, 68.11]       # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
-        MBL_D_coefs : [0.05703,  -9.672, 660.81]      # MBL[kN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
-        MBR_D_coefs : [0.015, 0.0]                      # MBR[m] = (1st)*D[mm] + (2nd)
-        D_A_coefs   : [3.0, 89]                         # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
-        P_A_coefs   : [0.525, 2.12]                     # P[MW] = A[mm^2]^(1st) + (2nd)
-        cost_A      : [0.7845, 257.32]                  # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
-    
-    Buoyancy_750m:                                      # buoyancy module data for 750m water depth
-        cost_B      : [1.884, 3083.6]                   # cost of buoyancy module [$/module] = = (1st)*[buoy size (N)] + (2nd)
-        L_BM        :                                 # length of each buoyancy module [m]
-        D_BM        :                                 # diameter of buoyancy module [m]
-        density     :  480                              # density [kg/m^3] 
-        volume      :  0.566                            # volume of module [m^3]
-        
-    Buoyancy_1500m:                                     # buoyancy module data for 1500m water depth
-        cost_B      : [2.167, 3226.6]                   # cost of buoyancy module [$/module] = (1st)*[buoy size (N)] + (2nd)
-        L_BM        :                               # length of each buoyancy module [m]
-        D_BM        :                              # diameter of buoyancy module [m]
-        density     : 560                               # density [kg/m^3]
-        volume      :                                   # volume of module [m^3]
-    
+        kV          : 33                           # voltage rating [kV]    
+        mass_d      : [0.005418, -0.93, 51.586]    # linear mass density [kg/m]  = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)       
+        EA_d        : [0.0463,  -7.641, 475.32]    # stiffness [MN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)  
+        EI_d        : [0.006302, -1.2918, 68.11]   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+        MBL_D_coefs : [0.05703,  -9.672, 660.81]   # MBL[kN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+        MBR_D_coefs : [0.015, 0.0]                 # MBR[m] = (1st)*D[mm] + (2nd)
+        D_A_coefs   : [3.0, 89]                    # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
+        P_A_coefs   : [0.525, 2.12]                # P[MW] = A[mm^2]^(1st) + (2nd)
+        cost_A      : [0.7845, 257.32]             # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
     
     dynamic_cable_66:
-        kV          :  66                                 # voltage rating [kV]    
-        mass_d2     :  [0.005418, -0.93, 51.586]          # linear mass density [kg/m] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)      
-        EA_d        :  [0.0463,  -7.641, 475.32]          # stiffness [MN] = (1st)*D_2[m] + (2nd)*D[mm] + (3rd)   
-        EI_d3       :  [0.006302, -1.291, 68.11]        # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
-        MBL_D_coefs :  [0.0829, -21.178, 1707.7]          # MBL[N] = (1st)*D_2[mm + (2nd)*D[mm] + (3rd)
-        MBR_D_coefs :  [0.015, 0.0]                       # MBR[m] = (1st)*D[mm] + (2nd)
-        D_A_coefs   :  [  3.0, 106]                       # Outer diameter coefficients. OD[mm] = SQRT(H2)*(1st) + (2nd)
-        P_A_coefs   :  [0.525, 2.12]                      # P[MW] = A[mm^2]^(1st) + (2nd)
-        cost_A      :  [0.7845, 257.32]                   # cost[$/m] = (1st)*A[mm^2] + (2nd)
+        kV          :  66                          # voltage rating [kV]    
+        mass_d2     :  [0.005418, -0.93, 51.586]   # linear mass density [kg/m] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)      
+        EA_d        :  [0.0463,  -7.641, 475.32]   # stiffness [MN] = (1st)*D_2[m] + (2nd)*D[mm] + (3rd)   
+        EI_d        :  [0.006302, -1.291, 68.11]   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+        MBL_D_coefs :  [0.0829, -21.178, 1707.7]   # MBL[N] = (1st)*D_2[mm + (2nd)*D[mm] + (3rd)
+        MBR_D_coefs :  [0.015, 0.0]                # MBR[m] = (1st)*D[mm] + (2nd)
+        D_A_coefs   :  [  3.0, 106]                # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
+        P_A_coefs   :  [0.525, 2.12]               # P[MW] = A[mm^2]^(1st) + (2nd)
+        cost_A      :  [0.7845, 257.32]            # cost[$/m] = (1st)*A[mm^2] + (2nd)
+    
+    static_cable_33:                                   
+        kV          : 33                           # voltage rating [kV]    
+        mass_d      : []   # linear mass density [kg/m]  = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)       
+        EA_d        : []   # stiffness [MN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)  
+        EI_d        : []   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+        MBL_D_coefs : []   # MBL[kN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+        MBR_D_coefs : []   # MBR[m] = (1st)*D[mm] + (2nd)
+        D_A_coefs   : []   # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
+        P_A_coefs   : []   # P[MW] = A[mm^2]^(1st) + (2nd)
+        cost_A      : []   # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
+    
+    static_cable_66:
+        kV          :  66                          # voltage rating [kV]    
+        mass_d2     :  []   # linear mass density [kg/m] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)      
+        EA_d        :  []   # stiffness [MN] = (1st)*D_2[m] + (2nd)*D[mm] + (3rd)   
+        EI_d        :  []   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+        MBL_D_coefs :  []   # MBL[N] = (1st)*D_2[mm + (2nd)*D[mm] + (3rd)
+        MBR_D_coefs :  []   # MBR[m] = (1st)*D[mm] + (2nd)
+        D_A_coefs   :  []   # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
+        P_A_coefs   :  []   # P[MW] = A[mm^2]^(1st) + (2nd)
+        cost_A      :  []   # cost[$/m] = (1st)*A[mm^2] + (2nd)
+    
+    
+buoyancy_module_types:   
+    
+    Buoyancy_750m:                                 # buoyancy module rated for 750m water depth
+        #cost_B      : [1.884, 3083.6]              # cost of buoyancy module [$/module] = (1st)*[buoy size (N)] + (2nd)
+        cost_B      : [8590, 3080]                 # cost [$/module] = (1st)*Volume[m^3] + (2nd)
+        L_BM        :  1.2                         # length per m^3 [m/m^3]
+        D_BM        :  1.2                         # diameter per m^3 [m/m^3]
+        density     :  480                         # aggregate density [kg/m^3]
+        
+    Buoyancy_1500m:                                # buoyancy module rated for 1500m water depth
+        #cost_B      : [2.167, 3226.6]              # cost of buoyancy module [$/module] = (1st)*[buoy size (N)] + (2nd)
+        cost_B      : [9890, 3230]                 # cost [$/module] = (1st)*Volume[m^3] + (2nd)
+        L_BM        :  1.2                         # length per m^3 [m/m^3]
+        D_BM        :  1.2                         # diameter per m^3 [m/m^3]
+        density     :  560                         # aggregate density [kg/m^3]
+    
