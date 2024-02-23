@@ -10,13 +10,13 @@ site:
         mu_air      : 1.81e-05   #          air dynamic viscosity
         #...
         
-    #boundaries:  # project or lease area boundary, via file or vertex list
-        #file:   # filename of x-y vertex coordinates [m]
-        #x_y:    # list of polygon vertices in order [m]
-           # -[x1, y1]
-           # -[x2, y2]
-           # -[x3, y3]
-           # -[x4, y4]
+    boundaries:  # project or lease area boundary, via file or vertex list
+        file:   # filename of x-y vertex coordinates [m]
+        x_y:    # list of polygon vertices in order [m]
+            # -[x1, y1]
+            # -[x2, y2]
+            # -[x3, y3]
+            # -[x4, y4]
     
     exclusions:
       - name: round example
@@ -29,7 +29,7 @@ site:
             -[x2, y2]
     
     bathymetry:
-        file:   '../bathymetry200m_sample.txt'
+        file:   #'../bathymetry200m_sample.txt'
     
     seabed:
         keys: [x,  y, depth,  soil_type]
@@ -140,7 +140,7 @@ mooring_systems:
         data:
           - [  semitaut-poly_1,   120 ,    suction1,   0 ]
           - [  semitaut-poly_1,  240 ,    suction1,   0 ]
-          
+          #- [  semitaut-poly_1,  0 ,    suction1,   0 ]
     ms3:
         name: 2 line semitaut with a third shared line
         
@@ -148,7 +148,7 @@ mooring_systems:
         data:
           - [  semitaut-poly_1,   60 ,    suction1,   0 ]
           - [  semitaut-poly_1,  300 ,    suction1,   0 ]
-
+          #- [  semitaut-poly_1,  180 ,    suction1,   0 ]
           
     ms4:
         name: 3-line semitaut with one line shared anchor
@@ -210,7 +210,7 @@ mooring_line_configs:
     
     semitaut-poly_1:  # mooring line configuration identifier
     
-        name: Taut polyester configuration 1  # descriptive name
+        name: Semitaut polyester configuration 1  # descriptive name
         
         anchoring_radius: 700
         fairlead_radius: 58
@@ -219,12 +219,18 @@ mooring_line_configs:
         sections:                 #in order from anchor to fairlead
           - type: chain_155mm       # ID of a mooring line section type
             length: 497.7            # [m] usntretched length of line section
-            connector: h_link     # ID of a connector type at the end of the line section (optional)
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-            
+            # connectorA: shackle
+            # connectorB: h_link
+          - connectorType: h_link   
           - type: polyester_182mm        # ID of a mooring line section type
             length: 199.8           # [m] length (unstretched)
-            connector: shackle    # ID of a connector type (optional)
+            # connectorB: shackle
+        
+        # connectors: # in order from end A to end B
+        #   - shackle
+        #   - h_link
+        #   - shackle
 
     taut-poly_1:  # mooring line configuration identifier
     
@@ -235,19 +241,27 @@ mooring_line_configs:
         fairlead_depth: -14
         
         sections:
+          - connectorType: shackle # anchor connection
           - type: chain_170mm       # ID of a mooring line section type
             length: 120            # [m] usntretched length of line section
-            connector: h_link     # ID of a connector type at the end of the line section (optional)
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-            
+            #connectorA: shackle
+            #connectorB: h_link
+          - connectorType: h_link  
           - type: polyester_226mm        # ID of a mooring line section type
             length: 660           # [m] length (unstretched)
-            connector: shackle    # ID of a connector type (optional)
-            
+            #connectorB: h_link
+          - connectorType: h_link # anchor connection  
           - type: chain_170mm       # ID of a mooring line section type
             length: 20            # [m] usntretched length of line section
-            connector: h_link     # ID of a connector type at the end of the line section (optional)
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+            #connectorB: shackle
+          - connectorType: shackle # anchor connection  
+        # connectors:
+        #   - shackle
+        #   - h_link
+        #   - h_link
+        #   - shackle
 
 
     shared-2-clump:
@@ -259,13 +273,27 @@ mooring_line_configs:
         fairlead_depth: -14        
         
         sections:
+          - connectorType: shackle # anchor connection
           - type: polyester_182mm   
-            length: 595       
-            connector: clump_weight_20
+            length: 110
+            # connector: shackle
+            # connectorA: shackle
+            # connectorB: clump_weight_20       
+          - connectorType:  clump_weight_20 
+          - type: polyester_182mm   
+            length: 435 # 870  
+            # connectorB: clump_weight_20     
             
-          - type: polyester_182mm
-            length: 497.7
-            connector: clump_weight_20   
+          # - type: polyester_182mm
+          #   length: 110
+          #   # connectorB: shackle   
+          # - connectorType: shackle
+        # connectors:
+        #   - shackle
+        #   - clump_weight_20
+        #   - clump_weight_20
+        #   - shackle
+          
         
         # attachment:
         #     type:
@@ -341,7 +369,8 @@ mooring_connector_types:
         CdA    :  3.5   # [m^2] produce of cross sectional area and drag coefficient
     
     shackle:
-        mass   : 1000
+        mass   : 200
+        volume : .2
 
 # Anchor type properties
 anchor_types:

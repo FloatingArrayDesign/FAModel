@@ -134,10 +134,6 @@ class Platform():
                 self.mooringList[i].anchor.makeMoorPyAnchor()
             # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
             self.ms.pointList.append(self.mooringList[i].anchor.mpAnchor) # anchor
-            # add anchor point as a fixed point
-            # # self.ms.addPoint(1,ssloc.rA)
-            # record point number for anchor
-            self.mooringList[i].anchNum = len(self.ms.pointList)
             # attach subsystem line to the anchor point
             self.ms.pointList[-1].attachLine(i,0)
             # add fairlead point as a coupled point

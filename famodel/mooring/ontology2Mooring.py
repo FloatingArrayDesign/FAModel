@@ -1,4 +1,4 @@
-ssBool=1
+# ssBool=1
 # import yaml
 # import numpy as np
 # import matplotlib.pyplot as plt
@@ -8,6 +8,7 @@ from famodel.project import Project
 # create project class instance from yaml file
 Array = Project(file='mooringOntology.yaml')
 ms = Array.getMoorPyArray(plt = 1)
+#Array.plot3d(draw_boundary=False,boundary_on_bath=False)
 
 # # create a shared anchor (for visualization purposes)
 # import moorpy as mp

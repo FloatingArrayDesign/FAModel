@@ -89,10 +89,11 @@ class Anchor():
         self.mpAnchor = ms.pointList[-1]
 
         # add mass if available
-        if self.dd['design']['m']:
+        if 'm' in self.dd['design'] and self.dd['design']['m']:
             self.mpAnchor.m = self.dd['design']['m']
         # set anchor diameter
-        self.mpAnchor.d = self.dd['design']['d']
+        if 'd' in self.dd['design'] and self.dd['design']['d']:
+            self.mpAnchor.d = self.dd['design']['d']
         # set the point as an anchor entity
         self.mpAnchor.entity= {'type': 'anchor', 'anchor_type':self.dd['type']}
 

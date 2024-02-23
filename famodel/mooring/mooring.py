@@ -30,7 +30,6 @@ class Mooring():
                                   length
                                  }
                          }
-                     connectors: {}
                      rAnchor
                      zAnchor
                      rFair
@@ -55,6 +54,9 @@ class Mooring():
         # MoorPy subsystem that corresponds to the mooring line
         self.subsystem = subsystem
         
+        # List of connectors associated with this line
+        self.connectorList = []
+        
         # end point absolute coordinates, to be set later
         self.rA = rA
         self.rB = rB
@@ -67,6 +69,8 @@ class Mooring():
         self.z_fair   = z_fair
         
         self.adjuster = None  # custom function that can adjust the mooring
+        
+        self.symmetric = False # boolean for if the mooring line is a symmetric shared line
         
         # Dictionaries for addition information
         self.loads = {}
@@ -193,6 +197,22 @@ class Mooring():
         self.subsystem.makeGeneric(lengths,types,suspended=case)
         self.subsystem.setEndPosition(self.rA,endB=0)
         self.subsystem.setEndPosition(self.rB,endB=1)
-        return(self.subsystem)
+             
+        # add in connector info to subsystem points
+        if case == 0: # has an anchor - need to ignore connection for first point
+            startNum = 1
+        else: # no anchor - need to include all connections
+            startNum = 0 
+        for i in range(startNum,len(self.subsystem.pointList)):                               
+            point = self.subsystem.pointList[i]
+            # fill in information about the point if it exists
+            if self.connectorList[i].m:
+                point.m = self.connectorList[i].m
+            if self.connectorList[i].v:
+                point.v = self.connectorList[i].v
+            if self.connectorList[i].CdA:
+                point.CdA = self.connectorList[i].CdA
         # solve the system
         self.subsystem.staticSolve()
+        
+        return(self.subsystem)
