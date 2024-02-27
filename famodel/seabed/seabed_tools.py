@@ -82,6 +82,10 @@ def convertLatLong2Meters(zerozero, lats, longs):
     return Xs, Ys
 
 
+
+
+
+
 def processASC(gebcofilename, lat, lon, outfilename=""):
     '''Process an ASC file of bathymetry information and convert into
     a rectangular bathymetry grid in units of m relative to the 
@@ -158,6 +162,77 @@ def processASC(gebcofilename, lat, lon, outfilename=""):
 
     return Xs, Ys, depths, lats, longs
 
+
+def processGeotiff(filename, lat, lon, outfilename=""):
+    '''Process a geotiff file containing bathymetry (or other info)
+    and convert into a rectangular bathymetry grid in units of m relative to 
+    the project reference point.
+    
+    Parameters
+    ----------
+    filename : string
+        Path and name of geotiff file to load.
+    lat : float
+        lattitude of reference point to use for array y grid
+    long : float
+        lattitude of reference point to use for array x grid
+    outfilename : string, optional
+        If provided, writes a MoorDyn/MoorPy style bathymetry file
+
+    Returns
+    -------
+    Xs : array
+        x values of grid points [m]
+    Ys : array
+        y values of grid points [m]
+    depths  : 2D array
+        water depth grid (positive down) [m]
+    lats : array
+        array of latitude coordinates (y positions)
+    longs : array
+        array of longitude coordinates (x positions)
+    '''
+
+    import rasterio
+    import rasterio.plot
+
+    tiff = rasterio.open(filename)  # load the geotiff file
+    
+    rasterio.plot.show(tiff)  # plot it to see that it works
+    
+    # note: a CRS is stored with the geotiff, accessible with tiff.crs
+    
+    # Get lattitude and longitude grid values
+    longs, _ = rasterio.transform.xy(tiff.transform, range(tiff.height),0);
+    _, lats  = rasterio.transform.xy(tiff.transform, 0, range(tiff.width));
+    
+    # Depth values in numpy array form
+    depths = tiff.read(1)
+    
+    
+    # Use Stein's methods
+    from famodel.geography import getLatLongCRS, getTargetCRS, convertBathymetry2Meters, writeBathymetryFile
+    
+    latlong_crs = tiff.crs
+        
+    centroid = (lon, lat)
+    centroid_utm = (lon, lat)
+    
+    ncols = 100
+    nrows = 100
+    
+    # convert bathymetry to meters
+    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(longs, lats, depths, 
+                                                             centroid, centroid_utm, 
+                                                             latlong_crs, target_crs, 
+                                                             ncols, nrows)
+    # export to MoorPy-readable file
+    writeBathymetryFile('test output.txt', ncols, nrows, bath_xs, bath_ys, bath_depths)
+
+
+    return bath_xs, bath_ys, depths, lats, longs
+    
+    
 
 def getCoast(Xbath, Ybath, depths):
     '''Gets the x and y coordinates of the coastline from the bathymetry
@@ -515,3 +590,8 @@ def getPlotBounds(latsorlongs_boundary, zerozero, long=True):
     
     return xbmin, xbmax
 
+
+if __name__ == '__main__':
+    
+    processGeoTIFF('exportImage.tif', 40.6, -124.5)
+    
