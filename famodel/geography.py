@@ -15,7 +15,7 @@ from shapely.geometry import Point, Polygon, LineString
 
 
 
-import seabed.seabed_tools as sbt
+import famodel.seabed.seabed_tools as sbt
 
 
 
@@ -183,7 +183,7 @@ def convertLatLong2Meters(longs, lats, centroid, latlong_crs, target_crs, return
         return xs, ys
 
 
-def convertMeters2LatLong(xs, ys, centroid, mesh=False):
+def convertMeters2LatLong(xs, ys, centroid, latlong_crs, target_crs, mesh=False):
     '''Input xs and ys need to be in the target CRS
     Xs and Ys need to be in pairs, i.e. the first entry to xs and the 
     first entry to ys needs to correspond to a specific point
@@ -277,7 +277,7 @@ def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, latlon
     X, Y = np.meshgrid(grid_xs, grid_ys)
 
     # convert each x/y point in the new bathymetry grid back to lat/long (this will result in another irregular polygon but now in lat/long space)
-    grid_mesh_longs_list, grid_mesh_lats_list = convertMeters2LatLong(X, Y, centroid_utm, mesh=True)
+    grid_mesh_longs_list, grid_mesh_lats_list = convertMeters2LatLong(X, Y, centroid_utm, latlong_crs, target_crs, mesh=True)
 
     # interpolate the depth at each lat/long pair from the original GEBCO data
     bath_depths = np.zeros([len(grid_ys), len(grid_xs)])

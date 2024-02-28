@@ -203,21 +203,36 @@ def processGeotiff(filename, lat, lon, outfilename=""):
     # note: a CRS is stored with the geotiff, accessible with tiff.crs
     
     # Get lattitude and longitude grid values
-    longs, _ = rasterio.transform.xy(tiff.transform, range(tiff.height),0);
-    _, lats  = rasterio.transform.xy(tiff.transform, 0, range(tiff.width));
+    #longs, _ = rasterio.transform.xy(tiff.transform, range(tiff.height),0);
+    #_, lats  = rasterio.transform.xy(tiff.transform, 0, range(tiff.width));
+    height, width = tiff.shape
+    cols, rows = np.meshgrid(np.arange(width), np.arange(height))
+    longs_mesh, lats_mesh = rasterio.transform.xy(tiff.transform, rows, cols)
+    longs = np.array(longs_mesh)[0,:]
+    lats = np.flip(np.array(lats_mesh)[:,0])    # data given from "top" of the matrix, need to flip to start from bottom left corner
     
     # Depth values in numpy array form
-    depths = tiff.read(1)
+    depths = -tiff.read(1)
+    depths = np.flipud(depths)  # need to flip on y-axis for similar reason as lats (i.e. bottom left corner vs. top left corner of grid/matrix) <<<<<< reevaluate this !!!
     
     
     # Use Stein's methods
-    from famodel.geography import getLatLongCRS, getTargetCRS, convertBathymetry2Meters, writeBathymetryFile
+    from famodel.geography import getLatLongCRS, getTargetCRS, convertBathymetry2Meters, writeBathymetryFile, convertLatLong2Meters     # <<<<< same function name in sbt and geo
     
+    # extract the coordinate reference systems needed (pyproj CRS objects)
     latlong_crs = tiff.crs
-        
-    centroid = (lon, lat)
-    centroid_utm = (lon, lat)
+    target_crs = getTargetCRS(lon, lat)     # should be UTM 10N for Humboldt/California coast
     
+    # get the centroid/reference location in lat/long coordinates
+    centroid = (lon, lat)
+
+    # get the centroid/reference location in target_crs coordinates <<<<<<<<< can probably make a new function to do just this at some point
+    #centroid_utm = (lon, lat)
+    dummy_longs = np.hstack([longs, np.ones(len(lats))*longs[-1], np.flip(longs), np.ones(len(lats))*longs[0]])
+    dummy_lats = np.hstack([np.ones(len(longs))*lats[0], lats, np.ones(len(longs))*lats[-1], np.flip(lats)])
+    _, _, centroid_utm = convertLatLong2Meters(dummy_longs, dummy_lats, centroid, latlong_crs, target_crs, return_centroid=True)
+    
+    # set the number of rows and columns to use in the MoorPy bathymetry file
     ncols = 100
     nrows = 100
     
@@ -231,8 +246,8 @@ def processGeotiff(filename, lat, lon, outfilename=""):
 
 
     return bath_xs, bath_ys, depths, lats, longs
-    
-    
+
+
 
 def getCoast(Xbath, Ybath, depths):
     '''Gets the x and y coordinates of the coastline from the bathymetry
@@ -593,5 +608,15 @@ def getPlotBounds(latsorlongs_boundary, zerozero, long=True):
 
 if __name__ == '__main__':
     
-    processGeoTIFF('exportImage.tif', 40.6, -124.5)
+    processGeotiff('exportImage.tif', 41.18, -124.75)
+
+    import moorpy as mp
+
+    ms = mp.System(bathymetry='test output.txt')
+    ms.initialize()
+    ms.plot(hidebox=True, args_bath={'cmap':'viridis'})
+
+    plt.show()
+
+    a = 2
     
