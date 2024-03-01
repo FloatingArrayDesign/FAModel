@@ -254,8 +254,20 @@ def getMapBathymetry(gebcofilename):
     return longs, lats, depths, ncols, nrows
 
 
-def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, latlong_crs, target_crs, ncols, nrows):
-
+def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, 
+                             latlong_crs, target_crs, ncols, nrows,
+                             xs=[], ys=[]):
+    '''
+    Convert...
+    
+    Parameters
+    ----------
+    ...
+    xs : list (optional)
+        List of desired x grid values (overrides nrows if provided).
+    ys : list (optional)
+        List of desired y grid values (overrides nrows if provided).
+    '''
     # If converted straight to meters, these longs/lats would not equate to a perfect square due to the distortion of projecting a spherical map into 2D
     # So, what we do is take the four corners of the long/lat rectangle and convert those 4 points to UTM [m] x/y coordinates, relative to a centroid, 
     # which will not line up to a perfect rectangle (will be distorted). We will then make our own arbitrary rectangle in the UTM CRS and 
@@ -269,9 +281,11 @@ def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, latlon
         centroid, latlong_crs, target_crs)
 
     # now create a new, arbitrary square in the UTM coordinate system based on minimums of corner points (find the rectangle inside the irregular polygon); 
-    # default to use the same ncols and nrows as the original GEBCO data (but don't need to)    # ncols, nrows
     grid_xs = np.linspace(np.max([corner_xs[0], corner_xs[-1]]), np.min([corner_xs[1], corner_xs[-2]]), ncols)
     grid_ys = np.linspace(np.max([corner_ys[0], corner_ys[1]]), np.min([corner_ys[-2], corner_ys[-1]]), nrows)
+    # optional manual choice of x or y grid values (quick add-on for now)
+    if len(xs) > 0: grid_xs = np.array(xs)
+    if len(ys) > 0: grid_ys = np.array(ys)
 
     # create a mesh of these new x/y points
     X, Y = np.meshgrid(grid_xs, grid_ys)
@@ -295,12 +309,14 @@ def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, latlon
 
         
         
-def writeBathymetryFile(moorpy_bathymetry_filename, ncols, nrows, bathXs, bathYs, bath_depths):
+def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths):
+    '''Write a MoorDyn/MoorPy-style bathymetry text file based on provided
+    x and y grid line values and a 2D array of depth values.'''
 
     f = open(os.path.join(os.getcwd(), moorpy_bathymetry_filename), 'w')
     f.write('--- MoorPy Bathymetry Input File ---\n')
-    f.write(f'nGridX {ncols}\n')
-    f.write(f'nGridY {nrows}\n')
+    f.write(f'nGridX {len(bathXs)}\n')
+    f.write(f'nGridY {len(bathYs)}\n')
     f.write(f'      ')
     for ix in range(len(bathXs)):
         f.write(f'{bathXs[ix]:.2f} ')
@@ -338,7 +354,9 @@ def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath
     if isinstance(bathymetryfilename, str):
         bathGrid_Xs, bathGrid_Ys, bathGrid = sbt.readBathymetryFile(bathymetryfilename)         # parse through the MoorDyn/MoorPy-formatted bathymetry file
         X, Y = np.meshgrid(bathGrid_Xs, bathGrid_Ys)                                    # create a 2D mesh of the x and y values
-        bath = ax.plot_surface(X, Y, -bathGrid, vmin=args_bath['zlim'][0], vmax=args_bath['zlim'][1], cmap=args_bath['cmap'])
+        bath = ax.plot_surface(X, Y, -bathGrid, rstride=1, cstride=1,
+                               vmin=args_bath['zlim'][0], vmax=args_bath['zlim'][1], 
+                               cmap=args_bath['cmap'])
     
     '''
     # plot the project boundary
@@ -708,7 +726,7 @@ if __name__ == '__main__':
     bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, target_crs, ncols, nrows)
     # export to MoorPy-readable file
     bathymetryfile = 'bathymetry_large_gebco.txt'
-    writeBathymetryFile(bathymetryfile, ncols, nrows, bath_xs, bath_ys, bath_depths)
+    writeBathymetryFile(bathymetryfile, bath_xs, bath_ys, bath_depths)
 
     # plot everything
     plot3d(lease_xs, lease_ys, bathymetryfile, area_on_bath=True, args_bath={'zlim':[-6000, 500]})

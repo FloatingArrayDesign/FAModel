@@ -163,7 +163,7 @@ def processASC(gebcofilename, lat, lon, outfilename=""):
     return Xs, Ys, depths, lats, longs
 
 
-def processGeotiff(filename, lat, lon, outfilename=""):
+def processGeotiff(filename, lat, lon, outfilename="", **kwargs):
     '''Process a geotiff file containing bathymetry (or other info)
     and convert into a rectangular bathymetry grid in units of m relative to 
     the project reference point.
@@ -178,6 +178,9 @@ def processGeotiff(filename, lat, lon, outfilename=""):
         lattitude of reference point to use for array x grid
     outfilename : string, optional
         If provided, writes a MoorDyn/MoorPy style bathymetry file
+    kwargs : dict
+        Optional extra arguments that will be relayed to convertBathymetry2Meters,
+        can be used to specify desired x and y grid coordinates.
 
     Returns
     -------
@@ -187,10 +190,6 @@ def processGeotiff(filename, lat, lon, outfilename=""):
         y values of grid points [m]
     depths  : 2D array
         water depth grid (positive down) [m]
-    lats : array
-        array of latitude coordinates (y positions)
-    longs : array
-        array of longitude coordinates (x positions)
     '''
 
     import rasterio
@@ -198,13 +197,13 @@ def processGeotiff(filename, lat, lon, outfilename=""):
 
     tiff = rasterio.open(filename)  # load the geotiff file
     
-    rasterio.plot.show(tiff)  # plot it to see that it works
+    #rasterio.plot.show(tiff)  # plot it to see that it works
     
     # note: a CRS is stored with the geotiff, accessible with tiff.crs
     
     # Get lattitude and longitude grid values
-    #longs, _ = rasterio.transform.xy(tiff.transform, range(tiff.height),0);
-    #_, lats  = rasterio.transform.xy(tiff.transform, 0, range(tiff.width));
+    #_, longs = rasterio.transform.xy(tiff.transform, range(tiff.height),0)
+    #lats, _  = rasterio.transform.xy(tiff.transform, 0, range(tiff.width-1,-1,-1))
     height, width = tiff.shape
     cols, rows = np.meshgrid(np.arange(width), np.arange(height))
     longs_mesh, lats_mesh = rasterio.transform.xy(tiff.transform, rows, cols)
@@ -240,12 +239,12 @@ def processGeotiff(filename, lat, lon, outfilename=""):
     bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(longs, lats, depths, 
                                                              centroid, centroid_utm, 
                                                              latlong_crs, target_crs, 
-                                                             ncols, nrows)
+                                                             ncols, nrows, **kwargs)
     # export to MoorPy-readable file
-    writeBathymetryFile('test output.txt', ncols, nrows, bath_xs, bath_ys, bath_depths)
+    writeBathymetryFile('test output.txt', bath_xs, bath_ys, bath_depths)
 
 
-    return bath_xs, bath_ys, depths, lats, longs
+    return bath_xs, bath_ys, bath_depths
 
 
 
@@ -318,6 +317,40 @@ def processBoundary(filename, lat, lon):
     Xs, Ys = convertLatLong2Meters(zerozero, lats, longs)
     
     return Xs, Ys
+
+
+def resampleGrid(x_new, y_new, x_old, y_old, grid_values):
+    '''Interpolate an existing array of values on a rectangular grid to a new
+    rectangular grid.
+    
+    Parameters
+    ----------
+    x_new : list
+        x values of the new grid to interpolate to
+    y_new : list
+        y values of the new grid to interpolate to
+    x_old : list
+        x values of the original grid
+    y_old : list
+        x values of the original grid
+    grid_values : 2D array
+        The values on the old grid to be interpolated from (dimensions must
+        match the length of y_old and x_old, in that order).
+    
+    Returns
+    -------
+    grid_values_new : 2D array
+        Interpolated grid values on y_new and x_new grid lines.
+    '''
+    
+    grid_values_new = np.zeros([len(y_new), len(x_new)])
+    
+    for i in range(len(y_new)):
+        for j in range(len(x_new)):
+            grid_values_new[i,j], _ = getDepthFromBathymetry(x_new[j], y_new[i],
+                                                   x_old, y_old, grid_values)
+    
+    return grid_values_new
 
 
 def getInterpNums(xlist, xin, istart=0):  # should turn into function in helpers
@@ -608,15 +641,20 @@ def getPlotBounds(latsorlongs_boundary, zerozero, long=True):
 
 if __name__ == '__main__':
     
-    processGeotiff('exportImage.tif', 41.18, -124.75)
-
+    centroid = (40.928, -124.708)  #humboldt    
+    xs = np.arange(-30000,30001,400)
+    ys = np.arange(-40000,40001,400)
+    
+    xs, ys, depths = processGeotiff('humboldt.tif', centroid[0], centroid[1], xs=xs, ys=ys)
+    
     import moorpy as mp
-
-    ms = mp.System(bathymetry='test output.txt')
+    ms = mp.System(depth=np.max(depths), bathymetry='test output.txt')
     ms.initialize()
     ms.plot(hidebox=True, args_bath={'cmap':'viridis'})
 
-    plt.show()
-
-    a = 2
+    # try converting to a different grid
+    x_new = np.arange(-20000, 20001, 800)
+    y_new = np.arange(-20000, 20001, 800)
+    depths_new = resampleGrid(x_new, y_new, xs, ys, depths)
     
+    plt.show()
