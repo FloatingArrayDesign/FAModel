@@ -1180,7 +1180,7 @@ class Project():
                     # connect line end B to the body
                     ms.bodyList[PFNum[0]].attachPoint(len(ms.pointList),[ssloc.rB[0]-PF[0].r[0],ssloc.rB[1]-PF[0].r[1],ssloc.rB[2]])
 
-        # initialize, solve equilibrium, and plot the system       
+        # initialize, solve equilibrium, and plot the system   
         ms.initialize()
         ms.solveEquilibrium()
         if plt:
@@ -1188,8 +1188,233 @@ class Project():
             settings["linelabels"] = True
             settings["pointlabels"] = True
             ms.plot( **settings)
+
+        #store moorpy system
+        self.ms = ms 
+        return(ms)                            
+
+
+
+    def getFLORISArray(self, config, turblist, windSpeeds, thrustForces):
+        '''
+        Sets up FLORIS interface and stores thrust/windspeed curve
+
+        Parameters
+        ----------
+        config : str
+            Filename for FLORIS wake input file
+        turblist : list of str
+            List of FLORIS turbine input files (if 1, use for all turbines)
+        windSpeeds : list of float
+            List of wind speeds for thrust curve
+        thrustForces : list of float
+            List of turbine thrust forces at each wind speed in windSpeeds
+
+        Returns
+        -------
+        None.
+
+        '''
+        from floris.tools import FlorisInterface
+        
+        # Setup FLORIS interface using base yaml file
+        self.fi = FlorisInterface(config)
+        
+        self.fi.reinitialize(layout_x=[PF.r[0] for PF in self.platformList], layout_y=[PF.r[1] for PF in self.platformList])
+        
+        #right now, point to FLORIS turbine yaml. eventually should connect to ontology
+        self.fi.reinitialize(turbine_type= turblist)       
+        
+        #store ws and thrust data... eventually store for each turbine
+        self.windSpeeds = windSpeeds
+        self.thrustForces = thrustForces
+        
+    def getFLORISMPequilibrium(self, ws, wd, ti, cutin, hubht, plotting = True):
+        '''
+        Function to find array equilibrium with FLORIS wake losses and MoorPy platform offsets
+
+        Parameters
+        ----------
+        ws : float
+            Wind speed (m/s)
+        wd : float
+            Wind direction (heading direction in deg where due West is 0 and due North is 90)
+        ti : float
+            Turbulence intenstiy (input to floris)
+        cutin : float
+            Cut in wind speed
+        hubht : float
+            Hub height
+        plotting : bool
+            True plots wakes and mooring systems. The default is True.
+
+        Returns
+        -------
+        winds : array of float
+            Initial and updated wind speed at each turbine
+        xpositions : array of float
+            Initial and updated x position at each turbine
+        ypositions : array of float
+            Initial and updated y position at each turbine
+        turbine_powers : array of float
+            Final power at each turbine
+
+        '''
+        # Wind directional convention ??? 
+        
+        from scipy import interpolate
+        import time
+        
+        if ws < min(self.windSpeeds) or ws > max(self.windSpeeds):
+            return ValueError("Wind speed outside of stored range")
+        
+        #FLORIS inputs the wind direction as direction wind is coming from (where the -X axis is 0)
+        self.fi.reinitialize(wind_directions = [-wd+270], wind_speeds = [ws], turbulence_intensity= ti)
+        
+        # wind speed thrust curve for interpolation
+        f = interpolate.interp1d(self.windSpeeds, self.thrustForces)
+        
+        #initialize list of wind speeds (1 wind speed for each turbine)
+        nturbs = len(self.platformList)
+        ws = [ws] * nturbs
+        
+        winds = []
+        xpositions = []
+        ypositions = []
+        
+        #iterate twice through updating wind speeds/platform positions
+        for n in range(0, 2):
             
-        return(ms)                                   
+            # interpolate thrust force from speed/thrust curve
+            for i in range(0, nturbs):
+                if ws[i] < cutin:
+                    T = 0
+                else:
+                    T = f(ws[i])
+                
+                # apply thrust force/moments (split into x and y components)
+                self.ms.bodyList[i].f6Ext = np.array([T*np.cos(np.radians(wd)), T*np.sin(np.radians(wd)), 0, T*np.cos(np.radians(wd))*hubht, T*np.sin(np.radians(wd))*hubht, 0])       # apply an external force on the body 
+                
+            
+            #solve statics to find updated turbine positions
+            self.ms.initialize()
+            self.ms.solveEquilibrium(DOFtype='both')
+
+            #update floris turbine positions and calculate wake losses
+            self.fi.reinitialize(layout_x=[body.r6[0] for body in self.ms.bodyList], layout_y=[body.r6[1] for body in self.ms.bodyList])
+            self.fi.calculate_wake()
+    
+          
+           
+            #update wind speed list for RAFT
+            ws = list(self.fi.turbine_average_velocities[0][0])
+            winds.append(ws)
+            xpositions.append([body.r6[0] for body in self.ms.bodyList])
+            ypositions.append([body.r6[1] for body in self.ms.bodyList])
+
+
+        #return FLORIS turbine powers (in order of turbine list)
+        if min(self.fi.turbine_effective_velocities[0][0]) > cutin:
+            turbine_powers = self.fi.get_turbine_powers()[0]
+
+           
+        else:
+            turbine_powers = np.zeros((1,4))
+        
+        
+        if plotting:
+            
+            # plot wakes
+            import floris.tools.visualization as wakeviz
+            horizontal_plane = self.fi.calculate_horizontal_plane(
+                x_resolution=200,
+                y_resolution=100,
+                height=90.0,
+                #yaw_angles=yaw_angles, 
+            )
+    
+            y_plane = self.fi.calculate_y_plane(
+                x_resolution=200,
+                z_resolution=100,
+                crossstream_dist=0.0,
+                #yaw_angles=yaw_angles,
+            )
+            cross_plane = self.fi.calculate_cross_plane(
+                y_resolution=100,
+                z_resolution=100,
+                downstream_dist=630.0,
+                #yaw_angles=yaw_angles,
+            )
+    
+            # Create the plots
+            fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+            #ax_list = ax_list.flatten()
+            wakeviz.visualize_cut_plane(horizontal_plane, ax=ax)
+    
+            cmap = plt.cm.get_cmap('viridis_r')
+            self.ms.plot2d(ax = ax, Yuvec = [0,1,0])
+     
+            #return turbines to neutral positions **** only done if plotting - this reduces runtime for AEP calculation
+            for i in range(0, nturbs):
+    
+                self.ms.bodyList[i].f6Ext = np.array([0, 0, 0, 0, 0, 0])       # apply an external force on the body 
+                
+            #solve statics to find updated turbine positions
+            self.ms.initialize()
+            self.ms.solveEquilibrium(DOFtype='both')
+            self.ms.plot2d(ax = ax, Yuvec = [0,1,0], color = 'darkblue')
+        
+        
+        winds = np.array(winds)
+        xpositions = np.array(xpositions)
+        ypositions = np.array(ypositions)
+        return(winds,xpositions, ypositions, turbine_powers)  
+
+    def calcoffsetAEP(self, windrose, ti, cutin, hubht):
+        '''
+        Function to calculate AEP in FLORIS with moorpy platform offsets
+
+        Parameters
+        ----------
+        windrose : str
+            Wind rose filename
+        ti : float
+            Turbulence intensity (input to FLORIS for all cases)
+        cutin : float
+            Tut in wind speed
+        hubht : float
+            Hub height
+
+        Returns
+        -------
+        aeps : list of floats
+            AEP for each turbine in farm
+
+        '''
+
+        
+        # remove windrose entries below cut in or with zero frequency
+        wr = np.loadtxt(windrose, delimiter=',', skiprows = 1)
+        wr = wr[wr[:,0] >= cutin]
+        wr = wr[wr[:,2] > 0]
+
+        # iterate through windrose directions/speeds
+        for ind in range(0, len(wr)):
+            
+            ws = wr[ind, 0]
+            wd = wr[ind, 1]
+            fq = wr[ind, 2]
+            
+            # solve equilibrium with moorpy and floris at given wind direction/speed
+            winds,xpositions, ypositions, turbine_powers = self.getFLORISMPequilibrium(ws, wd, ti, cutin, hubht, plotting = False)
+            if ind == 0:
+                powers = turbine_powers
+            else:
+                powers = np.vstack([powers,turbine_powers])
+
+        aeps = np.matmul(wr[:,2], powers) * 365 * 24
+        return(aeps)
+
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''
