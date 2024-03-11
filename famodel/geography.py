@@ -93,6 +93,25 @@ def getTargetCRS(longitudes, latitudes):
     return target_crs
 
 
+def getCustomCRS(long, lat):
+    '''Seemingly way too simple of a method to create a pyproj CRS centered around a custom geographical point
+
+    Parameters
+    ----------
+    long : float
+        A longitude degree coordinate
+    lat : float
+        A latitude degree coordinate
+
+    Returns
+    -------
+    custom_crs : string (but can be used as input like a pyproj.CRS object)
+        Coordinate reference system in meters relative to the input lat/long
+    '''
+    
+    custom_crs = f'+proj=tmerc +lat_0={lat} +lon_0={long} +ellps=WGS84 +units=m +no_defs'
+
+    return custom_crs
 
 
 
@@ -213,7 +232,7 @@ def convertMeters2LatLong(xs, ys, centroid, latlong_crs, target_crs, mesh=False)
         points = [Point(xs[i,j] + centroid[0], ys[i,j] + centroid[1]) for i in range(len(xs)) for j in range(len(xs[0]))]
     else:
         # organize all the long/lat points into a shapely Polygon
-        points = [Point(xs[i,j] + centroid[0], ys[i,j] + centroid[1]) for i in range(len(xs))]
+        points = [Point(xs[i] + centroid[0], ys[i] + centroid[1]) for i in range(len(xs))]
 
     # input the Polygon of longs/lats and the centroid into a GeoDataFrame in EPSG:4326
     gdf = gpd.GeoDataFrame({'type':'shape','geometry':points}, crs=target_crs)
@@ -705,31 +724,49 @@ if __name__ == '__main__':
     latlong_crs = getLatLongCRS()
 
     # get lease area coordinates based on BOEM shapefile
-    #lease_name = 'Humboldt_NE'
-    #lease_longs, lease_lats, centroid = getLeaseCoords(lease_name)
+    lease_name = 'Humboldt_SW'
+    lease_longs, lease_lats, centroid = getLeaseCoords(lease_name)
 
-    centroid = (-130.342, 40.759)
-    lease_longs = [centroid[0]]
-    lease_lats = [centroid[1]]
+    #centroid = (-124.71, 40.93)
+    #lease_longs = [centroid[0]]
+    #lease_lats = [centroid[1]]
 
     # based on the lease area, find the target UTM CRS (in m)
     target_crs = getTargetCRS(lease_longs, lease_lats)
+    
+    custom_crs = getCustomCRS(centroid[0], centroid[1])
 
+    '''
+    ##### CRS Tests #####
+    # convert lat/long to meters
+    longs = [-125.0, -124.75, -124.5]
+    lats = [40.8, 40.9, 41.0]
+    custom_crs = getCustomCRS(longs[1], lats[1])
+    coords = [Point(longs[0], lats[-1]), Point(longs[1], lats[-1]), Point(longs[-1], lats[-1]), Point(longs[0], lats[1]), Point(longs[1], lats[1]), Point(longs[-1], lats[1]), Point(longs[0], lats[0]), Point(longs[1], lats[0]), Point(longs[-1], lats[0])]
+    xs, ys = convertLatLong2Meters([point.x for point in coords], [point.y for point in coords], (longs[1], lats[1]), latlong_crs, custom_crs)
+    
+    # convert meters to lat/long
+    x=10000
+    turbineList = [Point(-x,x), Point(0,x), Point(x,x), Point(-x,0), Point(0,0), Point(x,0), Point(-x,-x), Point(0,-x), Point(x,-x)]
+    longs, lats = convertMeters2LatLong([point.x for point in turbineList], [point.y for point in turbineList], (0,0), latlong_crs, custom_crs)
+    ####################
+    '''
+    
     # convert the lease boundary to meters
-    lease_xs, lease_ys, centroid_utm = convertLatLong2Meters(lease_longs, lease_lats, centroid, latlong_crs, target_crs, return_centroid=True)
+    lease_xs, lease_ys, centroid_utm = convertLatLong2Meters(lease_longs, lease_lats, centroid, latlong_crs, custom_crs, return_centroid=True)
 
     # get bathymetry information from a GEBCO file (or other)
-    bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry('bathymetry/gebco_2023_n48.6255_s32.6733_w-138.1201_e-122.6074.asc')
+    bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry('bathymetry/gebco_2023_n41.3196_s40.3857_w-125.2881_e-123.9642.asc')
     # convert bathymetry to meters
     ncols = 500
     nrows = 500
-    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, target_crs, ncols, nrows)
+    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, custom_crs, ncols, nrows)
     # export to MoorPy-readable file
     bathymetryfile = 'bathymetry_large_gebco.txt'
     writeBathymetryFile(bathymetryfile, bath_xs, bath_ys, bath_depths)
 
     # plot everything
-    plot3d(lease_xs, lease_ys, bathymetryfile, area_on_bath=True, args_bath={'zlim':[-6000, 500]})
+    plot3d(lease_xs, lease_ys, bathymetryfile, area_on_bath=True, args_bath={'zlim':[-6000, 500], 'cmap': 'gist_earth'})
 
 
 

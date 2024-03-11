@@ -39,7 +39,7 @@ def readBathymetryFile(filename):
 
 
 
-
+""" OUTDATED BC THERE'S A NEW ONE IN GEOGRAPHY.PY
 def convertLatLong2Meters(zerozero, lats, longs):
     '''Convert a list of latitude and longitude coordinates into
     x-y positions relative to a project reference point.
@@ -80,7 +80,7 @@ def convertLatLong2Meters(zerozero, lats, longs):
         Ys[i] = geopy.distance.distance(zerozero, (lats[i], zerozero[1])).km*1000*sign
 
     return Xs, Ys
-
+"""
 
 
 
@@ -208,28 +208,31 @@ def processGeotiff(filename, lat, lon, outfilename="", **kwargs):
     cols, rows = np.meshgrid(np.arange(width), np.arange(height))
     longs_mesh, lats_mesh = rasterio.transform.xy(tiff.transform, rows, cols)
     longs = np.array(longs_mesh)[0,:]
-    lats = np.flip(np.array(lats_mesh)[:,0])    # data given from "top" of the matrix, need to flip to start from bottom left corner
+    lats = np.flip(np.array(lats_mesh)[:,0])
+    # lats data provided from top left corner, i.e., latitudes are descending. It seems that the following interpolation functions (getDepthFromBathymetry)
+    # can only work if latitudes start small and increase, meaning that the first latitude entry has to be the bottom left corner
     
     # Depth values in numpy array form
     depths = -tiff.read(1)
-    depths = np.flipud(depths)  # need to flip on y-axis for similar reason as lats (i.e. bottom left corner vs. top left corner of grid/matrix) <<<<<< reevaluate this !!!
+    depths = np.flipud(depths)
+    # because the interpolation functions require the latitude array to go from small to big (i.e., the bottom left corner), we need to flip the depth matrix to align
+    # it will all get sorted out later to what it should be geographically when plotting in MoorPy
     
     
     # Use Stein's methods
-    from famodel.geography import getLatLongCRS, getTargetCRS, convertBathymetry2Meters, writeBathymetryFile, convertLatLong2Meters     # <<<<< same function name in sbt and geo
+    from famodel.geography import getLatLongCRS, getTargetCRS, getCustomCRS, convertBathymetry2Meters, writeBathymetryFile, convertLatLong2Meters
     
     # extract the coordinate reference systems needed (pyproj CRS objects)
     latlong_crs = tiff.crs
-    target_crs = getTargetCRS(lon, lat)     # should be UTM 10N for Humboldt/California coast
+    #target_crs = getTargetCRS(lon, lat)     # should be UTM 10N for Humboldt/California coast
+    target_crs = getCustomCRS(lon, lat)     # get custom CRS centered around the lat/long point you want
     
     # get the centroid/reference location in lat/long coordinates
     centroid = (lon, lat)
 
-    # get the centroid/reference location in target_crs coordinates <<<<<<<<< can probably make a new function to do just this at some point
+    # get the centroid/reference location in target_crs coordinates
     #centroid_utm = (lon, lat)
-    dummy_longs = np.hstack([longs, np.ones(len(lats))*longs[-1], np.flip(longs), np.ones(len(lats))*longs[0]])
-    dummy_lats = np.hstack([np.ones(len(longs))*lats[0], lats, np.ones(len(longs))*lats[-1], np.flip(lats)])
-    _, _, centroid_utm = convertLatLong2Meters(dummy_longs, dummy_lats, centroid, latlong_crs, target_crs, return_centroid=True)
+    _, _, centroid_utm = convertLatLong2Meters([centroid[0]], [centroid[1]], centroid, latlong_crs, target_crs, return_centroid=True)
     
     # set the number of rows and columns to use in the MoorPy bathymetry file
     ncols = 100
