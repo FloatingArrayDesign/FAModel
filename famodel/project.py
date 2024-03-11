@@ -1105,8 +1105,6 @@ class Project():
             '''
             Creates the moorpy array
 
-<<<<<<< HEAD
-=======
             Returns
             -------
             None.
@@ -1238,12 +1236,10 @@ class Project():
               createArray()
         
         # Plot array if requested
->>>>>>> 81b0bc7 (Update ReadMes and improve ontology flexibility)
         if plt:
             settings = {}
             settings["linelabels"] = True
             settings["pointlabels"] = True
-<<<<<<< HEAD
             ms.plot( **settings)
 
         #store moorpy system
