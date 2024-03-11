@@ -1468,8 +1468,8 @@ class Project():
         aeps = np.matmul(wr[:,2], powers) * 365 * 24
         return(aeps)
 
-=======
-            self.ms.plot( **settings)
+
+        self.ms.plot( **settings)
             
         # return the mooring system   
         return(self.ms) 
@@ -1714,7 +1714,7 @@ class Project():
         
         return(ptCheck,ssCheck,dCheck)
             
->>>>>>> 81b0bc7 (Update ReadMes and improve ontology flexibility)
+
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''
