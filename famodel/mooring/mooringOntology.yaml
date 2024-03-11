@@ -94,7 +94,6 @@ array_mooring:
           [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
         - [ semitaut-poly_1      ,  Anch 1,  FOWT 1,  NA, 60, 0]
-        # - [ semitaut-poly_1      ,  Anch 2,  FOWT 1, NA, 180,  0]
         # - [ semitaut-poly_1      ,  Anch 3,  FOWT 1, NA, 300,  0]
         # - [ semitaut-poly_1      ,  Anch 4,  FOWT 4, NA, 60,  0]
         # - [ semitaut-poly_1      ,  Anch 5,  FOWT 4, NA, 180,  0]
