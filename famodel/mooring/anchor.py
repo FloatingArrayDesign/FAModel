@@ -60,7 +60,6 @@ class Anchor():
         
         # Dictionaries for additional information
         self.loads = {}
-        self.soilProps = {}
         '''
         {
            ff: # horizontal maximum anchor loads [N]
@@ -68,6 +67,7 @@ class Anchor():
            method: # dynamic or static
             }
         '''
+        self.soilProps = {}
         # self.cost = {}
         
     def makeMoorPyAnchor(self, ms):
@@ -151,20 +151,20 @@ class Anchor():
         '''
         if uhc_mode: # if looking for UHC given mass
             if self.dd['design']['m']: # check anchor mass is given
-                self.dd['design']['UHC'], self.dd['design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=1, mass_int=self.dd['anch_design']['m'], anchor=self.dd['type'], soil_type=self.anchorProps['soil_type'])
+                self.dd['design']['UHC'], self.dd['design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=1, mass_int=self.dd['design']['m'], anchor=self.dd['type'], soil_type=self.anchorProps['soil_type'])
             else:
                 raise Exception("Need anchor mass to calculate UHC when uhc_mode = 1")
         else: # if looking for mass and UHC given loads
             if self.loads: # check the loads section exists
-                self.dd['anch_design']['UHC'], self.dd['anch_design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
+                self.dd['design']['UHC'], self.dd['design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
             elif self.mpAnchor:
                 print("Need anchor loads to obtain mass, using getMPForces to determine loads in MoorPy")
                 self.getMPForces()
-                self.dd['anch_design']['UHC'], self.dd['anch_design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
+                self.dd['design']['UHC'], self.dd['design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
             elif self.ms:
                 print('Need anchor loads to obtain mass, creating a MoorPy anchor object and using getMPForces to determine loads in MoorPy')
                 self.makeMoorPyAnchor(self.ms)
                 self.getMPForces()
-                self.dd['anch_design']['UHC'], self.dd['anch_design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
+                self.dd['design']['UHC'], self.dd['design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
             else:
                 raise Exception("Need anchor loads to obtain mass")

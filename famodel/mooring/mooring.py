@@ -70,6 +70,7 @@ class Mooring():
         
         self.adjuster = None  # custom function that can adjust the mooring
         
+        self.shared = False # boolean for if the mooring line is a shared line
         self.symmetric = False # boolean for if the mooring line is a symmetric shared line
         
         # Dictionaries for addition information

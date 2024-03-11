@@ -7,7 +7,9 @@ import matplotlib.pyplot as plt
 
 import moorpy as mp
 from moorpy.helpers import set_axes_equal
+from moorpy import helpers
 import yaml
+from copy import deepcopy
 
 #from shapely.geometry import Point, Polygon, LineString
 
@@ -92,7 +94,8 @@ class Project():
         self.soil_x     = None
         self.soil_y     = None
         
-        
+        # MoorPy system associated with the project
+        self.ms  = None
         
         
         # ----- if an input file has been passed, load it -----
@@ -307,9 +310,8 @@ class Project():
 
             # check if line is a shared symmetrical configuration
             if 'symmetric' in lineConfigs[lineconfig] and lineConfigs[lineconfig]['symmetric']:
-                # if lineConfigs[lineconfig]['symmetric']: # if symmetrical
                 if not lineLast: # check if last item in line config list was a connector
-                    for ii in range(0,ct):#len(lineConfigs[lineconfig]['sections'])):
+                    for ii in range(0,ct):
                         # set mooring configuration 
                         m_config['sections'].append(m_config['sections'][-1-2*ii])
                         # set connector (since it's mirrored, connector B becomes connector A)
@@ -318,9 +320,8 @@ class Project():
                     m_config['sections'][-1]['length'] = m_config['sections'][-1]['length']*2
                     # set connector B for line same as previous listed connector
                     c_config.append(c_config[-1])
-                    for ii in range(0,ct-1):#len(lineConfigs[lineconfig]['sections'])-1): # go through every line config except the last (since it was doubled already)
+                    for ii in range(0,ct-1): # go through every line config except the last (since it was doubled already)
                         # set mooring configuration
-                        print(ii,'= ii, ',m_config['sections'][-2])
                         m_config['sections'].append(m_config['sections'][-2-2*ii])
                         # set connector
                         c_config.append(c_config[-3-2*ii])
@@ -387,7 +388,7 @@ class Project():
                     ad['soil_type'] = self.getSoilAtLocation(mc.rA[0], mc.rA[1])
                 else:
                     ad['soil_type'] = self.getSoilAtLocation(arrayAnchor[aNum-1]['x'],arrayAnchor[aNum-1]['y'])
-            ad['type'] = lineAnch[0:-2]
+            ad['type'] = lineAnch[0:-1]
             ad['name'] = lineAnch
             
             return(ad)
@@ -405,8 +406,8 @@ class Project():
                 self.platformList.append(Platform(r=[d['array']['data'][i][3],d['array']['data'][i][4]],heading=d['array']['data'][i][5]))
                 # remove pre-set headings (need to append to this list so list should start off empty)
                 self.platformList[-1].mooring_headings = []
-                if d['array']['data'][i][2] > 0: #if no shared mooring on this platform
-                    m_s = 'ms'+str(d['array']['data'][i][2]) # get mooring system number
+                if not d['array']['data'][i][2] == 0: #if no shared mooring on this platform
+                    m_s = d['array']['data'][i][2] # get mooring system number
                     
                     # get mooring headings (need this for platform class)
                     headings = []
@@ -470,8 +471,11 @@ class Project():
                 
                 PFNum = [] # platform ID(s) connected to the mooring line
                 
+                # Error check for putting an anchor (or something else) at end B
+                if not arrayMooring[j]['end B'][0:4].upper() == 'FOWT':
+                    raise Exception(f"input for end B of line_data table row '{j}' in array_mooring must be 'FOWT #'. Any anchors should be listed as end A.")
                 # determine if end A is an anchor or a platform
-                if arrayMooring[j]['end A'][0:4] == 'FOWT': # shared mooring line (no anchor)
+                if arrayMooring[j]['end A'][0:4].upper() == 'FOWT': # shared mooring line (no anchor)
                     # get ID of platforms connected to line
                     PFNum.append(int(arrayMooring[j]['end B'][-1])-1)
                     PFNum.append(int(arrayMooring[j]['end A'][-1])-1)
@@ -483,8 +487,11 @@ class Project():
                     Bloc = [rowB[3]+np.cos(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], rowB[4]+np.sin(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], m_config['zFair']]
                     # create mooring class instance
                     mc = (Mooring(dd=m_config, rA=Aloc, rB=Bloc, rad_fair=m_config['rFair'], z_fair=m_config['zFair'], rad_anch=m_config['rAnchor'], z_anch=m_config['zAnchor']))
-                    # mc.sPF = PFNum
-                else: # end A is an anchor
+                    mc.shared = 1
+                elif arrayMooring[j]['end A'][0:4].upper() == 'ANCH': # end A is an anchor
+                    # check if anchor number exists in anchor_data table
+                    if int(arrayMooring[j]['end A'][-1]) > len(arrayAnchor):
+                        raise Exception(f"anchor number {arrayMooring[j]['end A'][-1]} listed in array_mooring line_data table row {j} does not exist in anchor_data table")
                     # get ID of platform connected to line
                     PFNum.append(int(arrayMooring[j]['end B'][-1])-1)
                     # create mooring class instance
@@ -496,13 +503,11 @@ class Project():
                     if any(tt == int(arrayMooring[j]['end A'][-1]) for tt in aNum): # anchor exists
                         # find anchor class instance
                         for k in range(0,len(self.anchorList)):
-                            if self.anchorList[k].aNum:
-                                if self.anchorList[k].aNum == int(arrayMooring[j]['end A'][-1]):
-                                    sharedAnch = k
-                        # add mooring object to list in anchor class
-                        self.anchorList[sharedAnch].mooringList.append(mc)
-                        # add anchor object to list in platform class
-                        self.platformList[PFNum[0]].anchorList.append(self.anchorList[sharedAnch])
+                            if self.anchorList[k].aNum and self.anchorList[k].aNum == int(arrayMooring[j]['end A'][-1]):
+                                # add mooring object to list in anchor class
+                                self.anchorList[k].mooringList.append(mc)
+                                # add anchor object to list in platform class
+                                self.platformList[PFNum[0]].anchorList.append(self.anchorList[k])
                     else:
                         # set line anchor type and get dictionary of anchor information
                         lineAnch = arrayAnchor[j]['type']
@@ -521,6 +526,8 @@ class Project():
                         self.anchorList[-1].mooringList.append(mc)
                         # add anchor object to platform anchor list
                         self.platformList[PFNum[0]].anchorList.append(self.anchorList[-1])
+                else: # error in input
+                    raise Exception(f"end A input in array_mooring line_data table line '{j}' must be either 'Anch #' or 'FOWT #', where  # refers to the row number in the anchor_data or array data table respectively.")
 
                 # add mooring object to project mooring list
                 self.mooringList.append(mc)
@@ -1077,7 +1084,7 @@ class Project():
         else:
             fig = ax.get_figure()
        
-    def getMoorPyArray(self,plt=0):
+    def getMoorPyArray(self,plt=0, mgDict=None):
         '''Creates an array in moorpy from the mooring, anchor, connector, and platform objects in the array.
 
         Parameters
@@ -1085,108 +1092,158 @@ class Project():
         plt : boolean, optional
             Controls whether to create a plot of the MoorPy array. 1=create plot, 0=no plot The default is 0.
 
+        mgDict : dictionary, optional
+            Dictionary of marine growth information for the location
+        
         Returns
         -------
         ms : class instance
             MoorPy system for the whole array based on the subsystems in the mooringList
 
         '''
-        # create MoorPy system
-        ms = mp.System(depth=self.depth)       
-        
-        for i in range(0,len(self.platformList)): # make all the bodies up front
-            PF = self.platformList[i]
-            # add a moorpy body at the correct location
-            r6 = [PF.r[0],PF.r[1],0,0,0,0]
-            ms.addBody(0,r6,m=1.784e7,v=20206,rM=100,AWP=1011)
-        
-        # create anchor points and all mooring lines connected to the anchors (since all connected to anchors, can't be a shared mooring)
-        for i in range(0,len(self.anchorList)):
-            ssloc = []
-            for j in range(0,len(self.anchorList[i].mooringList)):
-                # create subsystem
-                self.anchorList[i].mooringList[j].createSubsystem()
-                # set location of subsystem for simpler coding
-                ssloc.append(self.anchorList[i].mooringList[j].subsystem)
-                ms.lineList.append(ssloc[j])
-                ssloc[j].number = len(ms.lineList)
-                # add fairlead point
-                ms.addPoint(1,ssloc[j].rB)
-                # add connector info for fairlead point
-                ms.pointList[-1].m = ms.lineList[-1].pointList[-1].m 
-                ms.pointList[-1].v = ms.lineList[-1].pointList[-1].v
-                ms.pointList[-1].CdA = ms.lineList[-1].pointList[-1].CdA
-                # attach the line to point
-                ms.pointList[-1].attachLine(ssloc[j].number,1)
-                # find associated platform and attach body to point (since not a shared line, should only be one platform with this mooring object)
-                for k in range(0,len(self.platformList)):
-                    if self.anchorList[i].mooringList[j] in self.platformList[k].mooringList:
-                        PF = self.platformList[k]
-                        PFNum = k
-                # attach rB point to platform
-                ms.bodyList[PFNum].attachPoint(len(ms.pointList),[ssloc[j].rB[0]-PF.r[0],ssloc[j].rB[1]-PF.r[1],ssloc[j].rB[2]])#attach to fairlead
-            # create anchor point
-            self.anchorList[i].makeMoorPyAnchor(ms)
-            # attach line(s) to anchor point
-            for j in range(0,len(ssloc)):
-                ms.pointList[-1].attachLine(ssloc[j].number,0)
-                
-        # now create and attach any shared lines
-        for i in range(0,len(self.mooringList)): # loop through all lines
-            if self.mooringList[i].subsystem in ms.lineList: # check if line has already been put in ms
-                pass
-            else: # new shared line
-                # create subsystem for shared line
-                self.mooringList[i].createSubsystem(case=1) # we doubled all symmetric lines so any shared lines should be case 1
-                # set location of subsystem for simpler coding
-                ssloc = self.mooringList[i].subsystem
-                # add subsystem as a line in moorpy system
-                ms.lineList.append(ssloc)
-                ssloc.number = len(ms.lineList)               
-                
-                # find associated platforms
-                PF = []
-                PFNum = []
-                idx = []
-                for k in range(0,len(self.platformList)):
-                    if self.mooringList[i] in self.platformList[k].mooringList:
-                        PF.append(self.platformList[k])
-                        PFNum.append(k)
-                        # find index of mooring object in platform mooring list
-                        idx.append(PF[-1].mooringList.index(self.mooringList[i]))
-                        
-                # add fairlead point A and attach the line to it
-                ms.addPoint(1,ssloc.rA)
-                ms.pointList[-1].attachLine(ssloc.number,0)
-                if PF[0].endA[idx[0]] == 1: # end A connected to PF[0], end B connected to PF[1]
-                    # connect line end A to the body
-                    ms.bodyList[PFNum[0]].attachPoint(len(ms.pointList),[ssloc.rA[0]-PF[0].r[0],ssloc.rA[1]-PF[0].r[1],ssloc.rA[2]])
-                    # add fairlead point 2
-                    ms.addPoint(1,ssloc.rB)
-                    # add connector info for fairlead point
-                    ms.pointList[-1].m = ms.lineList[-1].pointList[-1].m 
-                    ms.pointList[-1].v = ms.lineList[-1].pointList[-1].v
-                    ms.pointList[-1].CdA = ms.lineList[-1].pointList[-1].CdA
-                    # attach the line to point
-                    ms.pointList[-1].attachLine(ssloc.number,1)
-                    # connect line end B to the body
-                    ms.bodyList[PFNum[1]].attachPoint(len(ms.pointList),[ssloc.rB[0]-PF[1].r[0],ssloc.rB[1]-PF[1].r[1],ssloc.rB[2]])
-                else: # end A connected to PF[1], end B connected to PF[0]
-                    # connect line end A to the body
-                    ms.bodyList[PFNum[1]].attachPoint(len(ms.pointList),[ssloc.rA[0]-PF[1].r[0],ssloc.rA[1]-PF[1].r[1],ssloc.rA[2]])
-                    # add fairlead point 2 and attach the line to it
-                    ms.addPoint(1,ssloc.rB)
-                    ms.pointList[-1].attachLine(ssloc.number,1)
-                    # connect line end B to the body
-                    ms.bodyList[PFNum[0]].attachPoint(len(ms.pointList),[ssloc.rB[0]-PF[0].r[0],ssloc.rB[1]-PF[0].r[1],ssloc.rB[2]])
+        def createArray():
+            '''
+            Creates the moorpy array
 
-        # initialize, solve equilibrium, and plot the system   
-        ms.initialize()
-        ms.solveEquilibrium()
+<<<<<<< HEAD
+=======
+            Returns
+            -------
+            None.
+
+            '''
+            # create MoorPy system
+            self.ms = mp.System(depth=self.depth)       
+            
+            for i in range(0,len(self.platformList)): # make all the bodies up front
+                PF = self.platformList[i]
+                # add a moorpy body at the correct location
+                r6 = [PF.r[0],PF.r[1],0,0,0,0]
+                self.ms.addBody(-1,r6,m=1.784e7,v=20206,rM=100,AWP=1011)
+            
+            # create anchor points and all mooring lines connected to the anchors (since all connected to anchors, can't be a shared mooring)
+            for i in range(0,len(self.anchorList)):
+                ssloc = []
+                for j in range(0,len(self.anchorList[i].mooringList)):
+                    # create subsystem
+                    self.anchorList[i].mooringList[j].createSubsystem()
+                    # set location of subsystem for simpler coding
+                    ssloc.append(self.anchorList[i].mooringList[j].subsystem)
+                    self.ms.lineList.append(ssloc[j])
+                    ssloc[j].number = len(self.ms.lineList)
+                    # add fairlead point
+                    self.ms.addPoint(1,ssloc[j].rB)
+                    # add connector info for fairlead point
+                    self.ms.pointList[-1].m = self.ms.lineList[-1].pointList[-1].m 
+                    self.ms.pointList[-1].v = self.ms.lineList[-1].pointList[-1].v
+                    self.ms.pointList[-1].CdA = self.ms.lineList[-1].pointList[-1].CdA
+                    # attach the line to point
+                    self.ms.pointList[-1].attachLine(ssloc[j].number,1)
+                    # find associated platform and attach body to point (since not a shared line, should only be one platform with this mooring object)
+                    for k in range(0,len(self.platformList)):
+                        if self.anchorList[i].mooringList[j] in self.platformList[k].mooringList:
+                            PF = self.platformList[k]
+                            PFNum = k
+                    # attach rB point to platform
+                    self.ms.bodyList[PFNum].attachPoint(len(self.ms.pointList),[ssloc[j].rB[0]-PF.r[0],ssloc[j].rB[1]-PF.r[1],ssloc[j].rB[2]])#attach to fairlead
+                # create anchor point
+                self.anchorList[i].makeMoorPyAnchor(self.ms)
+                # attach line(s) to anchor point
+                for j in range(0,len(ssloc)):
+                    self.ms.pointList[-1].attachLine(ssloc[j].number,0)
+                    
+            # now create and attach any shared lines
+            for i in range(0,len(self.mooringList)): # loop through all lines
+                if self.mooringList[i].subsystem in self.ms.lineList: # check if line has already been put in ms
+                    pass
+                else: # new shared line
+                    # create subsystem for shared line
+                    self.mooringList[i].createSubsystem(case=1) # we doubled all symmetric lines so any shared lines should be case 1
+                    # set location of subsystem for simpler coding
+                    ssloc = self.mooringList[i].subsystem
+                    # add subsystem as a line in moorpy system
+                    self.ms.lineList.append(ssloc)
+                    ssloc.number = len(self.ms.lineList)               
+                    
+                    # find associated platforms
+                    PF = []
+                    PFNum = []
+                    idx = []
+                    for k in range(0,len(self.platformList)):
+                        if self.mooringList[i] in self.platformList[k].mooringList:
+                            PF.append(self.platformList[k])
+                            PFNum.append(k)
+                            # find index of mooring object in platform mooring list
+                            idx.append(PF[-1].mooringList.index(self.mooringList[i]))
+                            
+                    # add fairlead point A and attach the line to it
+                    self.ms.addPoint(1,ssloc.rA)
+                    self.ms.pointList[-1].attachLine(ssloc.number,0)
+                    if PF[0].endA[idx[0]] == 1: # end A connected to PF[0], end B connected to PF[1]
+                        # connect line end A to the body
+                        self.ms.bodyList[PFNum[0]].attachPoint(len(self.ms.pointList),[ssloc.rA[0]-PF[0].r[0],ssloc.rA[1]-PF[0].r[1],ssloc.rA[2]])
+                        # add fairlead point 2
+                        self.ms.addPoint(1,ssloc.rB)
+                        # add connector info for fairlead point
+                        self.ms.pointList[-1].m = self.ms.lineList[-1].pointList[-1].m 
+                        self.ms.pointList[-1].v = self.ms.lineList[-1].pointList[-1].v
+                        self.ms.pointList[-1].CdA = self.ms.lineList[-1].pointList[-1].CdA
+                        # attach the line to point
+                        self.ms.pointList[-1].attachLine(ssloc.number,1)
+                        # connect line end B to the body
+                        self.ms.bodyList[PFNum[1]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[1].r[0],ssloc.rB[1]-PF[1].r[1],ssloc.rB[2]])
+                    else: # end A connected to PF[1], end B connected to PF[0]
+                        # connect line end A to the body
+                        self.ms.bodyList[PFNum[1]].attachPoint(len(self.ms.pointList),[ssloc.rA[0]-PF[1].r[0],ssloc.rA[1]-PF[1].r[1],ssloc.rA[2]])
+                        # add fairlead point 2 and attach the line to it
+                        self.ms.addPoint(1,ssloc.rB)
+                        self.ms.pointList[-1].attachLine(ssloc.number,1)
+                        # connect line end B to the body
+                        self.ms.bodyList[PFNum[0]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[0].r[0],ssloc.rB[1]-PF[0].r[1],ssloc.rB[2]])
+
+            # initialize, solve equilibrium, and plot the system       
+            self.ms.initialize()
+            self.ms.solveEquilibrium(DOFtype='coupled')
+        
+        #######MARINE GROWTH DOES NOT CURRENTLY WORK########################
+        if mgDict: # if you want to add marine growth to the lines
+            if not self.ms:
+                # create moorpy array ms first
+                createArray()    
+            # update existing ms with marine growth
+            count = 0 # counter variable
+            EqChange = np.ones((len(mgDict['changeDepths']['depth']),1))*10 # difference between expected and actual depth of change (start with values above tolerance to enter while loop)            
+            changeDepth = deepcopy(mgDict['changeDepths']) # changeDepth may be updated when running through the while loop, so need to make a new variable to preserve the original target changeDepths (changeDepthSt)
+            if 'depthTol' in mgDict:
+                depthTol = mgDict['depthTol'] # set tolerance for difference between expected and actual depth of mg thickness change
+            else:
+                depthTol = 2 # set to default of 2 m tolerance
+            
+            while (any(np.absolute(EC)>depthTol for EC in EqChange) and count<10): # loop while the difference in changeDepth after equilibrium and the desired changeDepth is > 2 m for depth and # of run throughs is < 10
+                ptCheck, ssCheck, dCheck = self.getMarineGrowth(mgDict['changeDepths']) # call marine growth function to update design dictionaries in each mooring object, and return lists to help with determining difference between actual and expected changeDepths
+                createArray() # create a moorpy array with new mooring object design dictionaries
+                # update changeDepth after first run through of while loop 
+                if count>0:
+                    for i in range(0,len(changeDepth['depth'])):
+                        changeDepth['depth'][i]=changeDepth['depth'][i]-np.mean(EqChange)
+                # find difference between changeDepth after solveEquilibrium and attempted original changeDepth
+                EqChangeS = np.zeros((len(ssCheck),len(changeDepth['depth'])))
+                for i in range(0,len(ssCheck)):
+                    EqChangeS[i,dCheck[i]] = self.ms.lineList[ssCheck[i]].pointList[ptCheck[i]].r[2] - mgDict['changeDepths']['depth'][dCheck[i]]
+                for j in range(0,len(changeDepth['depth'])):
+                    EqChange[j] = np.mean(EqChangeS[:,j])
+                print(count,'times through MG function!!')
+                count = count + 10
+        else: # no marine growth - just create array with given information
+              createArray()
+        
+        # Plot array if requested
+>>>>>>> 81b0bc7 (Update ReadMes and improve ontology flexibility)
         if plt:
             settings = {}
             settings["linelabels"] = True
             settings["pointlabels"] = True
+<<<<<<< HEAD
             ms.plot( **settings)
 
         #store moorpy system
@@ -1415,6 +1472,253 @@ class Project():
         aeps = np.matmul(wr[:,2], powers) * 365 * 24
         return(aeps)
 
+=======
+            self.ms.plot( **settings)
+            
+        # return the mooring system   
+        return(self.ms) 
+
+    def getMarineGrowth(self,changeDepth,rho_mg=1325):
+        ################DOES NOT CURRENTLY WORK!!!!#################################
+        '''
+
+        Parameters
+        ----------
+        changeDepthSt : list
+            [m] z elevation(s) to change from one thickness to the next (from sea floor to surface, negative below MWL)
+        th : list
+            [m] Marine growth thicknesses (from sea floor to surface)
+        (optional) rho_mg : float
+            [kg/m^3] density of marine growth (default 1325 in accordance with DNV standards)
+
+        Returns
+        -------
+        ptCheck : list
+            point numbers of split points in a subsystem
+        ssCheck : list
+            subsystem numbers associated with split points in ptCheck
+        dCheck : list
+            change depth values associated with the split point numbers in ptCheck
+        '''
+        ssCheck = []
+        ptCheck = []
+        dCheck = []
+                
+        for i in range(0,len(self.mooringList)): # go through each line/subsystem 
+            
+            # Set up list variables for new lines
+            LineLengths = [] # lengths of new lines
+            LineMats = [] # line material list for new lines
+            LType = [] # line type for new lines
+            
+            LThick = [] # thickness for each line segment
+            bb = 0 # counter
+            ch = [] # stores counter to see if line does not cross any cutoff depths
+            splitNum = [] # number of the split line segment
+            nodeD = [] # node closest to the split depth
+            ln_raw = [] # length from point A to nodeD
+            connList = [] # list of connectors (need to add empty connectors for between split segments)
+            xChange = np.zeros((len(changeDepth['depth'])-1,1)) # difference between actual x-location of split and the closest node
+            yChange = np.zeros((len(changeDepth['depth'])-1,1)) # difference between actual y-location of split and the closest node
+            
+            ch.append(bb)
+            # set first connector
+            connList.append(self.mooringList[i].connectorList[0])
+            for j in range(0,len(self.mooringList[i].dd['sections'])): # go through each line type in the subsystem
+                # add line material, type to list
+                LineMats.append(self.mooringList[i].dd['sections'][j]['type']['material'])
+                LType.append(self.mooringList[i].dd['sections'][j]['type']['name'])
+                # set location for ease of coding
+                ss = self.mooringList[i].subsystem.lineList[j]
+                
+                lenseg = ss.L/ss.nNodes # length of line between nodes
+                # get thicknesses and depths (may need to reverse order if end A is above end B)
+                th = deepcopy(changeDepth['th'])
+                dpt = deepcopy(changeDepth['depth'])
+                if ss.rA[2]>ss.rB[2]: # case where rA is above rB (some shared lines could be)
+                    low = ss.rB[2]
+                    high = ss.rA[2]
+                    th.reverse() # need to reverse order of changedepth
+                    dpt.reverse()
+                    flip = 1 # denotes rA is above rB
+                else: # regular case
+                    low = ss.rA[2]
+                    high = ss.rB[2]
+                    flip = 0
+                
+                # look up what thickness this line section starts at
+                rAth = 0 # exit while loop when we found thickness at rA
+                count1 = 0 # counter
+                while rAth==0 and count1 <= len(dpt):
+                   if flip:
+                       if high > dpt[count1]:
+                           LThick.append(th[count1-1])
+                           rAth = 1 
+                           rangeStart = 1
+                           rangeEnd = len(changeDepth['depth'])
+                   else:
+                       if low < dpt[count1]:
+                           LThick.append(th[count1])
+                           rAth = 1 
+                           rangeStart = 0
+                           rangeEnd = len(changeDepth['depth']) - 1
+                   count1 = count1 + 1
+
+                
+                # determine if this line section will be split
+                for k in range(rangeStart,rangeEnd):
+
+                    if low < dpt[k] and high >= dpt[k]: # line is split by this depth
+                        bb = bb + 1
+                        ssCheck.append(j)
+                        if flip:
+                            LThick.append(th[k])
+                        else:
+                            LThick.append(th[k+1])
+
+                        LType.append(ss.type['name'])
+                        print('LType: ',LType[-1])
+                        LineMats.append(ss.type['material'])
+                        splitNum.append(j) # record the line number
+                        # add an empty connector object to list for split location
+                        connList.append(Connector())
+                        # add point number to the list to check for correct depth
+                        ptCheck.append(len(connList))
+                        print('dCheck number:',k)
+                        if flip:
+                            print('dCheck number: ',len(dpt)-k)
+                            dCheck.append(len(dpt)-k)
+                        else:
+                            dCheck.append(k)
+                            print('dCheck number: ',k)
+                        
+                        old_line = ss.getLineCoords(Time=0) # get the coordinates of the line
+                        #find length of each new section by finding node at changeDepth
+                        for ii in range(0, ss.nNodes-1): # go through each node in the line
+                            if flip:
+                                if old_line[2][ii+1]<=dpt[k] and old_line[2][ii]>dpt[k]:
+                                    nodeD.append(ii) # find the node closest to the changeDepth (the node right below this depth)
+                                    # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
+                                    xChange[-1] = float(np.interp(dpt[k], old_line[2][:], old_line[0][:]))
+                                    yChange[-1] = float(np.interp(dpt[k], old_line[2][:], old_line[1][:]))
+                            else:
+                                if old_line[2][ii]<=dpt[k] and old_line[2][ii+1]>dpt[k]:
+                                    nodeD.append(ii) # find the node closest to the changeDepth (the node right below this depth)
+                                    # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
+                                    xChange[-1] = float(np.interp(dpt[k], old_line[2][:], old_line[0][:]))
+                                    yChange[-1] = float(np.interp(dpt[k], old_line[2][:], old_line[1][:]))
+                        print(len(nodeD),len(xChange),len(dpt))           
+                        ln_raw.append(lenseg*nodeD[k] + np.sqrt((xChange[k]-old_line[0][nodeD[k]])**2 + (yChange[k]-old_line[1][nodeD[k]])**2 + (dpt[k]-old_line[2][nodeD[k]])**2))
+                        
+                        if len(splitNum)>1 and splitNum[k]==splitNum[k-1]: # line has multiple cuts (upper cut sections have to count the length only from previous nodeD)
+                            LineLengths.append(float(ln_raw[-1]-ln_raw[-2]))
+                            #print('We got another one!')
+                        elif len(splitNum)>1 and splitNum[k]>splitNum[k-1]: # the last split was on a different line so you need to get the length of the remaining part on previous line plus new split line lower length
+                            #print('L of previous line: ',self.mooringList[i].subsystem.lineList[j-1].L,'LineLengths last entry: ',LineLengths[-1],' ln_raw of previous cut: ',ln_raw[-2])
+                            LineLengths.append(float(LineLengths[-1]-ln_raw[-2]))
+                            LineLengths.append(float(ln_raw[-1]))
+                            
+                        else: # first split
+                            LineLengths.append(float(ln_raw[-1]))
+                            #print('We got a first split!')
+                    
+                    #print('SplitNum: ',len(splitNum),' changeDepth-1: ',len(changeDepth['depth'])-1)                            
+                    
+                if splitNum and splitNum[-1]==j: # you're on the last split - need to get the top length and number of nodes
+                    LineLengths.append(float(ss.L-ln_raw[-1]))
+                    #print('We got the last split!')
+                
+                ch.append(bb)
+                if ch[-1]==ch[-2]: # not a split line (leave length and number of nodes alone)
+                    LineLengths.append(ss.L)
+           
+                # add connector at end of section to list
+                connList.append(self.mooringList[i].connectorList[j+1])
+            
+            
+            # Set up list variables for pristine line info
+            EA = []
+            m = []
+            d_ve_old = []
+            cd = []
+            cdAx = []
+                                                
+            # create arrays
+            d_nom_old = np.zeros((len(LType),1))        
+            ve_nom_adjust = np.zeros((len(LType),1))
+            mu_mg = np.zeros((len(LType),1))
+        
+            nd = [] # list of dictionaries for new design dictionary sections part
+            
+            print('LineLengths: ',len(LineLengths),' LType: ',len(LType))
+            
+            for j,ltyp in enumerate(LType):
+                # add in information for each line type without marine growth
+                st =  self.mooringList[i].subsystem.lineTypes
+                EA.append(st[ltyp]['EA'])
+                m.append(st[ltyp]['m'])
+                d_ve_old.append(st[ltyp]['d_vol'])
+                
+                
+                # get ratio between ve and nom diameter from MoorProps yaml
+                opt = helpers.loadLineProps(None)
+                ve_nom_adjust[j] = opt[LineMats[j]]['dvol_dnom']
+                # get cd and cdAx
+                if not 'Cd' in st[ltyp]:
+                    cd.append(opt[LineMats[j]]['Cd'])
+                else:
+                    cd.append(st[LType[j]]['Cd'])
+                if not 'CdAx' in st[ltyp]:
+                    cdAx.append(opt[LineMats[j]]['CdAx'])
+                else:
+                    cdAx.append(st[LType[j]]['CdAx'])
+                if LineMats[j] == 'chain' or LineMats[j] == 'chain_studlink':
+                    mu_mg[j] = 2
+                else:
+                    mu_mg[j] = 1
+                
+                # re-form dictionaries with marine growth values
+                nd.append({'type':{}, 'length':{}}) # new design dictionary
+                ndt = nd[j]['type']
+                
+                # calculate nominal diameter
+                d_nom_old[j] = d_ve_old[j]/ve_nom_adjust[j] # m
+                
+                # calculate new line diameter that includes marine growth
+                ndt['d_nom'] = float(d_nom_old[j]+2*LThick[j]) #m
+                
+                # calculate the new mass per meter including marine growth
+                growthMass = np.pi/4*(ndt['d_nom']**2-d_nom_old[j]**2)*rho_mg*mu_mg[j] # marine growth mass
+                ndt['m'] =  float(growthMass + m[j]) # kg/m (total mass)
+                
+                # calculate the submerged weight per meter including marine growth
+                ndt['w'] = float(growthMass*(1-1025/rho_mg)*9.81 + (m[j]-np.pi/4*d_ve_old[j]**2*1025)*9.81) # N/m
+                
+                # calculate new volume-equivalent diameter (cannot use regular chain/polyester conversion because of added marine growth)
+                ndt['d_vol'] = np.sqrt(4*((ndt['m']*9.81-ndt['w'])/1025/9.81)/np.pi)
+                
+                # calculate new increased drag coefficient from marine growth
+                # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
+                ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
+                ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
+                
+                ndt['material'] = LineMats[j]
+                ndt['name'] = str(j)
+                ndt['MBL'] = self.mooringList[i].subsystem.lineTypes[ltyp]['MBL']
+                ndt['cost'] = self.mooringList[i].subsystem.lineTypes[ltyp]['cost']
+                ndt['EA'] = EA[j]
+                if 'EAd' in self.mooringList[i].subsystem.lineTypes[ltyp]:
+                    ndt['EAd'] = self.mooringList[i].subsystem.lineTypes[ltyp]['EAd']
+                                  
+                nd[j]['length'] = LineLengths[j]
+        
+            print('EA: ',EA,' L: ',LineLengths)    
+            self.mooringList[i].dd['sections'] = nd
+            self.mooringList[i].connectorList = connList
+        
+        return(ptCheck,ssCheck,dCheck)
+            
+>>>>>>> 81b0bc7 (Update ReadMes and improve ontology flexibility)
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''

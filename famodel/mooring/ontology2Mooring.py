@@ -7,14 +7,20 @@
 from famodel.project import Project
 # create project class instance from yaml file
 Array = Project(file='mooringOntology.yaml')
-ms = Array.getMoorPyArray(plt = 1)
+
+mgDict = {'changeDepths':{'depth':[-90,-40,-20,0],'th':[.005,.1,.3,.5]},'depthTol':3}
+
+ms0 = Array.getMoorPyArray(plt = 1)
+ms = Array.getMoorPyArray(mgDict = mgDict, plt = 1)
 #Array.plot3d(draw_boundary=False,boundary_on_bath=False)
 
 # # create a shared anchor (for visualization purposes)
-# import moorpy as mp
-# import numpy as np
+import moorpy as mp
+import numpy as np
 
- 
+ms1 = mp.System(depth=200)
+mp.helpers.loadLineProps(None)
+mp.helpers.getLineProps(180,'polyester',source='C:/Users/LSIRKIS/Documents/MoorPy/moorpy/MoorProps_default.yaml')
 # # ms = mp.System(file="C:/Users/LSIRKIS/Downloads/SharedMooring4.dat", depth=600)
 # # for body in ms.bodyList:
 # #     body.m = 19911423.956678286
