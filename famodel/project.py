@@ -1131,7 +1131,6 @@ class Project():
                 ssloc = []
                 for j in range(0,len(self.anchorList[i].mooringList)):
                     # create subsystem
-                    print(i)
                     self.anchorList[i].mooringList[j].createSubsystem()
                     # set location of subsystem for simpler coding
                     ssloc.append(self.anchorList[i].mooringList[j].subsystem)
@@ -1166,10 +1165,8 @@ class Project():
                         check[i] = 0
                         
                 if check[i] == 1: # mooring object not in any anchor lists
-                    print('Shared line!')
                     # new shared line
                     # create subsystem for shared line
-                    print(i)
                     self.mooringList[i].createSubsystem(case=1) # we doubled all symmetric lines so any shared lines should be case 1
                     # set location of subsystem for simpler coding
                     ssloc = self.mooringList[i].subsystem
@@ -1248,20 +1245,14 @@ class Project():
                 # find difference between changeDepth after solveEquilibrium and attempted original changeDepth
                 EqChangeS = np.zeros((len(ssCheck),len(changeDepth['depth'])))
                 for i in range(0,len(ssCheck)):
-                    print(len(self.ms.lineList[ssCheck[i]].pointList))
                     EqChangeS[i,dCheck[i]] = self.ms.lineList[ssCheck[i]].pointList[ptCheck[i]].r[2] - mgDict['changeDepths']['depth'][dCheck[i]]
-                    print(mgDict['changeDepths']['depth'][dCheck[i]])
-                    print(self.ms.lineList[ssCheck[i]].pointList[ptCheck[i]].r[2])
                 EqChangeS[EqChangeS==0] = np.nan # remove zeros from mean
-                print(EqChangeS)
                 
                 for j in range(0,len(changeDepth['depth'])):
                     if all(np.isnan(vals) for vals in EqChangeS[:,j]):
                         EqChange[j] = 0
                     else:
                         EqChange[j] = np.nanmean(EqChangeS[:,j])
-                print(EqChange)
-                print(count,'times through MG function!!')
                 count = count + 1 
         else: # no marine growth - just create array with given information
               createArray()
@@ -1622,31 +1613,23 @@ class Project():
                                     # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
                                     xChange = float(np.interp(dpt[k], old_line[2][:], old_line[0][:]))
                                     yChange = float(np.interp(dpt[k], old_line[2][:], old_line[1][:]))
-                        print('node: ',old_line[2][nodeD[-1]],'depth: ',dpt[kk],' line: ',LType[-1])
+                        
                         ln_raw.append(lenseg*nodeD[-1] + np.sqrt((xChange-old_line[0][nodeD[-1]])**2 + (yChange-old_line[1][nodeD[-1]])**2 + (dpt[kk]-old_line[2][nodeD[-1]])**2))
-                        print(len(splitNum),k)
+                        
                         if len(splitNum)>1 and splitNum[-1]==splitNum[-2]: # line has multiple cuts (upper cut sections have to count the length only from previous nodeD)
                             LineLengths.append(float(ln_raw[-1]-ln_raw[-2]))
-                            print('We got another one!')
-                        # elif len(splitNum)>1 and splitNum[-1]>splitNum[-2]: # the last split was on a different line so you need to get the length of the remaining part on previous line plus new split line lower length
-                        #     print('L of previous line: ',self.mooringList[i].subsystem.lineList[j-1].L,'LineLengths last entry: ',LineLengths[-1],' ln_raw of previous cut: ',ln_raw[-2])
-                        #     LineLengths.append(float(LineLengths[-1]-ln_raw[-2]))
-                        #     LineLengths.append(float(ln_raw[-1]))
                             
                         else: # first split
                             LineLengths.append(float(ln_raw[-1]))
-                            print('We got a first split!')
                     
                     #print('SplitNum: ',len(splitNum),' changeDepth-1: ',len(changeDepth['depth'])-1)                            
                     
                 if splitNum and splitNum[-1]==j: # you're on the last split - need to get the top length and number of nodes
                     LineLengths.append(float(ss.L-ln_raw[-1]))
-                    print('Previous was the last split for this section')
                 
                 ch.append(bb)
                 if ch[-1]==ch[-2]: # not a split line (leave length and number of nodes alone)
                     LineLengths.append(ss.L)
-                    print('No splits in this line section')
                 # add connector at end of section to list
                 connList.append(self.mooringListPristine[i].connectorList[j+1])
             
@@ -1664,8 +1647,6 @@ class Project():
             mu_mg = np.zeros((len(LType),1))
         
             nd = [] # list of dictionaries for new design dictionary sections part
-            
-            print('LineLengths: ',len(LineLengths),' LType: ',len(LType))
             
             for j,ltyp in enumerate(LType):
                 # add in information for each line type without marine growth
@@ -1726,12 +1707,10 @@ class Project():
                     ndt['EAd'] = self.mooringListPristine[i].subsystem.lineTypes[ltyp]['EAd']
                                   
                 nd[j]['length'] = LineLengths[j]
-        
-            print('th: ',LThick,' L: ',LineLengths,' type: ',LType)    
+          
             self.mooringList[i].dd['sections'] = nd
             self.mooringList[i].connectorList = connList
         
-        print(len(ptCheck),len(ssCheck),len(dCheck))
         return(ptCheck,ssCheck,dCheck)
             
 
