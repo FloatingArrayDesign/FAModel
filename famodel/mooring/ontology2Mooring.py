@@ -8,7 +8,7 @@ from famodel.project import Project
 # create project class instance from yaml file
 Array = Project(file='mooringOntology.yaml')
 
-mgDict = {'changeDepths':{'depth':[-90,-40,-20,0],'th':[.005,.1,.3,.5]},'depthTol':3}
+mgDict = {'changeDepths':{'depth':[-90,-50,0],'th':[.005,.1,.3]},'depthTol':3}
 
 ms0 = Array.getMoorPyArray(plt = 1)
 ms = Array.getMoorPyArray(mgDict = mgDict, plt = 1)
