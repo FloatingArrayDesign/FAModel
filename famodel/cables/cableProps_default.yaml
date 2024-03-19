@@ -15,7 +15,7 @@ cable_types:          # standard size of conductors [mm^2]: [800, 630, 400, 300,
     
     dynamic_cable_66:
         kV          :  66                          # voltage rating [kV]    
-        mass_d2     :  [0.005418, -0.93, 51.586]   # linear mass density [kg/m] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)      
+        mass_d      :  [0.005418, -0.93, 51.586]   # linear mass density [kg/m] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)      
         EA_d        :  [0.0463,  -7.641, 475.32]   # stiffness [MN] = (1st)*D_2[m] + (2nd)*D[mm] + (3rd)   
         EI_d        :  [0.006302, -1.291, 68.11]   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
         MBL_D_coefs :  [0.0829, -21.178, 1707.7]   # MBL[N] = (1st)*D_2[mm + (2nd)*D[mm] + (3rd)
@@ -24,27 +24,27 @@ cable_types:          # standard size of conductors [mm^2]: [800, 630, 400, 300,
         P_A_coefs   :  [0.525, 2.12]               # P[MW] = A[mm^2]^(1st) + (2nd)
         cost_A      :  [0.7845, 257.32]            # cost[$/m] = (1st)*A[mm^2] + (2nd)
     
-    static_cable_33:                                   
-        kV          : 33                           # voltage rating [kV]    
-        mass_d      : []   # linear mass density [kg/m]  = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)       
-        EA_d        : []   # stiffness [MN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)  
-        EI_d        : []   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
-        MBL_D_coefs : []   # MBL[kN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
-        MBR_D_coefs : []   # MBR[m] = (1st)*D[mm] + (2nd)
-        D_A_coefs   : []   # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
-        P_A_coefs   : []   # P[MW] = A[mm^2]^(1st) + (2nd)
-        cost_A      : []   # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
-    
-    static_cable_66:
-        kV          :  66                          # voltage rating [kV]    
-        mass_d2     :  []   # linear mass density [kg/m] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)      
-        EA_d        :  []   # stiffness [MN] = (1st)*D_2[m] + (2nd)*D[mm] + (3rd)   
-        EI_d        :  []   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
-        MBL_D_coefs :  []   # MBL[N] = (1st)*D_2[mm + (2nd)*D[mm] + (3rd)
-        MBR_D_coefs :  []   # MBR[m] = (1st)*D[mm] + (2nd)
-        D_A_coefs   :  []   # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
-        P_A_coefs   :  []   # P[MW] = A[mm^2]^(1st) + (2nd)
-        cost_A      :  []   # cost[$/m] = (1st)*A[mm^2] + (2nd)
+#    static_cable_33:                                   
+#        kV          : 33                           # voltage rating [kV]    
+#        mass_d      : []   # linear mass density [kg/m]  = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)       
+#        EA_d        : []   # stiffness [MN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)  
+#        EI_d        : []   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+#        MBL_D_coefs : []   # MBL[kN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+#        MBR_D_coefs : []   # MBR[m] = (1st)*D[mm] + (2nd)
+#        D_A_coefs   : []   # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
+#        P_A_coefs   : []   # P[MW] = A[mm^2]^(1st) + (2nd)
+#        cost_A      : []   # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
+#    
+#    static_cable_66:
+#        kV          :  66                          # voltage rating [kV]    
+#        mass_d2     :  []   # linear mass density [kg/m] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)      
+#        EA_d        :  []   # stiffness [MN] = (1st)*D_2[m] + (2nd)*D[mm] + (3rd)   
+#        EI_d        :  []   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
+#        MBL_D_coefs :  []   # MBL[N] = (1st)*D_2[mm + (2nd)*D[mm] + (3rd)
+#        MBR_D_coefs :  []   # MBR[m] = (1st)*D[mm] + (2nd)
+#        D_A_coefs   :  []   # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
+#        P_A_coefs   :  []   # P[MW] = A[mm^2]^(1st) + (2nd)
+#        cost_A      :  []   # cost[$/m] = (1st)*A[mm^2] + (2nd)
     
     
 buoyancy_module_types:   

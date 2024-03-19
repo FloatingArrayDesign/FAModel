@@ -1,5 +1,10 @@
 # Functions for loading and using cable property scaling coefficients
 
+import numpy as np
+import matplotlib.pyplot as plt
+import yaml
+from moorpy.helpers import getFromDict  # should adjust to avoid MoorPy dependency
+
 def loadCableProps(source):
     '''Load a set of power cable property scaling coefficients from
     a specified YAML file or passed dictionary. Any coefficients not included
@@ -35,10 +40,10 @@ def loadCableProps(source):
     else:
         raise Exception("loadCableProps supplied with invalid source")
 
-    if 'cableProps' in source:
-        cableProps = source['cableProps']
+    if 'cable_types' in source:
+        cableProps = source['cable_types']
     else:
-        raise Exception("YAML file or dictionary must have a 'cableProps' field containing the data")
+        raise Exception("YAML file or dictionary must have a 'cable_types' field containing the data")
 
     
     output = dict()  # output dictionary of default values with loaded coefficients
@@ -106,7 +111,7 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     
     power = A**ctd['P_A_coefs'][0] + ctd['P_A_coefs'][1]  # cable rated power capacity [MW]
     
-    mass = ctd['mass_d2']*d**2  # linear density [kg/m]
+    mass = ctd['mass_d'][0]*d**2 + ctd['mass_d'][1]*d + ctd['mass_d'][0] # linear density [kg/m]
     w = (mass - np.pi/4*(d/1000)**2 *rho)*g  # apparent (wet) weight per unit length [N/m]
     
     EA   = ctd['EA_d'][0]*d**2 + ctd['EA_d'][1]*d + ctd['EA_d'][2]  # axial stiffness [N]
@@ -116,14 +121,14 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     MBL  = ctd['MBL_D_coefs'][0]*d**2 + ctd['MBL_D_coefs'][1]*d + ctd['MBL_D_coefs'][2]
     
     # minimum bending radius [m]
-    MBR  = ctd['MBR_D_coefs'][0]*d + ctd['MBR_D_coefs']
+    MBR  = ctd['MBR_D_coefs'][0]*d + ctd['MBR_D_coefs'][1]
     
     cost = ctd['cost_A'][0]*A + ctd['cost_A'][1]  # cost per unit length of cable [USD/m]
     
     
     # Set up a main identifier for the cable type unless one is provided
     if name=="":
-        typestring = f"{cable_type}{dnommm:.0f}"
+        typestring = f"{cable_type}{A:.0f}mm2"
     else:
         typestring = name
     
@@ -146,3 +151,47 @@ def loadBuoyancyModuleProps():
 def getBuayancyModuleProps():
     '''Compute properties for a given buoyancy module type and size.'''
     pass
+
+
+if __name__ == '__main__':
+    
+    cableProps = loadCableProps('CableProps_default.yaml')
+    
+    As = [95,120, 150, 185, 200, 300, 400, 500, 630, 800]
+    
+    cableTypes33 = []
+    cableTypes66 = []
+    
+    for A in As:
+        cableTypes33.append(getCableProps(A, 'dynamic_cable_33', cableProps=cableProps))
+        cableTypes66.append(getCableProps(A, 'dynamic_cable_66', cableProps=cableProps))
+    
+    def plotProps(x, typeLists, labels, parameter):
+        
+        fig, ax = plt.subplots(1,1)
+        
+        for i in range(len(typeLists)):
+            ax.plot(x, [ type_j[parameter] for type_j in typeLists[i] ], '*-', label = labels[i])
+        
+        ax.set_ylabel(parameter)
+        ax.set_xlabel(r'A (mm$^2$)')
+        ax.legend()
+    
+    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'd')
+    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'm')
+    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'EA')
+    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'EI')
+    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'MBL')
+    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'MBR')
+    
+    plt.show()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
