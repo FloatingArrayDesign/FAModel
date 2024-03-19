@@ -1,6 +1,8 @@
 # class for a mooring line
 
 import numpy as np
+from copy import deepcopy
+from moorpy.subsystem import Subsystem
 
 
 class Mooring():
@@ -169,7 +171,6 @@ class Mooring():
         return sum(self.cost.values()) 
         
     def createSubsystem(self, case=0):
-        from moorpy.subsystem import Subsystem
         ''' Create a subsystem for a line configuration from the design dictionary
         
         Parameters
@@ -183,8 +184,7 @@ class Mooring():
         # check if a subsystem already exists
         if self.subsystem:
             print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
-        # create subsystem
-        self.subsystem=Subsystem(depth=-self.dd['zAnchor'], spacing=self.dd['rAnchor'], rBfair=self.rB)
+        self.subsystem=Subsystem(depth=-self.dd['zAnchor'], span=self.dd['rAnchor'], rBfair=self.rB)
         lengths = []
         types = []
         # run through each line section and collect the length and type
@@ -217,3 +217,13 @@ class Mooring():
         self.subsystem.staticSolve()
         
         return(self.subsystem)
+
+    def updateSubsystem(self):        
+        ltypes = self.subsystem.lineTypes
+        if self.subsystem:
+            self.subsystem.lineList[0].type['w'] = self.subsystem.lineList[0].type['w'] * 1.5
+            
+    def newSubsystem(self):
+        aa = deepcopy(self.subsystem)
+        aa.lineList[0].type['w'] = aa.lineList[0].type['w'] * 1.5
+        self.subsystem = aa

@@ -5,36 +5,130 @@
 # from famodel import Mooring
 
 from famodel.project import Project
+import moorpy as mp
+import numpy as np
 # create project class instance from yaml file
-Array = Project(file='mooringOntology.yaml')
+#Array = Project(file='mooringOntology.yaml')
+Array = Project(file='../OntologySample600m.yaml')
+Array.ms.plot()
+# print(Array.ms)
+# print(Array.ms.lineList[0].lineList[0].type['m'])
+# # print(Array.mooringList[0].subsystem)
+# Array.mooringList[0].updateSubsystem()
+# #print(Array.mooringList[0].subsystem)
+# print(Array.ms)
+# print(Array.ms.lineList[0].lineList[0].type['m'])
+# Array.mooringList[0].newSubsystem()
+# #print(Array.mooringList[0].subsystem)
+# #print(Array.mooringList[0].dd['sections'][0]['type']['m'], Array.mooringList[0].subsystem.lineList[0].type['m'])
+# print(Array.ms)
+# print(Array.ms.lineList[0].lineList[0].type['m'])
 
-mgDict = {'changeDepths':{'depth':[-90,-50,0],'th':[.005,.1,.3]},'depthTol':3}
+model = Array.array
+# model.analyzeUnloaded()
+# model.solveEigen()
+model.analyzeCases(display=1)
+model.plotResponses()
 
-ms0 = Array.getMoorPyArray(plt = 1)
-ms = Array.getMoorPyArray(mgDict = mgDict, plt = 1)
+# mgDict = {'changeDepths':{'depth':[-90,-50,0],'th':[.005,.1,.3]},'depthTol':3}
+
+# Array.getMoorPyArray(mgDict=mgDict,plt=1)
+
+# model2 = Array.array
+# # model.analyzeUnloaded()
+# # model.solveEigen()
+# model2.analyzeCases(display=1)
+# model2.plotResponses()
+
+# ms00 = mp.System(file='C:/Users/LSIRKIS/Downloads/SharedMooring2 (1) 1.dat')
+
+# ms = mp.System(depth=600)
+# ms.addBody(-1,[0,0,0,0,0,0],m=19911423.956678286,v=19480.104108645974,rCG = np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),AWP = 446.69520543229874,rM = np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]))
+# ms.addBody(-1,[1600,0,0,0,0,0],m=19911423.956678286,v=19480.104108645974,rCG = np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),AWP = 446.69520543229874,rM = np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]))
+
+# ss = mp.Subsystem(depth=600,span=1557.57,rBfair=[1557.57,0,-20])
+
+# lengths = []
+# types = []
+# for i in range(0,3):
+#     lengths.append(ms00.lineList[i].L)
+#     types.append(ms00.lineList[i].type['name'])
+#     ss.lineTypes[types[-1]] = ms00.lineTypes['rope']
+
+# lengths[1] = 1131.37
+# ss.makeGeneric(lengths,types,suspended=1)
+# ss.setEndPosition([42.43,0,-20],endB=0)
+# ss.setEndPosition([1557.57,0,-20],endB=1)
+# ss.pointList[1].m = 80000
+# ss.pointList[1].v = 0.0
+# ss.pointList[2].m = 80000
+# ss.pointList[2].v = 0.0
+
+# ms.lineList.append(ss)
+# ss.number = len(ms.lineList)
+# ms.addPoint(1,ss.rB)
+# ms.pointList[-1].attachLine(ss.number,1)
+# ms.bodyList[1].attachPoint(len(ms.pointList),[ss.rB[0]-1600,ss.rB[1],ss.rB[2]])
+# ms.addPoint(1,ss.rA)
+# ms.pointList[-1].attachLine(ss.number,1)
+# ms.bodyList[0].attachPoint(len(ms.pointList),ss.rA)
+
+# ms.addLineType('rope',ms00.lineTypes['rope']['d_vol'],ms00.lineTypes['rope']['m'],ms00.lineTypes['rope']['EA'],name='rope')
+
+# j=4
+# bdnum = 0
+# for i in range(3,6):
+#     if i>4:
+#         bdnum = 1
+#     ms.addLine(ms00.lineList[i].L,ms00.lineList[i].type['name'],ms00.lineList[i].nNodes)
+#     ms.addPoint(1,ms00.pointList[j].r)
+#     j=j+1
+#     ms.pointList[-1].attachLine(len(ms.lineList),1)
+#     if bdnum == 0:
+#         ms.bodyList[1].attachPoint(len(ms.pointList),ms.pointList[-1].r)
+#     else:
+#         ms.bodyList[1].attachPoint(len(ms.pointList),[ms.pointList[-1].r[0]-1600,ms.pointList[-1].r[1],ms.pointList[-1].r[2]])
+#     ms.addPoint(1,ms00.pointList[j].r)
+#     ms.pointList[-1].attachLine(len(ms.lineList),1)
+#     j=j+1
+
+# ss.staticSolve()
+
+# for body in ms00.bodyList:
+#     body.m = 19911423.956678286
+#     body.v = 19480.104108645974
+#     body.rCG = np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00])
+#     body.AWP = 446.69520543229874
+#     body.rM = np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01])
+ 
+# ms00.bodyList[1].setPosition([1600,0,0,0,0,0])
+ 
+# ms00.initialize()
+ 
+# ms00.solveEquilibrium()
+# fig, ax = ms00.plot(color='green')
+
+
+
+# ###########ms0 = Array.getMoorPyArray(plt = 1)
+# model = Array.array
+# # model.analyzeUnloaded()
+# # model.solveEigen()
+# model.analyzeCases(display=1)
+# model.plotResponses()
+
+#ms = Array.getMoorPyArray(mgDict = mgDict, plt = 1)
 #Array.plot3d(draw_boundary=False,boundary_on_bath=False)
 
 # # create a shared anchor (for visualization purposes)
-import moorpy as mp
-import numpy as np
+# import moorpy as mp
+# import numpy as np
 
-ms1 = mp.System(depth=200)
-mp.helpers.loadLineProps(None)
-mp.helpers.getLineProps(180,'polyester',source='C:/Users/LSIRKIS/Documents/MoorPy/moorpy/MoorProps_default.yaml')
+# ms1 = mp.System(depth=200)
+# mp.helpers.loadLineProps(None)
+# mp.helpers.getLineProps(180,'polyester',source='C:/Users/LSIRKIS/Documents/MoorPy/moorpy/MoorProps_default.yaml')
 # # ms = mp.System(file="C:/Users/LSIRKIS/Downloads/SharedMooring4.dat", depth=600)
-# # for body in ms.bodyList:
-# #     body.m = 19911423.956678286
-# #     body.v = 19480.104108645974
-# #     body.rCG = np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00])
-# #     body.AWP = 446.69520543229874
-# #     body.rM = np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01])
- 
-# # ms.bodyList[1].setPosition([1600,0,0,0,0,0])
- 
-# # ms.initialize()
- 
-# # ms.solveEquilibrium()
-# # fig, ax = ms.plot(color='green')
+
 
 # mss = mp.System(depth=600)
 

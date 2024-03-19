@@ -10,6 +10,7 @@ from moorpy.helpers import set_axes_equal
 from moorpy import helpers
 import yaml
 from copy import deepcopy
+import raft
 
 #from shapely.geometry import Point, Polygon, LineString
 
@@ -58,6 +59,7 @@ class Project():
         self.turbineList = []
         self.platformList = []
         self.mooringList = []  # A list of Mooring objects
+        self.mooringListPristine = [] # A list of Mooring objects in initial condition (no marine growth, corrosion, etc)
         self.anchorList  = []
         self.connectorList = []
         self.cables = None  # CableSystem
@@ -98,6 +100,7 @@ class Project():
         self.ms  = None
         
         
+        
         # ----- if an input file has been passed, load it -----
         if file:
             self.load(file)
@@ -126,6 +129,8 @@ class Project():
         # look for design section
         # call load design method
         self.loadDesign(project)
+        
+        
     
 
     # ----- Design loading/processing methods -----
@@ -277,10 +282,15 @@ class Project():
                     # set line information                                                
                     lt = self.lineTypes[lc['type']] # set location for code clarity and brevity later
                     # set up sub-dictionaries that will contain info on the line type
-                    m_config['sections'].append({'type':{'name':str(ct)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA']),'MBL':lt['MBL'],'cost':lt['cost']}})
+                    m_config['sections'].append({'type':{'name':str(ct)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA'])}})
                     # need to calculate the submerged weight of the line (not currently available in ontology yaml file)
                     m_config['sections'][ct]['type']['w'] = (lt['m']-np.pi/4*lt['d_vol']**2*1025)*9.81
-                    
+                    # add cost if given
+                    if 'cost' in lt:
+                        m_config['sections'][ct]['type']['cost'] = lt['cost']
+                    # add MBL if given
+                    if 'MBL' in lt:
+                        m_config['sections'][ct]['type']['MBL'] = lt['MBL']
                     # add dynamic stretching if there is any
                     if 'EAd' in lt: 
                         m_config['sections'][ct]['type']['EAd'] = lt['EAd']
@@ -403,12 +413,12 @@ class Project():
             for i in range(0, len(d['array']['data'])): # loop through each platform in array
                 
                 # create platform instance (even if it only has shared moorings / anchors)
-                self.platformList.append(Platform(r=[d['array']['data'][i][3],d['array']['data'][i][4]],heading=d['array']['data'][i][5]))
+                self.platformList.append(Platform(r=[d['array']['data'][i][4],d['array']['data'][i][5]],heading=d['array']['data'][i][5]))
                 # remove pre-set headings (need to append to this list so list should start off empty)
                 self.platformList[-1].mooring_headings = []
-                if not d['array']['data'][i][2] == 0: #if no shared mooring on this platform
-                    m_s = d['array']['data'][i][2] # get mooring system number
-                    
+                if not d['array']['data'][i][3] == 0: #if no shared mooring on this platform
+                    m_s = d['array']['data'][i][3] # get mooring system number
+                    print(m_s,i)
                     # get mooring headings (need this for platform class)
                     headings = []
                     for ii in range(0,len(mSystems[m_s]['data'])):
@@ -483,8 +493,8 @@ class Project():
                     rowB = d['array']['data'][PFNum[0]]
                     rowA = d['array']['data'][PFNum[1]]
                     # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
-                    Aloc = [rowA[3]+np.cos(np.radians(arrayMooring[j]['headingA']))*m_config['rFair'], rowA[4]+np.sin(np.radians(arrayMooring[j]['headingA']))*m_config['rFair'], m_config['zFair']]
-                    Bloc = [rowB[3]+np.cos(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], rowB[4]+np.sin(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], m_config['zFair']]
+                    Aloc = [rowA[4]+np.cos(np.radians(arrayMooring[j]['headingA']))*m_config['rFair'], rowA[5]+np.sin(np.radians(arrayMooring[j]['headingA']))*m_config['rFair'], m_config['zFair']]
+                    Bloc = [rowB[4]+np.cos(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], rowB[5]+np.sin(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], m_config['zFair']]
                     # create mooring class instance
                     mc = (Mooring(dd=m_config, rA=Aloc, rB=Bloc, rad_fair=m_config['rFair'], z_fair=m_config['zFair'], rad_anch=m_config['rAnchor'], z_anch=m_config['zAnchor']))
                     mc.shared = 1
@@ -546,10 +556,74 @@ class Project():
                     self.platformList[PFNum[1]].mooring_headings.append(np.radians(arrayMooring[j]['headingA'])) # add heading
                     self.platformList[PFNum[1]].endA.append(1)
         
-        # create a deepcopy of the mooring list to preserve original in case marine growth or corrosion added
+        # create a deepcopy of the mooring list to preserve original in case marine growth, corrosion, or other changes made
         self.mooringListPristine = deepcopy(self.mooringList)    
-        # ===== load RAFT model parts =====
         
+        # ===== load RAFT model parts =====
+        # load info into RAFT dictionary and create RAFT model
+        RAFTDict = {}
+        # load turbine dictionary into RAFT dictionary
+        if 'turbine' in d and d['turbine']:            
+            # check that there is only one turbine
+            if 'turbines' in d and d['turbines']:
+                raise Exception("Cannot read in items for both 'turbines' and 'turbine' keywords. Use either 'turbine' keyword for one turbine or 'turbines' keyword for a list of turbines.")
+            elif len(d['turbine'])>1:
+                raise Exception("'turbine' section keyword must be changed to 'turbines' if multiple turbines are listed")
+            else:
+                RAFTDict['turbine'] = d['turbine']
+        # load list of turbine dictionaries into RAFT dictionary
+        elif 'turbines' in d and d['turbines']:
+            RAFTDict['turbines'] = d['turbines']
+        
+        # load platform dictionary into RAFT dictionary if only one platform      
+        if 'platform' in d and d['platform']:
+            # check that there is only one platform
+            if 'platforms' in d and d['platforms']:
+                raise Exception("Cannot read in items for both 'platforms' and 'platform' keywords. Use either 'platform' keyword for one platform or 'platforms' keyword for a list of platforms.")
+            elif len(d['platform'])>1:
+                raise Exception("'platform' section keyword must be changed to 'platforms' if multiple platforms are listed")
+            else:
+                RAFTDict['platform'] = d['platform']
+        # load list of platform dictionaries into RAFT dictionary
+        elif 'platforms' in d and d['platforms']:
+            RAFTDict['platforms'] = d['platforms']
+        
+        # load global RAFT settings into RAFT dictionary
+        if 'RAFT_Settings' in d['site'] and d['site']['RAFT_Settings']:
+            RAFTDict['settings'] = d['site']['RAFT_Settings']
+        # load RAFT cases into RAFT dictionary
+        if 'RAFT_cases' in d['site'] and d['site']['RAFT_cases']:
+            RAFTDict['cases'] = d['site']['RAFT_cases']
+        
+        # load array information into RAFT dictionary
+        RAFTDict['array'] = deepcopy(d['array']) # need to change items so make a deepcopy
+        RAFTDict['array']['keys'].pop(0) # remove key for ID because this doesn't exist in RAFT array table
+        for i in range(0,len(d['array']['data'])):
+            RAFTDict['array']['data'][i][3] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
+            RAFTDict['array']['data'][i].pop(0) # remove ID column because this doesn't exist in RAFT array data table
+        # load general site info to RAFT dictionary
+        RAFTDict['site'] = {'water_depth':self.depth,'rho_water':self.rho_water,'rho_air':self.rho_air,'mu_air':self.mu_air}
+        RAFTDict['site']['shearExp'] = getFromDict(d['site']['general'],'shearExp',default=0.12)
+        
+        # create a name for the raft model
+        RAFTDict['name'] = 'Project_Array'
+        RAFTDict['type'] = 'input file for RAFT'
+        self.array = raft.Model(RAFTDict)
+        # create moorpy array if it doesn't exist
+        if not self.ms:
+            self.getMoorPyArray()
+        # assign moorpy array to RAFT object
+        self.array.ms = self.ms
+        
+        # connect RAFT fowt to the correct moorpy body
+        for i in range(0,len(self.ms.bodyList)):
+            self.array.fowtList[i].body = self.ms.bodyList[i]
+        
+        
+
+        
+        
+
 
     # ----- Site conditions processing functions -----
 
@@ -564,7 +638,7 @@ class Project():
         self.rho_water = getFromDict(site['general'], 'rho_water', default=1025.0)
         self.rho_air = getFromDict(site['general'], 'rho_air', default=1.225)
         self.mu_air = getFromDict(site['general'], 'mu_air', default=1.81e-5)
-
+        
         # load bathymetry information, if provided
         if 'bathymetry' in site:
             if 'file' in site['bathymetry'] and site['bathymetry']['file']: # make sure there was a file provided even if the key is there
@@ -1149,7 +1223,7 @@ class Project():
                         if self.anchorList[i].mooringList[j] in self.platformList[k].mooringList:
                             PF = self.platformList[k]
                             PFNum = k
-                    # attach rB point to platform
+                    # attach rB point to platform (need to subtract out location of platform from point for subsystem integration to work correctly)
                     self.ms.bodyList[PFNum].attachPoint(len(self.ms.pointList),[ssloc[j].rB[0]-PF.r[0],ssloc[j].rB[1]-PF.r[1],ssloc[j].rB[2]])#attach to fairlead
                 # create anchor point
                 self.anchorList[i].makeMoorPyAnchor(self.ms)
@@ -1162,8 +1236,7 @@ class Project():
             for i in range(0,len(self.mooringList)): # loop through all lines
                 for j in range(0,len(self.anchorList)):
                     if self.mooringList[i] in self.anchorList[j].mooringList: # check if line has already been put in ms
-                        check[i] = 0
-                        
+                        check[i] = 0     
                 if check[i] == 1: # mooring object not in any anchor lists
                     # new shared line
                     # create subsystem for shared line
@@ -1210,13 +1283,15 @@ class Project():
                         # connect line end B to the body
                         self.ms.bodyList[PFNum[0]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[0].r[0],ssloc.rB[1]-PF[0].r[1],ssloc.rB[2]])
 
-            # initialize, solve equilibrium, and plot the system       
+            # initialize, solve equilibrium, and plot the system 
             self.ms.initialize()
             self.ms.solveEquilibrium(DOFtype='coupled')
+            
             if pristineLines:
                 for i in range(0,len(self.mooringList)):
                     # add subsystems to pristine mooring objects
                     self.mooringListPristine[i].subsystem = deepcopy(self.mooringList[i].subsystem)
+                    
         #######MARINE GROWTH DOES NOT CURRENTLY WORK########################
         if mgDict: # if you want to add marine growth to the lines
 
@@ -1713,6 +1788,8 @@ class Project():
         
         return(ptCheck,ssCheck,dCheck)
             
+    
+        
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''
