@@ -239,10 +239,10 @@ def getBuoyProps(V, buoy_type, buoyProps=None, source=None, name="", rho=1025.0,
     
     B = V
     
-    mass = ctd['mass_d'][0]*d**2 + ctd['mass_d'][1]*d + ctd['mass_d'][0] # linear density [kg/m]
-    w = (mass - np.pi/4*(d/1000)**2 *rho)*g  # apparent (wet) weight per unit length [N/m]
+    mass = ctd['density']*B  # mass [kg]
+    w = (mass - B*rho)*g  # apparent (wet) weight [N]
     
-    cost = ctd['cost_B']*V   # cost per buoy
+    cost = ctd['cost_B']*B   # cost per buoy
     
     # Set up a main identifier for the cable type unless one is provided
     if name=="":
