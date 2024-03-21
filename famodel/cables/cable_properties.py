@@ -59,6 +59,7 @@ def loadCableProps(source):
         output[ctd]['MBR_D_coefs'] = getFromDict(props, 'MBR_D_coefs'  , shape=2)
         output[ctd]['D_A_coefs'  ] = getFromDict(props, 'D_A_coefs'    , shape=2)
         output[ctd]['P_A_coefs'  ] = getFromDict(props, 'P_A_coefs'    , shape=2)        
+        output[ctd]['R_A_coefs'  ] = getFromDict(props, 'R_A_coefs'    , shape=1)        
         output[ctd]['cost_A'     ] = getFromDict(props, 'cost_A'       , shape=2)
     return output
 
@@ -109,9 +110,8 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     
     d = ctd['D_A_coefs'][0]*np.sqrt(A) + ctd['D_A_coefs'][1]  # cable outer diameter [mm]
     
-    power = A**ctd['P_A_coefs'][0] + ctd['P_A_coefs'][1]  # cable rated power capacity [MW]
     
-    mass = ctd['mass_d'][0]*d**2 + ctd['mass_d'][1]*d + ctd['mass_d'][0] # linear density [kg/m]
+    mass = ctd['mass_d'][0]*d**2 + ctd['mass_d'][1]*d + ctd['mass_d'][2] # linear density [kg/m]
     w = (mass - np.pi/4*(d/1000)**2 *rho)*g  # apparent (wet) weight per unit length [N/m]
     
     EA   = ctd['EA_d'][0]*d**2 + ctd['EA_d'][1]*d + ctd['EA_d'][2]  # axial stiffness [N]
@@ -125,6 +125,9 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     
     cost = ctd['cost_A'][0]*A + ctd['cost_A'][1]  # cost per unit length of cable [USD/m]
     
+    # Electrical properties
+    power = ctd['P_A_coefs'][0] * A**(ctd['P_A_coefs'][1])  # cable rated power capacity [MW]
+    resistance = ctd['R_A_coefs'][0]/A
     
     # Set up a main identifier for the cable type unless one is provided
     if name=="":
@@ -136,21 +139,127 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     
     # save dictionary (diameter converted to m)
     lineType = dict(name=typestring, d=d/1000, m=mass, EA=EA, EI=EI, w=w,
-                    MBL=MBL, MBR=MBR, A=A, power=power,
-                    cost=cost, notes=notes, cable_type=cable_type)
+                    MBL=MBL, MBR=MBR, A=A, power=power, resistance=resistance,
+                    cost=cost, notes=notes)
     
     lineType.update(kwargs)   # add any custom arguments provided in the call to the lineType's dictionary
           
     return lineType
 
 
-def loadBuoyancyModuleProps():
-    '''Load buoyancy module property scaling coefficients from a YAML.'''
-    pass
+def loadBuoyProps(source):
+    '''Load buoyancy module property scaling coefficients from a YAML.
     
-def getBuayancyModuleProps():
-    '''Compute properties for a given buoyancy module type and size.'''
-    pass
+    Parameters
+    ----------
+    source : dict or filename
+        YAML file name or dictionary containing buoyancy module property 
+        scaling coefficients.
+    
+    Returns
+    -------
+    dictionary
+        BuoyProps dictionary listing each supported bouyancy module type and 
+        subdictionaries of scaling coefficients for each.
+    '''
+
+    if type(source) is dict:
+        source = source
+        
+    elif source is None or source=="default":
+        import os
+        dir = os.path.dirname(os.path.realpath(__file__))
+        with open(os.path.join(dir,"CableProps_default.yaml")) as file:
+            source = yaml.load(file, Loader=yaml.FullLoader)
+        
+    elif type(source) is str:
+        with open(source) as file:
+            source = yaml.load(file, Loader=yaml.FullLoader)
+
+    else:
+        raise Exception("loadCableProps supplied with invalid source")
+
+    if 'buoyancy_module_types' in source:
+        buoyProps = source['buoyancy_module_types']
+    else:
+        raise Exception("YAML file or dictionary must have a 'buoyancy_module_types' field containing the data")
+    
+    output = dict()  # output dictionary of default values with loaded coefficients
+    
+    # combine loaded coefficients and default values into dictionary for each type
+    for ctd, props in buoyProps.items():  
+        output[ctd] = {}
+        output[ctd]['L_BM'   ] = getFromDict(props, 'L_BM'    , shape=0)
+        output[ctd]['D_BM'   ] = getFromDict(props, 'D_BM'    , shape=0)
+        output[ctd]['density'] = getFromDict(props, 'density' , shape=0)
+        output[ctd]['cost_B' ] = getFromDict(props, 'cost_B'  , shape=2)
+    
+    return output
+    
+    
+def getBuoyProps(V, buoy_type, buoyProps=None, source=None, name="", rho=1025.0, g=9.81, **kwargs):
+    '''Compute properties for a given buoyancy module type and size.
+    
+    Parameters
+    ----------
+    V : float
+        buoyancy module volume [m^3].
+    buoy_type : string
+        string identifier of the buoy_type type be used.
+    buoyProps : dictionary
+        A MoorPy buoyProps dictionary data structure containing the property scaling coefficients.
+    source : dict or filename (optional)
+        YAML file name or dictionary containing cable property scaling coefficients
+    name : any dict index (optional)
+        Identifier for the line type (otherwise will be generated automatically).
+    rho : float (optional)
+        Water density used for computing apparent (wet) weight [kg/m^3].
+    g : float (optional)
+        Gravitational constant used for computing weight [m/s^2].
+    '''
+    
+    if buoyProps==None and source==None:
+        raise Exception("Either buoyProps or source keyword arguments must be provided")
+    
+    # deal with the source (is it a dictionary, or reading in a new yaml?)
+    if not source==None:
+        buoyProps = loadLineProps(source)
+        if not buoyProps==None:
+            print('Warning: both buoyProps and source arguments were passed to getLineProps. buoyProps will be ignored.')
+        
+    # raise an error if the buoy_type isn't in the source dictionary
+    if not buoy_type in buoyProps:
+        raise ValueError(f'Specified cable buoy_type, {buoy_type}, is not in the database.')
+    
+    # calculate the relevant properties for this specific line type
+    ctd = buoyProps[buoy_type]       # shorthand for the sub-dictionary of properties for the buoy_type in question    
+    
+    d = ctd['D_BM']*np.cbrt(V)  # buoyancy module outer diameter [m]
+    l = ctd['L_BM']*np.cbrt(V)  # buoyancy module length [m]
+    
+    B = V
+    
+    mass = ctd['mass_d'][0]*d**2 + ctd['mass_d'][1]*d + ctd['mass_d'][0] # linear density [kg/m]
+    w = (mass - np.pi/4*(d/1000)**2 *rho)*g  # apparent (wet) weight per unit length [N/m]
+    
+    cost = ctd['cost_B']*V   # cost per buoy
+    
+    # Set up a main identifier for the cable type unless one is provided
+    if name=="":
+        typestring = f"{buoy_type}{V:.0f}m3"
+    else:
+        typestring = name
+    
+    notes = f"made with getBuoyProps"
+    
+    # save dictionary (diameter converted to m)
+    buoyType = dict(name=typestring, d=d/1000, m=mass, EA=EA, EI=EI, w=w,
+                    MBL=MBL, MBR=MBR, A=A, power=power, resistance=resistance,
+                    cost=cost, notes=notes)
+    
+    buoyType.update(kwargs)   # add any custom arguments provided in the call to the buoyType's dictionary
+          
+    return buoyType
 
 
 if __name__ == '__main__':
@@ -183,6 +292,8 @@ if __name__ == '__main__':
     plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'EI')
     plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'MBL')
     plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'MBR')
+    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'power')
+    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'resistance')
     
     plt.show()
     
