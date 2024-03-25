@@ -73,10 +73,13 @@ class Platform():
         self.r = np.array(r)
         
         if not heading == None:
-            self.phi = np.radians(heading)
+            if degrees:
+                self.phi = np.radians(heading)
+            else:
+                self.phi = heading
         
         # Get 2D rotation matrix
-        self.R = np.array([[np.cos(phi), -np.sin(phi)],[np.sin(phi), np.cos(phi)]])
+        self.R = np.array([[np.cos(self.phi), -np.sin(self.phi)],[np.sin(self.phi), np.cos(self.phi)]])
         
         # Update the position of any Moorings
         for i, mooring in enumerate(self.mooringList):

@@ -9,38 +9,79 @@ import moorpy as mp
 import numpy as np
 # create project class instance from yaml file
 #Array = Project(file='mooringOntology.yaml')
+###########No marine growth####################################
 Array = Project(file='../OntologySample600m.yaml')
-Array.ms.plot()
-# print(Array.ms)
-# print(Array.ms.lineList[0].lineList[0].type['m'])
-# # print(Array.mooringList[0].subsystem)
-# Array.mooringList[0].updateSubsystem()
-# #print(Array.mooringList[0].subsystem)
-# print(Array.ms)
-# print(Array.ms.lineList[0].lineList[0].type['m'])
-# Array.mooringList[0].newSubsystem()
-# #print(Array.mooringList[0].subsystem)
-# #print(Array.mooringList[0].dd['sections'][0]['type']['m'], Array.mooringList[0].subsystem.lineList[0].type['m'])
-# print(Array.ms)
-# print(Array.ms.lineList[0].lineList[0].type['m'])
+settings = {}
+settings["linelabels"] = True
+settings["pointlabels"] = True                          
+Array.ms.plot( **settings)
+
+# model = Array.array
+# # model.analyzeUnloaded()
+# # model.solveEigen()
+# model.analyzeCases(display=1)
+# model.plotResponses()
+# model.plot()
+
+#############NON-FLIPPED TURBINE EXAMPLE (clumped weight reduced to 20,000)##########
+mgDict = {'th':[[0.0,-600,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':1325}
+#mgDict = {'th':[[0.0,-200,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':[1330,1330,1330]}
+Array.getMarineGrowth(mgDict,tol=3)
+settings = {}
+settings["linelabels"] = True
+settings["pointlabels"] = True                          
+Array.ms.plot( **settings)
 
 model = Array.array
 # model.analyzeUnloaded()
 # model.solveEigen()
 model.analyzeCases(display=1)
 model.plotResponses()
+model.plot()
 
-# mgDict = {'changeDepths':{'depth':[-90,-50,0],'th':[.005,.1,.3]},'depthTol':3}
+#####################FLIPPED TURBINE EXAMPLE (clumped weight is original 80,000)#################################
+Array1 = Project(file='../OntologySample600m_FLIPPED_TURBINE.yaml')
+mgDict = {'th':[[0.0,-600,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':1325}
+#mgDict = {'th':[[0.0,-200,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':[1330,1330,1330]}
+Array1.getMarineGrowth(mgDict,tol=3)
+Array1.ms.plot( **settings)
+model = Array1.array
+# model.analyzeUnloaded()
+# model.solveEigen()
+model.analyzeCases(display=1)
+model.plotResponses()
+model.plot()
 
-# Array.getMoorPyArray(mgDict=mgDict,plt=1)
+# # mgDict = {'changeDepths':{'depth':[-90,-50,0],'th':[.005,.1,.3]},'depthTol':3}
 
-# model2 = Array.array
-# # model.analyzeUnloaded()
-# # model.solveEigen()
-# model2.analyzeCases(display=1)
-# model2.plotResponses()
+# # Array.getMoorPyArray(mgDict=mgDict,plt=1)
+
+# # model2 = Array.array
+# # # model.analyzeUnloaded()
+# # # model.solveEigen()
+# # model2.analyzeCases(display=1)
+# # model2.plotResponses()
 
 # ms00 = mp.System(file='C:/Users/LSIRKIS/Downloads/SharedMooring2 (1) 1.dat')
+# print(len(ms00.bodyList))
+# for body in ms00.bodyList:
+#     body.m = 19911423.956678286
+#     body.v = 19480.104108645974
+#     body.rCG = np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00])
+#     body.AWP = 446.69520543229874
+#     body.rM = np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01])
+#     body.type = -1
+ 
+# ms00.bodyList[1].setPosition([1600,0,0,0,0,0])
+ 
+# ms00.initialize()
+ 
+# ms00.solveEquilibrium()
+# model.ms= ms00
+# for i in range(0,len(ms00.bodyList)):
+#     model.fowtList[i].body = ms00.bodyList[i]
+# model.analyzeCases(display=1)
+# model.plotResponses()
 
 # ms = mp.System(depth=600)
 # ms.addBody(-1,[0,0,0,0,0,0],m=19911423.956678286,v=19480.104108645974,rCG = np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),AWP = 446.69520543229874,rM = np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]))

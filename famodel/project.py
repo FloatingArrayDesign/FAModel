@@ -413,12 +413,11 @@ class Project():
             for i in range(0, len(d['array']['data'])): # loop through each platform in array
                 
                 # create platform instance (even if it only has shared moorings / anchors)
-                self.platformList.append(Platform(r=[d['array']['data'][i][4],d['array']['data'][i][5]],heading=d['array']['data'][i][5]))
+                self.platformList.append(Platform(r=[d['array']['data'][i][4],d['array']['data'][i][5]],heading=d['array']['data'][i][6]))
                 # remove pre-set headings (need to append to this list so list should start off empty)
                 self.platformList[-1].mooring_headings = []
                 if not d['array']['data'][i][3] == 0: #if no shared mooring on this platform
                     m_s = d['array']['data'][i][3] # get mooring system number
-                    print(m_s,i)
                     # get mooring headings (need this for platform class)
                     headings = []
                     for ii in range(0,len(mSystems[m_s]['data'])):
@@ -437,8 +436,8 @@ class Project():
                         
                         # create mooring class instance as part of mooring list in the project class instance
                         mc = (Mooring(dd=m_config, rA=[m_config['rAnchor'],0,m_config['zAnchor']], rB=[m_config['rFair'],0,m_config['zFair']], rad_anch=m_config['rAnchor'], rad_fair=m_config['rFair'], z_anch=m_config['zAnchor'], z_fair=m_config['zFair']))
-                        # adjust end positions based on platform location and mooring heading
-                        mc.reposition(r_center=self.platformList[i].r, heading=headings[j], project=self)
+                        # adjust end positions based on platform location and mooring and platform headings
+                        mc.reposition(r_center=self.platformList[i].r, heading=headings[j]+self.platformList[i].phi, project=self)
                         # adjust anchor z location and rA based on location of anchor
                         zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
                         mc.rA[2] = -zAnew
@@ -492,9 +491,12 @@ class Project():
                     # set locations of row for platform connected to end A and end B for simpler code
                     rowB = d['array']['data'][PFNum[0]]
                     rowA = d['array']['data'][PFNum[1]]
+                    # get headings (mooring heading combined with platform heading)
+                    headingA = np.radians(arrayMooring[j]['headingA']) + self.platformList[PFNum[1]].phi - np.pi
+                    headingB = np.radians(arrayMooring[j]['headingB']) + self.platformList[PFNum[0]].phi - np.pi
                     # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
-                    Aloc = [rowA[4]+np.cos(np.radians(arrayMooring[j]['headingA']))*m_config['rFair'], rowA[5]+np.sin(np.radians(arrayMooring[j]['headingA']))*m_config['rFair'], m_config['zFair']]
-                    Bloc = [rowB[4]+np.cos(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], rowB[5]+np.sin(np.radians(arrayMooring[j]['headingB']))*m_config['rFair'], m_config['zFair']]
+                    Aloc = [rowA[4]+np.cos(headingA)*m_config['rFair'], rowA[5]+np.sin(headingA)*m_config['rFair'], m_config['zFair']]
+                    Bloc = [rowB[4]+np.cos(headingB)*m_config['rFair'], rowB[5]+np.sin(headingB)*m_config['rFair'], m_config['zFair']]
                     # create mooring class instance
                     mc = (Mooring(dd=m_config, rA=Aloc, rB=Bloc, rad_fair=m_config['rFair'], z_fair=m_config['zFair'], rad_anch=m_config['rAnchor'], z_anch=m_config['zAnchor']))
                     mc.shared = 1
@@ -506,8 +508,8 @@ class Project():
                     PFNum.append(int(arrayMooring[j]['end B'][-1])-1)
                     # create mooring class instance
                     mc = (Mooring(dd=m_config, rA=[m_config['rAnchor'],0,m_config['zAnchor']], rB=[m_config['rFair'],0,m_config['zFair']], rad_anch=m_config['rAnchor'], rad_fair=m_config['rFair'], z_anch=m_config['zAnchor'], z_fair=m_config['zFair']))
-                    # adjust end positions based on platform location and mooring heading
-                    mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=arrayMooring[j]['headingB'], project=self, degrees=True)
+                    # adjust end positions based on platform location and mooring and platform heading
+                    mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
 
                     # check if anchor instance already exists
                     if any(tt == int(arrayMooring[j]['end A'][-1]) for tt in aNum): # anchor exists
@@ -567,7 +569,7 @@ class Project():
             # check that there is only one turbine
             if 'turbines' in d and d['turbines']:
                 raise Exception("Cannot read in items for both 'turbines' and 'turbine' keywords. Use either 'turbine' keyword for one turbine or 'turbines' keyword for a list of turbines.")
-            elif len(d['turbine'])>1:
+            elif type(d['turbine']) is list and len(d['turbine'])>1:
                 raise Exception("'turbine' section keyword must be changed to 'turbines' if multiple turbines are listed")
             else:
                 RAFTDict['turbine'] = d['turbine']
@@ -580,7 +582,7 @@ class Project():
             # check that there is only one platform
             if 'platforms' in d and d['platforms']:
                 raise Exception("Cannot read in items for both 'platforms' and 'platform' keywords. Use either 'platform' keyword for one platform or 'platforms' keyword for a list of platforms.")
-            elif len(d['platform'])>1:
+            elif type(d['platform']) is list and len(d['platform'])>1:
                 raise Exception("'platform' section keyword must be changed to 'platforms' if multiple platforms are listed")
             else:
                 RAFTDict['platform'] = d['platform']
@@ -618,7 +620,6 @@ class Project():
         # connect RAFT fowt to the correct moorpy body
         for i in range(0,len(self.ms.bodyList)):
             self.array.fowtList[i].body = self.ms.bodyList[i]
-        
         
 
         
@@ -1198,7 +1199,7 @@ class Project():
                 PF = self.platformList[i]
                 # add a moorpy body at the correct location
                 r6 = [PF.r[0],PF.r[1],0,0,0,0]
-                self.ms.addBody(-1,r6,m=1.784e7,v=20206,rM=100,AWP=1011)
+                self.ms.addBody(-1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
             
             # create anchor points and all mooring lines connected to the anchors (since all connected to anchors, can't be a shared mooring)
             for i in range(0,len(self.anchorList)):
@@ -1292,45 +1293,7 @@ class Project():
                     # add subsystems to pristine mooring objects
                     self.mooringListPristine[i].subsystem = deepcopy(self.mooringList[i].subsystem)
                     
-        #######MARINE GROWTH DOES NOT CURRENTLY WORK########################
-        if mgDict: # if you want to add marine growth to the lines
-
-            if not self.mooringListPristine[0].subsystem:
-                # create moorpy array ms first with pristine lines
-                createArray(pristineLines=1)    
-            # update existing ms with marine growth
-            count = 0 # counter variable
-            EqChange = np.ones((len(mgDict['changeDepths']['depth']),1))*10 # difference between expected and actual depth of change (start with values above tolerance to enter while loop)            
-            changeDepth = deepcopy(mgDict['changeDepths']) # changeDepth may be updated when running through the while loop, so need to make a new variable to preserve the original target changeDepths (changeDepthSt)
-            if 'depthTol' in mgDict:
-                depthTol = mgDict['depthTol'] # set tolerance for difference between expected and actual depth of mg thickness change
-            else:
-                depthTol = 2 # set to default of 2 m tolerance
-            
-            while (any(np.absolute(EC)>depthTol for EC in EqChange) and count<10): # loop while the difference in changeDepth after equilibrium and the desired changeDepth is > 2 m for depth and # of run throughs is < 10
-                
-                # update changeDepth after first run through of while loop 
-                if count>0:
-                    for i in range(0,len(changeDepth['depth'])):
-                        changeDepth['depth'][i]=changeDepth['depth'][i]-EqChange[i]
-                
-                ptCheck, ssCheck, dCheck = self.getMarineGrowth(changeDepth) # call marine growth function to update design dictionaries in each mooring object, and return lists to help with determining difference between actual and expected changeDepths
-                createArray(pristineLines=0) # create a moorpy array with new mooring object design dictionaries
-                
-                # find difference between changeDepth after solveEquilibrium and attempted original changeDepth
-                EqChangeS = np.zeros((len(ssCheck),len(changeDepth['depth'])))
-                for i in range(0,len(ssCheck)):
-                    EqChangeS[i,dCheck[i]] = self.ms.lineList[ssCheck[i]].pointList[ptCheck[i]].r[2] - mgDict['changeDepths']['depth'][dCheck[i]]
-                EqChangeS[EqChangeS==0] = np.nan # remove zeros from mean
-                
-                for j in range(0,len(changeDepth['depth'])):
-                    if all(np.isnan(vals) for vals in EqChangeS[:,j]):
-                        EqChange[j] = 0
-                    else:
-                        EqChange[j] = np.nanmean(EqChangeS[:,j])
-                count = count + 1 
-        else: # no marine growth - just create array with given information
-              createArray()
+        createArray()
         
         # Plot array if requested
         if plt:
@@ -1564,233 +1527,299 @@ class Project():
 
 
 
-    def getMarineGrowth(self,changeDepth,rho_mg=1325):
-        ################DOES NOT CURRENTLY WORK for shared lines!!!!#################################
-        '''
+    # def getMarineGrowth(self,changeDepth,rho_mg=1325):
+    #     ################DOES NOT CURRENTLY WORK for shared lines!!!!#################################
+    #     '''
+
+    #     Parameters
+    #     ----------
+    #     changeDepthSt : list
+    #         [m] z elevation(s) to change from one thickness to the next (from sea floor to surface, negative below MWL)
+    #     th : list
+    #         [m] Marine growth thicknesses (from sea floor to surface)
+    #     (optional) rho_mg : float
+    #         [kg/m^3] density of marine growth (default 1325 in accordance with DNV standards)
+
+    #     Returns
+    #     -------
+    #     ptCheck : list
+    #         point numbers of split points in a subsystem
+    #     ssCheck : list
+    #         subsystem numbers associated with split points in ptCheck
+    #     dCheck : list
+    #         change depth values associated with the split point numbers in ptCheck
+    #     '''
+    #     ssCheck = []
+    #     ptCheck = []
+    #     dCheck = []
+               
+    #     for i in range(0,len(self.mooringListPristine)): # go through each line/subsystem 
+            
+    #         # Set up list variables for new lines
+    #         LineLengths = [] # lengths of new lines
+    #         LineMats = [] # line material list for new lines
+    #         LType = [] # line type for new lines
+            
+    #         LThick = [] # thickness for each line segment
+    #         bb = 0 # counter
+    #         ch = [] # stores counter to see if line does not cross any cutoff depths
+    #         splitNum = [] # number of the split line segment
+    #         nodeD = [] # node closest to the split depth
+    #         ln_raw = [] # length from point A to nodeD
+    #         connList = [] # list of connectors (need to add empty connectors for between split segments)
+    #         xChange = np.zeros((len(changeDepth['depth'])-1,1)) # difference between actual x-location of split and the closest node
+    #         yChange = np.zeros((len(changeDepth['depth'])-1,1)) # difference between actual y-location of split and the closest node
+            
+    #         ch.append(bb)
+    #         # set first connector
+    #         connList.append(self.mooringListPristine[i].connectorList[0])
+    #         for j in range(0,len(self.mooringListPristine[i].dd['sections'])): # go through each line type in the subsystem
+    #             # add line material, type to list
+    #             LineMats.append(self.mooringListPristine[i].dd['sections'][j]['type']['material'])
+    #             LType.append(self.mooringListPristine[i].dd['sections'][j]['type']['name'])
+    #             # set location for ease of coding
+    #             ss = self.mooringListPristine[i].subsystem.lineList[j]
+                
+    #             lenseg = ss.L/ss.nNodes # length of line between nodes
+    #             # get thicknesses and depths (may need to reverse order if end A is above end B)
+    #             th = deepcopy(changeDepth['th'])
+    #             dpt = deepcopy(changeDepth['depth'])
+    #             if ss.rA[2]>ss.rB[2]: # case where rA is above rB (some shared lines could be)
+    #                 low = ss.rB[2]
+    #                 high = ss.rA[2]
+    #                 th.reverse() # need to reverse order of changedepth
+    #                 dpt.reverse()
+    #                 flip = 1 # denotes rA is above rB
+    #             else: # regular case
+    #                 low = ss.rA[2]
+    #                 high = ss.rB[2]
+    #                 flip = 0
+                
+    #             # look up what thickness this line section starts at
+    #             rAth = 0 # exit while loop when we found thickness at rA
+    #             count1 = 0 # counter
+    #             while rAth==0 and count1 <= len(dpt):
+    #                if flip:
+    #                    if high > dpt[count1]:
+    #                        LThick.append(th[count1-1])
+    #                        rAth = 1 
+    #                else:
+    #                    if low < dpt[count1]:
+    #                        LThick.append(th[count1])
+    #                        rAth = 1 
+    #                count1 = count1 + 1
+
+                
+    #             # determine if this line section will be split
+    #             for k in range(0,len(changeDepth['depth']) - 1):
+    #                 if flip: # adjust depth choice
+    #                     kk = k + 1 
+    #                 else:
+    #                     kk = k
+
+    #                 if low < dpt[kk] and high >= dpt[kk]: # line is split by this depth
+    #                     bb = bb + 1
+    #                     ssCheck.append(j)
+    #                     if flip:
+    #                         LThick.append(th[kk])
+    #                     else:
+    #                         LThick.append(th[kk+1])
+
+    #                     LType.append(ss.type['name'])
+    #                     LineMats.append(ss.type['material'])
+    #                     splitNum.append(j) # record the line number
+    #                     # add an empty connector object to list for split location
+    #                     connList.append(Connector())
+    #                     # add point number to the list to check for correct depth
+    #                     ptCheck.append(len(connList)-1)
+    #                     if flip:
+    #                         dCheck.append(len(dpt)-k-1)
+    #                     else:
+    #                         dCheck.append(k)
+    #                     old_line = ss.getLineCoords(Time=0) # get the coordinates of the line
+    #                     #find length of each new section by finding node at changeDepth
+    #                     for ii in range(0, ss.nNodes-1): # go through each node in the line
+    #                         if flip:
+    #                             if old_line[2][ii+1]<=dpt[kk] and old_line[2][ii]>dpt[kk]:
+    #                                 nodeD.append(ii) # find the node closest to the changeDepth (the node right below this depth)
+    #                                 # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
+    #                                 xChange = float(np.interp(dpt[kk], old_line[2][:], old_line[0][:]))
+    #                                 yChange = float(np.interp(dpt[kk], old_line[2][:], old_line[1][:]))
+    #                         else:
+    #                             if old_line[2][ii]<=dpt[k] and old_line[2][ii+1]>dpt[k]:
+    #                                 nodeD.append(ii) # find the node closest to the changeDepth (the node right below this depth)
+    #                                 # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
+    #                                 xChange = float(np.interp(dpt[k], old_line[2][:], old_line[0][:]))
+    #                                 yChange = float(np.interp(dpt[k], old_line[2][:], old_line[1][:]))
+                        
+    #                     ln_raw.append(lenseg*nodeD[-1] + np.sqrt((xChange-old_line[0][nodeD[-1]])**2 + (yChange-old_line[1][nodeD[-1]])**2 + (dpt[kk]-old_line[2][nodeD[-1]])**2))
+                        
+    #                     if len(splitNum)>1 and splitNum[-1]==splitNum[-2]: # line has multiple cuts (upper cut sections have to count the length only from previous nodeD)
+    #                         LineLengths.append(float(ln_raw[-1]-ln_raw[-2]))
+                            
+    #                     else: # first split
+    #                         LineLengths.append(float(ln_raw[-1]))
+                    
+    #                 #print('SplitNum: ',len(splitNum),' changeDepth-1: ',len(changeDepth['depth'])-1)                            
+                    
+    #             if splitNum and splitNum[-1]==j: # you're on the last split - need to get the top length and number of nodes
+    #                 LineLengths.append(float(ss.L-ln_raw[-1]))
+                
+    #             ch.append(bb)
+    #             if ch[-1]==ch[-2]: # not a split line (leave length and number of nodes alone)
+    #                 LineLengths.append(ss.L)
+    #             # add connector at end of section to list
+    #             connList.append(self.mooringListPristine[i].connectorList[j+1])
+            
+            
+    #         # Set up list variables for pristine line info
+    #         EA = []
+    #         m = []
+    #         d_ve_old = []
+    #         cd = []
+    #         cdAx = []
+                                                
+    #         # create arrays
+    #         d_nom_old = np.zeros((len(LType),1))        
+    #         ve_nom_adjust = np.zeros((len(LType),1))
+    #         mu_mg = np.zeros((len(LType),1))
+        
+    #         nd = [] # list of dictionaries for new design dictionary sections part
+            
+    #         for j,ltyp in enumerate(LType):
+    #             # add in information for each line type without marine growth
+    #             st =  self.mooringListPristine[i].subsystem.lineTypes
+    #             EA.append(st[ltyp]['EA'])
+    #             m.append(st[ltyp]['m'])
+    #             d_ve_old.append(st[ltyp]['d_vol'])
+                
+                
+    #             # get ratio between ve and nom diameter from MoorProps yaml
+    #             opt = helpers.loadLineProps(None)
+    #             ve_nom_adjust[j] = opt[LineMats[j]]['dvol_dnom']
+    #             # get cd and cdAx
+    #             if not 'Cd' in st[ltyp]:
+    #                 cd.append(opt[LineMats[j]]['Cd'])
+    #             else:
+    #                 cd.append(st[LType[j]]['Cd'])
+    #             if not 'CdAx' in st[ltyp]:
+    #                 cdAx.append(opt[LineMats[j]]['CdAx'])
+    #             else:
+    #                 cdAx.append(st[LType[j]]['CdAx'])
+    #             if LineMats[j] == 'chain' or LineMats[j] == 'chain_studlink':
+    #                 mu_mg[j] = 2
+    #             else:
+    #                 mu_mg[j] = 1
+                
+    #             # re-form dictionaries with marine growth values
+    #             nd.append({'type':{}, 'length':{}}) # new design dictionary
+    #             ndt = nd[j]['type']
+                
+    #             # calculate nominal diameter
+    #             d_nom_old[j] = d_ve_old[j]/ve_nom_adjust[j] # m
+                
+    #             # calculate new line diameter that includes marine growth
+    #             ndt['d_nom'] = float(d_nom_old[j]+2*LThick[j]) #m
+                
+    #             # calculate the new mass per meter including marine growth
+    #             growthMass = np.pi/4*(ndt['d_nom']**2-d_nom_old[j]**2)*rho_mg*mu_mg[j] # marine growth mass
+    #             ndt['m'] =  float(growthMass + m[j]) # kg/m (total mass)
+                
+    #             # calculate the submerged weight per meter including marine growth
+    #             ndt['w'] = float(growthMass*(1-1025/rho_mg)*9.81 + (m[j]-np.pi/4*d_ve_old[j]**2*1025)*9.81) # N/m
+                
+    #             # calculate new volume-equivalent diameter (cannot use regular chain/polyester conversion because of added marine growth)
+    #             ndt['d_vol'] = np.sqrt(4*((ndt['m']*9.81-ndt['w'])/1025/9.81)/np.pi)
+                
+    #             # calculate new increased drag coefficient from marine growth
+    #             # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
+    #             ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
+    #             ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
+                
+    #             ndt['material'] = LineMats[j]
+    #             ndt['name'] = str(j)
+    #             ndt['MBL'] = self.mooringListPristine[i].subsystem.lineTypes[ltyp]['MBL']
+    #             ndt['cost'] = self.mooringListPristine[i].subsystem.lineTypes[ltyp]['cost']
+    #             ndt['EA'] = EA[j]
+    #             if 'EAd' in self.mooringListPristine[i].subsystem.lineTypes[ltyp]:
+    #                 ndt['EAd'] = self.mooringListPristine[i].subsystem.lineTypes[ltyp]['EAd']
+                                  
+    #             nd[j]['length'] = LineLengths[j]
+          
+    #         self.mooringList[i].dd['sections'] = nd
+    #         self.mooringList[i].connectorList = connList
+        
+        # return(ptCheck,ssCheck,dCheck)
+            
+    def getMarineGrowth(self,mgDict_start,lines='all',tol=2):
+        '''Calls the addMarineGrowth mooring object method for the chosen mooring objects
+           and applies the specified marine growth thicknesses at the specified depth ranges
+           for the specified marine growth densities.
 
         Parameters
         ----------
-        changeDepthSt : list
-            [m] z elevation(s) to change from one thickness to the next (from sea floor to surface, negative below MWL)
-        th : list
-            [m] Marine growth thicknesses (from sea floor to surface)
-        (optional) rho_mg : float
-            [kg/m^3] density of marine growth (default 1325 in accordance with DNV standards)
-
+        mgDict_start : dictionary
+            Provides marine growth thicknesses and the associated depth ranges
+            'rho' entry is optional. If no 'rho' entry is created in the dictionary, addMarineGrowth defaults to 1325 kg/m^3
+            {
+                th : list with 3 values in each entry - thickness, range lower z-cutoff, range higher z-cutoff [m]
+                    *In order from sea floor to surface*
+                    example, if depth is 200 m: - [0.00,-200,-100]
+                                                - [0.05,-100,-80]
+                                                - [0.10,-80,-40]
+                                                - [0.20,-40,0]
+                rho : list of densities for each thickness, or one density for all thicknesses, [kg/m^3] (optional - default is 1325 kg/m^3)
+                }
+        lines : list, optional
+            List of indices from self.mooringList to add marine growth to. Default is the string
+            'all', which triggers the addition of marine growth to all mooring lines.
+                
+        tol : float, optional [m]
+            Tolerance for marine growth cutoff depth values. Default is 2 m.
         Returns
         -------
-        ptCheck : list
-            point numbers of split points in a subsystem
-        ssCheck : list
-            subsystem numbers associated with split points in ptCheck
-        dCheck : list
-            change depth values associated with the split point numbers in ptCheck
+        None.
+
         '''
-        ssCheck = []
-        ptCheck = []
-        dCheck = []
-               
-        for i in range(0,len(self.mooringListPristine)): # go through each line/subsystem 
-            
-            # Set up list variables for new lines
-            LineLengths = [] # lengths of new lines
-            LineMats = [] # line material list for new lines
-            LType = [] # line type for new lines
-            
-            LThick = [] # thickness for each line segment
-            bb = 0 # counter
-            ch = [] # stores counter to see if line does not cross any cutoff depths
-            splitNum = [] # number of the split line segment
-            nodeD = [] # node closest to the split depth
-            ln_raw = [] # length from point A to nodeD
-            connList = [] # list of connectors (need to add empty connectors for between split segments)
-            xChange = np.zeros((len(changeDepth['depth'])-1,1)) # difference between actual x-location of split and the closest node
-            yChange = np.zeros((len(changeDepth['depth'])-1,1)) # difference between actual y-location of split and the closest node
-            
-            ch.append(bb)
-            # set first connector
-            connList.append(self.mooringListPristine[i].connectorList[0])
-            for j in range(0,len(self.mooringListPristine[i].dd['sections'])): # go through each line type in the subsystem
-                # add line material, type to list
-                LineMats.append(self.mooringListPristine[i].dd['sections'][j]['type']['material'])
-                LType.append(self.mooringListPristine[i].dd['sections'][j]['type']['name'])
-                # set location for ease of coding
-                ss = self.mooringListPristine[i].subsystem.lineList[j]
-                
-                lenseg = ss.L/ss.nNodes # length of line between nodes
-                # get thicknesses and depths (may need to reverse order if end A is above end B)
-                th = deepcopy(changeDepth['th'])
-                dpt = deepcopy(changeDepth['depth'])
-                if ss.rA[2]>ss.rB[2]: # case where rA is above rB (some shared lines could be)
-                    low = ss.rB[2]
-                    high = ss.rA[2]
-                    th.reverse() # need to reverse order of changedepth
-                    dpt.reverse()
-                    flip = 1 # denotes rA is above rB
-                else: # regular case
-                    low = ss.rA[2]
-                    high = ss.rB[2]
-                    flip = 0
-                
-                # look up what thickness this line section starts at
-                rAth = 0 # exit while loop when we found thickness at rA
-                count1 = 0 # counter
-                while rAth==0 and count1 <= len(dpt):
-                   if flip:
-                       if high > dpt[count1]:
-                           LThick.append(th[count1-1])
-                           rAth = 1 
-                   else:
-                       if low < dpt[count1]:
-                           LThick.append(th[count1])
-                           rAth = 1 
-                   count1 = count1 + 1
-
-                
-                # determine if this line section will be split
-                for k in range(0,len(changeDepth['depth']) - 1):
-                    if flip: # adjust depth choice
-                        kk = k + 1 
-                    else:
-                        kk = k
-
-                    if low < dpt[kk] and high >= dpt[kk]: # line is split by this depth
-                        bb = bb + 1
-                        ssCheck.append(j)
-                        if flip:
-                            LThick.append(th[kk])
-                        else:
-                            LThick.append(th[kk+1])
-
-                        LType.append(ss.type['name'])
-                        LineMats.append(ss.type['material'])
-                        splitNum.append(j) # record the line number
-                        # add an empty connector object to list for split location
-                        connList.append(Connector())
-                        # add point number to the list to check for correct depth
-                        ptCheck.append(len(connList)-1)
-                        if flip:
-                            dCheck.append(len(dpt)-k-1)
-                        else:
-                            dCheck.append(k)
-                        old_line = ss.getLineCoords(Time=0) # get the coordinates of the line
-                        #find length of each new section by finding node at changeDepth
-                        for ii in range(0, ss.nNodes-1): # go through each node in the line
-                            if flip:
-                                if old_line[2][ii+1]<=dpt[kk] and old_line[2][ii]>dpt[kk]:
-                                    nodeD.append(ii) # find the node closest to the changeDepth (the node right below this depth)
-                                    # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
-                                    xChange = float(np.interp(dpt[kk], old_line[2][:], old_line[0][:]))
-                                    yChange = float(np.interp(dpt[kk], old_line[2][:], old_line[1][:]))
-                            else:
-                                if old_line[2][ii]<=dpt[k] and old_line[2][ii+1]>dpt[k]:
-                                    nodeD.append(ii) # find the node closest to the changeDepth (the node right below this depth)
-                                    # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
-                                    xChange = float(np.interp(dpt[k], old_line[2][:], old_line[0][:]))
-                                    yChange = float(np.interp(dpt[k], old_line[2][:], old_line[1][:]))
-                        
-                        ln_raw.append(lenseg*nodeD[-1] + np.sqrt((xChange-old_line[0][nodeD[-1]])**2 + (yChange-old_line[1][nodeD[-1]])**2 + (dpt[kk]-old_line[2][nodeD[-1]])**2))
-                        
-                        if len(splitNum)>1 and splitNum[-1]==splitNum[-2]: # line has multiple cuts (upper cut sections have to count the length only from previous nodeD)
-                            LineLengths.append(float(ln_raw[-1]-ln_raw[-2]))
-                            
-                        else: # first split
-                            LineLengths.append(float(ln_raw[-1]))
+        
+        # get indices of lines to add marine growth
+        if lines == 'all':
+            idx = []
+            for i in range(0,len(self.mooringList)):
+                idx.append(i)
+        else:
+            idx = lines
+        
+        for i in idx:
+            ct = 0 # counter variable
+            cEq = [10,10] # make cEq mean large enough to enter the while loop for the first time.
+            # get a deepcopy of the mgDict_start (may need to change the depths)
+            mgDict = deepcopy(mgDict_start)
+            while np.absolute(sum(cEq)/len(cEq)) > tol and ct<10: # while mean difference between actual and desired change depth is larger than tolerance and count is less than 10
+                cEq = [] # reset cEq
+                cD,cP = self.mooringList[i].addMarineGrowth(mgDict,project=self,idx=i)
+                for j in range(0,len(cP)):
+                    cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.mooringList[i].subsystem.pointList[cP[j]].r[2])
+                # adjust depth to change based on difference between actual and desired change depth
+                if cEq:
+                    mgDict['th'][0][2] = mgDict['th'][0][2] + sum(cEq)/len(cEq)
+                    for j in range(1,len(mgDict['th'])):
+                        for k in range(1,3):
+                            if ct < 4:
+                                mgDict['th'][j][k] = mgDict['th'][j][k] + sum(cEq)/len(cEq)
+                            elif ct >= 4 and ct < 9:
+                                # could be ping-ponging between two different things, try adding half
+                                mgDict['th'][j][k] = mgDict['th'][j][k] + 0.5*sum(cEq)/len(cEq)
+                    print('average difference between expected and actual change depth is: ',sum(cEq)/len(cEq))
+                else: # there were no change depths in the line (could be the case for a shared line)
+                    cEq = [0,0] # kick out of the while loop
+                ct = ct + 1 # add to counter
                     
-                    #print('SplitNum: ',len(splitNum),' changeDepth-1: ',len(changeDepth['depth'])-1)                            
-                    
-                if splitNum and splitNum[-1]==j: # you're on the last split - need to get the top length and number of nodes
-                    LineLengths.append(float(ss.L-ln_raw[-1]))
+                if ct == 10:
+                    raise Exception(f"Unable to produce marine growth at the indicated change depths within the depth tolerance provided for mooring line index {i}. Please check for errors or increase tolerance.")
+                # assign the newly created subsystem into the right place in the line list
+                self.ms.lineList[i] = self.mooringList[i].subsystem
                 
-                ch.append(bb)
-                if ch[-1]==ch[-2]: # not a split line (leave length and number of nodes alone)
-                    LineLengths.append(ss.L)
-                # add connector at end of section to list
-                connList.append(self.mooringListPristine[i].connectorList[j+1])
-            
-            
-            # Set up list variables for pristine line info
-            EA = []
-            m = []
-            d_ve_old = []
-            cd = []
-            cdAx = []
-                                                
-            # create arrays
-            d_nom_old = np.zeros((len(LType),1))        
-            ve_nom_adjust = np.zeros((len(LType),1))
-            mu_mg = np.zeros((len(LType),1))
-        
-            nd = [] # list of dictionaries for new design dictionary sections part
-            
-            for j,ltyp in enumerate(LType):
-                # add in information for each line type without marine growth
-                st =  self.mooringListPristine[i].subsystem.lineTypes
-                EA.append(st[ltyp]['EA'])
-                m.append(st[ltyp]['m'])
-                d_ve_old.append(st[ltyp]['d_vol'])
-                
-                
-                # get ratio between ve and nom diameter from MoorProps yaml
-                opt = helpers.loadLineProps(None)
-                ve_nom_adjust[j] = opt[LineMats[j]]['dvol_dnom']
-                # get cd and cdAx
-                if not 'Cd' in st[ltyp]:
-                    cd.append(opt[LineMats[j]]['Cd'])
-                else:
-                    cd.append(st[LType[j]]['Cd'])
-                if not 'CdAx' in st[ltyp]:
-                    cdAx.append(opt[LineMats[j]]['CdAx'])
-                else:
-                    cdAx.append(st[LType[j]]['CdAx'])
-                if LineMats[j] == 'chain' or LineMats[j] == 'chain_studlink':
-                    mu_mg[j] = 2
-                else:
-                    mu_mg[j] = 1
-                
-                # re-form dictionaries with marine growth values
-                nd.append({'type':{}, 'length':{}}) # new design dictionary
-                ndt = nd[j]['type']
-                
-                # calculate nominal diameter
-                d_nom_old[j] = d_ve_old[j]/ve_nom_adjust[j] # m
-                
-                # calculate new line diameter that includes marine growth
-                ndt['d_nom'] = float(d_nom_old[j]+2*LThick[j]) #m
-                
-                # calculate the new mass per meter including marine growth
-                growthMass = np.pi/4*(ndt['d_nom']**2-d_nom_old[j]**2)*rho_mg*mu_mg[j] # marine growth mass
-                ndt['m'] =  float(growthMass + m[j]) # kg/m (total mass)
-                
-                # calculate the submerged weight per meter including marine growth
-                ndt['w'] = float(growthMass*(1-1025/rho_mg)*9.81 + (m[j]-np.pi/4*d_ve_old[j]**2*1025)*9.81) # N/m
-                
-                # calculate new volume-equivalent diameter (cannot use regular chain/polyester conversion because of added marine growth)
-                ndt['d_vol'] = np.sqrt(4*((ndt['m']*9.81-ndt['w'])/1025/9.81)/np.pi)
-                
-                # calculate new increased drag coefficient from marine growth
-                # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
-                ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
-                ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
-                
-                ndt['material'] = LineMats[j]
-                ndt['name'] = str(j)
-                ndt['MBL'] = self.mooringListPristine[i].subsystem.lineTypes[ltyp]['MBL']
-                ndt['cost'] = self.mooringListPristine[i].subsystem.lineTypes[ltyp]['cost']
-                ndt['EA'] = EA[j]
-                if 'EAd' in self.mooringListPristine[i].subsystem.lineTypes[ltyp]:
-                    ndt['EAd'] = self.mooringListPristine[i].subsystem.lineTypes[ltyp]['EAd']
-                                  
-                nd[j]['length'] = LineLengths[j]
-          
-            self.mooringList[i].dd['sections'] = nd
-            self.mooringList[i].connectorList = connList
-        
-        return(ptCheck,ssCheck,dCheck)
-            
-    
-        
-
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''
     Function to streamline getting values from design dictionary from YAML file, including error checking.
