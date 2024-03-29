@@ -14,7 +14,13 @@ Array = Project(file='../OntologySample600m.yaml')
 settings = {}
 settings["linelabels"] = True
 settings["pointlabels"] = True                          
-Array.ms.plot( **settings)
+# Array.ms.plot( **settings)
+# model = Array.array
+# # model.analyzeUnloaded()
+# # model.solveEigen()
+# model.analyzeCases(display=1)
+# model.plotResponses()
+# model.plot()
 
 # model = Array.array
 # # model.analyzeUnloaded()
@@ -40,18 +46,18 @@ model.plotResponses()
 model.plot()
 
 #####################FLIPPED TURBINE EXAMPLE (clumped weight is original 80,000)#################################
-Array1 = Project(file='../OntologySample600m_FLIPPED_TURBINE.yaml')
-mgDict = {'th':[[0.0,-600,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':1325}
-#mgDict = {'th':[[0.0,-200,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':[1330,1330,1330]}
-Array1.getMarineGrowth(mgDict,tol=3)
-Array1.ms.plot( **settings)
-model = Array1.array
-# model.analyzeUnloaded()
-# model.solveEigen()
-model.analyzeCases(display=1)
-model.plotResponses()
-model.plot()
-
+# Array1 = Project(file='../OntologySample600m_FLIPPED_TURBINE.yaml')
+# mgDict = {'th':[[0.0,-600,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':1325}
+# #mgDict = {'th':[[0.0,-200,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':[1330,1330,1330]}
+# Array1.getMarineGrowth(mgDict,tol=3)
+# Array1.ms.plot( **settings)
+# model = Array1.array
+# # model.analyzeUnloaded()
+# # model.solveEigen()
+# model.analyzeCases(display=1)
+# model.plotResponses()
+# model.plot()
+###############################
 # # mgDict = {'changeDepths':{'depth':[-90,-50,0],'th':[.005,.1,.3]},'depthTol':3}
 
 # # Array.getMoorPyArray(mgDict=mgDict,plt=1)

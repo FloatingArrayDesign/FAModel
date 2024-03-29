@@ -109,7 +109,7 @@ array_mooring:
         # - [ semitaut-poly_1      ,  Anch 4,  FOWT 4, NA, 60,  0]
         # - [ semitaut-poly_1      ,  Anch 5,  FOWT 4, NA, 180,  0]
         - [ semitaut-poly_1      ,  Anch 1,  FOWT 4, NA, 300,  0]
-        - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
+        - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 180,  180,  0]
 
 
 # Array cables (compact table format, without routing info)
@@ -1182,6 +1182,9 @@ platforms:
   - potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
     dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
     qtfPath      :  'IEA-15-240-RWT-UMaineSemi.12d'      # path to the qtf file for the platform
+    rFair        :  58      # [m] fairlead radius
+    zFair        :  -14     # [m] fairlead z-location
+  
 
     members:   # list all members here
         
@@ -1365,9 +1368,8 @@ mooring_line_configs:
     
         name: Semitaut polyester configuration 1  # descriptive name
         
-        anchoring_radius: 700
-        fairlead_radius: 58
-        fairlead_depth: -14
+        span: 700
+
         
         sections:                 #in order from anchor to fairlead
           - type: chain_155mm       # ID of a mooring line section type
@@ -1389,9 +1391,9 @@ mooring_line_configs:
     
         name: Taut polyester configuration 1  # descriptive name
         
-        anchoring_radius: 800
-        fairlead_radius: 58
-        fairlead_depth: -14
+        span: 800
+        # fairlead_radius: 58
+        # fairlead_depth: -14
         
         sections:
           - connectorType: shackle # anchor connection
@@ -1421,9 +1423,8 @@ mooring_line_configs:
         name: Shared line with two clump weights
         symmetric: False
         
-        anchoring_radius: 1142
-        fairlead_radius: 58
-        fairlead_depth: -14        
+        span: 1142
+        
         
         sections:
           - connectorType: shackle # anchor connection

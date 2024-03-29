@@ -11,7 +11,7 @@ class Platform():
     Eventually will inherit from Node.
     '''
     
-    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300]):
+    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
         '''
         
         Parameters
@@ -30,12 +30,14 @@ class Platform():
         # Platform position and orientation
         self.r = np.array(r)  # x, y coordinates of platform [m]
         self.phi = np.radians(heading)  # heading offset of platform [rad]
+        self.rFair = rFair
+        self.zFair = zFair
         
         self.mooring_headings = [np.radians(mooring_headings)] # headings of mooring lines [rad]
         
         self.n_mooring = len(mooring_headings) # number of mooring lines
         
-        self.endA = [] # list of booleans (one for each mooring line) describing whether platform is connected to end A of the line (important for shared lines)
+        self.endB = [] # list of booleans (one for each mooring line) describing whether platform is connected to end B of the line (important for shared lines)
         # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
         # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
         

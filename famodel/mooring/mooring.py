@@ -5,8 +5,6 @@ from copy import deepcopy
 from moorpy.subsystem import Subsystem
 from moorpy import helpers
 from famodel.mooring.connector import Connector
-from scipy import interpolate
-
 
 class Mooring():
     '''
@@ -35,10 +33,8 @@ class Mooring():
                                   length
                                  }
                          }
-                     rAnchor
+                     span
                      zAnchor
-                     rFair
-                     zFair
                      EndPositions:
                                   {
                                     endA, endB
@@ -187,7 +183,7 @@ class Mooring():
         # check if a subsystem already exists
         if self.subsystem:
             print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
-        self.subsystem=Subsystem(depth=-self.dd['zAnchor'], span=self.dd['rAnchor'], rBfair=self.rB)
+        self.subsystem=Subsystem(depth=-self.dd['zAnchor'], span=self.dd['span'], rBfair=self.rB)
         lengths = []
         types = []
         # run through each line section and collect the length and type
@@ -387,8 +383,7 @@ class Mooring():
                 
             # add connector at end of section to list
             connList.append(oldLine.connectorList[i+1])
-            
-        print(Lengths,LThick)     
+                
         # Set up list variables for pristine line info
         EA = []
         m = []
@@ -457,10 +452,7 @@ class Mooring():
             if LThick[j] == 0:
                 nd[j]['type'] = deepcopy(st[ltyp])
                 nd[j]['type']['name'] = j
-                print(nd[j]['type']['name'])
-                print('ya')
             else:
-
                 # get mu for material
                 if Mats[j] == 'chain' or Mats[j] == 'chain_studlink':
                     mu_mg[j] = 2

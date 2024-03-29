@@ -102,7 +102,7 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
-          - [ rope_shared   ,  FOWT 1,  FOWT 2,  0, 0, 0]
+          - [ rope_shared   ,  FOWT 1,  FOWT 2,  180, 180, 0]
          # - [ rope_shared   ,  Anch 1,  FOWT 4, NA, 300,  0]
         # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
 
@@ -1175,6 +1175,8 @@ platform:
 
     potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
     dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
+    rFair        :  40.5    # fairlead radius
+    zFair        :  -20     # fairlead z-location
     
     members:   # list all members here
         
@@ -1358,9 +1360,8 @@ mooring_line_configs:
     
         name: rope configuration 1  # descriptive name
         
-        anchoring_radius: 1131.37
-        fairlead_radius: 40.5
-        fairlead_depth: -20
+        span: 1131.37
+
         
         sections:                 #in order from anchor to fairlead
           - type: rope       # ID of a mooring line section type
@@ -1375,9 +1376,8 @@ mooring_line_configs:
     rope_shared:
         name: shared rope 
         
-        anchoring_radius: 1131
-        fairlead_radius: 40.5
-        fairlead_depth: -20 
+        span: 1131
+ 
         
         sections:
           - type: rope
@@ -1393,9 +1393,8 @@ mooring_line_configs:
     
         name: Taut polyester configuration 1  # descriptive name
         
-        anchoring_radius: 800
-        fairlead_radius: 58
-        fairlead_depth: -14
+        span: 800
+
         
         sections:
           - connectorType: shackle # anchor connection
@@ -1425,9 +1424,7 @@ mooring_line_configs:
         name: Shared line with two clump weights
         symmetric: True
         
-        anchoring_radius: 1142
-        fairlead_radius: 58
-        fairlead_depth: -14        
+        span: 1142      
         
         sections:
           - connectorType: shackle # anchor connection
