@@ -161,10 +161,12 @@ if __name__ == '__main__':
     
     cableTypes33 = []
     cableTypes66 = []
+    cableTypes132 = []
     
     for A in As:
         cableTypes33.append(getCableProps(A, 'dynamic_cable_33', cableProps=cableProps))
         cableTypes66.append(getCableProps(A, 'dynamic_cable_66', cableProps=cableProps))
+        cableTypes132.append(getCableProps(A, 'dynamic_cable_132', cableProps=cableProps))
     
     def plotProps(x, typeLists, labels, parameter):
         
@@ -177,12 +179,12 @@ if __name__ == '__main__':
         ax.set_xlabel(r'A (mm$^2$)')
         ax.legend()
     
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'd')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'm')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'EA')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'EI')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'MBL')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'MBR')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'd')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'm')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'EA')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'EI')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'MBL')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'MBR')
     
     plt.show()
     
