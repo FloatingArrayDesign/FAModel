@@ -16,7 +16,7 @@ cable_types:          # standard size of conductors [mm^2]: [800, 630, 400, 300,
     dynamic_cable_33:                                   
         kV          : 33                           # voltage rating [kV]    
         mass_d      : [0.004779, -0.822,  45.59]    # linear mass density [kg/m]  = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)       
-        EA_d        : [0.04944,  -8.313,  597.141]    # stiffness [MN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)  
+        EA_d        : [0.04944,  -8.313,  567.141]    # stiffness [MN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)  
         EI_d        : [0.009537, -2.2347, 134.55]   # bending stiffness [kN.m^2] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
         MBL_D_coefs : [0.0504,   -8.548,  584.02]   # MBL[kN] = (1st)*D_2[mm] + (2nd)*D[mm] + (3rd)
         MBR_D_coefs : [0.015, 0.0]                 # MBR[m] = (1st)*D[mm] + (2nd)
