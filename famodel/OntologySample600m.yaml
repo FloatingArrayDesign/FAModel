@@ -77,8 +77,8 @@ site:
 array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [1,     1,         1,         ms1,          0,         0,          180   ]    # 2 array, shared moorings
-        -  [2,     1,         1,         ms2,          1600,           0,            0   ] 
+        -  [fowt1,     1,         1,         ms1,          0,         0,          180   ]    
+        -  [fowt2,     1,         1,         ms2,          1600,           0,            0   ] 
         # -  [3,     1,         1,         ms3,          1200,           -1200,            0   ]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
@@ -102,7 +102,7 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
-          - [ rope_shared   ,  FOWT 1,  FOWT 2,  180, 180, 0]
+          - [ rope_shared   ,  fowt1,  fowt2,  180, 180, 0]
          # - [ rope_shared   ,  Anch 1,  FOWT 4, NA, 300,  0]
         # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
 

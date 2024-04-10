@@ -215,7 +215,7 @@ class Mooring():
         # solve the system
         self.subsystem.staticSolve()
         
-        return(self.subsystem)
+        return(self.subsystem)      
 
     def addMarineGrowth(self,mgDict,project=None,idx=None):
         '''Re-creates sections part of design dictionary to account for marine 
@@ -240,8 +240,8 @@ class Mooring():
             will be called in a loop (or even just multiple times) to improve accuracy 
             of change depths, which may decrease significantly after solveEquilibrium() 
             for the moorpy model. The default is None.
-        idx : int, optional
-            An index for the pristineMooringList in the project object that is associated
+        idx : tuple, optional
+            A key for the pristineMooringList in the project object that is associated
             with this mooring object. Since the pristineMooringList is a deepcopy of the 
             project mooringList, the mooring objects are not the same and therefore if the 
             project object is provided in the method call, the index must also be provided.

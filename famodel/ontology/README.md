@@ -163,6 +163,28 @@ This resource data will follow the [WindIO plant ontology](https://windio.readth
         filename: 'windresource'
 ```
 
+### RAFT Cases
+The RAFT cases section contains the parameters for any load cases that are intended to be run in RAFT. 
+The section inputs a list where each entry corresponds to a load case. Note that turbulence can be input 
+as a percent or as a string representing a turbulence model such as IIB_NTM.
+```yaml
+RAFT_cases:
+        keys : [wind_speed, wind_heading, turbulence, turbine_status, yaw_misalign, wave_spectrum, wave_period, wave_height, wave_heading  ]
+        data :  #   m/s        deg    % or e.g. IIB_NTM    string            deg         string          (s)         (m)         (deg)
+            -  [    10.5,         0,            0.01,    operating,          0,        JONSWAP,         12,         6,         0       ]
+```
+
+### RAFT Settings
+The RAFT settings section contains the general parameters used for RAFT simulations, such as cutoff frequencies, 
+Initial amplitudes for each degree of freedom at all frequencies, and the number of iterations to solve the model dynamics. 
+```yaml
+RAFT_settings:   
+        min_freq     :  0.001    #  [Hz]       lowest frequency to consider, also the frequency bin width     
+        max_freq     :  0.10    #  [Hz]       highest frequency to consider
+        XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
+        nIter        :   4      # sets how many iterations to perform in Model.solveDynamics()
+``` 
+
 ## Array
 
 This part of the ontology includes a section for the tubine layout, as
@@ -171,8 +193,8 @@ array cabling.
 
 ### Array Layout
 The array section summarizes the floating wind turbines in the array. The 
-section inputs a list where each entry corresponds to a wind turbine.
-The turbineID and platformID are specified for each, connecting to details in 
+section inputs a list where each entry corresponds to a wind turbine. The ID serves as a method to identify the specific turbine system. 
+As such, each list entry should have a unique ID. The turbineID and platformID are specified for each list entry, connecting to details in 
 the [Turbine](#turbines) and [Platform](#platforms) sections. This allows the user to easily 
 specify different turbine or platform types throughout the array. 
 Similarly, the mooringID is included and refers to the [mooring_systems](#mooring-systems) section.
@@ -184,18 +206,18 @@ Alternatively, the mooringID can be set to zero and the mooring system can be
 input in the [array_mooring](#array-mooring) section.
 
 ```yaml
-array:         # [copy from RAFT style for the moment]
-    keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
-    data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [     1,         1,         1,             0,              0,          180   ] 
-        -  [     2,         1,         2,          1600,              0,            0   ]  
+array:
+    keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
+    data : #    ID#        ID#        ID#           [m]             [m]           [deg]
+        -  [1,     1,         1,         ms1,         0,             0,           180  ]    
+        -  [2,     1,         2,         ms2,         1600,          0,            0   ]  
 ```
 
 
 ### Array Mooring
 The array mooring section allows the user to input array-level mooring system details, instead of the more generalized mooring systems in mooring_systems.
 This section inputs a list of x,y anchor positions, anchor type, and embedment depth. The anchor type links to the list in the anchor_types section.
-Additionally, a list of mooring lines can be input with specified attachements at numbered FOWTs and anchors. The mooring lines each have a mooring 
+Additionally, a list of mooring lines can be input with specified attachments at numbered FOWTs and anchors. The mooring lines each have a mooring 
 configuration ID which links to the mooring_line_configs section. There is also an option to adjust the length of the line, depending on the spacing. 
 
 ```yaml
@@ -238,9 +260,9 @@ array_cables:
 ## Turbine(s)
 
 The turbine section can contain either a single turbine or a list of turbines, 
-depending on the scenario. By default, the format follows that of
-[RAFT](https://openraft.readthedocs.io). However, support will be added for linking to
-turbine design descriptions that follow
+depending on the scenario. Note that if multiple turbines are listed, the section title must be 'turbines' instead of 'turbine'
+By default, the format follows that of [RAFT](https://openraft.readthedocs.io). 
+However, support will be added for linking to turbine design descriptions that follow
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
 by [WEIS](https://weis.readthedocs.io).
 

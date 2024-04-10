@@ -37,12 +37,12 @@ class Platform():
         
         self.n_mooring = len(mooring_headings) # number of mooring lines
         
-        self.endB = [] # list of booleans (one for each mooring line) describing whether platform is connected to end B of the line (important for shared lines)
+        self.endB = {} # dictionary with key as mooring object names and values of booleans (one for each mooring line) describing whether platform is connected to end B of the line (important for shared lines)
         # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
         # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
         
-        self.mooringList = []  # to be filled by references to Mooring objects
-        self.anchorList = [] # list of references to anchor objects connected to this platform
+        self.mooringList = {}  # dictionary to be filled by references to Mooring objects
+        self.anchorList = {} # dictionary of references to anchor objects connected to this platform
         
         # Dictionaries for addition information
         self.loads = {}

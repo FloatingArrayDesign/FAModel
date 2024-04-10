@@ -10,11 +10,11 @@ import numpy as np
 # create project class instance from yaml file
 #Array = Project(file='mooringOntology.yaml')
 ###########No marine growth####################################
-Array = Project(file='../OntologySample600m.yaml')
+Array = Project(file='C:/Users/LSIRKIS/Documents/FAModel/famodel/mooring/mooringOntology.yaml')
 settings = {}
 settings["linelabels"] = True
 settings["pointlabels"] = True                          
-# Array.ms.plot( **settings)
+Array.ms.plot( **settings)
 # model = Array.array
 # # model.analyzeUnloaded()
 # # model.solveEigen()
@@ -30,21 +30,21 @@ settings["pointlabels"] = True
 # model.plot()
 
 #############NON-FLIPPED TURBINE EXAMPLE (clumped weight reduced to 20,000)##########
-mgDict = {'th':[[0.0,-600,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':1325}
-#mgDict = {'th':[[0.0,-200,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':[1330,1330,1330]}
-Array.getMarineGrowth(mgDict,tol=3)
-settings = {}
-settings["linelabels"] = True
-settings["pointlabels"] = True                          
-Array.ms.plot( **settings)
+# mgDict = {'th':[[0.0,-600,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':1325}
+# #mgDict = {'th':[[0.0,-200,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':[1330,1330,1330]}
+# Array.getMarineGrowth(mgDict,tol=3)
+# settings = {}
+# settings["linelabels"] = True
+# settings["pointlabels"] = True                          
+# Array.ms.plot( **settings)
 
+print('Running RAFT')
 model = Array.array
 # model.analyzeUnloaded()
 # model.solveEigen()
 model.analyzeCases(display=1)
 model.plotResponses()
 model.plot()
-
 #####################FLIPPED TURBINE EXAMPLE (clumped weight is original 80,000)#################################
 # Array1 = Project(file='../OntologySample600m_FLIPPED_TURBINE.yaml')
 # mgDict = {'th':[[0.0,-600,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':1325}
