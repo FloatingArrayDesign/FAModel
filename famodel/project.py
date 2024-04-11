@@ -437,12 +437,12 @@ class Project():
                     
             for i in range(0, len(arrayInfo)): # loop through each platform in array
                 
-                # create platform instance (even if it only has shared moorings / anchors)
+                # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
                 self.platformList[arrayInfo[i]['ID']] = Platform(r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'])
                 # add fairlead radius and fairlead depth of this platform type from platform information section
                 if type(platforms) == list:
                     # get index of platform from array table
-                    pfID = arrayInfo[i]['platformID']-1#d['array']['data'][i][2]-1
+                    pfID = arrayInfo[i]['platformID']-1
                     self.platformList[arrayInfo[i]['ID']].rFair = platforms[pfID]['rFair']
                     self.platformList[arrayInfo[i]['ID']].zFair = platforms[pfID]['zFair']
                 else:
@@ -451,7 +451,7 @@ class Project():
                 # remove pre-set headings (need to append to this list so list should start off empty)
                 self.platformList[arrayInfo[i]['ID']].mooring_headings = []
                 if not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
-                    m_s = arrayInfo[i]['mooringID'] # get mooring system number
+                    m_s = arrayInfo[i]['mooringID'] # get mooring system ID
                     # get mooring headings (need this for platform class)
                     headings = []
                     for ii in range(0,len(mSystems[m_s]['data'])):
@@ -651,10 +651,6 @@ class Project():
         
         # load array information into RAFT dictionary
         RAFTDict['array'] = deepcopy(d['array']) # need to change items so make a deepcopy
-        RAFTDict['array']['keys'].pop(0) # remove key for ID because this doesn't exist in RAFT array table
-        for i in range(0,len(d['array']['data'])):
-            RAFTDict['array']['data'][i][3] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
-            RAFTDict['array']['data'][i].pop(0) # remove ID column because this doesn't exist in RAFT array data table
         # load general site info to RAFT dictionary
         RAFTDict['site'] = {'water_depth':self.depth,'rho_water':self.rho_water,'rho_air':self.rho_air,'mu_air':self.mu_air}
         RAFTDict['site']['shearExp'] = getFromDict(d['site']['general'],'shearExp',default=0.12)
@@ -1222,7 +1218,7 @@ class Project():
         Parameters
         ----------
         bodyInfo : list of dictionaries, optional
-            List of dictionaries (one list entry per body) that has information on hydrostatics
+            List of dictionaries (one list entry per body) that has information on hydrostatics for each body
         plt : boolean, optional
             Controls whether to create a plot of the MoorPy array. 1=create plot, 0=no plot The default is 0.
 
@@ -1240,21 +1236,21 @@ class Project():
         # create MoorPy system
         self.ms = mp.System(depth=self.depth)       
         
-        for i,body in enumerate(self.platformList): # make all the bodies up front
+        for i,body in enumerate(self.platformList): # make all the bodies up front - i is index in dictionary, body is key (name of platform)
             PF = self.platformList[body]
             # add a moorpy body at the correct location
             r6 = [PF.r[0],PF.r[1],0,0,0,0]
             # use bodyInfo dictionary to create moorpy body if given
             if bodyInfo:
-                self.ms.addBody(-1,r6,m=bodyInfo[i]['m'],v=bodyInfo[i]['v'],rCG=np.array(bodyInfo[i]['rCG']),rM=np.array(bodyInfo[i]['rM']),AWP=bodyInfo[i]['AWP'])
+                self.ms.addBody(-1,r6,m=bodyInfo[body]['m'],v=bodyInfo[body]['v'],rCG=np.array(bodyInfo[body]['rCG']),rM=np.array(bodyInfo[body]['rM']),AWP=bodyInfo[body]['AWP'])
             else: # default to UMaine VolturnUS-S design hydrostatics info
                 print('No hydrostatics information given, so default body hydrostatics will be used.')
                 self.ms.addBody(-1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
         
         # create anchor points and all mooring lines connected to the anchors (since all connected to anchors, can't be a shared mooring)
-        for i in self.anchorList:
+        for i in self.anchorList: # i is key (name) of anchor
             ssloc = []
-            for j in self.anchorList[i].mooringList:
+            for j in self.anchorList[i].mooringList: # j is key (name) of mooring object in anchor i
                 # create subsystem
                 self.anchorList[i].mooringList[j].createSubsystem()
                 # set location of subsystem for simpler coding
@@ -1270,9 +1266,9 @@ class Project():
                 # attach the line to point
                 self.ms.pointList[-1].attachLine(ssloc[-1].number,1)
                 # find associated platform and attach body to point (since not a shared line, should only be one platform with this mooring object)
-                for ii,k in enumerate(self.platformList):
-                    if j in self.platformList[k].mooringList:
-                        PF = self.platformList[k] # platform object
+                for ii,k in enumerate(self.platformList): # ii is index in dictionary, k is key (name) of platform
+                    if j in self.platformList[k].mooringList: # j is key (name) of mooring object in anchor i checking if that same mooring object name is attached to platform k
+                        PF = self.platformList[k] # platform object associated with mooring line j and anchor i
                         PFNum = ii # platform index
                 # attach rB point to platform (need to subtract out location of platform from point for subsystem integration to work correctly)
                 self.ms.bodyList[PFNum].attachPoint(len(self.ms.pointList),[ssloc[-1].rB[0]-PF.r[0],ssloc[-1].rB[1]-PF.r[1],ssloc[-1].rB[2]]) # attach to fairlead
@@ -1284,8 +1280,8 @@ class Project():
         
         check = np.ones((len(self.mooringList),1))
         # now create and attach any shared lines
-        for ii,i in enumerate(self.mooringList): # loop through all lines
-            for j in self.anchorList:
+        for ii,i in enumerate(self.mooringList): # loop through all lines - ii is index of mooring object in dictionary, i is key (name) of mooring object
+            for j in self.anchorList: # j is key (name) of anchor object
                 if i in self.anchorList[j].mooringList: # check if line has already been put in ms
                     check[ii] = 0     
             if check[ii] == 1: # mooring object not in any anchor lists
@@ -1302,7 +1298,7 @@ class Project():
                 PF = []
                 PFNum = []
                 idx = []
-                for kk,k in enumerate(self.platformList):
+                for kk,k in enumerate(self.platformList): # kk is index in dictionary, k is key (name) of platform
                     if i in self.platformList[k].mooringList:
                         PF.append(self.platformList[k]) # platform object
                         PFNum.append(kk) # platform index                    
@@ -1339,7 +1335,7 @@ class Project():
         self.ms.solveEquilibrium(DOFtype='coupled')
         
         if pristineLines:
-            for i in self.mooringList:
+            for i in self.mooringList: # here, i is key (name) of mooring object
                 # add subsystems to pristine mooring objects
                 self.mooringListPristine[i].subsystem = deepcopy(self.mooringList[i].subsystem)
                     
@@ -1588,18 +1584,32 @@ class Project():
         # create RAFT model if necessary components exist
         if 'settings' in RAFTDict and 'cases' in RAFTDict:
             if 'turbines' in RAFTDict or 'turbine' in RAFTDict:
-                if 'platforms' in RAFTDict or 'platform' in RAFTDict:
+                if 'platforms' in RAFTDict or 'platform' in RAFTDict:                    
+                    # set up a dictionary with keys as the table names for each row (ease of use later)
+                    RAFTable = [dict(zip(RAFTDict['array']['keys'], row)) for row in RAFTDict['array']['data']]
+                    # find index for ID and mooringID
+                    for i in range(0,len(RAFTDict['array']['keys'])):
+                        if RAFTDict['array']['keys'][i] == 'ID':
+                            IDindex = i 
+                        elif RAFTDict['array']['keys'][i] =='mooringID':
+                            mooringIDindex = i
+                            
+                    RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
+                    for i in range(0,len(RAFTDict['array']['data'])):
+                        RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
+                        RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
+                   
+                    # create raft model                                          
                     self.array = raft.Model(RAFTDict)
-                    # create list of dictionaries of body hydrostatics for MoorPy bodies
-                    bodyInfo = []
+                    # create dictionary of dictionaries of body hydrostatics for MoorPy bodies
+                    bodyInfo = {}
                     for i,body in enumerate(self.array.fowtList):
                         # set position (required before you can calcStatics)
-                        body.setPosition([RAFTDict['array']['data'][i][3],RAFTDict['array']['data'][i][4],0,0,0,0])
+                        body.setPosition([RAFTable[i]['x_location'],RAFTable[i]['y_location'],0,0,0,0])
                         # get body hydrostatics info for MoorPy bodies
                         body.calcStatics()
-                        print('mass = ',body.m)
                         # populate dictionary of body info to send to moorpy
-                        bodyInfo.append({'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP})
+                        bodyInfo[RAFTable[i]['ID']] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
                     # create moorpy array if it doesn't exist
                     if not self.ms:
                         self.getMoorPyArray(bodyInfo)

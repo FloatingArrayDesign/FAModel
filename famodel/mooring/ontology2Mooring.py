@@ -15,6 +15,8 @@ settings = {}
 settings["linelabels"] = True
 settings["pointlabels"] = True                          
 Array.ms.plot( **settings)
+
+print('Before running RAFT, rA = ',Array.ms.lineList[-1].rA[2],', rB = ', Array.ms.lineList[-1].rB[2])
 # model = Array.array
 # # model.analyzeUnloaded()
 # # model.solveEigen()
@@ -42,9 +44,10 @@ print('Running RAFT')
 model = Array.array
 # model.analyzeUnloaded()
 # model.solveEigen()
-model.analyzeCases(display=1)
+model.analyzeCases()
 model.plotResponses()
 model.plot()
+print('After running RAFT, rA = ',Array.ms.lineList[-1].rA[2],', rB = ', Array.ms.lineList[-1].rB[2])
 #####################FLIPPED TURBINE EXAMPLE (clumped weight is original 80,000)#################################
 # Array1 = Project(file='../OntologySample600m_FLIPPED_TURBINE.yaml')
 # mgDict = {'th':[[0.0,-600,-100],[0.05,-100,-40],[0.1,-40,0]],'rho':1325}

@@ -1433,11 +1433,11 @@ mooring_line_configs:
             # connector: shackle
             # connectorA: shackle
             # connectorB: clump_weight_20       
-          - connectorType:  clump_weight_80 
+          - connectorType:  clump_weight_20 
           - type: polyester_182mm   
-            length: 870 # 435   870  
+            length: 770 # 435   870  
             # connectorB: clump_weight_20     
-          - connectorType:  clump_weight_80  
+          - connectorType:  clump_weight_20  
           - type: polyester_182mm
             length: 110
           #   # connectorB: shackle   

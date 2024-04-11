@@ -1522,7 +1522,7 @@ mooring_connector_types:
         volume : 0.13   # [m^3] component volumetric displacement
         
     clump_weight_80:
-        mass   : 20000  # [kg]
+        mass   : 80000  # [kg]
         volume :  0.0   # [m^3]
         
     buoy_10:
