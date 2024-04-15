@@ -23,6 +23,8 @@ better suit the scope and emphasis of floating wind arrays. The sections are as 
   * [Seabed                          ](#seabed)
   * [Metocean                        ](#metocean)
   * [Resource                        ](#resource)
+  * [RAFT Cases                      ](#raft-cases)
+  * [RAFT Settings                   ](#raft-settings)
 * [Array                             ](#array)
   * [Array Layout                    ](#array-layout)
   * [Array Mooring                   ](#array-mooring)
