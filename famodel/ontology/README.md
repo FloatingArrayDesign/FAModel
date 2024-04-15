@@ -276,8 +276,7 @@ by [WEIS](https://weis.readthedocs.io).
 This section defines the floating support structures used in the design. As in
 the previous section, it can contain a single platform or a list of platforms. 
 By default, the format here follows that used by 
-[RAFT](https://openraft.readthedocs.io) input files, with the addition of 'rFair' and 'zFair' entries to the 
-dictionary for each platform in the first level of each platform's dictionary, where rFair is the fairlead radius of the platform and zFair is the fairlead depth.
+[RAFT](https://openraft.readthedocs.io) input files.
 However, support will be added for also linking to platform descriptions that follow
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
 by [WEIS](https://weis.readthedocs.io).
@@ -287,8 +286,6 @@ platform:
 
     potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
     dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
-    rFair        :  40.5    # platform fairlead radius
-    zFair        :  -20     # platform fairlead z-location
     
     members:   # list all members here
         
@@ -346,7 +343,8 @@ mooring_systems:
 ### Mooring Line Configurations
 
 The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
-as the MooringConfigID in the mooring systems section. Each line contains a list of sections that details the line section type and length. The line type name
+as the MooringConfigID in the mooring systems section. The anchoring radius (also known as the span), fairlead radius, and fairlead depth are also specified for each line configuration.
+ Each line contains a list of sections that details the line section type and length. The line type name
 connects to information in the mooring [line section properties](#mooring-line-section-properties). 
 Additionally, before and after each line section has an optional input which can list the 
 ID of a [connector type](#mooring-connectors), such as an H-link or buoy. A connector is specified by using the key connectorType, while a line section is specified using the key type.
@@ -365,6 +363,10 @@ There is also a True/False options for whether the section length is adjustable.
     taut-poly_1:  # mooring line configuration identifier
     
         name: Taut polyester configuration 1  # descriptive name
+		
+		anchoring_radius: 1131.37
+        fairlead_radius: 40.5
+        fairlead_depth: -20
         
         sections:
           - type: chain_160       # ID of a mooring line section type
@@ -382,6 +384,10 @@ There is also a True/False options for whether the section length is adjustable.
     shared-2-clump
         name: Shared line with two clump weights
         symmetric: True
+		
+		anchoring_radius: 1142
+        fairlead_radius: 58
+        fairlead_depth: -14
         
         sections:
           - type: poly_180   
