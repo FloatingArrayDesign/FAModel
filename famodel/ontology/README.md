@@ -163,6 +163,29 @@ This resource data will follow the [WindIO plant ontology](https://windio.readth
         filename: 'windresource'
 ```
 
+### RAFT Cases
+The RAFT cases section contains the parameters for any load cases that are intended to be run in [RAFT](https://openraft.readthedocs.io), and as such follows the format specified by RAFT. 
+The section inputs a list where each entry corresponds to a load case. Note that turbulence can be input 
+as a percent or as a string representing a turbulence model such as IIB_NTM.
+```yaml
+RAFT_cases:
+        keys : [wind_speed, wind_heading, turbulence, turbine_status, yaw_misalign, wave_spectrum, wave_period, wave_height, wave_heading  ]
+        data :  #   m/s        deg    % or e.g. IIB_NTM    string            deg         string          (s)         (m)         (deg)
+            -  [    10.5,         0,            0.01,    operating,          0,        JONSWAP,         12,         6,         0       ]
+```
+
+### RAFT Settings
+The RAFT settings section contains the general parameters used for RAFT simulations, such as cutoff frequencies, 
+Initial amplitudes for each degree of freedom at all frequencies, and the number of iterations to solve the model dynamics. 
+As with the previous section, the format follows that specified by [RAFT](https://openraft.readthedocs.io).
+```yaml
+RAFT_settings:   
+        min_freq     :  0.001    #  [Hz]       lowest frequency to consider, also the frequency bin width     
+        max_freq     :  0.10    #  [Hz]       highest frequency to consider
+        XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
+        nIter        :   4      # sets how many iterations to perform in Model.solveDynamics()
+``` 
+
 ## Array
 
 This part of the ontology includes a section for the tubine layout, as
@@ -171,9 +194,9 @@ array cabling.
 
 ### Array Layout
 The array section summarizes the floating wind turbines in the array. The 
-section inputs a list where each entry corresponds to a wind turbine.
-The turbineID and platformID are specified for each, connecting to details in 
-the [Turbine](#turbines) and [Platform](#platforms) sections. This allows the user to easily 
+section inputs a list where each entry corresponds to a wind turbine. The ID serves as a method to identify the specific turbine system. 
+As such, each list entry should have a unique ID number. The turbineID and platformID are specified for each list entry,
+connecting to details in the [Turbine](#turbines) and [Platform](#platforms) sections. This allows the user to easily 
 specify different turbine or platform types throughout the array. 
 Similarly, the mooringID is included and refers to the [mooring_systems](#mooring-systems) section.
 This allows the user to set up general mooring systems to be used throughout the array. Additionally, the x and y locations are input and the heading adjustment.
@@ -184,19 +207,21 @@ Alternatively, the mooringID can be set to zero and the mooring system can be
 input in the [array_mooring](#array-mooring) section.
 
 ```yaml
-array:         # [copy from RAFT style for the moment]
-    keys : [turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
-    data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [     1,         1,         1,             0,              0,          180   ] 
-        -  [     2,         1,         2,          1600,              0,            0   ]  
+array:
+    keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
+    data : # ID#   ID#        ID#        ID#           [m]             [m]           [deg]
+        -  [1,     1,         1,         ms1,         0,             0,           180  ]    
+        -  [2,     1,         2,         ms2,         1600,          0,            0   ]  
 ```
 
 
 ### Array Mooring
 The array mooring section allows the user to input array-level mooring system details, instead of the more generalized mooring systems in mooring_systems.
 This section inputs a list of x,y anchor positions, anchor type, and embedment depth. The anchor type links to the list in the anchor_types section.
-Additionally, a list of mooring lines can be input with specified attachements at numbered FOWTs and anchors. The mooring lines each have a mooring 
-configuration ID which links to the mooring_line_configs section. There is also an option to adjust the length of the line, depending on the spacing. 
+Additionally, a list of mooring lines can be input with specified attachments at FOWTs and anchors. To specify an anchor, use 'ANCH #' where # refers to the anchor ID in the anchor_data table.
+If there is an anchor connected to this line, it must be listed in end A, not end B. To specify a FOWT, use 'FOWT #' where # refers to the system ID in the array table. 
+The mooring lines each have a mooring configuration ID which links to the mooring_line_configs section. 
+There is also an option to adjust the length of the line, depending on the spacing. 
 
 ```yaml
 array_mooring:
@@ -209,9 +234,9 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  lengthAdjust]
     line_data :
-        - [ Taut-Poly_1      ,  FOWT 1,  Anch 1,   0]
-        - [ Taut-Poly_1      ,  FOWT 1,  Anch 2,   0]
-        - [ Taut-Poly_2      ,  FOWT 1,  Anch 3,   0]
+        - [ Taut-Poly_1      ,  ANCH 1,  FOWT 1,   0]
+        - [ Taut-Poly_1      ,  ANCH 2,  FOWT 1,   0]
+        - [ Taut-Poly_2      ,  FOWT 1,  FOWT 2,   0]
 
 ```
 
@@ -238,21 +263,55 @@ array_cables:
 ## Turbine(s)
 
 The turbine section can contain either a single turbine or a list of turbines, 
-depending on the scenario. By default, the format follows that of
-[RAFT](https://openraft.readthedocs.io). However, support will be added for linking to
-turbine design descriptions that follow
+depending on the scenario. Note that if multiple turbines are listed, the section title must be 'turbines' instead of 'turbine'.
+By default, the format follows that of [RAFT](https://openraft.readthedocs.io)
+However, support will be added for linking to turbine design descriptions that follow
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
 by [WEIS](https://weis.readthedocs.io).
 
 ## Platform(s)
 
 This section defines the floating support structures used in the design. As in
-the previous section, it can contain a single turbine or a list of turbines. 
+the previous section, it can contain a single platform or a list of platforms. 
 By default, the format here follows that used by 
-[RAFT](https://openraft.readthedocs.io) input files. However,
-support will be added for also linking to platform descriptions that follow
+[RAFT](https://openraft.readthedocs.io) input files, with the addition of 'rFair' and 'zFair' entries to the 
+dictionary for each platform in the first level of each platform's dictionary, where rFair is the fairlead radius of the platform and zFair is the fairlead depth.
+However, support will be added for also linking to platform descriptions that follow
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
 by [WEIS](https://weis.readthedocs.io).
+
+```yaml 
+platform:
+
+    potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
+    dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
+    rFair        :  40.5    # platform fairlead radius
+    zFair        :  -20     # platform fairlead z-location
+    
+    members:   # list all members here
+        
+      - name      :  center_column             # [-]    an identifier (no longer has to be number)       
+        type      :  2                         # [-]    
+        rA        :  [ 0, 0, -20]              # [m]    end A coordinates
+        rB        :  [ 0, 0,  15]              # [m]    and B coordinates
+        shape     :  circ                      # [-]    circular or rectangular
+        gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
+        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        # --- outer shell including hydro---
+        stations  :  [0, 1]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
+        d         :  10.0                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
+        t         :  0.05                      # [m]    wall thicknesses (scalar or list of same length as stations)
+        Cd        :  0.6                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
+        Ca        :  0.93                      # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
+        CdEnd     :  0.6                       # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
+        CaEnd     :  1.0                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
+        rho_shell :  7850                      # [kg/m3] 
+        # --- handling of end caps or any internal structures if we need them ---
+        cap_stations :  [ 0    ]               # [m]  location along member of any inner structures (in same scaling as set by 'stations')
+        cap_t        :  [ 0.001  ]             # [m]  thickness of any internal structures
+        cap_d_in     :  [ 0    ]               # [m]  inner diameter of internal structures (0 for full cap/bulkhead, >0 for a ring shape)
+
+```
 
 
 ## Mooring
@@ -287,15 +346,15 @@ mooring_systems:
 The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
 as the MooringConfigID in the mooring systems section. Each line contains a list of sections that details the line section type and length. The line type name
 connects to information in the mooring [line section properties](#mooring-line-section-properties). 
-Additionally, each line has an optional input which can list the 
-ID of a [connector type](#mooring-connectors), such as an H-link or buoy. 
+Additionally, before and after each line section has an optional input which can list the 
+ID of a [connector type](#mooring-connectors), such as an H-link or buoy. A connector is specified by using the key connectorType, while a line section is specified using the key type.
 This information allows the weight and buoyancy of the connections to be included 
-in the model. There is also a True/False options for whether the section length is adjustable. 
+in the model, and provides clarity on the location of the connector relative to different line sections. 
+Shared lines may have a 'symmetric' key used to describe whether the provided line configuration is half of a symmetric line 
+(symmetric: True) or a full line configuration (symmetric: False).If a connector is given 
+as the last item in the section list for a shared symmetric line, it is assumed that the provided connector is located in the center of the line.
+There is also a True/False options for whether the section length is adjustable. Note that line sections and connectors should be added to the sections list in order from end A to end B.
 
-Each configuration also has an attachment input. This 
-attachment generally provides information on the platform connection. The attachment information includes a type, which could be fairlead or padeye. 
-Additionally, the attachment specifies the x,y,z coordinates of the relative position on the platform. This is neccessary to account for the
-fairlead radius of a specific platform. The attachment coordinates are rotated, depending on the line heading in the mooring systems section.
 
 
 ```yaml
@@ -308,33 +367,29 @@ fairlead radius of a specific platform. The attachment coordinates are rotated, 
         sections:
           - type: chain_160       # ID of a mooring line section type
             length: 80            # [m] usntretched length of line section
-            connector: h_link     # ID of a connector type at the end of the line section (optional)
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+			
+		  - connectorType: h_link    # ID of a connector type (optional)
             
           - type: poly_180        # ID of a mooring line section type
             length: 762           # [m] length (unstretched)
-            connector: shackle    # ID of a connector type (optional)
-            
-        attachment:
-            type:                 # fairlead/pivot/padeye/other (optional)
-            coordinate: [58,0,-14] # [m] relative position on platform
+			
+          - connectorType: shackle    # ID of a connector type (optional)
 
 
-    Name: shared-2-clump
+    shared-2-clump
         name: Shared line with two clump weights
         symmetric: True
         
         sections:
           - type: poly_180   
-            length: 80       
-            connector: clump_weight_20
+            length: 80   
+			
+          - connectorType: clump_weight_20
             
           - type: poly_180
             length: 762   
-        
-        attachment:
-            type:
-            coordinate:
+
 ```    
     
 ### Mooring line section properties
