@@ -369,19 +369,17 @@ There is also a True/False options for whether the section length is adjustable.
         fairlead_depth: -20
         
         sections:
+		  - connectorType: shackke # ID of a connector type (optional)
           - type: chain_160       # ID of a mooring line section type
             length: 80            # [m] usntretched length of line section
-            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-			
-		  - connectorType: h_link    # ID of a connector type (optional)
-            
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...			
+		  - connectorType: h_link    # ID of a connector type (optional)       
           - type: poly_180        # ID of a mooring line section type
-            length: 762           # [m] length (unstretched)
-			
+            length: 762           # [m] length (unstretched)			
           - connectorType: shackle    # ID of a connector type (optional)
 
 
-    shared-2-clump
+    shared-2-clump:
         name: Shared line with two clump weights
         symmetric: True
 		
@@ -391,10 +389,8 @@ There is also a True/False options for whether the section length is adjustable.
         
         sections:
           - type: poly_180   
-            length: 80   
-			
-          - connectorType: clump_weight_20
-            
+            length: 80   			
+          - connectorType: clump_weight_20            
           - type: poly_180
             length: 762   
 
