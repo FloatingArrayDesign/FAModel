@@ -364,16 +364,16 @@ There is also a True/False options for whether the section length is adjustable.
     
         name: Taut polyester configuration 1  # descriptive name		
 		
-		anchoring_radius: 1131.37
+        anchoring_radius: 1131.37
         fairlead_radius: 40.5
         fairlead_depth: -20
         
         sections:
-		  - connectorType: shackke # ID of a connector type (optional)
+          - connectorType: shackke # ID of a connector type (optional)
           - type: chain_160       # ID of a mooring line section type
             length: 80            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...			
-		  - connectorType: h_link    # ID of a connector type (optional)       
+          - connectorType: h_link    # ID of a connector type (optional)       
           - type: poly_180        # ID of a mooring line section type
             length: 762           # [m] length (unstretched)			
           - connectorType: shackle    # ID of a connector type (optional)
@@ -383,7 +383,7 @@ There is also a True/False options for whether the section length is adjustable.
         name: Shared line with two clump weights
         symmetric: True		
 		
-		anchoring_radius: 1142
+        anchoring_radius: 1142
         fairlead_radius: 58
         fairlead_depth: -14
         
