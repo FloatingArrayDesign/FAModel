@@ -363,7 +363,7 @@ There is also a True/False options for whether the section length is adjustable.
     taut-poly_1:  # mooring line configuration identifier
     
         name: Taut polyester configuration 1  # descriptive name		
-		
+
         anchoring_radius: 1131.37
         fairlead_radius: 40.5
         fairlead_depth: -20
@@ -382,7 +382,7 @@ There is also a True/False options for whether the section length is adjustable.
     shared-2-clump:
         name: Shared line with two clump weights
         symmetric: True		
-		
+
         anchoring_radius: 1142
         fairlead_radius: 58
         fairlead_depth: -14
