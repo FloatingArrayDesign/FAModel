@@ -243,9 +243,10 @@ class Project():
             # check line configurations listed in mooring systems matches those in line configs list
             if mSystems: # if mooring_systems section is included in dictionary
                 for j,m_s in enumerate(mSystems): # loop through each mooring system
-                    for i in range(0,len(mSystems[m_s]['data'])): # loop through each line listed in the system
-                        if not mSystems[m_s]['data'][i][0] in lineConfigs: # check if they match
-                            raise Exception(f"Mooring line configuration '{mSystems[m_s]['data'][i][0]}' listed in mooring_systems is not found in mooring_line_configs")
+                    msys = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
+                    for i in range(0,len(msys)): #len(mSystems[m_s]['data'])): # loop through each line listed in the system
+                        if not msys[i]['MooringConfigID'] in lineConfigs: # check if they match
+                            raise Exception(f"Mooring line configuration '{msys[m_s][i]['MooringConfigID']}' listed in mooring_systems is not found in mooring_line_configs")
                             
         # ----- platforms -----
         
@@ -452,18 +453,23 @@ class Project():
                 self.platformList[arrayInfo[i]['ID']].mooring_headings = []
                 if not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
                     m_s = arrayInfo[i]['mooringID'] # get mooring system ID
+                    mySys = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
                     # get mooring headings (need this for platform class)
                     headings = []
-                    for ii in range(0,len(mSystems[m_s]['data'])):
-                        headings.append(np.radians(mSystems[m_s]['data'][ii][1])) 
+                    for ii in range(0,len(mySys)):
+                        headings.append(np.radians(mySys[ii]['heading']))
+                    # for ii in range(0,len(mSystems[m_s]['data'])):
+                    #     headings.append(np.radians(mSystems[m_s]['data'][ii][1])) 
                     
                     # add mooring headings to platform class instance
                     self.platformList[arrayInfo[i]['ID']].mooring_headings = headings
                     
                     # get the mooring line information 
-                    for j in range(0,len(mSystems[m_s]['data'])): # loop through each line in the mooring system
+                    for j in range(0,len(mySys)): # loop through each line in the mooring system
+                    # for j in range(0,len(mSystems[m_s]['data'])): # loop through each line in the mooring system
                         # get the configuration for that line in the mooring system
-                        lineconfig = mSystems[m_s]['data'][j][0] 
+                        lineconfig = mySys[j]['MooringConfigID']
+                        # lineconfig = mSystems[m_s]['data'][j][0] 
                    
                         # create mooring and connector dictionary
                         m_config, c_config = getMoorings(lineconfig)
@@ -480,7 +486,8 @@ class Project():
                         mc.z_anch = -zAnew
                         
                         # set anchor info
-                        lineAnch = mSystems[m_s]['data'][j][2] # get the anchor type for the line
+                        lineAnch = mySys[j]['anchorType'] # get the anchor type for the line
+                        # lineAnch = mSystems[m_s]['data'][j][2] # get the anchor type for the line
                         ad = getAnchors(lineAnch, mc=mc) # call method to create anchor dictionary
                         ad['angle'] = nAngle
                         
@@ -523,6 +530,10 @@ class Project():
                     raise Exception("Input for end B must match an ID from the array table.")
                 if any(ids['ID'] == arrayMooring[j]['end B'] for ids in arrayAnchor):
                     raise Exception(f"input for end B of line_data table row '{j}' in array_mooring must be an ID for a FOWT from the array table. Any anchors should be listed as end A.")
+                # Make sure no anchor IDs in arrayAnchor table are the same as IDs in array table
+                for k in range(0,len(arrayInfo)):
+                    if any(ids['ID'] == arrayInfo[k] for ids in arrayAnchor):
+                        raise Exception(f"ID for array table row {k} must be different from any ID in anchor_data table in array_mooring section")
                 # determine if end A is an anchor or a platform
                 if any(ids['ID'] == arrayMooring[j]['end A'] for ids in arrayInfo): # shared mooring line (no anchor)
                     # get ID of platforms connected to line
@@ -560,10 +571,12 @@ class Project():
                     mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
 
                     # check if anchor instance already exists
-                    if any(tt == arrayMooring[j]['end A'] for tt in self.anchorList): # anchor exists
+                    if any(tt == ('shared', arrayMooring[j]['end A']) for tt in self.anchorList): # anchor name exists already in list
+                    # if any(tt == arrayMooring[j]['end A'] for tt in self.anchorList): # anchor exists
                         # find anchor class instance
                         for anch in self.anchorList:#range(0,len(self.anchorList)):
-                            if anch == arrayMooring[j]['end A']:
+                            if anch == ('shared', arrayMooring[j]['end A']):
+                            # if anch == arrayMooring[j]['end A']:
                                 # add mooring object to list in anchor class
                                 self.anchorList[anch].mooringList[(PFNum[0],mct)] = mc
                                 # add anchor object to list in platform class
@@ -583,11 +596,14 @@ class Project():
                         mc.dd['zAnchor'] = -zAnew
                         mc.z_anch = -zAnew
                         # create anchor object
-                        self.anchorList[arrayAnchor[k]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1])
+                        self.anchorList[('shared',arrayAnchor[k]['ID'])] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1])
+                        #self.anchorList[arrayAnchor[k]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1])
                         # add mooring object to anchor mooring list
-                        self.anchorList[arrayAnchor[k]['ID']].mooringList[(PFNum[0],mct)] = mc 
+                        self.anchorList[('shared',arrayAnchor[k]['ID'])].mooringList[(PFNum[0],mct)] = mc
+                        # self.anchorList[arrayAnchor[k]['ID']].mooringList[(PFNum[0],mct)] = mc 
                         # add anchor object to platform anchor list
-                        self.platformList[PFNum[0]].anchorList[arrayAnchor[k]['ID']] = self.anchorList[arrayAnchor[k]['ID']]                   
+                        self.platformList[PFNum[0]].anchorList[('shared',arrayAnchor[k]['ID'])] = self.anchorList[('shared',arrayAnchor[k]['ID'])]
+                        # self.platformList[PFNum[0]].anchorList[arrayAnchor[k]['ID']] = self.anchorList[arrayAnchor[k]['ID']]                   
                     # add mooring object to project mooring list
                     self.mooringList[(PFNum[0],mct)] = mc
                     # add mooring object to platform mooring list    
@@ -629,19 +645,6 @@ class Project():
         elif 'turbines' in d and d['turbines']:
             RAFTDict['turbines'] = d['turbines']
         
-        # # load platform dictionary into RAFT dictionary if only one platform      
-        # if 'platform' in d and d['platform']:
-        #     # check that there is only one platform
-        #     if 'platforms' in d and d['platforms']:
-        #         raise Exception("Cannot read in items for both 'platforms' and 'platform' keywords. Use either 'platform' keyword for one platform or 'platforms' keyword for a list of platforms.")
-        #     elif type(d['platform']) is list and len(d['platform'])>1:
-        #         raise Exception("'platform' section keyword must be changed to 'platforms' if multiple platforms are listed")
-        #     else:
-        #         RAFTDict['platform'] = d['platform']
-        # # load list of platform dictionaries into RAFT dictionary
-        # elif 'platforms' in d and d['platforms']:
-        #     RAFTDict['platforms'] = d['platforms']
-        
         # load global RAFT settings into RAFT dictionary
         if 'RAFT_settings' in d['site'] and d['site']['RAFT_settings']:
             RAFTDict['settings'] = d['site']['RAFT_settings']
@@ -660,10 +663,8 @@ class Project():
         RAFTDict['type'] = 'input file for RAFT'
 
         # create RAFT model if necessary components exist
-        if 'settings' in RAFTDict and 'cases' in RAFTDict:
-            if 'turbines' in RAFTDict or 'turbine' in RAFTDict:
-                if 'platforms' in RAFTDict or 'platform' in RAFTDict:
-                    self.getRAFT(RAFTDict)
+        if 'platforms' in RAFTDict or 'platform' in RAFTDict:
+            self.getRAFT(RAFTDict)
 
         
         
@@ -1154,7 +1155,7 @@ class Project():
 
         # plot the Moorings
         ct = 0
-        for mooring in self.mooringList:
+        for mooring in self.mooringList.values():
             #mooring.subsystem.plot(ax = ax, draw_seabed=False)
             if mooring.subsystem:
                 # if any(x==ct for x in [2,3,4,5,8,11]):
@@ -1582,48 +1583,42 @@ class Project():
         '''
         print('Creating RAFT object')
         # create RAFT model if necessary components exist
-        if 'settings' in RAFTDict and 'cases' in RAFTDict:
-            if 'turbines' in RAFTDict or 'turbine' in RAFTDict:
-                if 'platforms' in RAFTDict or 'platform' in RAFTDict:                    
-                    # set up a dictionary with keys as the table names for each row (ease of use later)
-                    RAFTable = [dict(zip(RAFTDict['array']['keys'], row)) for row in RAFTDict['array']['data']]
-                    # find index for ID and mooringID
-                    for i in range(0,len(RAFTDict['array']['keys'])):
-                        if RAFTDict['array']['keys'][i] == 'ID':
-                            IDindex = i 
-                        elif RAFTDict['array']['keys'][i] =='mooringID':
-                            mooringIDindex = i
-                            
-                    RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
-                    for i in range(0,len(RAFTDict['array']['data'])):
-                        RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
-                        RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
-                   
-                    # create raft model                                          
-                    self.array = raft.Model(RAFTDict)
-                    # create dictionary of dictionaries of body hydrostatics for MoorPy bodies
-                    bodyInfo = {}
-                    for i,body in enumerate(self.array.fowtList):
-                        # set position (required before you can calcStatics)
-                        body.setPosition([RAFTable[i]['x_location'],RAFTable[i]['y_location'],0,0,0,0])
-                        # get body hydrostatics info for MoorPy bodies
-                        body.calcStatics()
-                        # populate dictionary of body info to send to moorpy
-                        bodyInfo[RAFTable[i]['ID']] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
-                    # create moorpy array if it doesn't exist
-                    if not self.ms:
-                        self.getMoorPyArray(bodyInfo)
-                    # assign moorpy array to RAFT object
-                    self.array.ms = self.ms                   
-                    # connect RAFT fowt to the correct moorpy body
-                    for i in range(0,len(self.ms.bodyList)):
-                        self.array.fowtList[i].body = self.ms.bodyList[i]
-                else:
-                    raise Exception('Platform(s) must be specified in YAML file')
-            else:
-                raise Exception('Turbine(s) must be specified in YAML file')
+        if 'platforms' in RAFTDict or 'platform' in RAFTDict:
+            # set up a dictionary with keys as the table names for each row (ease of use later)
+            RAFTable = [dict(zip(RAFTDict['array']['keys'], row)) for row in RAFTDict['array']['data']]
+            # find index for ID and mooringID
+            for i in range(0,len(RAFTDict['array']['keys'])):
+                if RAFTDict['array']['keys'][i] == 'ID':
+                    IDindex = i
+                elif RAFTDict['array']['keys'][i] =='mooringID':
+                    mooringIDindex = i
+
+            RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
+            for i in range(0,len(RAFTDict['array']['data'])):
+                RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
+                RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
+
+            # create raft model
+            self.array = raft.Model(RAFTDict)
+            # create dictionary of dictionaries of body hydrostatics for MoorPy bodies
+            bodyInfo = {}
+            for i,body in enumerate(self.array.fowtList):
+                # set position (required before you can calcStatics)
+                body.setPosition([RAFTable[i]['x_location'],RAFTable[i]['y_location'],0,0,0,0])
+                # get body hydrostatics info for MoorPy bodies
+                body.calcStatics()
+                # populate dictionary of body info to send to moorpy
+                bodyInfo[RAFTable[i]['ID']] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
+            # create moorpy array if it doesn't exist
+            if not self.ms:
+                self.getMoorPyArray(bodyInfo)
+            # assign moorpy array to RAFT object
+            self.array.ms = self.ms
+            # connect RAFT fowt to the correct moorpy body
+            for i in range(0,len(self.ms.bodyList)):
+                self.array.fowtList[i].body = self.ms.bodyList[i]
         else:
-            raise Exception('RAFT_Settings and RAFT_Cases must be specified in YAML file')
+            raise Exception('Platform(s) must be specified in YAML file')
             
     def getMarineGrowth(self,mgDict_start,lines='all',tol=2):
         '''Calls the addMarineGrowth mooring object method for the chosen mooring objects

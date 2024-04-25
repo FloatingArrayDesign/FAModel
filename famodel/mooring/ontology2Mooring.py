@@ -10,7 +10,7 @@ import numpy as np
 # create project class instance from yaml file
 #Array = Project(file='mooringOntology.yaml')
 ###########No marine growth####################################
-Array = Project(file='C:/Users/LSIRKIS/Documents/FAModel/famodel/mooring/mooringOntology.yaml')
+Array = Project(file='mooringOntology.yaml')
 settings = {}
 settings["linelabels"] = True
 settings["pointlabels"] = True                          
