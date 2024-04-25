@@ -71,6 +71,14 @@ site:
         max_freq     :  0.10    #  [Hz]       highest frequency to consider
         XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
         nIter        :   4      # sets how many iterations to perform in Model.solveDynamics()
+        
+    marine_growth:
+        keys: [thickness, lowerRange, upperRange, density]
+        data:   #  (m)       (m)          (m)     (kg/m^3)
+        - [0.00,-200,-100, 1325]
+        - [0.05,-100,-80, 1325]
+        - [0.10,-80,-40, 1325]
+        - [0.20,-40,0, 1325]
 # ----- Array-level inputs -----
 
 # Wind turbine array layout
