@@ -180,6 +180,7 @@ RAFT_cases:
 The RAFT settings section contains the general parameters used for RAFT simulations, such as cutoff frequencies, 
 Initial amplitudes for each degree of freedom at all frequencies, and the number of iterations to solve the model dynamics. 
 As with the previous section, the format follows that specified by [RAFT](https://openraft.readthedocs.io).
+
 ```yaml
 RAFT_settings:   
         min_freq     :  0.001    #  [Hz]       lowest frequency to consider, also the frequency bin width     
@@ -197,7 +198,7 @@ array cabling.
 ### Array Layout
 The array section summarizes the floating wind turbines in the array. The 
 section inputs a list where each entry corresponds to a wind turbine. The ID serves as a method to identify the specific turbine system. 
-As such, each list entry should have a unique ID number. The turbineID and platformID are specified for each list entry,
+As such, each list entry should have a unique ID, but the ID type (string, int, etc) is up to the user. The turbineID and platformID are specified for each list entry,
 connecting to details in the [Turbine](#turbines) and [Platform](#platforms) sections. This allows the user to easily 
 specify different turbine or platform types throughout the array. 
 Similarly, the mooringID is included and refers to the [mooring_systems](#mooring-systems) section.
@@ -212,17 +213,17 @@ input in the [array_mooring](#array-mooring) section.
 array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : # ID#   ID#        ID#        ID#           [m]             [m]           [deg]
-        -  [1,     1,         1,         ms1,         0,             0,           180  ]    
-        -  [2,     1,         2,         ms2,         1600,          0,            0   ]  
+        -  [fowt1,     1,         1,         ms1,         0,             0,           180  ]    
+        -  [f2,     1,         2,         ms2,         1600,          0,            0   ]  
 ```
 
 
 ### Array Mooring
 The array mooring section allows the user to input array-level mooring system details, instead of the more generalized mooring systems in mooring_systems.
 This section inputs a list of x,y anchor positions, anchor type, and embedment depth. The anchor type links to the list in the anchor_types section.
-Additionally, a list of mooring lines can be input with specified attachments at FOWTs and anchors. To specify an anchor, use 'ANCH #' where # refers to the anchor ID in the anchor_data table.
-If there is an anchor connected to this line, it must be listed in end A, not end B. To specify a FOWT, use 'FOWT #' where # refers to the system ID in the array table. 
-The mooring lines each have a mooring configuration ID which links to the mooring_line_configs section. 
+Additionally, a list of mooring lines can be input with specified attachments at FOWTs and anchors. If there is an anchor connected to this line, it must be listed 
+in end A, not end B. All anchors listed in line_data end A must have a matching ID in the anchor_data table, and all FOWTs listed in line_data end A or end B 
+must have a matching ID in the array_data table. The anchor and fowt IDs must all be unique. The mooring lines each have a mooring configuration ID which links to the mooring_line_configs section. 
 There is also an option to adjust the length of the line, depending on the spacing. 
 
 ```yaml
@@ -230,16 +231,15 @@ array_mooring:
     anchor_keys : 
           [ID, type,  x,  y,  embedment ]
     anchor_data :
-        - [  1,  suction1,   ,   ,     ]
-        - [  2,  suction1,   ,   ,     ]
+        - [  anch1,  suction1,   ,   ,     ]
+        - [  anch2,  suction1,   ,   ,     ]
     
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  lengthAdjust]
     line_data :
-        - [ Taut-Poly_1      ,  ANCH 1,  FOWT 1,   0]
-        - [ Taut-Poly_1      ,  ANCH 2,  FOWT 1,   0]
-        - [ Taut-Poly_2      ,  FOWT 1,  FOWT 2,   0]
-
+        - [ Taut-Poly_1      ,  anch1,  fowt1,   0]
+        - [ Taut-Poly_1      ,  anch2,  fowt1,   0]
+        - [ Taut-Poly_2      ,  fowt1,  f2,   0]
 ```
 
 ### Array Cables
@@ -276,7 +276,8 @@ by [WEIS](https://weis.readthedocs.io).
 This section defines the floating support structures used in the design. As in
 the previous section, it can contain a single platform or a list of platforms. 
 By default, the format here follows that used by 
-[RAFT](https://openraft.readthedocs.io) input files.
+[RAFT](https://openraft.readthedocs.io) input files, with the addition of 'rFair' and 'zFair' entries to the 
+dictionary for each platform in the first level of each platform listed. 
 However, support will be added for also linking to platform descriptions that follow
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
 by [WEIS](https://weis.readthedocs.io).
@@ -347,13 +348,16 @@ as the MooringConfigID in the mooring systems section. The anchoring radius (als
  Each line contains a list of sections that details the line section type and length. The line type name
 connects to information in the mooring [line section properties](#mooring-line-section-properties). 
 Additionally, before and after each line section has an optional input which can list the 
-ID of a [connector type](#mooring-connectors), such as an H-link or buoy. A connector is specified by using the key connectorType, while a line section is specified using the key type.
+ID of a [connector type](#mooring-connectors), such as an H-link or buoy. 
 This information allows the weight and buoyancy of the connections to be included 
 in the model, and provides clarity on the location of the connector relative to different line sections. 
-Shared lines may have a 'symmetric' key used to describe whether the provided line configuration is half of a symmetric line 
-(symmetric: True) or a full line configuration (symmetric: False).If a connector is given 
-as the last item in the section list for a shared symmetric line, it is assumed that the provided connector is located in the center of the line.
-There is also a True/False options for whether the section length is adjustable. Note that line sections and connectors should be added to the sections list in order from end A to end B.
+There is also a True/False options for whether the section length is adjustable. 
+
+Shared or suspended lines may also have an optional 'symmetric' input which, if set to true, signifies that 
+the line is symmetric and only the first half of the line is provided in the 'sections' list. When loaded in to the project class, the mooring object will automatically be fully filled out by mirroring 
+the first half of the line. If a connector is provided as the last item in the sections list for a symmetric line, it is assumed that the middle line is two identical lines with the given connector between, otherwise 
+the middle line (last line given in the list) is doubled in length in the mirroring process. For example, the 'shared_2_clump' config in the yaml below would produce a symmetric shared line with sections in the following order:
+an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note the doubled length), a clump weight, and finally an 80 m section of poly_180.
 
 
 
@@ -373,9 +377,12 @@ There is also a True/False options for whether the section length is adjustable.
           - type: chain_160       # ID of a mooring line section type
             length: 80            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...			
-          - connectorType: h_link    # ID of a connector type (optional)       
+
+          - connectorType: h_link    # ID of a connector type (optional)
+          
           - type: poly_180        # ID of a mooring line section type
-            length: 762           # [m] length (unstretched)			
+            length: 762           # [m] length (unstretched)
+
           - connectorType: shackle    # ID of a connector type (optional)
 
 
@@ -389,11 +396,12 @@ There is also a True/False options for whether the section length is adjustable.
         
         sections:
           - type: poly_180   
-            length: 80   			
-          - connectorType: clump_weight_20            
-          - type: poly_180
-            length: 762   
+            length: 80   
 
+          - connectorType: clump_weight_20
+            
+          - type: poly_180
+            length: 431
 ```    
     
 ### Mooring line section properties

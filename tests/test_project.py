@@ -52,3 +52,8 @@ if __name__=='__main__':
     plt.show()
     
     
+    ######## test load design features ################
+    project.load('testOntology.yaml')
+    
+    # check number of mooring lines
+    assert len(project.mooringList) == 8

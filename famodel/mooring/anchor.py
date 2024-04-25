@@ -50,7 +50,7 @@ class Anchor():
         self.aNum = aNum
         
         # list of mooring lines connected to the anchor
-        self.mooringList = []
+        self.mooringList = {}
         
         # MoorPy anchor object
         self.mpAnchor = None

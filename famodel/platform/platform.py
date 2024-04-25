@@ -11,7 +11,7 @@ class Platform():
     Eventually will inherit from Node.
     '''
     
-    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300]):
+    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
         '''
         
         Parameters
@@ -30,17 +30,19 @@ class Platform():
         # Platform position and orientation
         self.r = np.array(r)  # x, y coordinates of platform [m]
         self.phi = np.radians(heading)  # heading offset of platform [rad]
+        self.rFair = rFair
+        self.zFair = zFair
         
         self.mooring_headings = [np.radians(mooring_headings)] # headings of mooring lines [rad]
         
         self.n_mooring = len(mooring_headings) # number of mooring lines
         
-        self.endA = [] # list of booleans (one for each mooring line) describing whether platform is connected to end A of the line (important for shared lines)
+        self.endB = {} # dictionary with key as mooring object names and values of booleans (one for each mooring line) describing whether platform is connected to end B of the line (important for shared lines)
         # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
         # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
         
-        self.mooringList = []  # to be filled by references to Mooring objects
-        self.anchorList = [] # list of references to anchor objects connected to this platform
+        self.mooringList = {}  # dictionary to be filled by references to Mooring objects
+        self.anchorList = {} # dictionary of references to anchor objects connected to this platform
         
         # Dictionaries for addition information
         self.loads = {}
@@ -73,10 +75,13 @@ class Platform():
         self.r = np.array(r)
         
         if not heading == None:
-            self.phi = np.radians(heading)
+            if degrees:
+                self.phi = np.radians(heading)
+            else:
+                self.phi = heading
         
         # Get 2D rotation matrix
-        self.R = np.array([[np.cos(phi), -np.sin(phi)],[np.sin(phi), np.cos(phi)]])
+        self.R = np.array([[np.cos(self.phi), -np.sin(self.phi)],[np.sin(self.phi), np.cos(self.phi)]])
         
         # Update the position of any Moorings
         for i, mooring in enumerate(self.mooringList):

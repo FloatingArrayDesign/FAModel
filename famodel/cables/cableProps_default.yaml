@@ -73,7 +73,6 @@ cable_types:          # standard size of conductors [mm^2]: [800, 630, 400, 300,
         P_A_coefs   : [8.48, 0.525]                  # P[MW] = (1st)*A[mm^2]^(2nd)
         R_A_coefs   : [24]                           # R[ohm/km] = (1st)/A[mm^2]
         cost_A      : [0.7845, 257.32]               # cost[$/m] = (1st)*A[mm^2] + (2nd)
-
     
 buoyancy_module_types:   
     
