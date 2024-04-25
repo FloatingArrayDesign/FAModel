@@ -210,7 +210,7 @@ array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : # ID#   ID#        ID#        ID#           [m]             [m]           [deg]
         -  [fowt1,     1,         1,         ms1,         0,             0,           180  ]    
-        -  [2,     1,         2,         ms2,         1600,          0,            0   ]  
+        -  [f2,     1,         2,         ms2,         1600,          0,            0   ]  
 ```
 
 
@@ -235,7 +235,7 @@ array_mooring:
     line_data :
         - [ Taut-Poly_1      ,  anch1,  fowt1,   0]
         - [ Taut-Poly_1      ,  anch2,  fowt1,   0]
-        - [ Taut-Poly_2      ,  fowt1,  fowt2,   0]
+        - [ Taut-Poly_2      ,  fowt1,  f2,   0]
 
 ```
 
@@ -318,6 +318,12 @@ This information allows the weight and buoyancy of the connections to be include
 in the model, and provides clarity on the location of the connector relative to different line sections. 
 There is also a True/False options for whether the section length is adjustable. 
 
+Shared or suspended lines may also have an optional 'symmetric' input which, if set to true, signifies that 
+the line is symmetric and only the first half of the line is provided in the 'sections' list. When loaded in to the project class, the mooring object will automatically be fully filled out by mirroring 
+the first half of the line. If a connector is provided as the last item in the sections list for a symmetric line, it is assumed that the middle line is two identical lines with the given connector between, otherwise 
+the middle line (last line given in the list) is doubled in length in the mirroring process. For example, the 'shared_2_clump' config in the yaml below would produce a symmetric shared line with sections in the following order:
+an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note the doubled length), a clump weight, and finally an 80 m section of poly_180.
+
 
 
 ```yaml
@@ -330,13 +336,13 @@ There is also a True/False options for whether the section length is adjustable.
         sections:
           - type: chain_160       # ID of a mooring line section type
             length: 80            # [m] usntretched length of line section
-            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-			
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...			
+          
 		  - connectorType: h_link    # ID of a connector type (optional)
             
           - type: poly_180        # ID of a mooring line section type
             length: 762           # [m] length (unstretched)
-			
+
           - connectorType: shackle    # ID of a connector type (optional)
 
 
@@ -347,11 +353,11 @@ There is also a True/False options for whether the section length is adjustable.
         sections:
           - type: poly_180   
             length: 80   
-			
+
           - connectorType: clump_weight_20
             
           - type: poly_180
-            length: 762   
+            length: 431   
 
 ```    
     
