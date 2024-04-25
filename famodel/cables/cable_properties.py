@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import yaml
 from moorpy.helpers import getFromDict  # should adjust to avoid MoorPy dependency
 
+
 def loadCableProps(source):
     '''Load a set of power cable property scaling coefficients from
     a specified YAML file or passed dictionary. Any coefficients not included
@@ -270,11 +271,19 @@ if __name__ == '__main__':
     
     cableTypes33 = []
     cableTypes66 = []
+    cableTypes132 = []
     
     for A in As:
         cableTypes33.append(getCableProps(A, 'dynamic_cable_33', cableProps=cableProps))
         cableTypes66.append(getCableProps(A, 'dynamic_cable_66', cableProps=cableProps))
+        cableTypes132.append(getCableProps(A, 'dynamic_cable_132', cableProps=cableProps))
     
+    # Print a table of values for a given cable type
+    print(list(cableTypes66[0].keys()))
+    for types in cableTypes66:
+        print(list(types.values()))
+    
+    # Plot the values
     def plotProps(x, typeLists, labels, parameter):
         
         fig, ax = plt.subplots(1,1)
@@ -284,16 +293,17 @@ if __name__ == '__main__':
         
         ax.set_ylabel(parameter)
         ax.set_xlabel(r'A (mm$^2$)')
+        ax.set_ylim([0, ax.get_ylim()[1]])
         ax.legend()
     
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'd')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'm')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'EA')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'EI')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'MBL')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'MBR')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'power')
-    plotProps(As, [cableTypes33, cableTypes66], ['33 kV', '66 kV'], 'resistance')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'd')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'm')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'EA')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'EI')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'MBL')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'MBR')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'power')
+    plotProps(As, [cableTypes33, cableTypes66, cableTypes132], ['33 kV', '66 kV', '132 kV'], 'resistance')
     
     plt.show()
     

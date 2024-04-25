@@ -166,7 +166,7 @@ This resource data will follow the [WindIO plant ontology](https://windio.readth
 ```
 
 ### RAFT Cases
-The RAFT cases section contains the parameters for any load cases that are intended to be run in RAFT. 
+The RAFT cases section contains the parameters for any load cases that are intended to be run in [RAFT](https://openraft.readthedocs.io), and as such follows the format specified by RAFT. 
 The section inputs a list where each entry corresponds to a load case. Note that turbulence can be input 
 as a percent or as a string representing a turbulence model such as IIB_NTM.
 ```yaml
@@ -179,6 +179,8 @@ RAFT_cases:
 ### RAFT Settings
 The RAFT settings section contains the general parameters used for RAFT simulations, such as cutoff frequencies, 
 Initial amplitudes for each degree of freedom at all frequencies, and the number of iterations to solve the model dynamics. 
+As with the previous section, the format follows that specified by [RAFT](https://openraft.readthedocs.io).
+
 ```yaml
 RAFT_settings:   
         min_freq     :  0.001    #  [Hz]       lowest frequency to consider, also the frequency bin width     
@@ -238,7 +240,6 @@ array_mooring:
         - [ Taut-Poly_1      ,  anch1,  fowt1,   0]
         - [ Taut-Poly_1      ,  anch2,  fowt1,   0]
         - [ Taut-Poly_2      ,  fowt1,  f2,   0]
-
 ```
 
 ### Array Cables
@@ -281,6 +282,37 @@ However, support will be added for also linking to platform descriptions that fo
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
 by [WEIS](https://weis.readthedocs.io).
 
+```yaml 
+platform:
+
+    potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
+    dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
+    
+    members:   # list all members here
+        
+      - name      :  center_column             # [-]    an identifier (no longer has to be number)       
+        type      :  2                         # [-]    
+        rA        :  [ 0, 0, -20]              # [m]    end A coordinates
+        rB        :  [ 0, 0,  15]              # [m]    and B coordinates
+        shape     :  circ                      # [-]    circular or rectangular
+        gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
+        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        # --- outer shell including hydro---
+        stations  :  [0, 1]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
+        d         :  10.0                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
+        t         :  0.05                      # [m]    wall thicknesses (scalar or list of same length as stations)
+        Cd        :  0.6                       # [-]    transverse drag coefficient       (optional, scalar or list of same length as stations)
+        Ca        :  0.93                      # [-]    transverse added mass coefficient (optional, scalar or list of same length as stations)
+        CdEnd     :  0.6                       # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
+        CaEnd     :  1.0                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
+        rho_shell :  7850                      # [kg/m3] 
+        # --- handling of end caps or any internal structures if we need them ---
+        cap_stations :  [ 0    ]               # [m]  location along member of any inner structures (in same scaling as set by 'stations')
+        cap_t        :  [ 0.001  ]             # [m]  thickness of any internal structures
+        cap_d_in     :  [ 0    ]               # [m]  inner diameter of internal structures (0 for full cap/bulkhead, >0 for a ring shape)
+
+```
+
 
 ## Mooring
 
@@ -312,7 +344,8 @@ mooring_systems:
 ### Mooring Line Configurations
 
 The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
-as the MooringConfigID in the mooring systems section. Each line contains a list of sections that details the line section type and length. The line type name
+as the MooringConfigID in the mooring systems section. The anchoring radius (also known as the span), fairlead radius, and fairlead depth are also specified for each line configuration.
+ Each line contains a list of sections that details the line section type and length. The line type name
 connects to information in the mooring [line section properties](#mooring-line-section-properties). 
 Additionally, before and after each line section has an optional input which can list the 
 ID of a [connector type](#mooring-connectors), such as an H-link or buoy. 
@@ -333,13 +366,18 @@ an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note th
     
     taut-poly_1:  # mooring line configuration identifier
     
-        name: Taut polyester configuration 1  # descriptive name
+        name: Taut polyester configuration 1  # descriptive name		
+
+        anchoring_radius: 1131.37
+        fairlead_radius: 40.5
+        fairlead_depth: -20
         
         sections:
+          - connectorType: shackke # ID of a connector type (optional)
           - type: chain_160       # ID of a mooring line section type
             length: 80            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...			
-   
+
           - connectorType: h_link    # ID of a connector type (optional)
           
           - type: poly_180        # ID of a mooring line section type
@@ -348,9 +386,13 @@ an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note th
           - connectorType: shackle    # ID of a connector type (optional)
 
 
-    Name: shared-2-clump
+    shared-2-clump:
         name: Shared line with two clump weights
-        symmetric: True
+        symmetric: True		
+
+        anchoring_radius: 1142
+        fairlead_radius: 58
+        fairlead_depth: -14
         
         sections:
           - type: poly_180   
@@ -359,8 +401,7 @@ an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note th
           - connectorType: clump_weight_20
             
           - type: poly_180
-            length: 431   
-
+            length: 431
 ```    
     
 ### Mooring line section properties

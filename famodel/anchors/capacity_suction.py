@@ -61,43 +61,43 @@ def getCapacitySuction(L,L_D_aspect=5 ,D_t_aspect=100, A_angle=60, F_angle= 2,
             
     # Suction Caisson Anchor Dimensions'
     D = round((L/L_D_aspect),2)                          # The diameter of the Anchor [m]
-    t=  round(D/D_t_aspect, 3)                           # The thickness of the wall [m]
+    t =  round(D/D_t_aspect, 3)                           # The thickness of the wall [m]
     Di = D - 2*t
-    outer_r = D / 2
-    inner_r = (D - 2*t) / 2
+    outer_r = D/2
+    inner_r = (D - 2*t)/2
     height = L
-    outer_vol = np.pi * outer_r**2 * height
-    inner_vol = np.pi * inner_r**2 * height
+    outer_vol = np.pi*outer_r**2*height
+    inner_vol = np.pi*inner_r**2*height
     Anchor_vol = round(outer_vol - inner_vol,2)
     
     # ----- clay case -----
     if soil_type == 'clay':
     
-        Li_percent = 0.67                       # The pedeye location. 
+        Li_percent = 0.67     # The pedeye location. 
         Li= L*Li_percent
-        F_angle= 1  # NOTE: this is a hardcoded override of the input parameter <<<
+        F_angle = 1           # NOTE: this is a hardcoded override of the input parameter <<<
     
 
         # Calculations related to the overburben pressure
-        Lo_min= 0.1
-        Lo_incr=3
-        N_inc =34
-        Lo = np.arange(Lo_min, Lo_incr * N_inc ,Lo_incr)
-        F= abs(1 - (Li/Lo))
-        n=100.00
-        delta = L/n                            # The increment of the soil profile. 
-        inc_Z=L/100
+        Lo_min = 0.1
+        Lo_incr = 3
+        N_inc = 34
+        Lo = np.arange(Lo_min, Lo_incr*N_inc ,Lo_incr)
+        F = abs(1 - (Li/Lo))
+        n =100.00
+        delta = L/n           # The increment of the soil profile. 
+        inc_Z = L/100
         Z = np.arange(0.075, L, inc_Z)
-        fb=1.35
+        #fb=1.35
         
         # The calculations of the vertical capacity
-        Su = So0 + k * Z
+        Su = So0 + k*Z
         Su_av = np.mean(Su)
-        V = np.pi * D * L * Su_av * Alpha + 9 * Su[-1] * np.pi * ((D**2) /4)
+        V = np.pi*D*L*Su_av*Alpha + 9*Su[-1]*np.pi*((D**2) /4)
         
         # The calculations of the horizontal capacity
-        Np = 3 + Z * (gamma/Su + J/D)          # calculate Np element-wise
-        Np = np.where(Np < 9, Np, 9)           # replace any values greater than 9 with 9
+        Np = 3 + gamma/Su + Z*(J/D)          # calculate Np element-wise
+        Np = np.where(Np < 9, Np, 9)         # replace any values greater than 9 with 9
         Pult_D= Np * Su  
         VX_mat= np.zeros((len(Z), len(Lo)))
         for i in range(len(Lo)):
@@ -105,9 +105,9 @@ def getCapacitySuction(L,L_D_aspect=5 ,D_t_aspect=100, A_angle=60, F_angle= 2,
         dE_mat= np.zeros((len(Z), len(Lo)))  
         for i in range(len(Z)-1):
             for j in range(len(Lo)):
-                dE_mat[i+1, j] = Pult_D[i+1] * delta * D * VX_mat[i+1, j] + dE_mat[i, j]        
+                dE_mat[i+1, j] = Pult_D[i+1]*delta*D*VX_mat[i+1, j] + dE_mat[i, j]        
         H = dE_mat[-1,:] / F
-        Hm = min(H)*fb
+        Hm = min(H) #*fb
 
     
     # ----- sand case -----
@@ -121,18 +121,18 @@ def getCapacitySuction(L,L_D_aspect=5 ,D_t_aspect=100, A_angle=60, F_angle= 2,
         Xi = L/Zi
         Yo = np.exp(-Xo) - 1 + Xo
         Yi = np.exp(-Xi) - 1 + Xi
-        V = (gamma) * (Zo**2) * Yo * ktans * np.pi * D + (gamma) * (Zi**2) * Yi * ktans * np.pi * Di 
+        V = gamma*(Zo**2)*Yo*ktans*np.pi*D + gamma*(Zi**2)*Yi*ktans*np.pi*Di 
 
         # The calculations of the horizontal capacity
-        Nq = np.exp(np.pi * np.tan(np.radians(Phi))) * np.tan(np.radians(45 + (Phi/2)))**2
-        Hm = 0.5 * D * Nq * gamma * L**2
+        Nq = np.exp(np.pi*np.tan(np.radians(Phi)))*np.tan(np.radians(45 + (Phi/2)))**2
+        Hm = 0.5*D*Nq*gamma*L**2
 
     else:
         raise Exception(f"Unsupported soil_type '{soil_type}'. Must be sand or clay.")
     
     
     # ----- add weight to total vertical capacity -----
-    Vm = V + Anchor_vol * effective_weight_steel
+    Vm = V + Anchor_vol*effective_weight_steel
         
         
     # ----- Interaction Curve (same for clay and sand) -----
@@ -143,15 +143,15 @@ def getCapacitySuction(L,L_D_aspect=5 ,D_t_aspect=100, A_angle=60, F_angle= 2,
     
     # Define the exponents
     a = 0.5 + L/D
-    b = 4.5 + (L/(3*D))
+    b = 4.5 + L/(3*D)
     
     # Define the function (for holding capacity?)
     def f(h, v):
         return (h/Hm)**a + (v/Vm)**b
     
     # Create a grid of horizontal and vertical load values
-    h = np.linspace(0, Hm, 50)    # NOTE: what is the best choice for these values (clay was 100, sand was 2000) <<<
-    v = np.linspace(0, Vm, 50)
+    h = np.linspace(0, Hm, 100)    # NOTE: what is the best choice for these values (clay was 100, sand was 2000) <<<
+    v = np.linspace(0, Vm, 100)
     h_grid, v_grid = np.meshgrid(h, v)
     
     # Calculate the values of f on the grid
@@ -159,32 +159,42 @@ def getCapacitySuction(L,L_D_aspect=5 ,D_t_aspect=100, A_angle=60, F_angle= 2,
     
     # Find the contour line where f < 1
     FB = min(0.99, (1**a) + (1**b))
-    contour_level = FB
-    contour_lines = plt.contour(h_grid, v_grid, f_grid, levels=[contour_level], colors='k')
+    #contour_level = FB
+    contour_lines = plt.contour(h_grid, v_grid, f_grid, levels=[FB], colors='b')
+    #contour_lines = plt.contour(h_grid, v_grid, f_grid, colors='b')
+    
+    # Set labels and title
+    plt.xlabel('Horizontal capacity [kN]')
+    plt.ylabel('Vertical capacity [kN]')
+    plt.suptitle('VH suction pile capacity envelope')
+    plt.xlim(0,1.3*Hm); plt.ylim(0,1.3*Vm)
     
     # Extract the coordinates of the contour line
     contour_line = contour_lines.collections[0].get_paths()[0]
     h_values, v_values = contour_line.vertices[:, 0], contour_line.vertices[:, 1]
     
-    # Estimating the inclind capacity
+    # Estimating the inclined capacity
     angle = np.degrees(np.arctan(v_values/h_values))
-    Ft  = np.sqrt(h_values**2 + v_values**2)
-    Ft1 = h_values / np.abs(np.cos(np.radians(angle)))
-    Ft2 = v_values / np.abs(np.sin(np.radians(angle)))
+    Ft  = np.sqrt(h_values**2 + v_values**2); print(Ft)
+    #print(h_values); print(v_values)
+    Ft1 = h_values/np.abs(np.cos(np.radians(angle)))
+    Ft2 = v_values/np.abs(np.sin(np.radians(angle)))
+    #print(Ft1); print(Ft2)
     
-    #Extract the capacity values at the desired loading angle
-    v_values_target  = np.interp(A_angle+F_angle, angle, v_values)
-    h_values_target  = np.interp(A_angle+F_angle, angle, h_values)
-    Ft_values_target = np.interp(A_angle+F_angle, angle, Ft      )
+    # Extract the capacity values at the desired loading angle
+    v_values_target  = np.interp(A_angle + F_angle, angle, v_values)
+    h_values_target  = np.interp(A_angle + F_angle, angle, h_values)
+    Ft_values_target = round(np.interp(A_angle + F_angle, angle, Ft),2)
     
     results = {}
     results['capacity'] = Ft_values_target  # capacity at specified loading angle
-    results['capacity_force'] = Ft     # capacity envelope force magnitude
-    results['capacity_angle'] = angle  # capacity envelope force angle
+    results['capacity_force'] = Ft          # capacity envelope force magnitude
+    results['capacity_angle'] = angle       # capacity envelope force angle
     results['vol'] = Anchor_vol
     results['L'] = L
     results['D'] = D
     results['t'] = t
+    results['Anchor_vol'] = Anchor_vol
     
     return results
     
@@ -193,16 +203,16 @@ def getCapacitySuction(L,L_D_aspect=5 ,D_t_aspect=100, A_angle=60, F_angle= 2,
 if __name__ == '__main__':
  
     
-    ''' Testing the function in one case of the anchor with height = 15 m, 
+    ''' Testing the function in one case of the anchor with length = 15 m, 
     the aspect ratio of the anchor height and its outer diameter, default is 3, all other parameters are default.'''
  
-    results = getCapacitySCA(15, L_D_aspect=3, soil_type='clay')
+    results = getCapacitySuction(15, L_D_aspect=5, soil_type='sand')
     print('********************* One Case Test Result********************')
 
-    print('The Anchor Height,              ' , results['capacity'], '[m]') 
-    print('The Anchor Diameter,            ' , results['vol']     , '[m]') 
-    print('The Anchor Thickness,           ' , results['L']       , '[m]')
-    print('The Anchor Steel Volume,        ' , results['D']       , '[m3]') 
-    print('The Inclind Load Capacity,      ' , results['t']       , '[kN]') 
+    print('Anchor length,              ' , results['L'], '[m]') 
+    print('Anchor diameter,            ' , results['D'], '[m]') 
+    print('Anchor thickness,           ' , results['t'], '[m]')
+    print('Anchor steel volume,        ' , results['Anchor_vol'], '[m3]') 
+    print('Inclined load capacity,     ' , results['capacity'], '[kN]') 
 
     print('**************************************************************') 
