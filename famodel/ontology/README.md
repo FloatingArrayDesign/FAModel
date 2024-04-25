@@ -23,6 +23,8 @@ better suit the scope and emphasis of floating wind arrays. The sections are as 
   * [Seabed                          ](#seabed)
   * [Metocean                        ](#metocean)
   * [Resource                        ](#resource)
+  * [RAFT Cases                      ](#raft-cases)
+  * [RAFT Settings                   ](#raft-settings)
 * [Array                             ](#array)
   * [Array Layout                    ](#array-layout)
   * [Array Mooring                   ](#array-mooring)
@@ -337,9 +339,9 @@ an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note th
           - type: chain_160       # ID of a mooring line section type
             length: 80            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...			
+   
+          - connectorType: h_link    # ID of a connector type (optional)
           
-		  - connectorType: h_link    # ID of a connector type (optional)
-            
           - type: poly_180        # ID of a mooring line section type
             length: 762           # [m] length (unstretched)
 
