@@ -6,7 +6,7 @@ import numpy as np
 
 class Anchor():
     
-    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None,ID=None):
+    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None,id=None):
         '''
         Parameters
         ----------
@@ -44,7 +44,7 @@ class Anchor():
         self.ms = ms
         
         # ID of the anchor
-        self.ID = ID
+        self.id = id
         
         # x,y,z location of anchor
         self.r = r

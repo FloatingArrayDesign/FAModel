@@ -442,7 +442,7 @@ class Project():
             for i in range(0, len(arrayInfo)): # loop through each platform in array
                 
                 # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
-                self.platformList[arrayInfo[i]['ID']] = Platform(r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'],ID=arrayInfo[i]['ID'])
+                self.platformList[arrayInfo[i]['ID']] = Platform(r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'],id=arrayInfo[i]['ID'])
                 # add fairlead radius and fairlead depth of this platform type from platform information section
                 if type(platforms) == list:
                     # get index of platform from array table
@@ -495,7 +495,7 @@ class Project():
                         ad['angle'] = nAngle
                         
                         # add anchor class instance to anchorList in project class
-                        self.anchorList[(arrayInfo[i]['ID'],mct)] = (Anchor(dd=ad, r=mc.rA, ID=(arrayInfo[i]['ID'],mct)))
+                        self.anchorList[(arrayInfo[i]['ID'],mct)] = (Anchor(dd=ad, r=mc.rA, id=(arrayInfo[i]['ID'],mct)))
                         # add mooring class instance to list in anchor class
                         self.anchorList[(arrayInfo[i]['ID'],mct)].mooringList[(arrayInfo[i]['ID'],mct)] = mc
                         # add mooring class instance to mooringlist in project class
@@ -599,7 +599,7 @@ class Project():
                         mc.dd['zAnchor'] = -zAnew
                         mc.z_anch = -zAnew
                         # create anchor object
-                        self.anchorList[('shared',arrayAnchor[k]['ID'])] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1])
+                        self.anchorList[('shared',arrayAnchor[k]['ID'])] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1],id=('shared',arrayAnchor[k]['ID']))
                         #self.anchorList[arrayAnchor[k]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1])
                         # add mooring object to anchor mooring list
                         self.anchorList[('shared',arrayAnchor[k]['ID'])].mooringList[(PFNum[0],mct)] = mc
