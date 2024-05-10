@@ -66,12 +66,12 @@ class Connector(Node, dict):
 class Section(Edge, dict):
     '''
     '''
-    def __init__(self, **kwargs):
+    def __init__(self,id, **kwargs):
         '''
         '''
 
         dict.__init__(self, **kwargs)  # initialize dict base class
-        Edge.__init__(self, 'no name')  # initialize Edge base class
+        Edge.__init__(self, id)  # initialize Edge base class
         
         
         # <<< have a ['type'] entry that stores a type, which could be used for sizing...

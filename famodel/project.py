@@ -479,7 +479,7 @@ class Project():
                         
                         # create mooring class instance as part of mooring list in the project class instance
                         mc = (Mooring(dd=m_config, rA=[m_config['span'],0,m_config['zAnchor']], rB=[self.platformList[arrayInfo[i]['ID']].rFair,0,self.platformList[arrayInfo[i]['ID']].zFair],  
-                                      rad_anch=m_config['span'], z_anch=m_config['zAnchor'],rad_fair=self.platformList[arrayInfo[i]['ID']].rFair,z_fair=self.platformList[arrayInfo[i]['ID']].zFair, id=(arrayInfo[i]['ID'],mct)))
+                                      rad_anch=m_config['span'], z_anch=m_config['zAnchor'],rad_fair=self.platformList[arrayInfo[i]['ID']].rFair,z_fair=self.platformList[arrayInfo[i]['ID']].zFair,id=(arrayInfo[i]['ID'],mct)))
                         # adjust end positions based on platform location and mooring and platform headings
                         mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, project=self)
                         # adjust anchor z location and rA based on location of anchor

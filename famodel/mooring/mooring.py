@@ -66,13 +66,13 @@ class Mooring(Edge):
         # Turn what's in dd and turn it into Sections and Connectors
         for i, con in enumerate(self.dd['connectors']):
             if con:
-                Cid = con+str(i)
+                Cid = con['type']+str(i)
             else:
                 Cid = i
             self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
         
         for i, sec in enumerate(self.dd['sections']):
-            self.dd['sections'][i] = Section(**self.dd['sections'][i])
+            self.dd['sections'][i] = Section(i,**self.dd['sections'][i])
             #self.dd['connectors'][i  ].attach(self.dd['sections'][i], end=0)
             #self.dd['connectors'][i+1].attach(self.dd['sections'][i], end=1)
         
