@@ -48,7 +48,7 @@ class Node():
         self.id = id  # id number or string, used as the key when attached to things
         
         self.attachments = {}  # dictionary listing attached edges 
-        # (key is the object, value is attachment info)
+        # (key is the id, value is attachment object ref and other info)
         
         self.attached_to = None  # whether this object is bound to another object
         
@@ -82,13 +82,13 @@ class Node():
             raise Exception('Provided object is not an Edge or Node.')  
         
         # See if it's attached (might be a higher-level edge)
-        if object2 in self.attachments:
+        if object2.id in self.attachments:
         
             if isinstance(object2, Node):  # if it's a node, it's simple
                 return True
                 
             elif isinstance(object2, Edge):  # if it's an edge, end matters
-                if endToIndex(self.attachments[object2]['end']) == i_end:
+                if endToIndex(self.attachments[object2.id]['end']) == i_end:
                     return True  # the end in question is attached
                 else:
                     return False
@@ -122,19 +122,20 @@ class Node():
         
         
         # Make sure it's not already attached (note this doesn't distinguish end A/B)
-        if object2 in self.attachments:
+        if object2.id in self.attachments:
             raise Exception(f"Object {object.id} is already attached to {self.id}")
             
             
         # Attach the object (might be a higher-level edge)
         if isinstance(object2, Node):
-            self.attachments[object2] = dict(id=object2.id, r_rel=np.array(r_rel),
-                                             type='node')
+            self.attachments[object2.id] = dict(obj=object2, id=object2.id, 
+                                            r_rel=np.array(r_rel), type='node')
             object2._attach_to(self)  # tell it it's attached to this Node
             
         elif isinstance(object2, Edge):
-            self.attachments[object2] = dict(id=object2.id, r_rel=np.array(r_rel),
-                                         type='edge', end=['a', 'b'][i_end])
+            self.attachments[object2.id] = dict(obj=object2, id=object2.id, 
+                                            r_rel=np.array(r_rel), type='edge', 
+                                            end=['a', 'b'][i_end])
             object2._attach_to(self, i_end)  # tell it it's attached to this Node
             '''
             if end in ['a', 'A', 0]:
@@ -166,12 +167,12 @@ class Node():
         '''
         
         # Make sure it's attached before trying to detach it
-        if not object in self.attachments:
+        if not object.id in self.attachments:
             raise Exception(f"Object {object.id} is not attached to {self.id}")
             # this exception could be optionally disabled
         
         # Remove it from the attachment registry
-        del self.attachments[object]
+        del self.attachments[object.id]
         
         # Handle attachment type and the end if applicable, and record
         # the detachment in the subordinate object.
@@ -263,16 +264,16 @@ class Node():
         
         
         # Update the position of any attach objects
-        for att in self.attachments:
+        for att in self.attachments.values():
         
             # Compute the attachment's position
-            r_att = self.r + np.matmul(self.R, self.attachments[att]['r_rel'])
+            r_att = self.r + np.matmul(self.R, att['r_rel'])
             
-            if isinstance(att, Node):
-                att.setPosition(r_att)
+            if isinstance(att['obj'], Node):
+                att['obj'].setPosition(r_att)
                 
-            elif isinstance(att, Edge):
-                att.setEndPosition(r_att, self.attachments[att]['end'])
+            elif isinstance(att['obj'], Edge):
+                att['obj'].setEndPosition(r_att, att['end'])
 
 
 
