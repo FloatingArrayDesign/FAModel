@@ -12,7 +12,7 @@ class Platform(Node):
     Eventually will inherit from Node.
     '''
     
-    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None,id=None):
+    def __init__(self, id, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
         '''
         
         Parameters
@@ -24,6 +24,8 @@ class Platform(Node):
         mooring_headings (optional)
             relative headings of mooring lines [deg].
         '''
+        # Initialize as a node
+        Node.__init__(self,id)
         
         # Design description dictionary for this Platform
         self.dd = {}
@@ -34,7 +36,6 @@ class Platform(Node):
         self.rFair = rFair
         self.zFair = zFair
         
-        self.id = id
         
         self.mooring_headings = [np.radians(mooring_headings)] # headings of mooring lines [rad]
         
