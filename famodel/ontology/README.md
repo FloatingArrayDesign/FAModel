@@ -213,7 +213,7 @@ input in the [array_mooring](#array-mooring) section.
 array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : # ID#   ID#        ID#        ID#           [m]             [m]           [deg]
-        -  [fowt1,     1,         1,         ms1,         0,             0,           180  ]    
+        -  [fowt1,  1,         1,         ms1,         0,             0,           180  ]    
         -  [f2,     1,         2,         ms2,         1600,          0,            0   ]  
 ```
 
@@ -447,23 +447,23 @@ mooring_line_types:
 ### Mooring Connectors
 
 This section lists properties of the mooring connections that are referenced in the mooring line configurations section. 
-Each connector has a name that is used to identify it, as well as a mass and volume. Optionally, the CdA of the connector 
+Each connector has a name that is used to identify it, as well as a mass (m) and volume (v). Optionally, the CdA of the connector 
 can be specified to model the drag on the component. 
 ```yaml
  mooring_connector_types:
     
     h_link:
-        mass   : 140    # [kg]  component mass
-        volume : 0.13   # [m^3] component volumetric displacement
+        m : 140    # [kg]  component mass
+        v : 0.13   # [m^3] component volumetric displacement
         
     clump_weight_20:
-        mass   : 20000  # [kg]
-        volume :  0.8   # [m^3]
+        m : 20000  # [kg]
+        v :  0.8   # [m^3]
         
     buoy_10:
-        mass   :  560   # [kg]  component mass
-        volume : 10.2   # [m^3] component volumetric displacement
-        CdA    :  3.5   # [m^2] product of cross sectional area and drag coefficient
+        m  :  560   # [kg]  component mass
+        v  : 10.2   # [m^3] component volumetric displacement
+        CdA :  3.5   # [m^2] product of cross sectional area and drag coefficient
 ```
 
 ## Anchor types
