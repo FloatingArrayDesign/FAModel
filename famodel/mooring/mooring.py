@@ -91,12 +91,6 @@ class Mooring(Edge):
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem
         
-        # ID for the mooring line 
-        self.id = id
-        
-        # List of connectors associated with this line
-        #self.connectorList = [] <<< let's store in dd['connectors'] instead
-        
         # end point absolute coordinates, to be set later
         self.rA = rA
         self.rB = rB
