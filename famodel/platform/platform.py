@@ -12,7 +12,7 @@ class Platform(Node):
     Eventually will inherit from Node.
     '''
     
-    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
+    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None,ID=None):
         '''
         
         Parameters
@@ -33,6 +33,8 @@ class Platform(Node):
         self.phi = np.radians(heading)  # heading offset of platform [rad]
         self.rFair = rFair
         self.zFair = zFair
+        
+        self.ID = ID
         
         self.mooring_headings = [np.radians(mooring_headings)] # headings of mooring lines [rad]
         

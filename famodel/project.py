@@ -442,7 +442,7 @@ class Project():
             for i in range(0, len(arrayInfo)): # loop through each platform in array
                 
                 # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
-                self.platformList[arrayInfo[i]['ID']] = Platform(r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'])
+                self.platformList[arrayInfo[i]['ID']] = Platform(r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'],ID=arrayInfo[i]['ID'])
                 # add fairlead radius and fairlead depth of this platform type from platform information section
                 if type(platforms) == list:
                     # get index of platform from array table
@@ -479,7 +479,7 @@ class Project():
                         
                         # create mooring class instance as part of mooring list in the project class instance
                         mc = (Mooring(dd=m_config, rA=[m_config['span'],0,m_config['zAnchor']], rB=[self.platformList[arrayInfo[i]['ID']].rFair,0,self.platformList[arrayInfo[i]['ID']].zFair],  
-                                      rad_anch=m_config['span'], z_anch=m_config['zAnchor'],rad_fair=self.platformList[arrayInfo[i]['ID']].rFair,z_fair=self.platformList[arrayInfo[i]['ID']].zFair))
+                                      rad_anch=m_config['span'], z_anch=m_config['zAnchor'],rad_fair=self.platformList[arrayInfo[i]['ID']].rFair,z_fair=self.platformList[arrayInfo[i]['ID']].zFair, ID=(arrayInfo[i]['ID'],mct)))
                         # adjust end positions based on platform location and mooring and platform headings
                         mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, project=self)
                         # adjust anchor z location and rA based on location of anchor
@@ -495,7 +495,7 @@ class Project():
                         ad['angle'] = nAngle
                         
                         # add anchor class instance to anchorList in project class
-                        self.anchorList[(arrayInfo[i]['ID'],mct)] = (Anchor(dd=ad, r=mc.rA))
+                        self.anchorList[(arrayInfo[i]['ID'],mct)] = (Anchor(dd=ad, r=mc.rA, ID=(arrayInfo[i]['ID'],mct)))
                         # add mooring class instance to list in anchor class
                         self.anchorList[(arrayInfo[i]['ID'],mct)].mooringList[(arrayInfo[i]['ID'],mct)] = mc
                         # add mooring class instance to mooringlist in project class
@@ -667,7 +667,8 @@ class Project():
 
         # create RAFT model if necessary components exist
         if 'platforms' in RAFTDict or 'platform' in RAFTDict:
-            self.getRAFT(RAFTDict)
+            if 'turbine' in RAFTDict or 'turbines' in RAFTDict:
+                self.getRAFT(RAFTDict)
 
         
         
@@ -1119,8 +1120,8 @@ class Project():
             fig = ax.get_figure()
 
         # try icnraesing grid density
-        xs = np.arange(1200,3600,500)
-        ys = np.arange(-900,1500,500)
+        xs = np.arange(1000,3600,50)
+        ys = np.arange(-900,1500,50)
         self.setGrid(xs, ys)
 
         # plot the bathymetry in matplotlib using a plot_surface
@@ -1138,6 +1139,10 @@ class Project():
         rc = cmap(norm(rocky))
         bath = ax.plot_surface(X, Y, -self.grid_depth, facecolors=rc, **args_bath)
         '''
+        #################
+        from matplotlib import cm
+        args_bath = {'cmap':cm.GnBu}
+        ####################
         bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
         
         
@@ -1261,6 +1266,16 @@ class Project():
                 ssloc.append(self.anchorList[i].mooringList[j].subsystem)
                 self.ms.lineList.append(ssloc[-1])
                 ssloc[-1].number = len(self.ms.lineList)
+                # create anchor point if it doesn't already exist
+                if self.anchorList[i].mpAnchor:
+                    # get point number of anchor
+                    num = self.anchorList[i].mpAnchor.number
+                    # attach line to anchor point
+                    self.ms.pointList[num-1].attachLine(ssloc[-1].number,0)
+                else:
+                    self.anchorList[i].makeMoorPyAnchor(self.ms)
+                    # attach line to anchor point
+                    self.ms.pointList[-1].attachLine(ssloc[-1].number,0)
                 # add fairlead point
                 self.ms.addPoint(1,ssloc[-1].rB)
                 # add connector info for fairlead point
@@ -1276,11 +1291,7 @@ class Project():
                         PFNum = ii # platform index
                 # attach rB point to platform (need to subtract out location of platform from point for subsystem integration to work correctly)
                 self.ms.bodyList[PFNum].attachPoint(len(self.ms.pointList),[ssloc[-1].rB[0]-PF.r[0],ssloc[-1].rB[1]-PF.r[1],ssloc[-1].rB[2]]) # attach to fairlead
-            # create anchor point
-            self.anchorList[i].makeMoorPyAnchor(self.ms)
-            # attach line(s) to anchor point
-            for j in range(0,len(ssloc)):
-                self.ms.pointList[-1].attachLine(ssloc[-1].number,0)
+
         
         check = np.ones((len(self.mooringList),1))
         # now create and attach any shared lines

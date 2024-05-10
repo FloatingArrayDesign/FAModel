@@ -6,7 +6,7 @@ import numpy as np
 
 class Anchor():
     
-    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None):
+    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None,ID=None):
         '''
         Parameters
         ----------
@@ -42,6 +42,9 @@ class Anchor():
         
         # MoorPy system this anchor is in
         self.ms = ms
+        
+        # ID of the anchor
+        self.ID = ID
         
         # x,y,z location of anchor
         self.r = r

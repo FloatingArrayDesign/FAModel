@@ -17,7 +17,7 @@ class Mooring(Edge):
     
     def __init__(self, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
-                 rho=1025, g=9.81):
+                 rho=1025, g=9.81,ID=None):
         '''
         Parameters
         ----------
@@ -86,6 +86,9 @@ class Mooring(Edge):
         
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem
+        
+        # ID for the mooring line 
+        self.ID = ID
         
         # List of connectors associated with this line
         #self.connectorList = [] <<< let's store in dd['connectors'] instead
@@ -257,6 +260,7 @@ class Mooring(Edge):
             startNum = 1
         else: # no anchor - need to include all connections
             startNum = 0 
+
         for i in range(startNum,len(self.ss.pointList)):                               
             point = self.ss.pointList[i]
             point.m = self.dd['connectors']['m']
