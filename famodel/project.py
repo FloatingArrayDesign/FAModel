@@ -302,7 +302,7 @@ class Project():
                     # this is a line
                     if lineLast: # previous item in list was a line (or this is the first item in a list)
                         # no connector was specified for before this line - add an empty connector
-                        c_config.append(None)                        
+                        c_config.append({})                        
                     # set line information                                                
                     lt = self.lineTypes[lc['type']] # set location for code clarity and brevity later
                     # set up sub-dictionaries that will contain info on the line type
@@ -362,7 +362,7 @@ class Project():
             else: # if not a symmetric line, check if last item was a line (if so need to add another empty connector)
                 if lineLast:
                     # add an empty connector object
-                    c_config.append(None)
+                    c_config.append({})
             # set general information on the whole line (not just a section/line type)
             # set to general depth first (will adjust to depth at anchor location after repositioning finds new anchor location)
             m_config['zAnchor'] = -self.depth 
@@ -370,8 +370,10 @@ class Project():
             m_config['name'] = lineconfig
             # m_config['zFair'] = lineConfigs[lineconfig]['fairlead_depth']
             # m_config['rFair'] = lineConfigs[lineconfig]['fairlead_radius']
-   
-            return(m_config, c_config)
+            
+            m_config['connectors'] = c_config  # add connectors section to the mooring dict
+            
+            return(m_config) #, c_config)
         
         def getConnectors(c_config,mName):
             '''
@@ -388,15 +390,16 @@ class Project():
             None.
 
             '''
+            
             # make connector objects for all sections of a mooring line configuration in order
             for i in range(0,len(c_config)):
                 # check if connector is a none-type
                 if c_config[i] == None:                   
-                    # create empty connector object and add to dictionary
-                    self.mooringList[mName].connectorList.append(Connector())
+                    # create empty connector object
+                    self.mooringList[mName].dd['connectors'].append(Connector())
                 else:
-                    # create connector object
-                    self.mooringList[mName].connectorList.append(Connector(dd=c_config[i]))
+                    # create connector object with c_config entries
+                    self.mooringList[mName].dd['connectors'].append(Connector(**c_config[i]))
         
         def getAnchors(lineAnch, mc=None,aNum=0):
             '''Create anchor design dictionary based on a given anchor type
@@ -472,7 +475,7 @@ class Project():
                         # lineconfig = mSystems[m_s]['data'][j][0] 
                    
                         # create mooring and connector dictionary
-                        m_config, c_config = getMoorings(lineconfig)
+                        m_config = getMoorings(lineconfig)
                         
                         # create mooring class instance as part of mooring list in the project class instance
                         mc = (Mooring(dd=m_config, rA=[m_config['span'],0,m_config['zAnchor']], rB=[self.platformList[arrayInfo[i]['ID']].rFair,0,self.platformList[arrayInfo[i]['ID']].zFair],  
@@ -498,7 +501,7 @@ class Project():
                         # add mooring class instance to mooringlist in project class
                         self.mooringList[(arrayInfo[i]['ID'],mct)] = mc
                         # create connector dictionaries and objects for line 
-                        getConnectors(c_config,(arrayInfo[i]['ID'],mct))                        
+                        #getConnectors(c_config,(arrayInfo[i]['ID'],mct))              
                         # add mooring class instance to mooring list in the platform class instance
                         self.platformList[arrayInfo[i]['ID']].mooringList[(arrayInfo[i]['ID'],mct)] = mc
                         # add 0 to boolean list (platform not connected to line end A)
@@ -521,7 +524,7 @@ class Project():
                 # get configuration for that line 
                 lineconfig = arrayMooring[j]['MooringConfigID']                       
                 # create mooring and connector dictionary for that line
-                m_config, c_config = getMoorings(lineconfig)
+                m_config = getMoorings(lineconfig)
                 
                 PFNum = [] # platform ID(s) connected to the mooring line
                 
@@ -559,7 +562,7 @@ class Project():
                     # add mooring object to platform mooring list    
                     self.platformList[PFNum[0]].mooringList[(PFNum[0],PFNum[1],mct)] = mc
                     # create connector dictionaries and objects for line 
-                    getConnectors(c_config,(PFNum[0],PFNum[1],mct))
+                    #getConnectors(c_config,(PFNum[0],PFNum[1],mct))
                     # append to end B list in platform
                     self.platformList[PFNum[0]].endB[(PFNum[0],PFNum[1],mct)] = 1 
                 elif any(ids['ID'] == arrayMooring[j]['end A'] for ids in arrayAnchor): # end A is an anchor
@@ -609,7 +612,7 @@ class Project():
                     # add mooring object to platform mooring list    
                     self.platformList[PFNum[0]].mooringList[(PFNum[0],mct)] = mc
                     # create connector dictionaries and objects for line 
-                    getConnectors(c_config,(PFNum[0],mct))
+                    #getConnectors(c_config,(PFNum[0],mct))
                     # append to end B list in platform
                     self.platformList[PFNum[0]].endB[(PFNum[0],mct)] = 1 
                 else: # error in input

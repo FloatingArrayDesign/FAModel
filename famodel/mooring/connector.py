@@ -1,43 +1,39 @@
 # class for a connector
 
 import numpy as np
+from famodel.famodel_base import Node, Edge
+from moorpy.helpers import getFromDict
 
-class Connector():
+class Connector(Node, dict):
     '''
     '''
-    def __init__(self, dd=None, r=[0,0,0]):
+    def __init__(self, r=[0,0,0], **kwargs):
         '''
-
+        Connectors inherit from dict, so properties can be passed in as arguments
+        and they will be assigned like dictionary entries. 
+        
         Parameters
         ----------
         dd : dictionary, optional
             Design dictionary The default is None.
         r : list, optional
             x,y,z location of the connector. The default is [0,0,0].
-
-        Returns
-        -------
-        None.
-
+        kwargs
+            Additional optional parameters, such as m, v, CdA...
         '''
 
-        # Design description dictionary for this Platform
-        self.dd = dd
+        dict.__init__(self, **kwargs)  # initialize dict base class (will put kwargs into self dict)
+        Node.__init__(self, 'no name')  # initialize Node base class
+        
+        # <<< have a ['type'] entry that stores a type, which could be used for sizing...
         
         # Connector position and orientation
         self.r = np.array(r)  # x, y, z coordinates of connector [m]
         
-        if self.dd:
-            self.m = self.dd['mass']
-            self.v = self.dd['volume']
-            if 'CdA' in self.dd:
-                self.CdA = self.dd['CdA']
-            else:
-                self.CdA = None
-        else:
-            self.CdA = None
-            self.m = None
-            self.v = None
+        # set defaults if they weren't provided
+        self['m'  ] = getFromDict(self, 'm'  , default=0)
+        self['v'  ] = getFromDict(self, 'v'  , default=0)
+        self['CdA'] = getFromDict(self, 'CdA', default=0)
         
         # MoorPy Point Object for Connector
         self.mpConn = None
@@ -60,14 +56,30 @@ class Connector():
         # assign this point as mpConn in the anchor class instance
         self.mpConn = ms.pointList[-1]
 
-        # add mass if available
-        if self.dd['design']['mass']:
-            self.mpConn.m = self.dd['design']['mass']
-        # set connector volume and axial Cd if available
-        if self.dd['design']['volume']:
-            self.mpConn.v = self.dd['design']['volume']
-        if self.dd['design']['CdA']:
-            self.mpConn.CdA = self.dd['design']['CdA']
+        self.mpConn.m = self['m']
+        self.mpConn.v = self['v']
+        self.mpConn.CdA = self['CdA']
 
         return(ms)
+
+
+class Section(Edge, dict):
+    '''
+    '''
+    def __init__(self, **kwargs):
+        '''
+        '''
+
+        dict.__init__(self, **kwargs)  # initialize dict base class
+        Edge.__init__(self, 'no name')  # initialize Edge base class
         
+        
+        # <<< have a ['type'] entry that stores a type, which could be used for sizing...
+
+
+        # set defaults if they weren't provided
+        self['L'   ] = getFromDict(self, 'L'  , default=0)
+        
+        # if the type dict wasn't provided, set as none to start with
+        if not 'type' in self:
+            self['type'] = None

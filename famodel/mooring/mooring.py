@@ -4,9 +4,10 @@ import numpy as np
 from copy import deepcopy
 from moorpy.subsystem import Subsystem
 from moorpy import helpers
-from famodel.mooring.connector import Connector
+from famodel.mooring.connector import Connector, Section
+from famodel.famodel_base import Edge
 
-class Mooring():
+class Mooring(Edge):
     '''
     Class for a floating array mooring line (anchored or shared).
     The idea is to have a common object that can be used for 2D
@@ -15,7 +16,8 @@ class Mooring():
     '''
     
     def __init__(self, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
-                 rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14):
+                 rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
+                 rho=1025, g=9.81):
         '''
         Parameters
         ----------
@@ -33,6 +35,10 @@ class Mooring():
                                   length
                                  }
                          }
+                     connectors:
+                     [
+                        ...
+                     ]
                      span
                      zAnchor
                      EndPositions:
@@ -51,12 +57,38 @@ class Mooring():
         
         # Design description dictionary for this Mooring
         self.dd = dd
+        # let's turn the dd into something that holds subdict objects of connectors and sections
+        
+        # >>> list of sections ?  And optional of section types (e,g, chian, poly) 
+        # and dict of scaling props (would be used by linedesign) ?
+        self.n_sec = len(self.dd['sections'])
+        
+        # Turn what's in dd and turn it into Sections and Connectors
+        for i, con in enumerate(self.dd['connectors']):
+            self.dd['connectors'][i] = Connector(**self.dd['connectors'][i])
+        
+        for i, sec in enumerate(self.dd['sections']):
+            self.dd['sections'][i] = Section(**self.dd['sections'][i])
+            #self.dd['connectors'][i  ].attach(self.dd['sections'][i], end=0)
+            #self.dd['connectors'][i+1].attach(self.dd['sections'][i], end=1)
+        
+        # Connect them and store them in self(Edge).subcomponents!
+        subcons = []  # list of node-edge-node... to pass to the function
+        for i in range(self.n_sec):
+            subcons.append(self.dd['connectors'][i])
+            subcons.append(self.dd['sections'][i])
+        subcons.append(self.dd['connectors'][-1])
+        self.addSubcomponents(subcons)  # Edge method to connect and store em
+        
+        # Indices of connectors and sections in self.subcomponents list
+        self.i_con = list(range(0, 2*self.n_sec+1, 2))
+        self.i_sec = list(range(1, 2*self.n_sec+1, 2))
         
         # MoorPy subsystem that corresponds to the mooring line
-        self.subsystem = subsystem
+        self.ss = subsystem
         
         # List of connectors associated with this line
-        self.connectorList = []
+        #self.connectorList = [] <<< let's store in dd['connectors'] instead
         
         # end point absolute coordinates, to be set later
         self.rA = rA
@@ -79,6 +111,24 @@ class Mooring():
         self.reliability = {}
         self.cost = {}
     
+    
+    def setSectionLength(self, L, i):
+        '''Sets length of section, including in the subdsystem if there is
+        one.'''
+        
+        self.dd['sections'][i]['L'] = L  # set length in dd (which is also Section/subcomponent)
+        
+        if self.ss:  # is Subsystem exists, adjust length there too
+            self.ss.lineList[i].setL(L)
+    
+    """
+    def setSectionDiameter(self, d, i):
+        '''Adjusts diameter of section (including in the subdsystem if there is
+        one, since it should point to the lineType dict in the Mooring.'''
+        
+        # just adjust the dict? ss.lineTypes should already point to it
+        self.sectionType[i].update( setLineType( ... d))
+    """
     
     def reposition(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
         '''Adjusts mooring position based on changed platform location or
@@ -139,14 +189,14 @@ class Mooring():
         if end in ['a', 'A', 0]:
             self.rA = np.array(r)
             
-            if self.subsystem:
-                self.subsystem.setEndPosition(self.rA, False, sink=sink)
+            if self.ss:
+                self.ss.setEndPosition(self.rA, False, sink=sink)
             
         elif end in ['b', 'B', 1]:
             self.rB = np.array(r)
             
-            if self.subsystem:
-                self.subsystem.setEndPosition(self.rB, True, sink=sink)
+            if self.ss:
+                self.ss.setEndPosition(self.rB, True, sink=sink)
                 
         else:
             raise Exception('End A or B must be specified with either the letter, 0/1, or False/True.')
@@ -156,8 +206,8 @@ class Mooring():
         
         # mooring line cost
         line_cost = 0
-        if self.subsystem:
-            for line in self.subsystem.lineList:
+        if self.ss:
+            for line in self.ss.lineList:
                 line_cost += line.getCost()
         else:
             pass # could have some proxy cost calculation
@@ -168,7 +218,8 @@ class Mooring():
         
         # sum up the costs in the dictionary and return
         return sum(self.cost.values()) 
-        
+    
+    
     def createSubsystem(self, case=0):
         ''' Create a subsystem for a line configuration from the design dictionary
         
@@ -181,43 +232,64 @@ class Mooring():
                 - 2: the assembly is suspended and assumed symmetric, end A is the midpoint
         '''
         # check if a subsystem already exists
-        if self.subsystem:
+        if self.ss:
             print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
-        self.subsystem=Subsystem(depth=-self.dd['zAnchor'], span=self.dd['span'], rBfair=self.rB)
+        self.ss=Subsystem(depth=-self.dd['zAnchor'], rho=self.rho, g=self.g, span=self.dd['span'], rBfair=self.rB)
         lengths = []
         types = []
         # run through each line section and collect the length and type
-        for i in range(0,len(self.dd['sections'])):
-            lengths.append(self.dd['sections'][i]['length'])
-            types.append(self.dd['sections'][i]['type']['name'])
-            self.subsystem.lineTypes[types[-1]] = self.dd['sections'][i]['type']
+        for sec in self.dd['sections']:
+            lengths.append(sec['length'])
+            types.append(sec['type']['name'])
+            self.ss.lineTypes[types[-1]] = sec['type']  # points to existing type dict in self.dd for now
 
         
         # make the lines and set the points 
-        self.subsystem.makeGeneric(lengths,types,suspended=case)
-        self.subsystem.setEndPosition(self.rA,endB=0)
-        self.subsystem.setEndPosition(self.rB,endB=1)
-             
+        self.ss.makeGeneric(lengths,types,suspended=case)
+        self.ss.setEndPosition(self.rA,endB=0)
+        self.ss.setEndPosition(self.rB,endB=1)
+        
+        
+        # note: next bit has similar code/function as Connector.makeMoorPyConnector <<<
+        
         # add in connector info to subsystem points
         if case == 0: # has an anchor - need to ignore connection for first point
             startNum = 1
         else: # no anchor - need to include all connections
             startNum = 0 
-        for i in range(startNum,len(self.subsystem.pointList)):                               
-            point = self.subsystem.pointList[i]
-            # fill in information about the point if it exists
-            if self.connectorList[i].m:
-                point.m = self.connectorList[i].m
-            if self.connectorList[i].v:
-                point.v = self.connectorList[i].v
-            if self.connectorList[i].CdA:
-                point.CdA = self.connectorList[i].CdA
+        for i in range(startNum,len(self.ss.pointList)):                               
+            point = self.ss.pointList[i]
+            point.m = self.dd['connectors']['m']
+            point.v = self.dd['connectors']['v']
+            point.CdA = self.dd['connectors']['CdA']
         # solve the system
-        self.subsystem.staticSolve()
+        self.ss.staticSolve()
         
-        return(self.subsystem)      
-
-    def addMarineGrowth(self,mgDict,project=None,idx=None):
+        return(self.ss)      
+    
+    """
+    # rough method ideas...maybe not necessary or can use existing dict methods
+    def ddApply():
+        '''Applies the current contents of self.dd to update all the parts
+        of the Mooring object, including the subsystem if enabled.'''
+    
+    def ddLoad(self, new_dd):
+        '''Takes in a new self.dd then applies it?'''
+        
+        self.dd = new_dd
+        self.ddApply()
+    
+    def ddSave(self):
+        '''Takes the current design info stored in the self attributes
+        and writes the values into self.dd. Also returns it, for use in
+        writing output yamls...'''
+        
+        ... save things into self.dd...
+        
+        return self.dd
+    """
+    
+    def addMarineGrowth(self, mgDict, project=None, idx=None):
         '''Re-creates sections part of design dictionary to account for marine 
         growth on the subystem, then calls createSubsystem() to recreate the line
 
@@ -260,7 +332,7 @@ class Mooring():
         else: # use current mooring object
             oldLine = self
         # create a reference subsystem if it doesn't already exist
-        if not oldLine.subsystem:
+        if not oldLine.ss:
             oldLine.createSubsystem()          
         print(oldLine)
         # set up variables
@@ -277,12 +349,12 @@ class Mooring():
         # set first connector
         connList.append(oldLine.connectorList[0])
         # go through each line section
-        for i in range(0,len(oldLine.subsystem.lineList)):
+        for i in range(0,len(oldLine.ss.lineList)):
             slthick = [] # mg thicknesses for the section (if rA is above rB, needs to be flipped before being added to full subsystem list LThick)
             slength = [] # line lengths for the section (if rA is above rB, needs to be flipped before being added to full subsystem list)
             schangeDepth = [] # changeDepths for the section (if rA is above rB, needs to be flipped before being added to full subsystem list)
             # set reference subsystem line section location
-            ssLine = oldLine.subsystem.lineList[i]
+            ssLine = oldLine.ss.lineList[i]
             # add line material, type to list
             Mats.append(ssLine.type['material'])
             LTypes.append(ssLine.type['name'])
@@ -414,7 +486,7 @@ class Mooring():
         nd = [] # list of dictionaries for new design dictionary sections part
         
         for j,ltyp in enumerate(LTypes):
-            st =  deepcopy(oldLine.subsystem.lineTypes)
+            st =  deepcopy(oldLine.ss.lineTypes)
             # add in information for each line type without marine growth
             EA.append(st[ltyp]['EA'])
             m.append(st[ltyp]['m'])
@@ -484,13 +556,13 @@ class Mooring():
                 # add line details to dictionary
                 ndt['material'] = Mats[j]
                 ndt['name'] = str(j)
-                if 'MBL' in oldLine.subsystem.lineTypes[ltyp]:
-                    ndt['MBL'] = oldLine.subsystem.lineTypes[ltyp]['MBL']
-                if 'cost' in oldLine.subsystem.lineTypes[ltyp]:
-                    ndt['cost'] = oldLine.subsystem.lineTypes[ltyp]['cost']
+                if 'MBL' in oldLine.ss.lineTypes[ltyp]:
+                    ndt['MBL'] = oldLine.ss.lineTypes[ltyp]['MBL']
+                if 'cost' in oldLine.ss.lineTypes[ltyp]:
+                    ndt['cost'] = oldLine.ss.lineTypes[ltyp]['cost']
                 ndt['EA'] = EA[j]
-                if 'EAd' in oldLine.subsystem.lineTypes[ltyp]:
-                    ndt['EAd'] = oldLine.subsystem.lineTypes[ltyp]['EAd']
+                if 'EAd' in oldLine.ss.lineTypes[ltyp]:
+                    ndt['EAd'] = oldLine.ss.lineTypes[ltyp]['EAd']
             # add lengths                 
             nd[j]['length'] = Lengths[j]
         
@@ -506,13 +578,4 @@ class Mooring():
             self.createSubsystem()
             
         return(changeDepths,changePoints)
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                                
+
