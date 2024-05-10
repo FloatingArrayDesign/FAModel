@@ -479,7 +479,7 @@ class Project():
                         
                         # create mooring class instance as part of mooring list in the project class instance
                         mc = (Mooring(dd=m_config, rA=[m_config['span'],0,m_config['zAnchor']], rB=[self.platformList[arrayInfo[i]['ID']].rFair,0,self.platformList[arrayInfo[i]['ID']].zFair],  
-                                      rad_anch=m_config['span'], z_anch=m_config['zAnchor'],rad_fair=self.platformList[arrayInfo[i]['ID']].rFair,z_fair=self.platformList[arrayInfo[i]['ID']].zFair, ID=(arrayInfo[i]['ID'],mct)))
+                                      rad_anch=m_config['span'], z_anch=m_config['zAnchor'],rad_fair=self.platformList[arrayInfo[i]['ID']].rFair,z_fair=self.platformList[arrayInfo[i]['ID']].zFair, id=(arrayInfo[i]['ID'],mct)))
                         # adjust end positions based on platform location and mooring and platform headings
                         mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, project=self)
                         # adjust anchor z location and rA based on location of anchor
@@ -1165,14 +1165,14 @@ class Project():
         ct = 0
         for mooring in self.mooringList.values():
             #mooring.subsystem.plot(ax = ax, draw_seabed=False)
-            if mooring.subsystem:
+            if mooring.ss:
                 # if any(x==ct for x in [2,3,4,5,8,11]):
                 #     color='r'
                 # else:
                 #     color='k'
                 # mooring.subsystem.drawLine(0, ax,color=color)
                 # ct = ct + 1
-                mooring.subsystem.drawLine(0,ax)
+                mooring.ss.drawLine(0,ax)
         
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if fowt:
@@ -1263,7 +1263,7 @@ class Project():
                 # create subsystem
                 self.anchorList[i].mooringList[j].createSubsystem()
                 # set location of subsystem for simpler coding
-                ssloc.append(self.anchorList[i].mooringList[j].subsystem)
+                ssloc.append(self.anchorList[i].mooringList[j].ss)
                 self.ms.lineList.append(ssloc[-1])
                 ssloc[-1].number = len(self.ms.lineList)
                 # create anchor point if it doesn't already exist
@@ -1304,7 +1304,7 @@ class Project():
                 # create subsystem for shared line
                 self.mooringList[i].createSubsystem(case=1) # we doubled all symmetric lines so any shared lines should be case 1
                 # set location of subsystem for simpler coding
-                ssloc = self.mooringList[i].subsystem
+                ssloc = self.mooringList[i].ss
                 # add subsystem as a line in moorpy system
                 self.ms.lineList.append(ssloc)
                 ssloc.number = len(self.ms.lineList)               

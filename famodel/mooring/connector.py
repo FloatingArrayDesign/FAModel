@@ -7,7 +7,7 @@ from moorpy.helpers import getFromDict
 class Connector(Node, dict):
     '''
     '''
-    def __init__(self, r=[0,0,0], **kwargs):
+    def __init__(self,id, r=[0,0,0], **kwargs):
         '''
         Connectors inherit from dict, so properties can be passed in as arguments
         and they will be assigned like dictionary entries. 
@@ -23,7 +23,7 @@ class Connector(Node, dict):
         '''
 
         dict.__init__(self, **kwargs)  # initialize dict base class (will put kwargs into self dict)
-        Node.__init__(self, 'no name')  # initialize Node base class
+        Node.__init__(self, id)  # initialize Node base class
         
         # <<< have a ['type'] entry that stores a type, which could be used for sizing...
         

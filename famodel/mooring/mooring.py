@@ -17,7 +17,7 @@ class Mooring(Edge):
     
     def __init__(self, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
-                 rho=1025, g=9.81,ID=None):
+                 rho=1025, g=9.81,id=None):
         '''
         Parameters
         ----------
@@ -54,7 +54,7 @@ class Mooring(Edge):
         called. <<<
         
         '''
-        
+        Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this Mooring
         self.dd = dd
         # let's turn the dd into something that holds subdict objects of connectors and sections
@@ -65,7 +65,11 @@ class Mooring(Edge):
         
         # Turn what's in dd and turn it into Sections and Connectors
         for i, con in enumerate(self.dd['connectors']):
-            self.dd['connectors'][i] = Connector(**self.dd['connectors'][i])
+            if con:
+                Cid = con+str(i)
+            else:
+                Cid = i
+            self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
         
         for i, sec in enumerate(self.dd['sections']):
             self.dd['sections'][i] = Section(**self.dd['sections'][i])
@@ -88,7 +92,7 @@ class Mooring(Edge):
         self.ss = subsystem
         
         # ID for the mooring line 
-        self.ID = ID
+        self.id = id
         
         # List of connectors associated with this line
         #self.connectorList = [] <<< let's store in dd['connectors'] instead
@@ -108,6 +112,10 @@ class Mooring(Edge):
         
         self.shared = False # boolean for if the mooring line is a shared line
         self.symmetric = False # boolean for if the mooring line is a symmetric shared line
+        
+        # relevant site info
+        self.rho = rho
+        self.g = g
         
         # Dictionaries for addition information
         self.loads = {}
@@ -263,9 +271,9 @@ class Mooring(Edge):
 
         for i in range(startNum,len(self.ss.pointList)):                               
             point = self.ss.pointList[i]
-            point.m = self.dd['connectors']['m']
-            point.v = self.dd['connectors']['v']
-            point.CdA = self.dd['connectors']['CdA']
+            point.m = self.dd['connectors'][i]['m']
+            point.v = self.dd['connectors'][i]['v']
+            point.CdA = self.dd['connectors'][i]['CdA']
         # solve the system
         self.ss.staticSolve()
         
