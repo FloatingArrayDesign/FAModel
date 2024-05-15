@@ -1,3 +1,19 @@
+# Array cables (compact table format, without routing info)
+array_cables:   
+    keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, lengthAdjust]
+    data:
+        - [ suspended_cable1, fowt1, fowt2,  180,       30, 0] 
+        - [ array_cable1, fowt2, substation1,  150,       30, 0] 
+
+# ----- substations -------
+
+substation:
+    x_location: 2200
+    y_location: 0 
+    
+    # in future can include information like moorings, sizing, cost, etc
+
+
 # ----- Cables -----
 
 # Definition of all cables going between turbines (and substation) in an array
