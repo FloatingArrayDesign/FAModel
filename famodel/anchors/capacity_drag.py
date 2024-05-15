@@ -136,10 +136,10 @@ if __name__ == '__main__':
  
     results = getCapacityDrag(10, bm=0.073, En=1, Mu=0.1, Sum=0, N_eo=5.8, Theta_eo=58,
                         Xo_Lf=7.5, Zo=1, soil_type='clay', k=1.6)
-    print('********************* One Case Test Result********************')
+    print('****************** One Case Test Result*****************')
 
-    print('Embedded length,              ' , results['embedment_depth'], '[m]') 
+    print('Embedded depth ,              ' , results['embedment_depth'], '[m]') 
     print('Drag distance,                ' , results['drag_distance'], '[m]') 
     print('Load capacity,                ' , results['capacity'], '[kN]') 
 
-    print('**************************************************************') 
+    print('********************************************************') 
