@@ -6,6 +6,7 @@ from moorpy.subsystem import Subsystem
 from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge
+from famodel.cables import Cable
 
 class DynamicCable(Cable):
     '''
@@ -35,21 +36,21 @@ class DynamicCable(Cable):
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
 
         # Save some constants for use when computing buoyancy module stuff
-        self.d0 = cableType['d_vol']  # diameter of bare dynamic cable
-        self.m0 = cableType['m']      # mass/m of bare dynamic cable
-        self.w0 = cableType['w']      # weight/m of bare dynamic cable
+        self.d0 = self.cableType['d_vol']  # diameter of bare dynamic cable
+        self.m0 = self.cableType['m']      # mass/m of bare dynamic cable
+        self.w0 = self.cableType['w']      # weight/m of bare dynamic cable
         
         
         # Turn what's in dd and turn it into Sections and Connectors
         for i, con in enumerate(self.dd['connectors']):
             if con:
-                Cid = con+str(i)
+                Cid = con['type']+str(i)
             else:
                 Cid = i
             self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
         
         for i, sec in enumerate(self.dd['sections']):
-            self.dd['sections'][i] = Section(**self.dd['sections'][i])
+            self.dd['sections'][i] = Section(i,**self.dd['sections'][i])
             #self.dd['connectors'][i  ].attach(self.dd['sections'][i], end=0)
             #self.dd['connectors'][i+1].attach(self.dd['sections'][i], end=1)
         

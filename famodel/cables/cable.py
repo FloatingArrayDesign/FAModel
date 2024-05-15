@@ -24,7 +24,7 @@ class SubseaCable(Edge):
     DynamicCable (fully suspended)
     '''
     
-    def __init__(self, dd=None, system, number, rtA, rtB, cableType):
+    def __init__(self, system, number, rtA, rtB, cableType, dd=None):
         ''' '
         d : dict
             Dictionary of cable information (see ontology).
@@ -47,7 +47,7 @@ class SubseaCable(Edge):
             self.dd['joints'][i] = Joint(Jid,**self.dd['joints'][i])
         
         for i, sec in enumerate(self.dd['cables']):
-            if >>> some kind of logic for static vs dynamic cable <<<
+            if sec['type'] == 'static':
                 self.dd['cables'][i] = StaticCable( **self.dd['cables'][i])
             else:
                 self.dd['cables'][i] = DynamicCable(**self.dd['cables'][i])

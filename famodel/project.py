@@ -20,6 +20,11 @@ from .mooring.mooring import Mooring
 from .platform.platform import Platform
 from .mooring.anchor import Anchor
 from .mooring.connector import Connector
+from .substation.substation import Substation
+from .cables.cable import SubseaCable
+from .cables.cable_system import CableSystem
+from .cables.dynamic_cable import DynamicCable
+from .cables.static_cable import StaticCable
 
 class Project():
     '''
@@ -62,6 +67,7 @@ class Project():
         self.mooringListPristine = {} # A dictionary of Mooring objects in initial condition (no marine growth, corrosion, etc)
         self.anchorList  = {}
         self.cables = None  # CableSystem
+        self.substationList = {}
         
         # Dictionaries of component/product properties used in the array
         self.turbineTypes = None
@@ -155,23 +161,47 @@ class Project():
         # dynamic cable basic properties (details are later via MoorPy)
         
         # ----- table of cables -----
+        arrayCableInfo = []
         if 'array_cables' in d:
         
-            cableInfo = [dict(zip( d['array_cables']['keys'], row))
+            arrayCableInfo = [dict(zip( d['array_cables']['keys'], row))
                          for row in d['array_cables']['data']]
+            
             
             # for ci in cableInfo:
             #     ...
                 
             #     self.cables.addCable(...)
         
-        # ----- cables one-by-one -----
-        if 'cables' in d:
+        # ----- cables info -----
+        cableInfo = {}
+        if 'cables' in d and d['cables']:
         
             for ci in d['cables']:
-                ...
+                for k, v in d['cables'].items():
+                    cableInfo[k] = v
+
+        # ----- cable configurations -----
+        cable_configs = {}
+        if 'cable_configs' in d and d['cable_configs']:
+            for k, v in d['cable_configs']:
+                cable_configs[k] = v
                 
-                self.cables.addCable(...)
+        # ----- cable types -----
+        cable_types = {}
+        if 'cable_types' in d and d['cable_types']:
+            for k, v in d['cable_types']:
+                cable_types[k] = v
+
+        # ----- substation -----
+        if 'substation' in d and d['substation']:
+            i = 0
+            # create substation design dictionary and object for each substation
+            for k, v in d['substation']:
+                subID = k+str(i)
+                dd = v
+                self.substationList[subID] = Substation(dd, subID)
+                i += 1
         
         # ----- array mooring -----
         arrayMooring = {}
@@ -631,6 +661,34 @@ class Project():
         
         # create a deepcopy of the mooring list to preserve original in case marine growth, corrosion, or other changes made
         self.mooringListPristine = deepcopy(self.mooringList)    
+        
+        # ===== load Cables ======
+        # load in array cables
+        if arrayCableInfo:
+            for i in arrayCableInfo:
+                # create design dictionary for subsea cable
+                dd = {}
+                # get sections of the cable config 
+                cable = arrayCableInfo[i]['CableID']
+                if cable in cableInfo:
+                    for j in range(0,len(cableInfo[cable]['sections'])):
+                        cabSection = cableInfo[cable]['sections'][j]
+                        if 'type' in cabSection:
+                            dd['cables'].append(cabSection['type'])
+                           ###### continue fleshing out dictionaries 
+                            
+                            
+                        
+                # if cable_config in cable_configs:
+                #     linelast = 1
+                #     for j in range(0,len(cable_configs[cable_config]['sections'])):
+                #         # check if a                        
+                #         lc = cableConfigs[cableconfig]['sections'][k] # set location for code clarity later
+                #         # determine if it's a line type or a connector listed
+                #         if 'type' in lc: 
+                #             # this is a line
+                #             if lineLast:
+        
         
         # ===== load RAFT model parts =====
         # load info into RAFT dictionary and create RAFT model

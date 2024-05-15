@@ -117,10 +117,18 @@ array_mooring:
 
 # Array cables (compact table format, without routing info)
 array_cables:   
-    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB, headingA, headingB, cableType]
+    keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, lengthAdjust]
     data:
-        - [ turbine1, turbine2, lazy_wave1, lazy_wave1,      180,       30, static_36] 
-        - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
+        - [ suspended_cable1, fowt1, fowt2,  180,       30, 0] 
+        - [ array_cable1, fowt2, substation1,  150,       30, 0] 
+
+# ----- substations -------
+
+substation:
+    x_location: 2200
+    y_location: 0 
+    
+    # in future can include information like moorings, sizing, cost, etc
 
 
 # ----- turbines and platforms -----
