@@ -61,7 +61,7 @@ def getCapacityPlate(A, B_t_aspect=40, Hs=20, Beta=30, Los=0.05,
     Nco_0_0  = 2.483*np.log(H_B) + 1.974  # angle = 0 deg 
     Nco_90_0 = 2.174*np.log(H_B) + 3.391  # angle = 90 deg
 
-    kBSh = k * B / Suh    # The degree of soil non-homogeneity
+    kBSh = k*B/Suh    # The degree of soil non-homogeneity
 
     f0  = np.where(H_B < 4, 1.77*(H_B**0.3) - 1.289, 0.192*H_B + 0.644)
     f90 = np.where(H_B < 4, 0.68*(H_B**0.5) - 0.41 , 0.153*H_B + 0.341)
@@ -77,13 +77,12 @@ def getCapacityPlate(A, B_t_aspect=40, Hs=20, Beta=30, Los=0.05,
     # Anchor Pullout capacity factor in weightless clay with no breakaway base 
     Nco = Nco_0 + (Nco_90 - Nco_0)*(Beta/90)**2   
 
-
-    # ----- ultimate anchor capacity factor -----
-
-    # Ultimate Anchor capacity factor, soil homogeneous
+    # Uplift bearing capacity factor, soil homogeneous
     Nco_s_0_0  = np.where(2.90*H_B + 6.02 <= 11.59, 2.90*H_B + 6.02, 11.596)
     Nco_s_90_0 = np.where(2.72*H_B + 4.02 <= 11.59, 2.72*H_B + 4.02, 11.596)
 
+    # ----- ultimate anchor capacity factor -----
+    
     # non-homogeneity factor for anchor ultimate pullout capacity
     S_s_kB_0 = np.where(H_B <= 2, 1 + (0.8 - 0.3*H_B)*kBSh - (0.383*kBSh**1.36), 1)  # Angle = 0
 
