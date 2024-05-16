@@ -24,12 +24,10 @@ class SubseaCable(Edge):
     DynamicCable (fully suspended)
     '''
     
-    def __init__(self, system, number, rtA, rtB, cableType, dd=None):
+    def __init__(self, id, dd=None):
         ''' '
-        d : dict
+        dd : dict
             Dictionary of cable information (see ontology).
-        project : CableSystem
-            For saving a reference to the CableSystem this Cable belonds to
         '''
         
         Edge.__init__(self, id)  # initialize Edge base class
@@ -47,10 +45,11 @@ class SubseaCable(Edge):
             self.dd['joints'][i] = Joint(Jid,**self.dd['joints'][i])
         
         for i, sec in enumerate(self.dd['cables']):
+            Cid = sec+str(i)
             if sec['type'] == 'static':
-                self.dd['cables'][i] = StaticCable( **self.dd['cables'][i])
+                self.dd['cables'][i] = StaticCable(Cid, **self.dd['cables'][i])
             else:
-                self.dd['cables'][i] = DynamicCable(**self.dd['cables'][i])
+                self.dd['cables'][i] = DynamicCable(Cid, **self.dd['cables'][i])
         
         # Connect them and store them in self(Edge).subcomponents!
         subcons = []  # list of node-edge-node... to pass to the function

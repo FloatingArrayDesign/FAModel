@@ -663,19 +663,78 @@ class Project():
         self.mooringListPristine = deepcopy(self.mooringList)    
         
         # ===== load Cables ======
+        def loadCableProps()
+        def getCables(cabSection):
+            cabLast = 1
+            cCondd = {}
+            cabConfig = cable_configs[cabSection['type']]
+            # get configuration makeup of cable
+            for j in range(0,len(cabConfig['sections'])):
+                if cabLast: # last item was a cable, next should be a connector
+                    if 'type' in cabConfig['sections'][j]:
+                        # need to add empty connector to list
+                        cCondd['connectors'].append(None)
+                        # now add cable type
+                        cCondd['sections'].append(cabConfig['sections'][j])
+                    elif 'connectorType' in cabConfig['sections'][j]:
+                        # add connector
+                        cCondd['connectors'][j] = cabConfig['sections'][j]
+                        # update cabLast
+                        cabLast = 0
+                    else:
+                        raise Exception('Invalid section type keyword. Must be either type or connectorType')
+                else:
+                    if 'type' in cabConfig['sections'][j]:
+                        cCondd['sections'].append(cabConfig['sections'][j])
+                        cabLast = 1
+                    elif 'connectorType' in cabConfig['sections'][j]:
+                        # two connectors in a row: throw an error
+                        raise Exception('Cannot have two connectors in a row')
+                    else:
+                        # unsupported input
+                        raise Exception('Invalid section type keyword. Must be either type or connectorType')
+            # make sure last item is a connector
+            if cabLast:
+                cCondd['connectors'].append(None)
+                
+            return(cCondd)
         # load in array cables
         if arrayCableInfo:
+            cabLast = 1
             for i in arrayCableInfo:
                 # create design dictionary for subsea cable
-                dd = {}
-                # get sections of the cable config 
+                dd = {'cables':[],'joints':[]}
+                # get sections of the subsea cable 
                 cable = arrayCableInfo[i]['CableID']
                 if cable in cableInfo:
                     for j in range(0,len(cableInfo[cable]['sections'])):
                         cabSection = cableInfo[cable]['sections'][j]
-                        if 'type' in cabSection:
-                            dd['cables'].append(cabSection['type'])
-                           ###### continue fleshing out dictionaries 
+                        if cabLast: # last item was a cable, next should be a connector
+                            if 'type' in cabSection:
+                                # no joint as first object - add an empty joint to list
+                                dd['joints'].append({})
+                                # now get the sections of the cable configuration and put in dictionary
+                                cCondd = getCables(cabSection)
+                                dd['cables'].append(cCondd)
+                            elif 'connectorType' in cabSection:
+                                dd['joints'].append(cabSection['connectorType'])
+                                cabLast = 0
+                            else:
+                                # unsupported input
+                                raise Exception('Invalid section type keyword. Must be either type or connectorType')
+                        else:
+                            # last item was a connector
+                            if 'type' in cabSection:
+                                cCondd = getCables(cabSection)
+                                dd['cables'].append(cCondd)
+                            elif 'connectorType' in cabSection:
+                                raise Exception('Cannot have two connectors in a row')
+                            else:
+                                # unsupported input
+                                raise Exception('Invalid section type keyword. Must be either type or connectorType')
+                                
+            ################ set what turbines/substation subsea cable class is connected to                
+                
                             
                             
                         

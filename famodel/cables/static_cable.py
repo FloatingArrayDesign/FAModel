@@ -7,7 +7,7 @@ from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge
 
-class StaticCable(Cable):
+class StaticCable(Edge):
     '''
     Class for a static power cable. It inherits from Cable(Edge, dict)
     which describes the bare uniform cable before accessories are added.
@@ -26,7 +26,7 @@ class StaticCable(Cable):
         ----------
  
         '''
-        Cable.__init__(self, id)  # initialize Edge base class
+        Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this dynamic cable
         self.dd = dd
         

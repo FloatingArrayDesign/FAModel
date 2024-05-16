@@ -8,7 +8,7 @@ from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge
 from famodel.cables import Cable
 
-class DynamicCable(Cable):
+class DynamicCable(Edge):
     '''
     Class for a dynamic power cable. It inherits from Cable(Edge, dict)
     which describes the bare uniform cable before accessories are added.
@@ -26,7 +26,7 @@ class DynamicCable(Cable):
         ----------
  
         '''
-        Cable.__init__(self, id)  # initialize Edge base class
+        Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this dynamic cable
         self.dd = dd
         

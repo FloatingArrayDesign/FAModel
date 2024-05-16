@@ -59,7 +59,7 @@ class Joint(Node, dict):
 
         return(ms)
     """
-
+"""
 class Cable(Edge, dict):
     '''A length of a subsea power cable product (i.e. same cross section of
     the actual cable. This is just a very simple cable description.
@@ -82,3 +82,4 @@ class Cable(Edge, dict):
         # if the type dict wasn't provided, set as none to start with
         if not 'type' in self:
             self['type'] = None
+"""
