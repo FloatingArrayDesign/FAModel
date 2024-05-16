@@ -10,8 +10,9 @@ array_cables:
 # ----- substations -------
 
 substation:
-    x_location: 2200
-    y_location: 0 
+    substation1:
+        x_location: 2200
+        y_location: 0 
     
     # in future can include information like moorings, sizing, cost, etc
 
@@ -36,6 +37,7 @@ cables:
     # type : static_cable_80   # cable section type ID
     
     sections: # refers to a configuration in cable_configs
+    # first entry is at end A, last entry is at end B
       - type: dynamic_lazy_wave1
       
       - connectorType: joint_1
@@ -46,14 +48,7 @@ cables:
       
       - type: dynamic_lazy_wave1
     
-    # unsure how the vertex points work (was already here), but I suspect this would be where Michael's routing info fits in  
-    routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
-      - [1000, 1200, 20] 
-      - [2000, 1500, 20] 
-    
-    burial:  # optional definition of cable burial depth over its length
-        station: [0, 1]                # length along cable, normalized by first and last value
-        depth  : [0.1, 0.2]            # [m] burial depth
+
       
   suspended_cable1:
     # type: 
@@ -83,7 +78,7 @@ cable_configs:
         sections:
           - type: dynamic_cable_33
           length: 2000
-          A: 100
+          A: 100 # cable conductor cross-sectional area [mm^2] (Required for types listed in cable props yaml)
           
           
           
@@ -95,8 +90,8 @@ cable_configs:
         zJTube: -20 # depth the cable comes out of the j-tube
         type: dynamic # dynamic or static
         
-        sections:
-          - type: dynamic_cable_66        # ID of a cable section type1
+
+        type: dynamic_cable_66        # ID of a cable section type1
             length: 200                   # [m] length (unstretched) 
             
           - connectorType: buoyancy_module_1     
@@ -117,6 +112,15 @@ cable_configs:
         sections:
           - type: static_cable_36
             length: 2200
+            
+        # unsure how the vertex points work (was already here), but I suspect this would be where Michael's routing info fits in  
+        routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
+          - [1000, 1200, 20] 
+          - [2000, 1500, 20] 
+        
+        burial:  # optional definition of cable burial depth over its length
+            station: [0, 1]                # length along cable, normalized by first and last value
+            depth  : [0.1, 0.2]            # [m] burial depth
     
     dynamic_suspended_1:
         name: Dynamic suspended cable configuration 1 

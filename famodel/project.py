@@ -67,7 +67,7 @@ class Project():
         self.mooringList = {}  # A dictionary of Mooring objects
         self.mooringListPristine = {} # A dictionary of Mooring objects in initial condition (no marine growth, corrosion, etc)
         self.anchorList  = {}
-        self.cables = None  # CableSystem
+        self.cableList = None  # CableSystem
         self.substationList = {}
         
         # Dictionaries of component/product properties used in the array
@@ -199,7 +199,7 @@ class Project():
             i = 0
             # create substation design dictionary and object for each substation
             for k, v in d['substation']:
-                subID = k+str(i)
+                subID = k
                 dd = v
                 self.substationList[subID] = Substation(dd, subID)
                 i += 1
@@ -666,7 +666,6 @@ class Project():
         # ===== load Cables ======
         def CableProps(cabType):
             '''
-
             Parameters
             ----------
             cabType : dictionary
@@ -679,15 +678,42 @@ class Project():
 
             '''
             if cabType['type'] in d['cable_types']:
-                dd = {cabType['type']:d['cable_types']}
+                dd = {cabType['type']:d['cable_types'],'length':cabType['length']}
             else:
                 cabProps = getCableProps(cabType['A'],cabType['type'],source="default")
-                dd = {cabType['type']:cabProps}
+                dd = {cabType['type']:cabProps,'length':cabType['length'],'A':cabType['A']}
                 
             return(dd)
+        
         def getCables(cabSection):
             cCondd = {}
             cabConfig = cable_configs[cabSection['type']]
+            
+            if cabConfig in d['cable_configs']:
+                cC = d['cable_configs'][cabConfig]
+                cCondd['span'] = cC['span']
+                cCondd['conductorSize'] = getFromDict(cC,'conductorSize')
+                cCondd['type'] = getFromDict(cC,'type',default='dynamic')
+                cCondd['powerRating'] = getFromDict(cC,'powerRating',default=0)
+                cCondd['zJTube'] = getFromDict(cC,'zJTube',default=-20)
+                cCondd['voltage'] = getFromDict(cC,'voltage')
+                
+                # get cable properties for cable type (should only be one section - may change later)
+                cCondd['cable'] = CableProps(cC['sections'][0])
+                
+                # check for routing / burial info (generally for static cable)
+                if 'routing_x_y_r' in cC:
+                    cCondd['routing_xyr'] = cC['routing_x_y_r']
+                if 'burial' in cC:
+                    cCondd['burial'] = cC['burial']
+                    
+                # add heading from array cable table
+                
+                    
+                
+                
+            
+            
             
             # # get configuration makeup of cable
             # for j in range(0,len(cabConfig['sections'])):
@@ -753,8 +779,28 @@ class Project():
                             else:
                                 # unsupported input
                                 raise Exception('Invalid section type keyword. Must be either type or connectorType')
-                                
-            ################ set what turbines/substation subsea cable class is connected to                
+                # create subsea cable object
+                self.cableList[(cable,i)] = SubseaCable((cable,i),dd=dd)
+                # connect cable to platform/substation
+                if arrayCableInfo[i]['AttachA'] in d['substation']:
+                    for j in range(0,len(arrayInfo)):
+                        if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
+                            raise Exception('Substation name must be different from platform ID')
+                    self.cableList[(cable,i)].attachTo(self.substationList[arrayCableInfo[i]['AttachA']],end='A')
+                for j in range(0,len(arrayInfo)):
+                    if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
+                        # connect to platform
+                        self.cableList[(cable,i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='A')
+                    
+                if arrayCableInfo[i]['AttachB'] in d['substation']:
+                    for j in range(0,len(arrayInfo)):
+                        if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
+                            raise Exception('Substation name must be different from platform ID')
+                    self.cableList[(cable,i)].attachTo(self.substationList[arrayCableInfo[i]['AttachA']],end='B')
+                for j in range(0,len(arrayInfo)):
+                    if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
+                        # connect to platform
+                        self.cableList[(cable,i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='B')                            
                 
                             
                             
@@ -1229,7 +1275,38 @@ class Project():
         
         # also save in RAFT, in its MoorPy System(s)
     
+    def addCablesConnections(self,connDict):
+        '''Adds cables and connects them to existing platforms/substations based on info in connDict
+        Designed to work with cable optimization output designed by Michael Biglu
 
+        Parameters
+        ----------
+        connDict : dict
+            Connection dictionary that describes the cables to create and their connections
+
+        Returns
+        -------
+        None.
+
+        '''
+        # go through each index in the list and create a cable, connect to platforms
+        for i in range(0,connDict['clusters']):
+            for j in range(0,connDict['clusters'][i]):
+                # collect design dictionary info on cable
+                dd = {}
+                cable = connDict['props'][i][j] # running on assumption that each thing in props will have equivalent of a design dictionary
+                # may need to add here to get the properties properly put in the design dictionary
+                # create cable object
+                self.cableList[(cable,i*j)] = SubseaCable((cable,j),dd=dd)
+                # attach to platforms/substations
+                for k in range(0,2): # cable will always only go between 2 points
+                    if connDict['clusters'][i][j][k] in self.platformList:
+                        self.cableList[(cable,i*j)].attachTo(self.platformList[connDict['clusters'][i][j][k]],end='A')
+                    elif connDict['clusters'][i][j][k] in self.substationList:
+                        self.cableList[(cable,i*j)].attachTo(self.substationList[connDict['clusters'][i][j][k]],end='B')
+                    else:
+                        raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations')
+                
 
     def plot3d(self, ax=None, figsize=(10,8), fowt=None, save=False,
                draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True):
