@@ -38,22 +38,16 @@ class StaticCable(Edge):
         # end point absolute coordinates, to be set later
         self.rA = rA
         self.rB = rB
-        self.heading = 0
-        
-        # relative positions (variables could be renamed)
-        self.rad_anch = rad_anch
-        self.rad_fair = rad_fair
-        self.z_anch   = z_anch  
-        self.z_fair   = z_fair
-        
-        self.adjuster = None  # custom function that can adjust the mooring
-        
-        self.shared = False # boolean for if the mooring line is a fully suspended cable
-        self.symmetric = False # boolean for if the mooring line is a symmetric suspended cable
         
         # relevant site info
         self.rho = rho
         self.g = g
+        
+        # Vectors of optional vertex points along the cable route. 
+        # Nonzero radius wraps around the vertex at that radius.
+        self.x = []  # cable route vertex global x coordinate [m]
+        self.y = []  # cable route vertex global y coordinate [m]
+        self.r = []  # cable route vertex corner radius [m]
         
         # Dictionaries for addition information
         self.loads = {}
@@ -61,38 +55,81 @@ class StaticCable(Edge):
         self.cost = {}
     
     
-    def setSectionLength(self, L, i):
-        '''Sets length of section, including in the subdsystem if there is
-        one.'''
+    def getLength(self):
+        '''Compute the length of the cable based on the end point locations 
+        (rA, rB) and any routing information (self.x, self.y. self.rad).'''
         
-        # >>> PROBABLY NEED TO REVISE HOW THIS WORKS TO CONSIDER BUOYANCY MODULES <<<
+        # get some calculations from Stein's arc-shaped work on IProTech geometry
+        # >>> calcs here <<<
         
-        self.dd['sections'][i]['L'] = L  # set length in dd (which is also Section/subcomponent)
+        self.L = 0
         
-        if self.ss:  # is Subsystem exists, adjust length there too
-            self.ss.lineList[i].setL(L)
+        return self.L
     
     
-    
-    def setEndPosition(self, r, end, sink=False):
-        '''Set the position of an end of the mooring.
+    def initializeRoute(self):
+        # Initially assume that the static portion of the cable goes straight
+        # between the two ends of the dynamic cables.
         
-        Parameters
-        ----------
-        r : list
-            Cordinates to set the end at [m].
-        end
-            Which end of the edge is being positioned, 'a' or 'b'.
-        sink : bool
-            If true, and if there is a subsystem, the z position will be on the seabed.
+        '''  >>> to be updated >>>
+        # x y coordinates of the FOWTs that the cable runs between
+        rtA = self.system.coords[self.AttachA-1]
+        rtB = self.system.coords[self.AttachB-1]
+        
+        # set cable end points
+        self.rA[0] = rtA[0] + self.DynCableA.span*np.cos(self.headingA)  # x
+        self.rA[1] = rtA[1] + self.DynCableA.span*np.sin(self.headingA)  # y
+        self.rB[0] = rtB[0] + self.DynCableB.span*np.cos(self.headingB)  # x
+        self.rB[1] = rtB[1] + self.DynCableB.span*np.sin(self.headingB)  # y
         '''
         
-        if end in ['a', 'A', 0]:
-            self.rA = np.array(r)
-        elif end in ['b', 'B', 1]:
-            self.rB = np.array(r)
-        else:
-            raise Exception('End A or B must be specified with either the letter, 0/1, or False/True.')
+        # fill in x, y, r lists for just straight connection between end points
+        self.x = np.array([self.rA[0], self.rB[0]])
+        self.y = np.array([self.rA[1], self.rB[1]])
+        self.r = np.array([0, 0])
+        
+        # (fancier routing could be applied later by layout design methods)
+
+
+    def resolveRoute(self):
+        '''Takes established cable route points, considers seabed
+        bathymetry and embedment depth, and computes points along
+        the path along with its length.'''
+        
+        # coordinates for plotting
+        self.xs = []
+        self.ys = []
+        
+        # figure out x and y coordinates
+        # add points along each stretch
+        for i in range(len(self.x))-1:
+            n = 3 # number of segments along a stretch
+            np.append(self.xs, np.linspace(self.x[i], self.x[i+1], n)
+            np.append(self.ys, np.linspace(self.y[i], self.y[i+1], n)
+        # add last point
+        np.append(self.xs, self.x[-1])
+        np.append(self.ys, self.y[-1])
+        # >>> Stein to add radii around points <<<
+        
+        # get z coordinates along seabed
+        self.zs = self.system.projectAlongSeabed(self.xs, self.ys)
+        
+        # calculate cable length (discretized approach for now)
+    
+    
+    def checkCableExclusions(self, cable):
+        '''Checks whether a cable crosses over any exclusions
+        or other out of bounds areas.
+        '''
+
+        # select cable
+        
+        # check its path against any exclusion areas or boundaries
+        
+        # make a list of any exclusion/nodes that it is too close to
+        
+        return 0 #score, list_of_violations
+    
     
     
     def getCost(self):
