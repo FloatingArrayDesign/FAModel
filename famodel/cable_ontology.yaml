@@ -83,6 +83,9 @@ cable_configs:
         sections:
           - type: dynamic_cable_33
           length: 2000
+          A: 100
+          
+          
           
         
     dynamic_lazy_wave1:

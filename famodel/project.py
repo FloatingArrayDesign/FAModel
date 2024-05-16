@@ -25,6 +25,7 @@ from .cables.cable import SubseaCable
 from .cables.cable_system import CableSystem
 from .cables.dynamic_cable import DynamicCable
 from .cables.static_cable import StaticCable
+from .cables.cable_properties import getCableProps
 
 class Project():
     '''
@@ -663,39 +664,59 @@ class Project():
         self.mooringListPristine = deepcopy(self.mooringList)    
         
         # ===== load Cables ======
-        def loadCableProps()
+        def CableProps(cabType):
+            '''
+
+            Parameters
+            ----------
+            cabType : dictionary
+                Dictionary of cable details from the cable_configs sections list
+                Includes type (reference to name in cable_types or cable_props yaml)
+
+            Returns
+            -------
+            dd : design dictionary
+
+            '''
+            if cabType['type'] in d['cable_types']:
+                dd = {cabType['type']:d['cable_types']}
+            else:
+                cabProps = getCableProps(cabType['A'],cabType['type'],source="default")
+                dd = {cabType['type']:cabProps}
+                
+            return(dd)
         def getCables(cabSection):
-            cabLast = 1
             cCondd = {}
             cabConfig = cable_configs[cabSection['type']]
-            # get configuration makeup of cable
-            for j in range(0,len(cabConfig['sections'])):
-                if cabLast: # last item was a cable, next should be a connector
-                    if 'type' in cabConfig['sections'][j]:
-                        # need to add empty connector to list
-                        cCondd['connectors'].append(None)
-                        # now add cable type
-                        cCondd['sections'].append(cabConfig['sections'][j])
-                    elif 'connectorType' in cabConfig['sections'][j]:
-                        # add connector
-                        cCondd['connectors'][j] = cabConfig['sections'][j]
-                        # update cabLast
-                        cabLast = 0
-                    else:
-                        raise Exception('Invalid section type keyword. Must be either type or connectorType')
-                else:
-                    if 'type' in cabConfig['sections'][j]:
-                        cCondd['sections'].append(cabConfig['sections'][j])
-                        cabLast = 1
-                    elif 'connectorType' in cabConfig['sections'][j]:
-                        # two connectors in a row: throw an error
-                        raise Exception('Cannot have two connectors in a row')
-                    else:
-                        # unsupported input
-                        raise Exception('Invalid section type keyword. Must be either type or connectorType')
-            # make sure last item is a connector
-            if cabLast:
-                cCondd['connectors'].append(None)
+            
+            # # get configuration makeup of cable
+            # for j in range(0,len(cabConfig['sections'])):
+            #     if cabLast: # last item was a cable, next should be a connector
+            #         if 'type' in cabConfig['sections'][j]:
+            #             # need to add empty connector to list
+            #             cCondd['connectors'].append(None)
+            #             # now add cable type
+            #             cCondd['sections'].append(cabConfig['sections'][j])
+            #         elif 'connectorType' in cabConfig['sections'][j]:
+            #             # add connector
+            #             cCondd['connectors'][j] = cabConfig['sections'][j]
+            #             # update cabLast
+            #             cabLast = 0
+            #         else:
+            #             raise Exception('Invalid section type keyword. Must be either type or connectorType')
+            #     else:
+            #         if 'type' in cabConfig['sections'][j]:
+            #             cCondd['sections'].append(cabConfig['sections'][j])
+            #             cabLast = 1
+            #         elif 'connectorType' in cabConfig['sections'][j]:
+            #             # two connectors in a row: throw an error
+            #             raise Exception('Cannot have two connectors in a row')
+            #         else:
+            #             # unsupported input
+            #             raise Exception('Invalid section type keyword. Must be either type or connectorType')
+            # # make sure last item is a connector
+            # if cabLast:
+            #     cCondd['connectors'].append(None)
                 
             return(cCondd)
         # load in array cables
