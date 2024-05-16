@@ -7,6 +7,7 @@ from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge
 from famodel.cables import Cable
+from famodel.cables import cable_properties as cp
 
 class DynamicCable(Edge):
     '''
@@ -40,31 +41,15 @@ class DynamicCable(Edge):
         self.m0 = self.cableType['m']      # mass/m of bare dynamic cable
         self.w0 = self.cableType['w']      # weight/m of bare dynamic cable
         
-        
-        # Turn what's in dd and turn it into Sections and Connectors
-        for i, con in enumerate(self.dd['connectors']):
-            if con:
-                Cid = con['type']+str(i)
-            else:
-                Cid = i
-            self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
-        
-        for i, sec in enumerate(self.dd['sections']):
-            self.dd['sections'][i] = Section(i,**self.dd['sections'][i])
-            #self.dd['connectors'][i  ].attach(self.dd['sections'][i], end=0)
-            #self.dd['connectors'][i+1].attach(self.dd['sections'][i], end=1)
-        
-        # Connect them and store them in self(Edge).subcomponents!
-        subcons = []  # list of node-edge-node... to pass to the function
-        for i in range(self.n_sec):
-            subcons.append(self.dd['connectors'][i])
-            subcons.append(self.dd['sections'][i])
-        subcons.append(self.dd['connectors'][-1])
-        self.addSubcomponents(subcons)  # Edge method to connect and store em
-        
-        # Indices of connectors and sections in self.subcomponents list
-        self.i_con = list(range(0, 2*self.n_sec+1, 2))
-        self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+        # Turn what's in dd into a list of buoyancy section info dicts
+        self.buoyancySections = []
+        for i, bs in enumerate(self.dd['buoyancy_sections']):
+            
+            for key in ['L_mid', 'module_props', 'N_modules', 'spacing']:
+                if not key in bs:  # make sure no entry is missing
+                    raise Exception(f'Required entry {key} not found in buoyancy_sections entry')
+            
+            self.buoyancySections.append(bs)
         
         # MoorPy subsystem that corresponds to the dynamic cable
         self.ss = subsystem
@@ -95,16 +80,49 @@ class DynamicCable(Edge):
         self.cost = {}
     
     
-    def setSectionLength(self, L, i):
-        '''Sets length of section, including in the subdsystem if there is
-        one.'''
+    def updateSubsystem(self):
+        '''Adjusts the subsystem properties when the buoyancy section info changes'''
         
-        # >>> PROBABLY NEED TO REVISE HOW THIS WORKS TO CONSIDER BUOYANCY MODULES <<<
+        # make sure subsystem already exists
+        if not self.ss:
+            raise Exception('Subsystem does not yet exist in this DynamicCable')
         
-        self.dd['sections'][i]['L'] = L  # set length in dd (which is also Section/subcomponent)
+        # make sure the number of buoyancy sections matches the subsystem
+        if len(self.buoyancySections)*2 + 1 == self.ss.nLines:  
+            case = 1  # typical case where buoyancy sections are in middle of cable
+        elif len(self.buoyancySections)*2 == self.ss.nLines: 
+            case = 0  # case where buoyancy section starts right at end A
+        else:
+            raise Exception("Number of buoyancy sections doesn't match subsystem")
         
-        if self.ss:  # is Subsystem exists, adjust length there too
-            self.ss.lineList[i].setL(L)
+        # Turn what's in dd into a list of buoyancy section info dicts
+        for i, bs in self.buoyancySections:
+        
+            # bs contains 'L_mid', 'module_props', 'N_modules', 'spacing'
+            
+            L = bs['N_modules'] * bs['spacing']  # length of section approximating buoyancy section
+            
+            # compute what diameter of buoyancy module is needed to achieve this buoyancy per unit length
+            d_inner = self.d0  # inner diameter for buoyancy module [m]
+            rho_buoy = bs['buoy_props']['density']  # constant density of buoyancy modules [kg/m^3]
+            v_buoy = bs['buoy_props']['volume']  # displaced volume [m^3]
+            
+            # equivalent outer diameter of buoyancy section
+            d_outer = np.sqrt(v_buoy/bs['spacing']/np.pi + d_inner**2) 
+            
+            # mass per meter of spread buoyancy module [kg/m]
+            m_buoy = rho_buoy*v_buoy/bs['spacing']
+            
+            m = self.m0 + m_buoy  # mass per unit length of combined cable + spread buoyancy modules [kg/m]
+            w = m*self.g - self.rho*(np.pi/4*(d_outer**2))*self.g  # weight per unit length [N/m]
+            
+            # update properties of the corresponding Subsystem Line
+            self.ss.lineList[2*i+case].setL(L)
+            self.ss.lineTypes[2*i+case]['m'] = m
+            self.ss.lineTypes[2*i+case]['w'] = w
+            self.ss.lineTypes[2*i+case]['d_vol'] = d_outer
+            
+            # still need to update lengths of Lines in between buoyancy sections!! <<<
     
     
     def reposition(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
