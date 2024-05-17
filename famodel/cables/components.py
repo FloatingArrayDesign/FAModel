@@ -1,11 +1,11 @@
-# class for a connector
+# class for cable components
 
 import numpy as np
 from famodel.famodel_base import Node, Edge
 from moorpy.helpers import getFromDict
 
-class Connector(Node, dict):
-    '''
+class Joint(Node, dict):
+    '''Subsea joint for power cables, such as might join dynamic and static cables together.
     '''
     def __init__(self,id, r=[0,0,0], **kwargs):
         '''
@@ -19,25 +19,22 @@ class Connector(Node, dict):
         r : list, optional
             x,y,z location of the connector. The default is [0,0,0].
         kwargs
-            Additional optional parameters, such as m, v, CdA...
+            Additional optional parameters, such as m
         '''
 
         dict.__init__(self, **kwargs)  # initialize dict base class (will put kwargs into self dict)
         Node.__init__(self, id)  # initialize Node base class
         
-        # <<< have a ['type'] entry that stores a type, which could be used for sizing...
-        
-        # Connector position and orientation
+        # Joint position and orientation
         self.r = np.array(r)  # x, y, z coordinates of connector [m]
         
         # set defaults if they weren't provided
         self['m'  ] = getFromDict(self, 'm'  , default=0)
-        self['v'  ] = getFromDict(self, 'v'  , default=0)
-        self['CdA'] = getFromDict(self, 'CdA', default=0)
         
-        # MoorPy Point Object for Connector
+        # MoorPy Point Object for Joint
         self.mpConn = None
         
+    """ this might be useful for the ends of dynamic cables
     def makeMoorPyConnector(self, ms):
         '''Create a MoorPy connector object in a MoorPy system
         Parameters
@@ -61,25 +58,28 @@ class Connector(Node, dict):
         self.mpConn.CdA = self['CdA']
 
         return(ms)
-
-
-class Section(Edge, dict):
+    """
+"""
+class Cable(Edge, dict):
+    '''A length of a subsea power cable product (i.e. same cross section of
+    the actual cable. This is just a very simple cable description.
+    Buoyancy modules and other appendages might exist along its length, described
+    in other classes. (Note this is different from how Mooring Sections are
+    modeled). The cable sectional specs should be stored in Cable['type'].
     '''
-    '''
-    def __init__(self,id, **kwargs):
+    def __init__(self, **kwargs):
         '''
         '''
 
         dict.__init__(self, **kwargs)  # initialize dict base class
-        Edge.__init__(self, id)  # initialize Edge base class
-        
+        Edge.__init__(self, 'no name')  # initialize Edge base class
         
         # <<< have a ['type'] entry that stores a type, which could be used for sizing...
-
-
+        
         # set defaults if they weren't provided
         self['L'   ] = getFromDict(self, 'L'  , default=0)
         
         # if the type dict wasn't provided, set as none to start with
         if not 'type' in self:
             self['type'] = None
+"""

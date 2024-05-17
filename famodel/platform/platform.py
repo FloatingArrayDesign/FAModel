@@ -1,9 +1,10 @@
 # class for a floating platform
 
 import numpy as np
+from famodel.famodel_base import Node
 
 
-class Platform():
+class Platform(Node):
     '''
     Class for a moored floating platform with methods for requesting
     adjustments of mooring lines or power cables when the platform is 
@@ -11,7 +12,7 @@ class Platform():
     Eventually will inherit from Node.
     '''
     
-    def __init__(self, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
+    def __init__(self, id, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
         '''
         
         Parameters
@@ -23,6 +24,8 @@ class Platform():
         mooring_headings (optional)
             relative headings of mooring lines [deg].
         '''
+        # Initialize as a node
+        Node.__init__(self,id)
         
         # Design description dictionary for this Platform
         self.dd = {}
@@ -33,6 +36,7 @@ class Platform():
         self.rFair = rFair
         self.zFair = zFair
         
+        
         self.mooring_headings = [np.radians(mooring_headings)] # headings of mooring lines [rad]
         
         self.n_mooring = len(mooring_headings) # number of mooring lines
@@ -41,6 +45,7 @@ class Platform():
         # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
         # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
         
+        # >>> replace these with the Node attachments dict? <<<
         self.mooringList = {}  # dictionary to be filled by references to Mooring objects
         self.anchorList = {} # dictionary of references to anchor objects connected to this platform
         
@@ -83,7 +88,7 @@ class Platform():
         # Get 2D rotation matrix
         self.R = np.array([[np.cos(self.phi), -np.sin(self.phi)],[np.sin(self.phi), np.cos(self.phi)]])
         
-        # Update the position of any Moorings
+        # Update the position of any Moorings or Cables
         for i, mooring in enumerate(self.mooringList):
         
             # Heading of the mooring line
@@ -128,27 +133,33 @@ class Platform():
             self.setPosition(self.r)
         
         # make mooring system from subsystems
-        for i in range(0,len(self.mooringList)):
-            ssloc = self.mooringList[i].subsystem
-            # add subsystem as a line to the linelist
-            self.ms.lineList.append(ssloc)
-            ssloc.number = i
-            # check whether a moorpy anchor object exists for this mooring line
-            if not self.mooringList[i].anchor.mpAnchor:
-                # create anchor moorpy object
-                self.mooringList[i].anchor.makeMoorPyAnchor()
-            # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
-            self.ms.pointList.append(self.mooringList[i].anchor.mpAnchor) # anchor
-            # attach subsystem line to the anchor point
-            self.ms.pointList[-1].attachLine(i,0)
-            # add fairlead point as a coupled point
-            self.ms.addPoint(-1,ssloc.rB)
-            # attach subsystem line to the fairlead point
-            self.ms.pointList[-1].attachLine(i,1)
+        for i in self.attachments:
+        
+            # only process moorings that have subsystems for now
+            
+            if type(self.attachments[i]['ref']) == Mooring:
+                mooring = self.attachments[i]['ref']
+                ssloc = mooring.subsystem
+                
+                if ssloc:  # only proceed it's not None
+                    # add subsystem as a line to the linelist
+                    self.ms.lineList.append(ssloc)
+                    ssloc.number = i
+                    # check whether a moorpy anchor object exists for this mooring line
+                    if not mooring.anchor.mpAnchor:
+                        # create anchor moorpy object
+                        mooring.anchor.makeMoorPyAnchor()
+                    # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
+                    self.ms.pointList.append(mooring.anchor.mpAnchor) # anchor
+                    # attach subsystem line to the anchor point
+                    self.ms.pointList[-1].attachLine(i,0)
+                    # add fairlead point as a coupled point
+                    self.ms.addPoint(-1,ssloc.rB)
+                    # attach subsystem line to the fairlead point
+                    self.ms.pointList[-1].attachLine(i,1)
         
         # initialize and plot
         self.ms.initialize()
         self.ms.solveEquilibrium()
         fig,ax = self.ms.plot()
-        
         

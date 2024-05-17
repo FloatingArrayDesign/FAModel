@@ -3,10 +3,11 @@
 """
 import moorpy as mp
 import numpy as np
+from famodel.famodel_base import Node
 
-class Anchor():
+class Anchor(Node):
     
-    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None):
+    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None,id=None):
         '''
         Parameters
         ----------
@@ -36,6 +37,8 @@ class Anchor():
         r: list
             Location of anchor in x,y,z
         '''
+        # Initialize as a node
+        Node.__init__(self,id)
         
         # Design description dictionary for this Anchor
         self.dd = dd

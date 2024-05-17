@@ -1433,11 +1433,11 @@ mooring_line_configs:
             # connector: shackle
             # connectorA: shackle
             # connectorB: clump_weight_20       
-          - connectorType:  clump_weight_20 
+          - connectorType:  clump_weight_80 
           - type: polyester_182mm   
             length: 770 # 435   870  
             # connectorB: clump_weight_20     
-          - connectorType:  clump_weight_20  
+          - connectorType:  clump_weight_80  
           - type: polyester_182mm
             length: 110
           #   # connectorB: shackle   
@@ -1510,25 +1510,25 @@ mooring_line_types:
 mooring_connector_types:
     
     h_link:
-        mass   : 140    # [kg]  component mass
-        volume : 0.13   # [m^3] component volumetric displacement
+        m   : 140    # [kg]  component mass
+        v : 0.13   # [m^3] component volumetric displacement
         
     clump_weight_80:
-        mass   : 80000  # [kg]
-        volume :  0.8   # [m^3]
+        m   : 80000  # [kg]
+        v :  0.8   # [m^3]
     
     clump_weight_20:
-        mass   : 20000  # [kg]
-        volume :  0.8   # [m^3]
+        m   : 20000  # [kg]
+        v :  0.8   # [m^3]
         
     buoy_10:
-        mass   :  560   # [kg]  component mass
-        volume : 10.2   # [m^3] component volumetric displacement
-        CdA    :  3.5   # [m^2] produce of cross sectional area and drag coefficient
+        m   :  560   # [kg]  component mass
+        v : 10.2   # [m^3] component volumetric displacement
+        C   :  3.5   # [m^2] produce of cross sectional area and drag coefficient
     
     shackle:
-        mass   : 200
-        volume : .2
+        m   : 200
+        v : .2
 
 # Anchor type properties
 anchor_types:
