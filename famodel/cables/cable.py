@@ -5,9 +5,9 @@ from copy import deepcopy
 from moorpy.subsystem import Subsystem
 from moorpy import helpers
 
-from famodel.cable.dynamic_cable import DynamicCable
-from famodel.cable.static_cable import StaticCable
-from famodel.cable.components import Cable, Joint
+from famodel.cables.dynamic_cable import DynamicCable
+from famodel.cables.static_cable import StaticCable
+from famodel.cables.components import Joint
 from famodel.famodel_base import Edge
 
 
@@ -39,13 +39,13 @@ class SubseaCable(Edge):
         # Turn what's in dd and turn it into Sections and Connectors
         for i, joi in enumerate(self.dd['joints']):
             if joi:
-                Jid = joi+str(i)
+                Jid = id+'_'+joi+str(i)
             else:
-                Jid = i
+                Jid = id+'_'+i
             self.dd['joints'][i] = Joint(Jid,**self.dd['joints'][i])
         
         for i, sec in enumerate(self.dd['cables']):
-            Cid = sec+str(i)
+            Cid = id+'_'+sec+str(i)
             if sec['type'] == 'static':
                 self.dd['cables'][i] = StaticCable(Cid, **self.dd['cables'][i])
             else:

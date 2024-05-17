@@ -22,10 +22,9 @@ from .mooring.anchor import Anchor
 from .mooring.connector import Connector
 from .substation.substation import Substation
 from .cables.cable import SubseaCable
-from .cables.cable_system import CableSystem
 from .cables.dynamic_cable import DynamicCable
 from .cables.static_cable import StaticCable
-from .cables.cable_properties import getCableProps
+from .cables.cable_properties import getCableProps, getBuoyProps
 
 class Project():
     '''
@@ -669,7 +668,7 @@ class Project():
             Parameters
             ----------
             cabType : dictionary
-                Dictionary of cable details from the cable_configs sections list
+                Dictionary of cable details from the cable_configs typeID
                 Includes type (reference to name in cable_types or cable_props yaml)
 
             Returns
@@ -678,11 +677,41 @@ class Project():
 
             '''
             if cabType['type'] in d['cable_types']:
-                dd = {cabType['type']:d['cable_types'],'length':cabType['length']}
+                dd = {cabType['type']:d['cable_types'][cabType['type']],'length':cabType['length']}
             else:
                 cabProps = getCableProps(cabType['A'],cabType['type'],source="default")
                 dd = {cabType['type']:cabProps,'length':cabType['length'],'A':cabType['A']}
                 
+            return(dd)
+        
+        def BuoyProps(buoyType):
+            '''
+
+            Parameters
+            ----------
+            buoyType : dict
+                Dictionary of buoy details from the cable_configs sections list
+
+            Returns
+            -------
+            dd : design dictionary
+
+            '''
+            dd = {}
+            # add midpoint along length to add buoys to
+            dd['L_mid'] = buoyType['L_mid']
+            
+            # figure out where buoy properties are located, add it in
+            if buoyType['type'] in d['cable_appendages']:
+                dd['module_props'] = d['cable_appendages'][buoyType['type']]
+            else:
+                buoyProps = getBuoyProps(buoyType['type']['V'],buoyType['type'],source="default")
+                dd['module_props'] = buoyProps
+            
+            # add number of modules and spacing
+            dd['N_modules'] = buoyType['N_modules']
+            dd['spacing'] = buoyType['spacing']
+            
             return(dd)
         
         def getCables(cabSection):
@@ -699,7 +728,11 @@ class Project():
                 cCondd['voltage'] = getFromDict(cC,'voltage')
                 
                 # get cable properties for cable type (should only be one section - may change later)
-                cCondd['cable'] = CableProps(cC['sections'][0])
+                cCondd['cable'] = CableProps(cC['typeID'])
+                
+                # get buoy properties
+                for i in range(0,len(cC['sections'])):
+                    cCondd['buoyancy_sections'] = BuoyProps(cC['sections'][i])
                 
                 # check for routing / burial info (generally for static cable)
                 if 'routing_x_y_r' in cC:
@@ -709,42 +742,10 @@ class Project():
                     
                 # add heading from array cable table
                 
-                    
-                
-                
-            
-            
-            
-            # # get configuration makeup of cable
-            # for j in range(0,len(cabConfig['sections'])):
-            #     if cabLast: # last item was a cable, next should be a connector
-            #         if 'type' in cabConfig['sections'][j]:
-            #             # need to add empty connector to list
-            #             cCondd['connectors'].append(None)
-            #             # now add cable type
-            #             cCondd['sections'].append(cabConfig['sections'][j])
-            #         elif 'connectorType' in cabConfig['sections'][j]:
-            #             # add connector
-            #             cCondd['connectors'][j] = cabConfig['sections'][j]
-            #             # update cabLast
-            #             cabLast = 0
-            #         else:
-            #             raise Exception('Invalid section type keyword. Must be either type or connectorType')
-            #     else:
-            #         if 'type' in cabConfig['sections'][j]:
-            #             cCondd['sections'].append(cabConfig['sections'][j])
-            #             cabLast = 1
-            #         elif 'connectorType' in cabConfig['sections'][j]:
-            #             # two connectors in a row: throw an error
-            #             raise Exception('Cannot have two connectors in a row')
-            #         else:
-            #             # unsupported input
-            #             raise Exception('Invalid section type keyword. Must be either type or connectorType')
-            # # make sure last item is a connector
-            # if cabLast:
-            #     cCondd['connectors'].append(None)
-                
             return(cCondd)
+        
+        
+        
         # load in array cables
         if arrayCableInfo:
             cabLast = 1
@@ -758,10 +759,16 @@ class Project():
                         cabSection = cableInfo[cable]['sections'][j]
                         if cabLast: # last item was a cable, next should be a connector
                             if 'type' in cabSection:
-                                # no joint as first object - add an empty joint to list
+                                # no joint connecting 2 cables - add an empty joint to list
                                 dd['joints'].append({})
                                 # now get the sections of the cable configuration and put in dictionary
                                 cCondd = getCables(cabSection)
+                                if j == 0:
+                                    # add heading for end A to this cable
+                                    cCondd['heading'] = arrayCableInfo[i]['headingA']
+                                elif j == len(cableInfo[cable]['sections']-1):
+                                    # add heading for end B to this cable
+                                    cCondd['heading'] = arrayCableInfo[i]['headingB']
                                 dd['cables'].append(cCondd)
                             elif 'connectorType' in cabSection:
                                 dd['joints'].append(cabSection['connectorType'])
@@ -773,6 +780,12 @@ class Project():
                             # last item was a connector
                             if 'type' in cabSection:
                                 cCondd = getCables(cabSection)
+                                if j == 0:
+                                    # add heading for end A to this cable
+                                    cCondd['heading'] = arrayCableInfo[i]['headingA']
+                                elif j == len(cableInfo[cable]['sections']-1):
+                                    # add heading for end B to this cable
+                                    cCondd['heading'] = arrayCableInfo[i]['headingB']
                                 dd['cables'].append(cCondd)
                             elif 'connectorType' in cabSection:
                                 raise Exception('Cannot have two connectors in a row')

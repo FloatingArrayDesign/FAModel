@@ -104,8 +104,8 @@ class StaticCable(Edge):
         # add points along each stretch
         for i in range(len(self.x))-1:
             n = 3 # number of segments along a stretch
-            np.append(self.xs, np.linspace(self.x[i], self.x[i+1], n)
-            np.append(self.ys, np.linspace(self.y[i], self.y[i+1], n)
+            np.append(self.xs, np.linspace(self.x[i], self.x[i+1], n))
+            np.append(self.ys, np.linspace(self.y[i], self.y[i+1], n))
         # add last point
         np.append(self.xs, self.x[-1])
         np.append(self.ys, self.y[-1])

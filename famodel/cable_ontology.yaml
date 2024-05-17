@@ -91,16 +91,15 @@ cable_configs:
         type: dynamic # dynamic or static
         
 
-        type: dynamic_cable_66        # ID of a cable section type1
-            length: 200                   # [m] length (unstretched) 
-            
-          - connectorType: buoyancy_module_1     
-                      
-          - type: dynamic_cable_66 #_w_buoy # (section properties including averaged effect of buoyancy modules)
-            length: 300            
-            
-          - type: dynamic_cable_66 
-            length: 200        
+        typeID: dynamic_cable_66        # ID of a cable section type1
+            length: 800                   # [m] length (unstretched) 
+        
+        sections: # buoyancy sections                          
+          - type: buoyancy_module_1
+            L_mid: 400 # [m] from end A
+            N_modules: 5
+            spacing: 15 # [m]           
+       
     
     static_1:
         name: Static cable configuration 1 
@@ -109,8 +108,7 @@ cable_configs:
         type: static
         zJTube: -20
         
-        sections:
-          - type: static_cable_36
+        typeID: static_cable_36
             length: 2200
             
         # unsure how the vertex points work (was already here), but I suspect this would be where Michael's routing info fits in  
@@ -128,37 +126,40 @@ cable_configs:
         span: 2000
         type: dynamic
         
-        sections:
-          - type: dynamic_cable_66        # ID of a cable section type1
-            length: 300                   # [m] length (unstretched)
+        typeID: dynamic_cable_66        # ID of a cable section type1
+            length: 2200                   # [m] length (unstretched)
             
-          - connectorType: buoyancy_module_1
-            
-          - type: dynamic_cable_66 #_w_buoy # (section properties including averaged effect of buoyancy modules)
-            length: 1550
+        sections:            
+          - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 300 # [m] from end A
+            N_modules: 5
+            spacing: 15 # [m]
           
-          - connectorType: buoyancy_module_1                  
+          - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 600 # [m] from end A
+            N_modules: 5
+            spacing: 15 # [m]
             
-          - type: dynamic_cable_66
-            length: 300
+          - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 900 # [m] from end A
+            N_modules: 5
+            spacing: 15 # [m]
 
-    # dynamic_lazy_wave2:
-    #     name: Lazy wave configuration 1 (more detailed approach)
-    #     voltage: # [kV]
-    #     span :     # [m] horizontal distance to end of dynamic cable
-        
-    #     sections:
-    #       - type: dynamic_cable_27        # ID of a cable section type1
-    #         length: 200                   # [m] length (unstretched)
-    #         appendages:
-    #             type: buoyancy_module_1
-    #             locations: [10,12,13.5,15,18]
-                
-    #     attachment:
-    #         type: j-tube
-    #         coordinate:   # relative location
-       
-       
+          - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 1200 # [m] from end A
+            N_modules: 5
+            spacing: 15 # [m]            
+
+          - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 1500 # [m] from end A
+            N_modules: 5
+            spacing: 15 # [m]
+
+          - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 1800 # [m] from end A
+            N_modules: 5
+            spacing: 15 # [m]
+    
 # Cable cross-sectional properties
 cable_types:
 # similar to cable properties yaml... thinking we can have cable types listed here if wanted but if 
