@@ -18,9 +18,11 @@ class DynamicCable(Edge):
     of a suspended cable it would attach to another Platform.
     '''
     
-    def __init__(self, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
+    def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
-                 rho=1025, g=9.81, id=None):
+                 rho=1025, g=9.81,span=2000,length=2200,A=None,conductorSize=None, 
+                 type='dynamic',zJTube=-20,voltage=66,powerRating=None,cable_type=None,
+                 headingA=None,headingB=None,buoyancy_sections=None):
         '''
         Parameters
         ----------
@@ -32,23 +34,25 @@ class DynamicCable(Edge):
         
         self.n_sec = 1
         
+        self.span = span
+
         # Store the cable type properties dict here for easy access (temporary - may be an inconsistent coding choice)
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
 
         # Save some constants for use when computing buoyancy module stuff
-        self.d0 = self.cableType['d_vol']  # diameter of bare dynamic cable
+        self.d0 = self.cableType['d']  # diameter of bare dynamic cable
         self.m0 = self.cableType['m']      # mass/m of bare dynamic cable
-        self.w0 = self.cableType['w']      # weight/m of bare dynamic cable
+        # self.w0 = self.cableType['w']      # weight/m of bare dynamic cable
         
         # Turn what's in dd into a list of buoyancy section info dicts
         self.buoyancySections = []
-        for i, bs in enumerate(self.dd['buoyancy_sections']):
-            
-            for key in ['L_mid', 'module_props', 'N_modules', 'spacing']:
-                if not key in bs:  # make sure no entry is missing
-                    raise Exception(f'Required entry {key} not found in buoyancy_sections entry')
-            
-            self.buoyancySections.append(bs)
+        if 'buoyancy_sections' in self.dd:
+            for i, bs in enumerate(self.dd['buoyancy_sections']):
+                for key in ['L_mid', 'module_props', 'N_modules', 'spacing']:
+                    if not key in bs:  # make sure no entry is missing
+                        raise Exception(f'Required entry {key} not found in buoyancy_sections entry')
+                
+                self.buoyancySections.append(bs)
         
         # MoorPy subsystem that corresponds to the dynamic cable
         self.ss = subsystem
@@ -56,10 +60,21 @@ class DynamicCable(Edge):
         # end point absolute coordinates, to be set later
         self.rA = rA
         self.rB = rB
-        if 'heading' in self.dd:
-            self.heading = self.dd['heading']
+        
+        if 'headingA' in self.dd:
+            self.headingA = self.dd['headingA']
+            if 'headingB' in self.dd:
+                self.headingB = self.dd['headingB']
+            else:
+                self.headingB = 0
+        elif 'headingB' in self.dd:
+            self.headingB = self.dd['headingB']
+            self.headingA = 0
+
         else:
-            self.heading = 0
+            self.headingA = 0
+            self.headingB = 0
+        
         
         # relative positions (variables could be renamed)
         self.rad_anch = rad_anch
@@ -81,6 +96,24 @@ class DynamicCable(Edge):
         self.reliability = {}
         self.cost = {}
     
+    def makeCableType(self,cabDict):
+        '''
+        Processes dictionary info to make cableType dictionary
+
+        Parameters
+        ----------
+        cabDict : dict
+            Dictionary of information on cable type to be processed
+
+        Returns
+        -------
+        cableType : dict
+            Uniform cable dictionary
+
+        '''
+        # fix later, for now just use cabDict
+        cableType=cabDict
+        return(cableType)
     
     def updateSubsystem(self):
         '''Adjusts the subsystem properties when the buoyancy section info changes'''

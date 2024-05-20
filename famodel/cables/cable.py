@@ -24,44 +24,51 @@ class SubseaCable(Edge):
     DynamicCable (fully suspended)
     '''
     
-    def __init__(self, id, dd=None):
+    def __init__(self, id, d=None):
         ''' '
-        dd : dict
+        d : dict
             Dictionary of cable information (see ontology).
         '''
         
         Edge.__init__(self, id)  # initialize Edge base class
         
-        self.dd = dd  # save design dictionary
+        self.dd = {'joints':[],'cables':[]}  # save design dictionary
+        self.n_sec = len(d['cables'])
         
-        self.n_sec = len(self.dd['cables'])
+        # Turn what's in dd and turn it into Sections and Connectors (if there is more than one section)
+        if len(d['cables'])>1:
+            for i, joi in enumerate(d['joints']):
+                if joi:
+                    Jid = id+'_'+d['joints'][i]['type']+str(i)
+                else:
+                    Jid = id+'_'+str(i)
+                self.dd['joints'].append(Joint(Jid,**d['joints'][i]))
+            
+            for i, sec in enumerate(d['cables']):
+                Cid = id+'_'+sec['cable_type']['name']+str(i)
+                if sec['type'] == 'static':
+                    self.dd['cables'].append(StaticCable(Cid, dd=d['cables'][i], **d['cables'][i]))
+                else:
+                    self.dd['cables'].append(DynamicCable(Cid, dd=d['cables'][i], **d['cables'][i]))
+            
+            # Connect them and store them in self(Edge).subcomponents!
+            subcons = []  # list of node-edge-node... to pass to the function
+            for i in range(self.n_sec):
+                subcons.append(self.dd['joints'][i])
+                subcons.append(self.dd['cables'][i])
+            subcons.append(self.dd['joints'][-1])
+            self.addSubcomponents(subcons)  # Edge method to connect and store em
+            
+            # Indices of connectors and sections in self.subcomponents list
+            self.i_con = list(range(0, 2*self.n_sec+1, 2))
+            self.i_sec = list(range(1, 2*self.n_sec+1, 2))
         
-        # Turn what's in dd and turn it into Sections and Connectors
-        for i, joi in enumerate(self.dd['joints']):
-            if joi:
-                Jid = id+'_'+joi+str(i)
-            else:
-                Jid = id+'_'+i
-            self.dd['joints'][i] = Joint(Jid,**self.dd['joints'][i])
-        
-        for i, sec in enumerate(self.dd['cables']):
-            Cid = id+'_'+sec+str(i)
-            if sec['type'] == 'static':
-                self.dd['cables'][i] = StaticCable(Cid, **self.dd['cables'][i])
-            else:
-                self.dd['cables'][i] = DynamicCable(Cid, **self.dd['cables'][i])
-        
-        # Connect them and store them in self(Edge).subcomponents!
-        subcons = []  # list of node-edge-node... to pass to the function
-        for i in range(self.n_sec):
-            subcons.append(self.dd['joints'][i])
-            subcons.append(self.dd['cables'][i])
-        subcons.append(self.dd['joints'][-1])
-        self.addSubcomponents(subcons)  # Edge method to connect and store em
-        
-        # Indices of connectors and sections in self.subcomponents list
-        self.i_con = list(range(0, 2*self.n_sec+1, 2))
-        self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+        else:
+            # just create the singular cable object as a dynamic cable
+            self.dd = d
+            Cid = id+'_'+self.dd['cables'][0]['cable_type']['name']+str(0)
+            cabObj = DynamicCable(Cid, dd=self.dd['cables'][0],**self.dd['cables'][0])
+            self.dd['cables'][0]['object'] = cabObj
         
         '''
         self.system = system
