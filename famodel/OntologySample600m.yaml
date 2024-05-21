@@ -119,8 +119,8 @@ array_mooring:
 array_cables:   
     keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, lengthAdjust]
     data:
-        - [ array_cable_basic, fowt1, fowt2,  180,       30, 0] 
-        - [ array_cable_basic, fowt2, substation1,  150,       30, 0] 
+        - [ array_cable1, fowt1, fowt2,  180,       30, 0] 
+        - [ suspended_cable1, fowt2, substation1,  150,       30, 0] 
 
 # ----- substations -------
 

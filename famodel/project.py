@@ -25,6 +25,7 @@ from .cables.cable import SubseaCable
 from .cables.dynamic_cable import DynamicCable
 from .cables.static_cable import StaticCable
 from .cables.cable_properties import getCableProps, getBuoyProps
+from .cables.components import Joint
 
 class Project():
     '''
@@ -663,13 +664,16 @@ class Project():
         self.mooringListPristine = deepcopy(self.mooringList)    
         
         # ===== load Cables ======
-        def CableProps(cabType):
+        def CableProps(cabType,checkType=1):
             '''
             Parameters
             ----------
             cabType : dictionary
                 Dictionary of cable details from the cable_configs typeID
                 Includes type (reference to name in cable_types or cable_props yaml)
+            checkType : boolean
+                Controls whether or not to first look for the cable type in the project yaml dictionary before
+                attempting to get the cable properties from cable props yaml.
 
             Returns
             -------
@@ -686,7 +690,8 @@ class Project():
                     raise Exception('To use CableProps yaml, you must specify an area A for the cable family')
                 cabProps = getCableProps(cabType['A'],cabType['cableFamily'],source="default")
                 dd = cabProps
-                dd['name'] = cabType['cableFamily']   
+                dd['name'] = cabType['cableFamily']
+
             return(dd)
         
         def BuoyProps(buoyType):
@@ -757,7 +762,7 @@ class Project():
         
         # load in array cables
         if arrayCableInfo:
-            cabLast = 1
+            cabLast = 0
             for i,cab in enumerate(arrayCableInfo):
                 # create design dictionary for subsea cable
                 dd = {'cables':[],'joints':[]}
@@ -805,8 +810,8 @@ class Project():
                                     # unsupported input
                                     raise Exception('Invalid section type keyword. Must be either type or connectorType')
                         # add joint at final end
-                        if cabLast:
-                            dd['joints'].append({})
+                        # if cabLast:
+                        #     dd['joints'].append({})
                     else:
                         # just a simple one line cable (no joints)
                         cabSection = cableInfo[cable]['sections'][0]
@@ -1475,7 +1480,7 @@ class Project():
         else:
             fig = ax.get_figure()
        
-    def getMoorPyArray(self,bodyInfo=None,plt=0, pristineLines=0):
+    def getMoorPyArray(self,bodyInfo=None,plt=0, pristineLines=0,cables=0):
         '''Creates an array in moorpy from the mooring, anchor, connector, and platform objects in the array.
 
         Parameters
@@ -1489,6 +1494,9 @@ class Project():
             Controls whether the moorpy array subsystems to be created can also be assigned to the mooringListPristine objects. Essentially, a boolean describing
             if the mooringList objects have been altered (0) or not (1) from their pristine, initial condition.
     
+        cables : boolean, optional
+            Controls whether to include cables in the moorpy array
+        
         Returns
         -------
         ms : class instance
@@ -1606,8 +1614,30 @@ class Project():
         if pristineLines:
             for i in self.mooringList: # here, i is key (name) of mooring object
                 # add subsystems to pristine mooring objects
-                self.mooringListPristine[i].subsystem = deepcopy(self.mooringList[i].subsystem)
+                self.mooringListPristine[i].ss = deepcopy(self.mooringList[i].subsystem)
                     
+        # add in cables if desired
+        if cables:
+            
+            # create a point for any substations cables are connected to
+            if self.substationList:
+                self.ms.addPoint(len(self.ms.pointList),self.substationList[i].r)
+            for i in self.cableList:
+                # determine if suspended cable or lazy-wave
+                for j in range(0,len(self.cableList[i].attached_to)):
+                    if isinstance(self.cableList[i].attached_to[j],Joint):
+                        # this is a lazy-wave cable                        
+                        # create subsystem for cable
+                        self.cableList[i].createSubsystem()
+                        # create joint point
+                        
+                    else:
+                        # this is a suspended cable
+                        self.cableList[i].createSubsystem(case=1)
+                # set location of subsystem for easy coding
+                ssloc = self.cableList[i].ss
+                # create joint point if not a suspended cable
+        
         
         # Plot array if requested
         if plt:

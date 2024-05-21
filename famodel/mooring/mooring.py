@@ -58,35 +58,35 @@ class Mooring(Edge):
         # Design description dictionary for this Mooring
         self.dd = dd
         # let's turn the dd into something that holds subdict objects of connectors and sections
-        
-        # >>> list of sections ?  And optional of section types (e,g, chian, poly) 
-        # and dict of scaling props (would be used by linedesign) ?
-        self.n_sec = len(self.dd['sections'])
-        
-        # Turn what's in dd and turn it into Sections and Connectors
-        for i, con in enumerate(self.dd['connectors']):
-            if con:
-                Cid = con['type']+str(i)
-            else:
-                Cid = i
-            self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
-        
-        for i, sec in enumerate(self.dd['sections']):
-            self.dd['sections'][i] = Section(i,**self.dd['sections'][i])
-            #self.dd['connectors'][i  ].attach(self.dd['sections'][i], end=0)
-            #self.dd['connectors'][i+1].attach(self.dd['sections'][i], end=1)
-        
-        # Connect them and store them in self(Edge).subcomponents!
-        subcons = []  # list of node-edge-node... to pass to the function
-        for i in range(self.n_sec):
-            subcons.append(self.dd['connectors'][i])
-            subcons.append(self.dd['sections'][i])
-        subcons.append(self.dd['connectors'][-1])
-        self.addSubcomponents(subcons)  # Edge method to connect and store em
-        
-        # Indices of connectors and sections in self.subcomponents list
-        self.i_con = list(range(0, 2*self.n_sec+1, 2))
-        self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+        if self.dd:
+            # >>> list of sections ?  And optional of section types (e,g, chian, poly) 
+            # and dict of scaling props (would be used by linedesign) ?
+            self.n_sec = len(self.dd['sections'])
+            
+            # Turn what's in dd and turn it into Sections and Connectors
+            for i, con in enumerate(self.dd['connectors']):
+                if con:
+                    Cid = con['type']+str(i)
+                else:
+                    Cid = i
+                self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
+            
+            for i, sec in enumerate(self.dd['sections']):
+                self.dd['sections'][i] = Section(i,**self.dd['sections'][i])
+                #self.dd['connectors'][i  ].attach(self.dd['sections'][i], end=0)
+                #self.dd['connectors'][i+1].attach(self.dd['sections'][i], end=1)
+            
+            # Connect them and store them in self(Edge).subcomponents!
+            subcons = []  # list of node-edge-node... to pass to the function
+            for i in range(self.n_sec):
+                subcons.append(self.dd['connectors'][i])
+                subcons.append(self.dd['sections'][i])
+            subcons.append(self.dd['connectors'][-1])
+            self.addSubcomponents(subcons)  # Edge method to connect and store em
+            
+            # Indices of connectors and sections in self.subcomponents list
+            self.i_con = list(range(0, 2*self.n_sec+1, 2))
+            self.i_sec = list(range(1, 2*self.n_sec+1, 2))
         
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem

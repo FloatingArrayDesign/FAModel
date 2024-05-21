@@ -52,11 +52,11 @@ class SubseaCable(Edge):
                     self.dd['cables'].append(DynamicCable(Cid, dd=d['cables'][i], **d['cables'][i]))
             
             # Connect them and store them in self(Edge).subcomponents!
-            subcons = []  # list of node-edge-node... to pass to the function
-            for i in range(self.n_sec):
-                subcons.append(self.dd['joints'][i])
+            subcons = []  # list of node-edge-node... to pass to the function)
+            for i in range(0,self.n_sec-1):
                 subcons.append(self.dd['cables'][i])
-            subcons.append(self.dd['joints'][-1])
+                subcons.append(self.dd['joints'][i])
+            subcons.append(self.dd['cables'][-1])
             self.addSubcomponents(subcons)  # Edge method to connect and store em
             
             # Indices of connectors and sections in self.subcomponents list
@@ -65,10 +65,8 @@ class SubseaCable(Edge):
         
         else:
             # just create the singular cable object as a dynamic cable
-            self.dd = d
-            Cid = id+'_'+self.dd['cables'][0]['cable_type']['name']+str(0)
-            cabObj = DynamicCable(Cid, dd=self.dd['cables'][0],**self.dd['cables'][0])
-            self.dd['cables'][0]['object'] = cabObj
+            Cid = id+'_'+d['cables'][0]['cable_type']['name']+str(0)
+            self.dd['cables'].append(DynamicCable(Cid, dd=d['cables'][0],**d['cables'][0]))
         
         '''
         self.system = system
