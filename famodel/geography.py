@@ -118,7 +118,7 @@ def getCustomCRS(long, lat):
 def getLeaseCoords(lease_name):
 
     # read in the BOEM shapefile that contains all Wind Energy Lease Areas (can use other shapefiles for aliquots)
-    lease_areas = gpd.read_file('shapefiles/Wind_Lease_Outlines_2_2023.shp')
+    lease_areas = gpd.read_file(os.path.dirname(__file__)+'/../geography/Wind_Lease_Outlines_2_2023.shp')
 
     # extract the lease area of interest
     if lease_name=='Humboldt_NE':
@@ -391,6 +391,8 @@ def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath
 
     set_axes_equal(ax)
     ax.axis('off')
+
+    return fig, ax
 
 
 

@@ -18,9 +18,10 @@ class StaticCable(Edge):
     seabed.
     '''
     
-    def __init__(self, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
+    def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
-                 rho=1025, g=9.81, id=None):
+                 rho=1025, g=9.81, span=2000, length=2000,A=0,conductorSize=None, 
+                 type='static',voltage=66,powerRating=None,cable_type=None,routing_xyr=None,burial=None):
         '''
         Parameters
         ----------
@@ -65,6 +66,25 @@ class StaticCable(Edge):
         self.L = 0
         
         return self.L
+    
+    def makeCableType(self,cabDict):
+        '''
+        Processes dictionary info to make cableType dictionary
+
+        Parameters
+        ----------
+        cabDict : dict
+            Dictionary of information on cable type to be processed
+
+        Returns
+        -------
+        cableType : dict
+            Uniform cable dictionary
+
+        '''
+        # fix later, for now just use cabDict
+        cableType=cabDict
+        return(cableType)
     
     
     def initializeRoute(self):
