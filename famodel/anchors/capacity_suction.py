@@ -9,7 +9,7 @@ import yaml      # Allow access to config file for user inputs
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
-from capacity_load_FMO import getAnchorLoad
+from famodel.anchors.capacity_load import getAnchorLoad
 
 def getCapacitySuction(D, L, Tm, thetam, zlug, line_type, d, thetalug, psilug, soil_type, 
                     Su0, k, alpha, beta, rhows):
