@@ -175,46 +175,10 @@ def getCapacitySuction(D, L, Tm, thetam, zlug, safety_factor='yes', line_type='c
     
     return resultsSuction
     
-if __name__ == '__main__':
-          
-    ''' 
-    Testing the function 
-    '''
-  
-    # Retrieves input data from a separate config file
-    with open('SuctionConfig.yml', 'r') as f:
-        configSuction = yaml.full_load(f)
-    D = configSuction['D']; L = configSuction['L'];  
-    thetalug = configSuction['thetalug']; psilug = configSuction['psilug'];
-    soil_type = configSuction['soil_type'];
-    Su0 = configSuction['Su0']; k = configSuction['k'];    
-    alpha = configSuction['alpha']; beta = configSuction['beta'];
-    rhows = configSuction['rhows'];
-   
-    # Retrieves input data from a separate config file
-    with open('LoadConfig_FMO.yml', 'r') as f:
-        configLoad_FMO = yaml.full_load(f)
-    Tm = configLoad_FMO ['Tm']; thetam = configLoad_FMO ['thetam']
-    zlug = configLoad_FMO ['zlug'];
-    safety_factor = configLoad_FMO['safety_factor'];
-    soil_type = configLoad_FMO ['soil_type'];
-    line_type = configLoad_FMO ['line_type'];
-    Su0 = configLoad_FMO ['Su0']; k = configLoad_FMO['k']
-    d = configLoad_FMO ['d']; 
-    
-    resultsSuction = getCapacitySuction(D=5, L=21, Tm=5000, thetam=25, zlug=14)
-    
-    print('******************  Suction Pile Result  *********************')
 
-    print('Anchor thickness,                    ' , resultsSuction['t'], '[m]')
-    print('Anchor steel weight,                 ' , resultsSuction['Weight'], '[t]') 
-    print('Horizontal max. capacity,            ' , resultsSuction['Horizontal max.'], '[kN]')
-    print('Vertical max. capacity,              ' , resultsSuction['Vertical max.'], '[kN]') 
-    print('Unity check capacity,                ' , resultsSuction['UC'], '[-]') 
 
-    print('**************************************************************') 
      
-def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=10.0, k=2.0, alpha=0.7, rhows=6.85):
+def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=10.0, k=2.0, alpha=0.7, rhows=6.85, plot=True):
     '''
     Parameters
     ----------
@@ -293,19 +257,28 @@ def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=10.0
     aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
     UC = (H/Hmax)**aVH + (V/Vmax)**bVH 
     
-    x = np.cos(np.linspace (0,np.pi/2,100))
+    x = np.cos(np.linspace (0,np.pi/2,1000))
     y = (1 - x**bVH)**(1/aVH)
     X = Hmax*x; Y = Vmax*y
-    plt.plot(X,Y,color = 'b')
-    plt.scatter(H,V,color = 'r')
-    
-    # Set labels and title
-    plt.xlabel('Horizontal capacity [kN]')
-    plt.ylabel('Vertical capacity [kN]')
-    plt.suptitle('VH suction pile capacity envelope SIMP')
-    plt.axis([0,1.3*max(X[0],H),0,1.3*max(Y[-1],V)]) 
-    plt.grid(True)
-    plt.show()
+
+    iload = np.argwhere(np.diff(np.sign(np.degrees(np.arctan(Y/X)) - thetam))).flatten()[0]
+    H_good = X[iload]
+    V_good = Y[iload]
+
+    #H_good = Hmax*np.exp(np.log(0.1)/aVH)
+    #V_good = Vmax*np.exp(np.log(0.9)/bVH)
+
+    if plot:
+        plt.plot(X,Y,color = 'b')
+        plt.scatter(H,V,color = 'r')
+        plt.scatter(H_good, V_good, color='g')
+        # Set labels and title
+        plt.xlabel('Horizontal capacity [kN]')
+        plt.ylabel('Vertical capacity [kN]')
+        plt.suptitle('VH suction pile capacity envelope SIMP')
+        plt.axis([0,1.3*max(X[0],H),0,1.3*max(Y[-1],V)]) 
+        plt.grid(True)
+        plt.show()
     
     resultsSuctionSimp = {}
     resultsSuctionSimp['Horizontal max.'] = Hmax    # Capacity at specified loading angle
@@ -313,16 +286,72 @@ def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=10.0
     resultsSuctionSimp['UC'] = UC                   # Unity check
     resultsSuctionSimp['Weight'] = Wp
     resultsSuctionSimp['t'] = t
+    resultsSuctionSimp['H_good'] = H_good
+    resultsSuctionSimp['V_good'] = V_good
     
     return resultsSuctionSimp
+
+
 
 if __name__ == '__main__':
           
     ''' 
     Testing the function 
     '''
+    """
+    # Retrieves input data from a separate config file
+    with open('SuctionConfig.yml', 'r') as f:
+        configSuction = yaml.full_load(f)
+    D = configSuction['D']; L = configSuction['L'];  
+    thetalug = configSuction['thetalug']; psilug = configSuction['psilug'];
+    soil_type = configSuction['soil_type'];
+    Su0 = configSuction['Su0']; k = configSuction['k'];    
+    alpha = configSuction['alpha']; beta = configSuction['beta'];
+    rhows = configSuction['rhows'];
+   
+    # Retrieves input data from a separate config file
+    with open('LoadConfig_FMO.yml', 'r') as f:
+        configLoad_FMO = yaml.full_load(f)
+    Tm = configLoad_FMO ['Tm']; thetam = configLoad_FMO ['thetam']
+    zlug = configLoad_FMO ['zlug']; 
+    soil_type = configLoad_FMO ['soil_type'];
+    line_type = configLoad_FMO ['line_type'];
+    Su0 = configLoad_FMO ['Su0']; k = configLoad_FMO['k']
+    d = configLoad_FMO ['d']; 
     
-    resultsSuctionSimp = getCapacitySuctionSimp(D=5, L=21, Tm=5000, thetam=25, zlug=14)
+    resultsSuction = getCapacitySuction(D, L, Tm, thetam, zlug, line_type, d, thetalug =5, psilug=7.5, soil_type='clay', 
+                    Su0=2.39, k=1.41, alpha=0.7, beta=0.46, rhows=6.85)
+    
+    print('******************  Suction Pile Result  *********************')
+
+    print('Anchor thickness,                    ' , resultsSuction['t'], '[m]')
+    print('Anchor steel weight,                 ' , resultsSuction['Weight'], '[t]') 
+    print('Horizontal max. capacity,            ' , resultsSuction['Horizontal max.'], '[kN]')
+    print('Vertical max. capacity,              ' , resultsSuction['Vertical max.'], '[kN]') 
+    print('Unity check capacity,                ' , resultsSuction['UC'], '[-]') 
+
+    print('**************************************************************') 
+          
+    """
+    
+
+    #D = 17.749595533988547
+    #L = 27.21004197870531
+    #D = 4.63490196
+    #L = 16.34414018
+    D = 10
+    L = 25
+
+    #fx = 54735571.30174828
+    #fy = 42519484.98012456
+    fx = 4522222.788895202
+    fy = 2948278.926831712
+
+    Tm = np.linalg.norm([fx, fy])/1000
+    thetam = np.degrees(np.arctan(fy/fx))
+    zlug = 2.0
+
+    resultsSuctionSimp = getCapacitySuctionSimp(D, L, Tm, thetam, zlug)
     
     print('*************** Suction Pile Result Simp *********************')
 
