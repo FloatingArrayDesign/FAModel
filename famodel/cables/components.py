@@ -2,12 +2,12 @@
 
 import numpy as np
 from famodel.famodel_base import Node, Edge
-from moorpy.helpers import getFromDict
+
 
 class Joint(Node, dict):
     '''Subsea joint for power cables, such as might join dynamic and static cables together.
     '''
-    def __init__(self,id, r=[0,0,0], **kwargs):
+    def __init__(self,id, r=None,**kwargs):
         '''
         Connectors inherit from dict, so properties can be passed in as arguments
         and they will be assigned like dictionary entries. 
@@ -21,20 +21,18 @@ class Joint(Node, dict):
         kwargs
             Additional optional parameters, such as m
         '''
-
+        from famodel.project import getFromDict
         dict.__init__(self, **kwargs)  # initialize dict base class (will put kwargs into self dict)
         Node.__init__(self, id)  # initialize Node base class
-        
         # Joint position and orientation
-        self.r = np.array(r)  # x, y, z coordinates of connector [m]
-        
+
         # set defaults if they weren't provided
         self['m'  ] = getFromDict(self, 'm'  , default=0)
         
         # MoorPy Point Object for Joint
         self.mpConn = None
         
-    """ this might be useful for the ends of dynamic cables
+    #this might be useful for the ends of dynamic cables
     def makeMoorPyConnector(self, ms):
         '''Create a MoorPy connector object in a MoorPy system
         Parameters
@@ -48,17 +46,18 @@ class Joint(Node, dict):
             MoorPy system 
 
         '''
+        from famodel.project import getFromDict
         # create connector as a point in MoorPy system
-        ms.addPoint(1,self.r)
+        ms.addPoint(1,self['r'])
         # assign this point as mpConn in the anchor class instance
         self.mpConn = ms.pointList[-1]
 
-        self.mpConn.m = self['m']
-        self.mpConn.v = self['v']
-        self.mpConn.CdA = self['CdA']
+        self.mpConn.m = getFromDict(self,'m',default=10000)
+        self.mpConn.v = getFromDict(self,'v',default=0)
+        self.mpConn.CdA = getFromDict(self,'CdA',default=0)
 
         return(ms)
-    """
+
 """
 class Cable(Edge, dict):
     '''A length of a subsea power cable product (i.e. same cross section of

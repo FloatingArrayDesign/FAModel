@@ -17,5 +17,9 @@ class Substation(Node):
         
         # get location of subsystem
         self.r = dd['r']
+        self.phi = None
+        self.rFair = None
+        self.zFair = None
+        self.point = None
         
         # further functionality to be added later

@@ -224,7 +224,7 @@ def getBuoyProps(V, buoy_type, buoyProps=None, source=None, name="", rho=1025.0,
     
     # deal with the source (is it a dictionary, or reading in a new yaml?)
     if not source==None:
-        buoyProps = loadLineProps(source)
+        buoyProps = loadBuoyProps(source)
         if not buoyProps==None:
             print('Warning: both buoyProps and source arguments were passed to getLineProps. buoyProps will be ignored.')
         
@@ -254,9 +254,11 @@ def getBuoyProps(V, buoy_type, buoyProps=None, source=None, name="", rho=1025.0,
     notes = f"made with getBuoyProps"
     
     # save dictionary (diameter converted to m)
-    buoyType = dict(name=typestring, d=d/1000, m=mass, EA=EA, EI=EI, w=w,
-                    MBL=MBL, MBR=MBR, A=A, power=power, resistance=resistance,
-                    cost=cost, notes=notes)
+    # buoyType = dict(name=typestring, d=d/1000, m=mass, EA=EA, EI=EI, w=w,
+    #                 MBL=MBL, MBR=MBR, A=A, power=power, resistance=resistance,
+    #                 cost=cost, notes=notes)
+    buoyType = dict(name=typestring, d=d/1000, m=mass, w=w,
+                    cost=cost, density=ctd['density'], volume=V, notes=notes)
     
     buoyType.update(kwargs)   # add any custom arguments provided in the call to the buoyType's dictionary
           

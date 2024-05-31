@@ -42,7 +42,7 @@ class SubseaCable(Edge):
                     Jid = id+'_'+d['joints'][i]['type']+str(i)
                 else:
                     Jid = id+'_'+str(i)
-                self.dd['joints'].append(Joint(Jid,**d['joints'][i]))
+                self.dd['joints'].append(Joint(Jid, **d['joints'][i]))
             
             for i, sec in enumerate(d['cables']):
                 Cid = id+'_'+sec['cable_type']['name']+str(i)
@@ -67,7 +67,8 @@ class SubseaCable(Edge):
             # just create the singular cable object as a dynamic cable
             Cid = id+'_'+d['cables'][0]['cable_type']['name']+str(0)
             self.dd['cables'].append(DynamicCable(Cid, dd=d['cables'][0],**d['cables'][0]))
-        
+            self.addSubcomponents([self.dd['cables'][0]])
+
         '''
         self.system = system
         
@@ -90,5 +91,46 @@ class SubseaCable(Edge):
         self.r = []
         
         self.L = 0  # total length (to be computed) [m]
+        for i in self.dd['cables']: # self.subcomponents:
+            self.L += i.L
         
-    
+    def reposition(self):
+        # reposition cable and set end points for the first and last cable sections (or the dynamic cable for a suspended cable)
+        headingA = self.subcomponents[0].headingA + self.attached_to[0].phi
+        headingB = self.subcomponents[-1].headingB +self.attached_to[1].phi
+        # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
+        Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*self.attached_to[0].rFair, self.attached_to[0].r[1]+np.sin(headingA)*self.attached_to[0].rFair, self.attached_to[0].zFair]
+        Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*self.attached_to[1].rFair, self.attached_to[1].r[1]+np.sin(headingB)*self.attached_to[1].rFair, self.attached_to[1].zFair]
+        self.subcomponents[0].rA = Aloc
+        self.subcomponents[-1].rB = Bloc
+        
+    def estJointLoc(self,joint):
+        '''Estimates joint location if they are not provided in yaml based on heading, span, and rA of cable before it
+
+        Parameters
+        ----------
+        joint : int
+            Index in subcomponents list of relevant joint
+
+        Returns
+        -------
+        None.
+
+        '''
+        from famodel.project import Project
+        
+        # if joint closer to end A, use end A heading + platform A phi
+        if len(self.subcomponents)/2 > joint+1:
+            heading = self.subcomponents[0].headingA + self.attached_to[0].phi
+            jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
+            jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
+            # self.subcomponents[joint].r = [jLocX,jLocY,depth]
+        # if joint closer to end B, use opposite of (end B heading + platform B phi)
+        else:
+            heading = np.pi + self.subcomponents[-1].headingB + self.attached_to[1].phi
+            jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
+            jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
+            # depth = Project.getDepthAtLocation(jLocX,jLocY)
+            # self.subcomponents[joint].r = [jLocX,jLocY,depth]
+        return(jLocX,jLocY)     
+        

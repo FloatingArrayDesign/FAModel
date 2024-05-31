@@ -36,6 +36,7 @@ class Platform(Node):
         self.rFair = rFair
         self.zFair = zFair
         
+        self.body = None # body object in MoorPy associated with the platform
         
         self.mooring_headings = [np.radians(mooring_headings)] # headings of mooring lines [rad]
         

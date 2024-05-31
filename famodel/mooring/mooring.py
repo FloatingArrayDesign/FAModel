@@ -239,7 +239,7 @@ class Mooring(Edge):
         # check if a subsystem already exists
         if self.ss:
             print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
-        self.ss=Subsystem(depth=-self.dd['zAnchor'], rho=self.rho, g=self.g, span=self.dd['span'], rBfair=self.rB)
+        self.ss=Subsystem(depth=-self.dd['zAnchor'], rho=self.rho, g=self.g, span=self.dd['span'],rAFair=self.rA, rBFair=self.rB)
         lengths = []
         types = []
         # run through each line section and collect the length and type

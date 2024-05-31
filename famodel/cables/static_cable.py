@@ -21,7 +21,8 @@ class StaticCable(Edge):
     def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81, span=2000, length=2000,A=0,conductorSize=None, 
-                 type='static',voltage=66,powerRating=None,cable_type=None,routing_xyr=None,burial=None):
+                 type='static',voltage=66,powerRating=None,cable_type=None,routing_xyr=None,
+                 burial=None,zAnchor=None):
         '''
         Parameters
         ----------
@@ -35,6 +36,10 @@ class StaticCable(Edge):
         
         # Store the cable type properties dict here for easy access (temporary - may be an inconsistent coding choice)
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
+
+        # cable length
+        self.L = length
+        self.span = span
 
         # end point absolute coordinates, to be set later
         self.rA = rA
