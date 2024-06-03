@@ -58,7 +58,7 @@ class SubseaCable(Edge):
                 subcons.append(self.dd['joints'][i])
             subcons.append(self.dd['cables'][-1])
             self.addSubcomponents(subcons)  # Edge method to connect and store em
-            
+            print('done connecting SubSeaCable subcomponents')
             # Indices of connectors and sections in self.subcomponents list
             self.i_con = list(range(0, 2*self.n_sec+1, 2))
             self.i_sec = list(range(1, 2*self.n_sec+1, 2))

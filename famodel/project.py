@@ -533,8 +533,9 @@ class Project():
                         self.anchorList[(arrayInfo[i]['ID'],mct)] = (Anchor(dd=ad, r=mc.rA, id=(arrayInfo[i]['ID'],mct)))
                         # add mooring class instance to mooringlist in project class
                         self.mooringList[(arrayInfo[i]['ID'],mct)] = mc
-                        # # attach mooring object to anchor and platform
-                        # self.mooringList[(arrayInfo[i]['ID'],mct)].attachTo(self.anchor)
+                        # attach mooring object to anchor and platform
+                        mc.attachTo(self.anchorList[(arrayInfo[i]['ID'],mct)],end='A')
+                        mc.attachTo(self.platformList[arrayInfo[i]['ID']],end='B')
                         # add mooring class instance to list in anchor class
                         self.anchorList[(arrayInfo[i]['ID'],mct)].mooringList[(arrayInfo[i]['ID'],mct)] = mc
                         
@@ -593,10 +594,13 @@ class Project():
                     Aloc = [rowA['x_location']+np.cos(headingA)*self.platformList[PFNum[1]].rFair, rowA['y_location']+np.sin(headingA)*self.platformList[PFNum[1]].rFair, self.platformList[PFNum[1]].zFair]
                     Bloc = [rowB['x_location']+np.cos(headingB)*self.platformList[PFNum[0]].rFair, rowB['y_location']+np.sin(headingB)*self.platformList[PFNum[0]].rFair, self.platformList[PFNum[0]].zFair]
                     # create mooring class instance
-                    mc = (Mooring(dd=m_config, rA=Aloc, rB=Bloc, rad_anch=m_config['span'], z_anch=m_config['zAnchor']))
+                    mc = (Mooring(dd=m_config, rA=Aloc, rB=Bloc, rad_anch=m_config['span'], z_anch=m_config['zAnchor'],id=(PFNum[0],PFNum[1],mct)))
                     mc.shared = 1
                     # add mooring object to project mooring list
                     self.mooringList[(PFNum[0],PFNum[1],mct)] = mc
+                    # attach mooring object to platforms
+                    mc.attachTo(self.platformList[PFNum[0]],end='B')
+                    mc.attachTo(self.platformList[PFNum[1]],end='A')
                     # add mooring object to platform mooring list    
                     self.platformList[PFNum[0]].mooringList[(PFNum[0],PFNum[1],mct)] = mc
                     # create connector dictionaries and objects for line 
@@ -607,7 +611,10 @@ class Project():
                     # get ID of platform connected to line
                     PFNum.append(arrayMooring[j]['end B'])
                     # create mooring class instance
-                    mc = (Mooring(dd=m_config, rA=[m_config['span'],0,m_config['zAnchor']], rB=[self.platformList[PFNum[0]].rFair,0,self.platformList[PFNum[0]].zFair], rad_anch=m_config['span'], rad_fair=self.platformList[PFNum[0]].rFair, z_anch=m_config['zAnchor'], z_fair=self.platformList[PFNum[0]].zFair))
+                    mc = (Mooring(dd=m_config, rA=[m_config['span'],0,m_config['zAnchor']], 
+                                  rB=[self.platformList[PFNum[0]].rFair,0,self.platformList[PFNum[0]].zFair],
+                                  rad_anch=m_config['span'], rad_fair=self.platformList[PFNum[0]].rFair, 
+                                  z_anch=m_config['zAnchor'], z_fair=self.platformList[PFNum[0]].zFair,id=(PFNum[0],mct)))
                     # adjust end positions based on platform location and mooring and platform heading
                     mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
 
@@ -618,6 +625,8 @@ class Project():
                         for anch in self.anchorList:#range(0,len(self.anchorList)):
                             if anch == ('shared', arrayMooring[j]['end A']):
                             # if anch == arrayMooring[j]['end A']:
+                                # attach mooring object to anchor
+                                mc.attachTo(self.anchorList[anch],end='A')
                                 # add mooring object to list in anchor class
                                 self.anchorList[anch].mooringList[(PFNum[0],mct)] = mc
                                 # add anchor object to list in platform class
@@ -639,6 +648,8 @@ class Project():
                         # create anchor object
                         self.anchorList[('shared',arrayAnchor[k]['ID'])] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1],id=('shared',arrayAnchor[k]['ID']))
                         #self.anchorList[arrayAnchor[k]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1])
+                        # attach mooring object to anchor
+                        mc.attachTo(self.anchorList[('shared'),arrayAnchor[k]['ID']],end='B')
                         # add mooring object to anchor mooring list
                         self.anchorList[('shared',arrayAnchor[k]['ID'])].mooringList[(PFNum[0],mct)] = mc
                         # self.anchorList[arrayAnchor[k]['ID']].mooringList[(PFNum[0],mct)] = mc 
@@ -647,6 +658,8 @@ class Project():
                         # self.platformList[PFNum[0]].anchorList[arrayAnchor[k]['ID']] = self.anchorList[arrayAnchor[k]['ID']]                   
                     # add mooring object to project mooring list
                     self.mooringList[(PFNum[0],mct)] = mc
+                    # attach mooring object to platform
+                    mc.attachTo(PFNum[0],end='B')
                     # add mooring object to platform mooring list    
                     self.platformList[PFNum[0]].mooringList[(PFNum[0],mct)] = mc
                     # create connector dictionaries and objects for line 
@@ -856,6 +869,7 @@ class Project():
                 for j in range(0,len(arrayInfo)):
                     if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
                         # connect to platform
+                        print('Making platform connections now for end A')
                         self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='A')
                     
                 if 'substation' in d and arrayCableInfo[i]['AttachB'] in d['substation']:
@@ -865,6 +879,7 @@ class Project():
                     self.cableList[cable+str(i)].attachTo(self.substationList[arrayCableInfo[i]['AttachB']],end='B')
                 for j in range(0,len(arrayInfo)):
                     if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
+                        print('Making platform connections now for end B')
                         # connect to platform
                         self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='B')                            
                 

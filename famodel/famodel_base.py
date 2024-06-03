@@ -50,7 +50,7 @@ class Node():
         self.attachments = {}  # dictionary listing attached edges 
         # (key is the id, value is attachment object ref and other info)
         
-        self.attached_to = None  # whether this object is bound to another object
+        self.attached_to = []  # whether this object is bound to another object
         
         self.part_of = None  # whether this object is part of an Edge group
     
@@ -82,7 +82,8 @@ class Node():
             raise Exception('Provided object is not an Edge or Node.')  
         
         # See if it's attached (might be a higher-level edge)
-        if object2.id in self.attachments:
+        # if object2.id in self.attachments:
+        if object2 in self.attachments:
         
             if isinstance(object2, Node):  # if it's a node, it's simple
                 return True
@@ -110,7 +111,6 @@ class Node():
         end
             If an Edge is being attached, which end of it, 'a' or 'b'.
         '''
-        
         # find top-level edge end if applicable
         if isinstance(object, Node):
             object2, i_end = object.getTopLevelEdge()
@@ -128,6 +128,7 @@ class Node():
             
         # Attach the object (might be a higher-level edge)
         if isinstance(object2, Node):
+            print(f'Adding attachment for {self.id} to {object2.id}')
             self.attachments[object2.id] = dict(obj=object2, id=object2.id, 
                                             r_rel=np.array(r_rel), type='node')
             object2._attach_to(self)  # tell it it's attached to this Node
@@ -199,7 +200,7 @@ class Node():
         
         
 
-    def _attach_to(self, object):
+    def _attach_to(self, object,sub=0):
         '''Internal method to update the Node's attached_to registry when
         requested by a node.
         
@@ -207,25 +208,30 @@ class Node():
         ----------
         object
             The Node object to attach to.
+        sub
+            Boolean to mark if this node is subordinately attached to the object
         '''
-        
-        if isinstance(object, Node):
-            raise Exception('Node objects can only be attached subordinately to Node objects.')
-        
+        if not sub:
+            if isinstance(object, Node):
+                raise Exception('Node objects can only be attached subordinately to Node objects.')
         # Make sure it's not already attached to something else
         if self.attached_to:  # True if populated, False if empty dict
-            self.detach()
+            # self.detach() # commented out because I don't think this would work for shared anchors
             # could optionally have a warning or error here
+            print(f'Warning: node {self.id} is attached to 2 objects')
+        
                 
         # Add it to the attached_to registry
-        self.attached_to = object
-        
+        print(f'attaching {object} to {self}')
+        self.attached_to.append(object)
+
         
     def _detach_from(self):
         '''Internal method to update the Node's attached_to registry when
         requested by a node to detach.
         '''
         self.attached_to = None
+        
 
 
     def getTopLevelEdge(self):
@@ -348,7 +354,7 @@ class Edge():
             else:
                 raise Exception("If an 'end' parameter is provided, it must be one of a,b,A,B,0,1,False,True.")
         '''
-        return answer
+        # return answer 
         
     
     def attachTo(self, object, r_rel=[0,0], end=None):
@@ -415,31 +421,37 @@ class Edge():
         end
             Which end of the line is being attached, a=0, b=1.
         '''
-        
         i_end = endToIndex(end) # 0 for end A, 1 for end B
         
         if not isinstance(object, Node):
             raise Exception('Edge objects can only be attached to Node objects.')
         
         # Add it to the attached_to registry
+        print(f'attaching {object.id} to {self.id}')
         self.attached_to[i_end] = object
         
         # Recursively attach any subcomponent at the end
         if len(self.subcomponents) > 0:
+            print('attaching subcomponents')
             subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
             
             if isinstance(subcon, Node):
-                subcon._attach_to(object)
+                # will be attaching a node to a node, tell _attach_to it is attaching the subcon as a subordinate node we don't throw an error
+                #print(f'attaching {object.id} to {subcon.id}')
+                subcon._attach_to(object,sub=1)
+                # object._attach_to(subcon,sub=1)
                 
             elif isinstance(subcon, Edge):
+                #print(f'attaching {object.id} to {subcon.id}')
                 subcon._attach_to(object, i_end)
+                # object._attach_to(subcon)
             
-            '''
-            if end:
-                self.sub_edges[-1]._attach_to(object, end)
-            else:
-                self.sub_edges[0]._attach_to(object, end)
-            '''
+        '''
+        if end:
+            self.sub_edges[-1]._attach_to(object, end)
+        else:
+            self.sub_edges[0]._attach_to(object, end)
+        '''
         
     def detachFrom(self, end):
         '''Detach the specified end of the edge from whatever it's attached to.
@@ -578,11 +590,26 @@ def detach(object1, object2):
     Could optionally raise an error if they aren't already attached. '''
     
     
-def attach(object1, object2, r_rel=[0,0], end1=None, end2=None):
+def attach(self, object1, object2, r_rel=[0,0], end=None):#end1=None, end2=None):
     '''Attached 1 to object2, as long as the object types are compatible.
     Ends can to be specified if either object is an end type, otherwise
     if not specified then an available end will be connected.
     '''
+    
+    '''Attach something to this node.
+    Attachments are noted with an entry in self.attachments
+    consisting of a dictionary with ref, type, and end entries.
+    
+    Parameters
+    ----------
+    object
+        The Node or Edge object being attached to this one.
+    r_rel : list
+        x and y coordinates of the attachment point [m].
+    end
+        If an Edge is being attached, which end of it, 'a' or 'b'.
+    '''
+
     
 # lower-level utility functions
 def endToIndex(end, estr=''):
