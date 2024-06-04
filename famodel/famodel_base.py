@@ -50,7 +50,7 @@ class Node():
         self.attachments = {}  # dictionary listing attached edges 
         # (key is the id, value is attachment object ref and other info)
         
-        self.attached_to = []  # whether this object is bound to another object
+        self.attached_to = None  # whether this object is bound to another object
         
         self.part_of = None  # whether this object is part of an Edge group
     
@@ -83,7 +83,7 @@ class Node():
         
         # See if it's attached (might be a higher-level edge)
         # if object2.id in self.attachments:
-        if object2 in self.attachments:
+        if object2.id in self.attachments:
         
             if isinstance(object2, Node):  # if it's a node, it's simple
                 return True
@@ -222,8 +222,7 @@ class Node():
         
                 
         # Add it to the attached_to registry
-        print(f'attaching {object} to {self}')
-        self.attached_to.append(object)
+        self.attached_to = object
 
         
     def _detach_from(self):
@@ -427,12 +426,10 @@ class Edge():
             raise Exception('Edge objects can only be attached to Node objects.')
         
         # Add it to the attached_to registry
-        print(f'attaching {object.id} to {self.id}')
         self.attached_to[i_end] = object
         
         # Recursively attach any subcomponent at the end
         if len(self.subcomponents) > 0:
-            print('attaching subcomponents')
             subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
             
             if isinstance(subcon, Node):

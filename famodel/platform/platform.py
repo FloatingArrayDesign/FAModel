@@ -2,6 +2,7 @@
 
 import numpy as np
 from famodel.famodel_base import Node
+from famodel.mooring.mooring import Mooring
 
 
 class Platform(Node):
@@ -48,7 +49,7 @@ class Platform(Node):
         
         # >>> replace these with the Node attachments dict? <<<
         self.mooringList = {}  # dictionary to be filled by references to Mooring objects
-        self.anchorList = {} # dictionary of references to anchor objects connected to this platform
+        # self.anchorList = {} # dictionary of references to anchor objects connected to this platform
         
         # Dictionaries for addition information
         self.loads = {}
@@ -89,14 +90,15 @@ class Platform(Node):
         # Get 2D rotation matrix
         self.R = np.array([[np.cos(self.phi), -np.sin(self.phi)],[np.sin(self.phi), np.cos(self.phi)]])
         
-        # Update the position of any Moorings or Cables
-        for i, mooring in enumerate(self.mooringList):
+        # Update the position of any Moorings
+        for i, mooring in enumerate(self.attachments):
+            if isinstance(self.attachments[mooring]['obj'], Mooring): 
         
-            # Heading of the mooring line
-            heading_i = self.mooring_headings[i] + self.phi
-            
-            # Reposition the whole Mooring
-            mooring.reposition(self.r, heading=heading_i)
+                # Heading of the mooring line
+                heading_i = self.mooring_headings[i] + self.phi
+                
+                # Reposition the whole Mooring
+                self.attachments[mooring]['obj'].reposition(self.r, heading=heading_i)
         
     def mooringSystem(self,rotateBool=0,mList=None):
         '''
@@ -120,14 +122,15 @@ class Platform(Node):
         import moorpy as mp
         
         # check if the subsystems were passed in from the function call
-        if mList:
-            if self.mooringList:
-                print('There is a mooring list already in the platform class instance. This is being overwritten because a mooring list was specified in the function call.')
-            # if so, set the platfrom mooringList to the passed-in list
-            self.mooringList = mList
+        if not mList:
+            mList = []
+            for i in self.attachments:
+                if isinstance(self.attachments[i]['obj'],Mooring):
+                    mList.append(self.attachments[i]['obj'])
+            
         
         # create new MoorPy system and set its depth
-        self.ms = mp.System(depth=self.mooringList[0].subsystem.depth)
+        self.ms = mp.System(depth=mList[0].subsystem.depth)
         
         if rotateBool:
             # rotation

@@ -297,7 +297,7 @@ class DynamicCable(Edge):
                 currentL = bs['L_mid'] - Ls/2 # save the end location of the section
             # create buoyancy section equivalent cable type dict
             buoyCableType = deepcopy(self.cableType)
-            buoyCableType['d'] = d_vol
+            buoyCableType['d_vol'] = d_vol
             buoyCableType['m'] = m
             buoyCableType['w'] = w
             buoyCableType['name'] = self.cableType['name']+'_'+'buoy'+str(i)

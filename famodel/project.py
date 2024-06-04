@@ -537,16 +537,16 @@ class Project():
                         mc.attachTo(self.anchorList[(arrayInfo[i]['ID'],mct)],end='A')
                         mc.attachTo(self.platformList[arrayInfo[i]['ID']],end='B')
                         # add mooring class instance to list in anchor class
-                        self.anchorList[(arrayInfo[i]['ID'],mct)].mooringList[(arrayInfo[i]['ID'],mct)] = mc
+                        # self.anchorList[(arrayInfo[i]['ID'],mct)].mooringList[(arrayInfo[i]['ID'],mct)] = mc
                         
                         # create connector dictionaries and objects for line 
                         #getConnectors(c_config,(arrayInfo[i]['ID'],mct))              
                         # add mooring class instance to mooring list in the platform class instance
-                        self.platformList[arrayInfo[i]['ID']].mooringList[(arrayInfo[i]['ID'],mct)] = mc
+                        # self.platformList[arrayInfo[i]['ID']].mooringList[(arrayInfo[i]['ID'],mct)] = mc
                         # add 0 to boolean list (platform not connected to line end A)
-                        self.platformList[arrayInfo[i]['ID']].endB[(arrayInfo[i]['ID'],mct)] = 1
+                        # self.platformList[arrayInfo[i]['ID']].endB[(arrayInfo[i]['ID'],mct)] = 1
                         # add anchor class instance to anchor list in platform class instance
-                        self.platformList[arrayInfo[i]['ID']].anchorList[(arrayInfo[i]['ID'],mct)] = self.anchorList[(arrayInfo[i]['ID'],mct)]
+                        # self.platformList[arrayInfo[i]['ID']].anchorList[(arrayInfo[i]['ID'],mct)] = self.anchorList[(arrayInfo[i]['ID'],mct)]
                         
                         # update counter
                         mct += 1
@@ -602,11 +602,11 @@ class Project():
                     mc.attachTo(self.platformList[PFNum[0]],end='B')
                     mc.attachTo(self.platformList[PFNum[1]],end='A')
                     # add mooring object to platform mooring list    
-                    self.platformList[PFNum[0]].mooringList[(PFNum[0],PFNum[1],mct)] = mc
+                    # self.platformList[PFNum[0]].mooringList[(PFNum[0],PFNum[1],mct)] = mc
                     # create connector dictionaries and objects for line 
                     #getConnectors(c_config,(PFNum[0],PFNum[1],mct))
                     # append to end B list in platform
-                    self.platformList[PFNum[0]].endB[(PFNum[0],PFNum[1],mct)] = 1 
+                    # self.platformList[PFNum[0]].endB[(PFNum[0],PFNum[1],mct)] = 1 
                 elif any(ids['ID'] == arrayMooring[j]['end A'] for ids in arrayAnchor): # end A is an anchor
                     # get ID of platform connected to line
                     PFNum.append(arrayMooring[j]['end B'])
@@ -628,9 +628,9 @@ class Project():
                                 # attach mooring object to anchor
                                 mc.attachTo(self.anchorList[anch],end='A')
                                 # add mooring object to list in anchor class
-                                self.anchorList[anch].mooringList[(PFNum[0],mct)] = mc
+                                # self.anchorList[anch].mooringList[(PFNum[0],mct)] = mc
                                 # add anchor object to list in platform class
-                                self.platformList[PFNum[0]].anchorList[anch] = self.anchorList[anch]
+                                # self.platformList[PFNum[0]].anchorList[anch] = self.anchorList[anch]
                     else:
                         # set line anchor type and get dictionary of anchor information
                         lineAnch = arrayAnchor[j]['type']                       
@@ -651,21 +651,21 @@ class Project():
                         # attach mooring object to anchor
                         mc.attachTo(self.anchorList[('shared'),arrayAnchor[k]['ID']],end='B')
                         # add mooring object to anchor mooring list
-                        self.anchorList[('shared',arrayAnchor[k]['ID'])].mooringList[(PFNum[0],mct)] = mc
+                        # self.anchorList[('shared',arrayAnchor[k]['ID'])].mooringList[(PFNum[0],mct)] = mc
                         # self.anchorList[arrayAnchor[k]['ID']].mooringList[(PFNum[0],mct)] = mc 
                         # add anchor object to platform anchor list
-                        self.platformList[PFNum[0]].anchorList[('shared',arrayAnchor[k]['ID'])] = self.anchorList[('shared',arrayAnchor[k]['ID'])]
+                        # self.platformList[PFNum[0]].anchorList[('shared',arrayAnchor[k]['ID'])] = self.anchorList[('shared',arrayAnchor[k]['ID'])]
                         # self.platformList[PFNum[0]].anchorList[arrayAnchor[k]['ID']] = self.anchorList[arrayAnchor[k]['ID']]                   
                     # add mooring object to project mooring list
                     self.mooringList[(PFNum[0],mct)] = mc
                     # attach mooring object to platform
                     mc.attachTo(PFNum[0],end='B')
                     # add mooring object to platform mooring list    
-                    self.platformList[PFNum[0]].mooringList[(PFNum[0],mct)] = mc
+                    # self.platformList[PFNum[0]].mooringList[(PFNum[0],mct)] = mc
                     # create connector dictionaries and objects for line 
                     #getConnectors(c_config,(PFNum[0],mct))
                     # append to end B list in platform
-                    self.platformList[PFNum[0]].endB[(PFNum[0],mct)] = 1 
+                    # self.platformList[PFNum[0]].endB[(PFNum[0],mct)] = 1 
                 else: # error in input
                     raise Exception(f"end A input in array_mooring line_data table line '{j}' must be either an ID from the anchor_data table (to specify an anchor) or an ID from the array table (to specify a FOWT).")
                                            
@@ -673,9 +673,9 @@ class Project():
                 self.platformList[PFNum[0]].mooring_headings.append(np.radians(arrayMooring[j]['headingB']))
                 if len(PFNum)>1: # if shared line
                     # record shared line on the other platform as well
-                    self.platformList[PFNum[1]].mooringList[(PFNum[0],PFNum[1],mct)] = mc
+                    # self.platformList[PFNum[1]].mooringList[(PFNum[0],PFNum[1],mct)] = mc
                     self.platformList[PFNum[1]].mooring_headings.append(np.radians(arrayMooring[j]['headingA'])) # add heading
-                    self.platformList[PFNum[1]].endB[(PFNum[0],PFNum[1],mct)] = 0
+                    # self.platformList[PFNum[1]].endB[(PFNum[0],PFNum[1],mct)] = 0
                     
                 # increment counter
                 mct += 1
@@ -1574,11 +1574,11 @@ class Project():
         # create anchor points and all mooring lines connected to the anchors (since all connected to anchors, can't be a shared mooring)
         for i in self.anchorList: # i is key (name) of anchor
             ssloc = []
-            for j in self.anchorList[i].mooringList: # j is key (name) of mooring object in anchor i
+            for j in self.anchorList[i].attachments: # j is key (name) of mooring object in anchor i
                 # create subsystem
-                self.anchorList[i].mooringList[j].createSubsystem()
+                self.anchorList[i].attachments[j]['obj'].createSubsystem()
                 # set location of subsystem for simpler coding
-                ssloc.append(self.anchorList[i].mooringList[j].ss)
+                ssloc.append(self.anchorList[i].attachments[j]['obj'].ss)
                 self.ms.lineList.append(ssloc[-1])
                 ssloc[-1].number = len(self.ms.lineList)
                 # create anchor point if it doesn't already exist
@@ -1601,7 +1601,7 @@ class Project():
                 self.ms.pointList[-1].attachLine(ssloc[-1].number,1)
                 # find associated platform and attach body to point (since not a shared line, should only be one platform with this mooring object)
                 for ii,k in enumerate(self.platformList): # ii is index in dictionary, k is key (name) of platform
-                    if j in self.platformList[k].mooringList: # j is key (name) of mooring object in anchor i checking if that same mooring object name is attached to platform k
+                    if j in self.platformList[k].attachments: # j is key (name) of mooring object in anchor i checking if that same mooring object name is attached to platform k
                         PF = self.platformList[k] # platform object associated with mooring line j and anchor i
                         PFNum = ii # platform index
                 # attach rB point to platform (need to subtract out location of platform from point for subsystem integration to work correctly)
@@ -1612,7 +1612,7 @@ class Project():
         # now create and attach any shared lines
         for ii,i in enumerate(self.mooringList): # loop through all lines - ii is index of mooring object in dictionary, i is key (name) of mooring object
             for j in self.anchorList: # j is key (name) of anchor object
-                if i in self.anchorList[j].mooringList: # check if line has already been put in ms
+                if i in self.anchorList[j].attachments: # check if line has already been put in ms
                     check[ii] = 0     
             if check[ii] == 1: # mooring object not in any anchor lists
                 # new shared line
@@ -1625,40 +1625,36 @@ class Project():
                 ssloc.number = len(self.ms.lineList)               
                 
                 # find associated platforms
-                PF = []
-                PFNum = []
+                PF = [None,None]
+                PFNum = [None,None]
                 idx = []
                 for ki,k in enumerate(self.platformList): # ki is index in dictionary, k is key (name) of platform
-                    if i in self.platformList[k].mooringList:
-                        PF.append(self.platformList[k]) # platform object
-                        PFNum.append(ki) # platform index                    
+                    if self.platformList[k].isAttached(self.mooringList[i],end='a'):  #i in self.platformList[k].attachments:
+                        PF[0] = self.platformList[k] # platform object
+                        PFNum[0] = ki # platform index                    
                         # find key of mooring object in platform mooring list
                         idx.append(i)
-                        
+                    elif self.platformList[k].isAttached(self.mooringList[i],end='b'):
+                        PF[1] = self.platformList[k]
+                        PFNum[1] = ki # platform index
+                        # find key of mooring object in platform mooring list
+                        idx.append(i)
+                                               
                 # add fairlead point A and attach the line to it
                 self.ms.addPoint(1,ssloc.rA)
                 self.ms.pointList[-1].attachLine(ssloc.number,0)
-                if PF[0].endB[idx[0]] == 0: # end A connected to PF[0], end B connected to PF[1]
-                    # connect line end A to the body
-                    self.ms.bodyList[PFNum[0]].attachPoint(len(self.ms.pointList),[ssloc.rA[0]-PF[0].r[0],ssloc.rA[1]-PF[0].r[1],ssloc.rA[2]])
-                    # add fairlead point 2
-                    self.ms.addPoint(1,ssloc.rB)
-                    # add connector info for fairlead point
-                    self.ms.pointList[-1].m = self.ms.lineList[-1].pointList[-1].m 
-                    self.ms.pointList[-1].v = self.ms.lineList[-1].pointList[-1].v
-                    self.ms.pointList[-1].CdA = self.ms.lineList[-1].pointList[-1].CdA
-                    # attach the line to point
-                    self.ms.pointList[-1].attachLine(ssloc.number,1)
-                    # connect line end B to the body
-                    self.ms.bodyList[PFNum[1]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[1].r[0],ssloc.rB[1]-PF[1].r[1],ssloc.rB[2]])
-                else: # end A connected to PF[1], end B connected to PF[0]
-                    # connect line end A to the body
-                    self.ms.bodyList[PFNum[1]].attachPoint(len(self.ms.pointList),[ssloc.rA[0]-PF[1].r[0],ssloc.rA[1]-PF[1].r[1],ssloc.rA[2]])
-                    # add fairlead point 2 and attach the line to it
-                    self.ms.addPoint(1,ssloc.rB)
-                    self.ms.pointList[-1].attachLine(ssloc.number,1)
-                    # connect line end B to the body
-                    self.ms.bodyList[PFNum[0]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[0].r[0],ssloc.rB[1]-PF[0].r[1],ssloc.rB[2]])
+                # connect line end A to the body
+                self.ms.bodyList[PFNum[0]].attachPoint(len(self.ms.pointList),[ssloc.rA[0]-PF[0].r[0],ssloc.rA[1]-PF[0].r[1],ssloc.rA[2]])
+                # add fairlead point 2
+                self.ms.addPoint(1,ssloc.rB)
+                # add connector info for fairlead point
+                self.ms.pointList[-1].m = self.ms.lineList[-1].pointList[-1].m 
+                self.ms.pointList[-1].v = self.ms.lineList[-1].pointList[-1].v
+                self.ms.pointList[-1].CdA = self.ms.lineList[-1].pointList[-1].CdA
+                # attach the line to point
+                self.ms.pointList[-1].attachLine(ssloc.number,1)
+                # connect line end B to the body
+                self.ms.bodyList[PFNum[1]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[1].r[0],ssloc.rB[1]-PF[1].r[1],ssloc.rB[2]])
         
         # initialize, solve equilibrium, and plot the system 
         # self.ms.initialize()

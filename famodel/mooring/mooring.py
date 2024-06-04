@@ -340,7 +340,6 @@ class Mooring(Edge):
         # create a reference subsystem if it doesn't already exist
         if not oldLine.ss:
             oldLine.createSubsystem()          
-        print(oldLine)
         # set up variables
         LTypes = [] # list of line types for new lines (types listed are from reference object)
         Lengths = [] # lengths of each section for new line
