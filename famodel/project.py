@@ -869,7 +869,6 @@ class Project():
                 for j in range(0,len(arrayInfo)):
                     if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
                         # connect to platform
-                        print('Making platform connections now for end A')
                         self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='A')
                     
                 if 'substation' in d and arrayCableInfo[i]['AttachB'] in d['substation']:
@@ -879,7 +878,6 @@ class Project():
                     self.cableList[cable+str(i)].attachTo(self.substationList[arrayCableInfo[i]['AttachB']],end='B')
                 for j in range(0,len(arrayInfo)):
                     if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
-                        print('Making platform connections now for end B')
                         # connect to platform
                         self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='B')                            
                 
