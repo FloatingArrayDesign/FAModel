@@ -568,6 +568,15 @@ class Edge():
             raise Exception('End A or B must be specified with either the letter, 0/1, or False/True.')
 
 
+    def delete(self):
+        '''Detach the point from anything it's attached to, then delete the 
+        object (if such a thing is possible?).'''
+        
+        self.detachFrom(0)  # detach end A
+        self.detachFrom(1)  # detach end B
+        
+        # next step would just be to separately remove any other references
+        # to this object...
 
 
 # general functions

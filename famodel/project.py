@@ -10,7 +10,10 @@ from moorpy.helpers import set_axes_equal
 from moorpy import helpers
 import yaml
 from copy import deepcopy
-import raft
+try: 
+    import raft
+except:
+    pass
 
 #from shapely.geometry import Point, Polygon, LineString
 

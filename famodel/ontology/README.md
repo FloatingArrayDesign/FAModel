@@ -19,7 +19,7 @@ better suit the scope and emphasis of floating wind arrays. The sections are as 
   * [General                         ](#general)
   * [Boundaries                      ](#boundaries)
   * [Exclusions                      ](#exclusions)
-  * [Seabed                          ](#bathymetry)
+  * [Bathymetry                      ](#bathymetry)
   * [Seabed                          ](#seabed)
   * [Metocean                        ](#metocean)
   * [Resource                        ](#resource)
@@ -136,14 +136,31 @@ csv filename.
 ```yaml
     metocean:
         extremes:  # extreme values for specified return periods (in years)
-            keys :   [ Hs  , Tp  , WindSpeed, TI, Shear, Gamma, CurrentSpeed ]
-            data :
-                1:   [     ,     ,     ]
-                10:  [     ,     ,     ]
-                50:  [     ,     ,     ]
-                500: [     ,     ,     ]
+            return periods :   [ 1, 5, 50 ]  # in years
+            all :   # unconditional extreme values
+                Hs:    [     ,     ,     ]
+                Tp:    [     ,     ,     ]
+                Gamma: [     ,     ,     ]
+                WS:    [     ,     ,     ]
+                TI:    [     ,     ,     ]
+                Shear: [     ,     ,     ]
+                CS:    [     ,     ,     ]
+                8.5	9.8, 10.4, 11.8, 12.4, 13.7, 16.8, 18.1, 18.6, 19.8, 20.3, 21.4
+
                 
-        probabalistic_bins:
+            WS_2_4 :  # conditional values from wind speed range of 2 - 4 m/s
+                Hs:    [     ,     ,     ]
+                Tp:    [     ,     ,     ]
+                Gamma: [     ,     ,     ]
+                TI:    [     ,     ,     ]
+                Shear: [     ,     ,     ]
+                CS:    [     ,     ,     ]
+            
+            WS_4_6 :  # conditional values from wind speed range of 4 - 6 m/s
+                ...
+            
+            
+        joint_probabality_bins:  # a set of cases representing the joint metocean probability distribution
             keys : [ prob , Hs  , Tp, WindSpeed, TI, Shear, Gamma, CurrentSpeed, WindDir, WaveDir, CurrentDir  ]
             data :
                 -  [ 0.010  ,   ,   ]
@@ -368,7 +385,7 @@ an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note th
     
     taut-poly_1:  # mooring line configuration identifier
     
-        name: Taut polyester configuration 1  # descriptive name		
+        name: Taut polyester configuration 1  # descriptive name	
 
         anchoring_radius: 1131.37
         fairlead_radius: 40.5

@@ -54,6 +54,14 @@ class Mooring(Edge):
         called. <<<
         
         '''
+        
+        # temporary hack to deal with duplicate parameters
+        if not 'zAnchor' in dd:
+            dd['zAnchor'] = z_anch
+        if not 'span' in dd:
+            dd['span'] = rad_anch - rad_fair
+        
+        
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this Mooring
         self.dd = dd
@@ -65,7 +73,7 @@ class Mooring(Edge):
             
             # Turn what's in dd and turn it into Sections and Connectors
             for i, con in enumerate(self.dd['connectors']):
-                if con:
+                if con and 'type' in con:
                     Cid = con['type']+str(i)
                 else:
                     Cid = 'Conn'+str(i)
@@ -76,8 +84,10 @@ class Mooring(Edge):
                 #self.dd['connectors'][i  ].attach(self.dd['sections'][i], end=0)
                 #self.dd['connectors'][i+1].attach(self.dd['sections'][i], end=1)
             
+            # >>> add some error checks for the correct lengths <<<
+            
             # Connect them and store them in self(Edge).subcomponents!
-            subcons = []  # list of node-edge-node... to pass to the function
+            subcons = []  # temporary list of node-edge-node... to pass to the function
             for i in range(self.n_sec):
                 subcons.append(self.dd['connectors'][i])
                 subcons.append(self.dd['sections'][i])
@@ -134,6 +144,17 @@ class Mooring(Edge):
         # just adjust the dict? ss.lineTypes should already point to it
         self.sectionType[i].update( setLineType( ... d))
     """
+    
+    def setSectionType(self, lineType, i):
+        '''Sets lineType of section, including in the subdsystem 
+        if there is one.'''
+        
+        # set type dict in dd (which is also Section/subcomponent)
+        self.dd['sections'][i]['type'] = lineType  
+        
+        if self.ss:  # is Subsystem exists, adjust length there too
+            self.ss.lineTypes[i] = lineType
+    
     
     def reposition(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
         '''Adjusts mooring position based on changed platform location or
@@ -243,14 +264,18 @@ class Mooring(Edge):
         lengths = []
         types = []
         # run through each line section and collect the length and type
-        for sec in self.dd['sections']:
+        for i, sec in enumerate(self.dd['sections']):
             lengths.append(sec['length'])
-            types.append(sec['type']['name'])
-            self.ss.lineTypes[types[-1]] = sec['type']  # points to existing type dict in self.dd for now
+            # points to existing type dict in self.dd for now
+            types.append(sec['type']) # list of type names
+            #types.append(sec['type']['name']) # list of type names
+            #self.ss.lineTypes[i] = sec['type']  
 
         
         # make the lines and set the points 
-        self.ss.makeGeneric(lengths,types,suspended=case)
+        self.ss.makeGeneric(lengths, types, 
+            connectors=[self.dd['connectors'][ic+1] for ic in range(len(self.dd['connectors'])-2)], 
+            suspended=case)
         self.ss.setEndPosition(self.rA,endB=0)
         self.ss.setEndPosition(self.rB,endB=1)
         
@@ -265,13 +290,13 @@ class Mooring(Edge):
 
         for i in range(startNum,len(self.ss.pointList)):                               
             point = self.ss.pointList[i]
-            point.m = self.dd['connectors'][i]['m']
-            point.v = self.dd['connectors'][i]['v']
+            # point.m = self.dd['connectors'][i]['m'] # now done in ss.makeGeneric
+            # point.v = self.dd['connectors'][i]['v'] # now done in ss.makeGeneric
             point.CdA = self.dd['connectors'][i]['CdA']
         # solve the system
         self.ss.staticSolve()
         
-        return(self.ss)      
+        return(self.ss)
     
     """
     # rough method ideas...maybe not necessary or can use existing dict methods
