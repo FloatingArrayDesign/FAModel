@@ -102,16 +102,16 @@ class Mooring(Edge):
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem
         
-        # end point absolute coordinates, to be set later
-        self.rA = None
-        self.rB = None
-        self.heading = 0
-        
         # relative positions (variables could be renamed)
         self.rad_anch = dd['span'] + dd['rad_fair']
         self.rad_fair = dd['rad_fair']
         self.z_anch   = dd['zAnchor']  
         self.z_fair   = dd['z_fair']
+        
+        # end point absolute coordinates, to be set later
+        self.rA = np.array([-self.rad_anch, 0, self.z_anch])
+        self.rB = np.array([-self.rad_fair, 0, self.z_fair])
+        self.heading = 270  # compass heading from B to A [deg]
         
         self.adjuster = None  # custom function that can adjust the mooring
         
@@ -168,8 +168,8 @@ class Mooring(Edge):
         r_center
             The x, y coordinates of the platform (undisplaced) [m].
         heading : float
-            The absolute heading of the mooring line [deg or rad] depending on
-            degrees parameter (True or False).
+            The absolute heading compass direeciton of the mooring line 
+            [deg or rad] depending on degrees parameter (True or False).
         project : FAModel Project, optional
             A Project-type object for site-specific information used in custom
             mooring line adjustment functions (mooring.adjuster).
@@ -180,12 +180,14 @@ class Mooring(Edge):
         # Adjust heading if provided
         if not heading == None:
             if degrees:
-                self.heading = np.radians(heading)
-            else:
                 self.heading = heading
-            
+            else:
+                self.heading = np.degrees(heading)
+        
+        phi = np.radians(90-self.heading) # heading in x-y radian convention [rad]
+        
         # heading 2D unit vector
-        u = np.array([np.cos(self.heading), np.sin(self.heading)])
+        u = np.array([np.cos(phi), np.sin(phi)])
         #print(u)
         r_center = np.array(r_center)[:2]
         # Set the updated fairlead location
@@ -262,7 +264,9 @@ class Mooring(Edge):
         # check if a subsystem already exists
         if self.ss:
             print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
-        self.ss=Subsystem(depth=-self.dd['zAnchor'], rho=self.rho, g=self.g, span=self.dd['span'],rAFair=self.rA, rBFair=self.rB)
+        self.ss=Subsystem(depth=-self.dd['zAnchor'], rho=self.rho, g=self.g, 
+                          span=self.dd['span'], rad_fair=self.rad_fair,
+                          z_fair=self.z_fair)
         lengths = []
         types = []
         # run through each line section and collect the length and type
@@ -280,7 +284,7 @@ class Mooring(Edge):
             suspended=case)
         self.ss.setEndPosition(self.rA,endB=0)
         self.ss.setEndPosition(self.rB,endB=1)
-        
+        breakpoint()
         
         # note: next bit has similar code/function as Connector.makeMoorPyConnector <<<
         
