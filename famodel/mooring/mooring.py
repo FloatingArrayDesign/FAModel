@@ -41,6 +41,8 @@ class Mooring(Edge):
                      ]
                      span
                      zAnchor
+                     z_fair
+                     rad_fair
                      EndPositions:
                                   {
                                     endA, endB
@@ -107,10 +109,10 @@ class Mooring(Edge):
         self.heading = 0
         
         # relative positions (variables could be renamed)
-        self.rad_anch = rad_anch
-        self.rad_fair = rad_fair
-        self.z_anch   = z_anch  
-        self.z_fair   = z_fair
+        self.rad_anch = dd['span'] + dd['rad_fair']
+        self.rad_fair = dd['rad_fair']
+        self.z_anch   = dd['zAnchor']  
+        self.z_fair   = dd['z_fair']
         
         self.adjuster = None  # custom function that can adjust the mooring
         

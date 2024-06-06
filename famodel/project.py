@@ -309,13 +309,15 @@ class Project():
                 # I think we want to just store it as a dictionary
                 # validate it,
                 # then have it available for use when making Mooring objects and subsystems
-        def getMoorings(lineconfig):
+        def getMoorings(lineconfig,i):
             '''
 
             Parameters
             ----------
             lineconfig : string
                 Line configuration type
+            i : int
+                Index in array table (essentially which platform)
 
             Returns
             -------
@@ -406,8 +408,9 @@ class Project():
             m_config['zAnchor'] = -self.depth 
             m_config['span'] = lineConfigs[lineconfig]['span']
             m_config['name'] = lineconfig
-            # m_config['zFair'] = lineConfigs[lineconfig]['fairlead_depth']
-            # m_config['rFair'] = lineConfigs[lineconfig]['fairlead_radius']
+            # add fairlead radius and depth to dictionary
+            m_config['rad_fair'] = self.platformList[arrayInfo[i]['ID']].rFair
+            m_config['z_fair'] = self.platformList[arrayInfo[i]['ID']].zFair
             
             m_config['connectors'] = c_config  # add connectors section to the mooring dict
             
@@ -513,11 +516,13 @@ class Project():
                         # lineconfig = mSystems[m_s]['data'][j][0] 
                    
                         # create mooring and connector dictionary
-                        m_config = getMoorings(lineconfig)
+                        m_config = getMoorings(lineconfig,i)
+                        
                         
                         # create mooring class instance as part of mooring list in the project class instance
-                        mc = (Mooring(dd=m_config, rA=[m_config['span'],0,m_config['zAnchor']], rB=[self.platformList[arrayInfo[i]['ID']].rFair,0,self.platformList[arrayInfo[i]['ID']].zFair],  
-                                      rad_anch=m_config['span'], z_anch=m_config['zAnchor'],rad_fair=self.platformList[arrayInfo[i]['ID']].rFair,z_fair=self.platformList[arrayInfo[i]['ID']].zFair,id=(arrayInfo[i]['ID'],mct)))
+                        mc = (Mooring(dd=m_config, id=(arrayInfo[i]['ID'],mct)))
+                        mc.rA = [m_config['span']+m_config['rad_fair'],0,m_config['zAnchor']]
+                        mc.rB = [m_config['rad_fair'],0,m_config['z_fair']]
                         # adjust end positions based on platform location and mooring and platform headings
                         mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, project=self)
                         # adjust anchor z location and rA based on location of anchor
@@ -563,10 +568,6 @@ class Project():
         if arrayMooring:
             # get mooring line info for all lines 
             for j in range(0, len(arrayMooring)): # run through each line            
-                # get configuration for that line 
-                lineconfig = arrayMooring[j]['MooringConfigID']                       
-                # create mooring and connector dictionary for that line
-                m_config = getMoorings(lineconfig)
                 
                 PFNum = [] # platform ID(s) connected to the mooring line
                 
@@ -588,6 +589,7 @@ class Project():
                     for k in range(0, len(arrayInfo)):
                         if arrayInfo[k]['ID'] == PFNum[0]:
                             rowB = arrayInfo[k]
+                            Bnum = k
                         elif arrayInfo[k]['ID'] == PFNum[1]:
                             rowA = arrayInfo[k]
                     # get headings (mooring heading combined with platform heading)
@@ -596,9 +598,15 @@ class Project():
                     # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
                     Aloc = [rowA['x_location']+np.cos(headingA)*self.platformList[PFNum[1]].rFair, rowA['y_location']+np.sin(headingA)*self.platformList[PFNum[1]].rFair, self.platformList[PFNum[1]].zFair]
                     Bloc = [rowB['x_location']+np.cos(headingB)*self.platformList[PFNum[0]].rFair, rowB['y_location']+np.sin(headingB)*self.platformList[PFNum[0]].rFair, self.platformList[PFNum[0]].zFair]
+                    # get configuration for the line 
+                    lineconfig = arrayMooring[j]['MooringConfigID']                       
+                    # create mooring and connector dictionary for that line
+                    m_config = getMoorings(lineconfig,Bnum)
                     # create mooring class instance
-                    mc = (Mooring(dd=m_config, rA=Aloc, rB=Bloc, rad_anch=m_config['span'], z_anch=m_config['zAnchor'],id=(PFNum[0],PFNum[1],mct)))
+                    mc = (Mooring(dd=m_config, id=(PFNum[0],PFNum[1],mct)))
                     mc.shared = 1
+                    mc.rA = Aloc
+                    mc.rB = Bloc
                     # add mooring object to project mooring list
                     self.mooringList[(PFNum[0],PFNum[1],mct)] = mc
                     # attach mooring object to platforms
@@ -613,11 +621,17 @@ class Project():
                 elif any(ids['ID'] == arrayMooring[j]['end A'] for ids in arrayAnchor): # end A is an anchor
                     # get ID of platform connected to line
                     PFNum.append(arrayMooring[j]['end B'])
+                    for k in range(0,len(arrayInfo)):
+                        if arrayInfo[k]['ID'] == PFNum[0]:
+                            Bnum = k
+                    # get configuration for that line 
+                    lineconfig = arrayMooring[j]['MooringConfigID']                       
+                    # create mooring and connector dictionary for that line
+                    m_config = getMoorings(lineconfig,Bnum)
                     # create mooring class instance
-                    mc = (Mooring(dd=m_config, rA=[m_config['span'],0,m_config['zAnchor']], 
-                                  rB=[self.platformList[PFNum[0]].rFair,0,self.platformList[PFNum[0]].zFair],
-                                  rad_anch=m_config['span'], rad_fair=self.platformList[PFNum[0]].rFair, 
-                                  z_anch=m_config['zAnchor'], z_fair=self.platformList[PFNum[0]].zFair,id=(PFNum[0],mct)))
+                    mc = (Mooring(dd=m_config, id=(PFNum[0],mct)))
+                    mc.rA = [m_config['span']+self.platformList[PFNum[0]].rFair,0,m_config['zAnchor']]
+                    mc.rB = [self.platformList[PFNum[0]].rFair,0,self.platformList[PFNum[0]].zFair]
                     # adjust end positions based on platform location and mooring and platform heading
                     mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
 
