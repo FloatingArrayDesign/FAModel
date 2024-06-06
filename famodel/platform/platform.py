@@ -55,6 +55,7 @@ class Platform(Node):
         self.loads = {}
         self.reliability = {}
         self.cost = {}
+        self.failure_probability = {}
     
     
     def setPosition(self, r, heading=None, degrees=False):

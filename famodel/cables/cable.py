@@ -94,6 +94,9 @@ class SubseaCable(Edge):
         for i in self.dd['cables']: # self.subcomponents:
             self.L += i.L
         
+        # failure probability
+        self.failure_probability = {}
+        
     def reposition(self):
         # reposition cable and set end points for the first and last cable sections (or the dynamic cable for a suspended cable)
         headingA = self.subcomponents[0].headingA + self.attached_to[0].phi

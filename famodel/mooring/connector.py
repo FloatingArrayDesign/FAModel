@@ -38,6 +38,9 @@ class Connector(Node, dict):
         # MoorPy Point Object for Connector
         self.mpConn = None
         
+        # dictionary of failure probabilities
+        self.failure_probability = {}
+        
     def makeMoorPyConnector(self, ms):
         '''Create a MoorPy connector object in a MoorPy system
         Parameters
@@ -59,6 +62,7 @@ class Connector(Node, dict):
         self.mpConn.m = self['m']
         self.mpConn.v = self['v']
         self.mpConn.CdA = self['CdA']
+        
 
         return(ms)
 

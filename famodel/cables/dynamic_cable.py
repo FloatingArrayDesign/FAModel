@@ -97,6 +97,7 @@ class DynamicCable(Edge):
         self.loads = {}
         self.reliability = {}
         self.cost = {}
+        self.failure_probability = {}
     
     def makeCableType(self,cabDict):
         '''

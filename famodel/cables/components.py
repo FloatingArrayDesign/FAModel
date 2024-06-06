@@ -32,6 +32,9 @@ class Joint(Node, dict):
         # MoorPy Point Object for Joint
         self.mpConn = None
         
+        # Dictionary for failure probability
+        self.failure_probability = {}
+        
     #this might be useful for the ends of dynamic cables
     def makeMoorPyConnector(self, ms):
         '''Create a MoorPy connector object in a MoorPy system
