@@ -12,7 +12,7 @@ is aligned with the work of IEA Wind Task 49, which focuses on integrated
 design of floating wind arrays. The ontology proposed here draws on elements
 from two established ontologies developed under a previous IEA Wind Task.
 Task 37 developed [plant-level and turbine-level ontologies](https://windio.readthedocs.io).
-The current floating array ontology has a number of additions and differences that
+The current floating array ontology has a number of additions and differences that 
 better suit the scope and emphasis of floating wind arrays. The sections are as follows:
 
 * [Site](#site)
@@ -369,7 +369,8 @@ mooring_systems:
 ### Mooring Line Configurations
 
 The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
-as the MooringConfigID in the mooring systems section. The anchoring radius (also known as the span), fairlead radius, and fairlead depth are also specified for each line configuration.
+as the MooringConfigID in the mooring systems section. The span is specified for each configuration, which represents the distance in the x-y plane between 
+the two connection points of the line - i.e. between fairlead and anchor, or for shared lines, fairlead and fairlead. Fairlead radius and fairlead depth are specified in the [Platform](#platforms) section.
  Each line contains a list of sections that details the line section type and length. The line type name
 connects to information in the mooring [line section properties](#mooring-line-section-properties). 
 Additionally, before and after each line section has an optional input which can list the 
@@ -393,9 +394,7 @@ an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note th
     
         name: Taut polyester configuration 1  # descriptive name	
 
-        anchoring_radius: 1131.37
-        fairlead_radius: 40.5
-        fairlead_depth: -20
+        span: 800 # x-y distance between fairlead and anchor, or for shared lines, fairlead and fairlead
         
         sections:
           - connectorType: shackke # ID of a connector type (optional)
@@ -415,9 +414,7 @@ an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note th
         name: Shared line with two clump weights
         symmetric: True		
 
-        anchoring_radius: 1142
-        fairlead_radius: 58
-        fairlead_depth: -14
+        span: 1142
         
         sections:
           - type: poly_180   
