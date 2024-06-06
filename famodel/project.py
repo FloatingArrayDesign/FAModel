@@ -2090,6 +2090,19 @@ class Project():
                 # assign the newly created subsystem into the right place in the line list
                 self.ms.lineList[ii] = self.mooringList[i].subsystem
                 
+    def updateFailureProbability(self):
+        '''
+        Function to populate (or update) failure probability dictionaries in each object 
+        based on failure probability calculations developed by Emma Slack
+        
+        To be filled in...
+
+        Returns
+        -------
+        None.
+
+        '''
+                
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''
     Function to streamline getting values from design dictionary from YAML file, including error checking.

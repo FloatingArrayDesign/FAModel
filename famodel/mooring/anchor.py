@@ -71,6 +71,7 @@ class Anchor(Node):
             }
         '''
         self.soilProps = {}
+        self.failure_probability = {}
         # self.cost = {}
         
     def makeMoorPyAnchor(self, ms):

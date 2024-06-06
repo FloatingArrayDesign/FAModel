@@ -1591,13 +1591,9 @@ cables:
         sections: # refers to a configuration in cable_configs
         # first entry is at end A, last entry is at end B
           - type: dynamic_lazy_wave1
-     
           - connectorType: joint_1
-            
           - type: static_1
-     
           - connectorType: joint_1
-     
           - type: dynamic_lazy_wave1
    
 

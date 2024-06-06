@@ -29,6 +29,7 @@ better suit the scope and emphasis of floating wind arrays. The sections are as 
   * [Array Layout                    ](#array-layout)
   * [Array Mooring                   ](#array-mooring)
   * [Array Cables                    ](#array-cables)
+* [Substation                        ](#substation)
 * [Turbine(s)                        ](#turbines)
 * [Platform(s)                       ](#platforms)
 * [Mooring                           ](#mooring)
@@ -38,10 +39,11 @@ better suit the scope and emphasis of floating wind arrays. The sections are as 
   * [Mooring Connectors              ](#mooring-connectors)
   * [Anchor types                    ](#anchor-types)
 * [Cables                            ](#cables)
-  * [Cables with Routing             ](#cables-with-routing)
-  * [Dynamic Cable Configurations    ](#dynamic-cable-configurations)
-  * [Cable Cross Sectional Properties](#cable-cross-sectional-properties)
+  * [Top Level Cables                ](#top-level-cables)
+  * [Cable Configurations            ](#cable-configurations)
+  * [Cable Cross Sectional Properties](#cable-types)
   * [Cable Appendages                ](#cable-appendages)
+  * [Cable Joints                    ](#cable-joints)
 
 The following sections give an overview of the array ontology makeup with examples. 
 
@@ -263,21 +265,25 @@ array_mooring:
 
 This section provides a straightforward and compact way to define the power
 cables in the array. For each end (A and B) of the cable, it specifies the
-turbine attached to, the 
-[dynamic cable configuration](#dynamic-cable-configurations) used, and the heading
-of the dynamic cable. The type of the static cable is also specified.
-This method does not consider routing, and would assume the static cable takes
-a straight path from the ends of the dynamic cables. 
-For additional detail related to cable routing, the alternative [cable](#cables-with-routing)
-section should be used.
+turbine (matching and ID in the array table) or substation (matching an ID in the substation section)
+attached to, the [Top Level Cables](#top-level-cables) 
+used, the heading of the cable at the attachment of each end, and length adjustment. 
+Additional detail related to subsections of the top level cable, joints, and any cable 
+routing are in the [Cables](#cables) section. 
+The CableID refers to an entry in the [Top Level Cables](#top-level-cables) section.
 
 ```yaml
-array_cables:
-    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB, headingA, headingB, cableType]
+array_cables:   
+    keys:  [ CableID,       AttachA,   AttachB,      headingA, headingB, lengthAdjust]
     data:
-        - [ turbine1, turbine2, lazy_wave1, lazy_wave1,      180,       30, static_36] 
-        - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
+      - [ array_cable1,     fowt1,     f2,        180,      180,      0] 
+      - [ suspended_cable1, f2,     substation1,  0,        180,      0]  
 ```
+
+## Substation(s)
+
+The substation section defines the substations used in the array. The substation key (name) must be unique 
+from the ID keys in the array layout table.
 
 ## Turbine(s)
 
@@ -375,7 +381,7 @@ There is also a True/False options for whether the section length is adjustable.
 Shared or suspended lines may also have an optional 'symmetric' input which, if set to true, signifies that 
 the line is symmetric and only the first half of the line is provided in the 'sections' list. When loaded in to the project class, the mooring object will automatically be fully filled out by mirroring 
 the first half of the line. If a connector is provided as the last item in the sections list for a symmetric line, it is assumed that the middle line is two identical lines with the given connector between, otherwise 
-the middle line (last line given in the list) is doubled in length in the mirroring process. For example, the 'shared_2_clump' config in the yaml below would produce a symmetric shared line with sections in the following order:
+the middle line (last line given in the list) is doubled in length in the mirroring process. For example, the 'shared_2_clump' config in the yaml below would produce a symmetric shared line with sections in the following order
 an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note the doubled length), a clump weight, and finally an 80 m section of poly_180.
 
 
@@ -508,100 +514,116 @@ anchor_types:
 
 This section describes the cables through the array including both static 
 and dynamic portions of cables. At the top level, each array cable going
-between a pair of turbines (or a turbine and a substation) is defined. 
-This definition can either occur in the [array_cables](#array-cables) 
-section or the [cables](#cables-with-routing) section. 
-The latter provides additional options for defining
-the cable routing and burial depth.
+between a pair of turbines (or a turbine and a substation) is defined. Each 
+subsection of cable is then defined in the [Cable Configurations](#cable-configs) 
+section, including buoyancy module layout. 
 
-### Cables with Routing
 
-The cables section contains a list of every cable in the array. Here, a cable
-is defined as the full assembly of electrical connection equipment between
-two turbines or a turbine and a substation. Similar to the [array_cables](#array-cables) 
-section, 'type' links to the cross-section property description of the static
-portion of the cable. endA and endB sections define what each end of the cable
-is attached to, at what heading it comes off at, and what dynamic cable
-profile it uses. Additional fields specify the routing of the static portion
-of the cable and the burial depth as as function of cable length.
+### Top Level Cables
+
+A top-level cableis defined as the full assembly of electrical connection equipment between
+two turbines or a turbine and a substation. 'type' links to the cable configuration description 
+of the subsections of the cable, which can be dynamic or static cables. The 'connectorType' refers to 
+an entry in the [Cable Joints](#cable-joints) section. The first entry in the sections list is connected 
+to end A, while the last entry is connected to end B.
 
 ```yaml
  cables:
 
-  - name : array_cable1      # descriptive cable name
-    type : static_cable_80   # cable section type ID
-    
-    endA: 
-        attachID: turbine_1            # FOWT/substation/junction ID
-        heading:  180                  # [deg] heading of attachment at end A
-        dynamicID: dynamic_lazy_wave1  # ID of dynamic cable configuration at this end
-    
-    endB:
-        attachID: turbine_2            # FOWT/substation/junction ID
-        heading:  30                   # [deg] heading of attachment at end B
-        dynamicID: dynamic_lazy_wave1  # ID of dynamic cable configuration at this end
-    
-    routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
-      - [1000, 1200, 20] 
-      - [2000, 1500, 20] 
-    
-    burial:  # optional definition of cable burial depth over its length
-        station: [0, 1]                # length along cable, normalized by first and last value
-        depth  : [0.1, 0.2]            # [m] burial depth
+    array_cable1:      
+        name: array cable with lazy wave - static - lazy wave sections # descriptive cable name
+        # type : static_cable_80   # cable section type ID
+   
+        sections: # refers to a configuration in cable_configs
+        # first entry is at end A, last entry is at end B
+          - type: dynamic_lazy_wave1
+     
+          - connectorType: joint_1
+            
+          - type: static_1
+     
+          - connectorType: joint_1
+     
+          - type: dynamic_lazy_wave1
 
-  - name : array_cable_2     # descriptive cable name
-    type : static_cable_80   # cable section type ID
-    ...
+      
+    suspended_cable1:
+        sections: 
+          - type: dynamic_suspended_1
 ```
 
-## Dynamic Cable Configurations
+### Cable Configurations
 
-This section lists the dynamic cable configurations used in the array design.
-Similar to the mooring_line_configs section, it details the assembly of 
-cable section that make up a dynamic cable profile, with links to the cross
-sectional cable properties. Dynamic cable configurations have some special
-properties including specification of the voltage, and the option of 
-specifying 'appendages' along the cable length, which can represent [discrete
-objects](#cable-appendages) like buoyancy modules.
+This section lists the cable configurations used in the array design.
+The 'type' listed in the entry is either 'static' or 'dynamic'.
+The 'cableFamily' key is used when the cable cross-sectional information 
+will be imported from the cableProps_default yaml (in which case, an area A 
+must be provided in mm^2), and the value for cableFamily must match an entry in the cableProps_default yaml.
+Alternatively, if the cable cross-sectional properties will be provided in the [Cable Cross Sectional Properties](#cable-cross-sectional-properties)
+section, the key 'typeID' will be used in place of 'cableFamily', and will
+refer to an entry in the Cable Cross Sectional Properties list. 
+
+The sections list provides details on the layout of buoyancy modules and clump weights, including the 
+distance of the buoyancy section midpoint from end A, the number of modules, the spacing between modules, 
+and the volume. The volume is only needed if the buoyancy module properties will be imported 
+from the cableProps_defaul yaml. As with the cable properties, the 'type' in the sections list must refer to 
+an entry in either the [Cable Appendages](#cable-appendages) section or in the cableProps_default.yaml.
+
+Static cables can have routing information listed as vertex points along the cable route, and the radius of curve. 
+Static cable burial information can also be provided.
+
+Similar to mooring lines, the span refers to the end to end distance of the line in the x-y plane.
 
 ```yaml
- dynamic_cable_configs:
-
-    lazy_wave1
+    basic1:
+        name: basic cable configuration, essentially a straight line between platforms
+        span: 1600 # [m]
+        type: dynamic
+        zJTube: -30 # depth out of J-tube that cable starts in m
+  
+        cableFamily: dynamic_cable_33
+        length: 1700 # [m]
+        A: 100 # cable conductor cross-sectional area [mm^2] (Required for types listed in cable props yaml)
+          
+          
+          
+        
+    dynamic_lazy_wave1:
         name: Lazy wave configuration 1 (simpler approach)
         voltage: 66 # [kV]
-        span :     # [m] horizontal distance to end of dynamic cable
+        span : 600    # [m] horizontal distance to end of dynamic cable
+        zJTube: -20 # depth the cable comes out of the j-tube
+        type: dynamic # dynamic or static
+        A: 300
         
-        sections:
-          - type: dynamic_cable_27        # ID of a cable section type1
-            length: 200                   # [m] length (unstretched)
-            
-          - type: dynamic_cable_27_w_buoy # (section properties including averaged effect of buoyancy modules)
-            length: 300                  
-            
-          - type: dynamic_cable_27 
-            length: 200            
-            
-        attachment:
-            type: j-tube
-            coordinate:   # relative location
-    
 
-    lazy_wave2
-        name: Lazy wave configuration 1 (more detailed approach)
-        voltage: # [kV]
-        span :     # [m] horizontal distance to end of dynamic cable
+        cableFamily: dynamic_cable_33        # ID of a cable section type1
+        length: 900                   # [m] length (unstretched) 
+       
+        sections: 
+          - type: Buoyancy_750m #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 450 # [m] from end A
+            N_modules: 5 # number of modules in this buoyancy section
+            spacing: 21 # [m]
+            V: 2   # [m^2]         
+       
+    
+    static_1:
+        name: Static cable configuration 1 
+        voltage: 66 # [kV]
+        span: 350
+        type: static
         
-        sections:
-          - type: dynamic_cable_27        # ID of a cable section type1
-            length: 200                   # [m] length (unstretched)
-            appendages:
-                type: buoyancy_module_1
-                locations: [10,12,13.5,15,18]
-                
-        attachment:
-            type: j-tube
-            coordinate:   # relative location
+        typeID: static_cable_36
+        length: 2200
+            
+        routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
+          - [1000, 1200, 20] 
+          - [2000, 1500, 20] 
+        
+        burial:  # optional definition of cable burial depth over its length
+            station: [0, 1]                # length along cable, normalized by first and last value
+            depth  : [0.1, 0.2]            # [m] burial depth
 ```       
     
 ### Cable Cross Sectional Properties
@@ -643,7 +665,7 @@ such as buoyancy modules or cable protection system components. Each entry
 is given an identifier and can have a variety of parameters that describe
 its lumped properties, such as mass, volume, and drag coefficient-area
 product. These appendages are used in the 
-[dynamic_cable_configs](#dynamic-cable-configurations) section.
+[cable_configs](#cable-configurations) section.
 
 ```yaml
   cable_appendages:
@@ -653,4 +675,15 @@ product. These appendages are used in the
         volume: 8.615   # [m^3] volumetric displacement 
         CdA:     3.8    # [m^2] product of cross-sectional area and drag coefficient
         length:  2.2    # [m]   length taked up along cable
+```
+
+### Cable Joints
+
+This section lists any cable joints that might connect cable subsections. Each entry is given 
+and identifier and parameters to describe the joint. These joints are used in the [Top Level Cables] 
+(#top-level-cables) section.
+```yaml
+cable_joints:
+    joint_1:
+        mass: 100000 # TBD
 ```

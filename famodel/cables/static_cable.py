@@ -59,6 +59,7 @@ class StaticCable(Edge):
         self.loads = {}
         self.reliability = {}
         self.cost = {}
+        self.failure_probability = {}
     
     
     def getLength(self):

@@ -609,3 +609,22 @@ class Mooring(Edge):
             
         return(changeDepths,changePoints)
 
+    def addCorrosion(self,corrosion_mm=10):
+        '''
+        Calculates MBL of chain line with corrosion included
+
+        Parameters
+        ----------
+        corrosion_mm : TYPE, optional
+            DESCRIPTION. The default is 10.
+
+        Returns
+        -------
+        None.
+
+        '''
+        for i,sec in enumerate(self.dd['sections']):
+            if sec['material']=='chain':
+                MBL_cor = sec['MBL']*( (sec['d_nom']-(corrosion_mm/1000))/sec['d_nom'] )**2  # corroded MBL
+            else:
+                MBL_cor = sec['MBL']
