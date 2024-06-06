@@ -289,7 +289,6 @@ class Mooring(Edge):
             suspended=case)
         self.ss.setEndPosition(self.rA,endB=0)
         self.ss.setEndPosition(self.rB,endB=1)
-        breakpoint()
         
         # note: next bit has similar code/function as Connector.makeMoorPyConnector <<<
         
