@@ -30,6 +30,7 @@ class Turbine():
         self.loads = {}
         self.reliability = {}
         self.cost = {}
+        self.failure_probability = {}
     
     
     def makeRotor(self):
