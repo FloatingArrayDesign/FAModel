@@ -15,7 +15,7 @@ class Mooring(Edge):
     Work in progress. Eventually will inherit from Edge.
     '''
     
-    def __init__(self, dd=None, subsystem=None, anchor=None, 
+    def __init__(self, dd={}, subsystem=None, anchor=None, 
                  rho=1025, g=9.81,id=None):
         '''
         Parameters
@@ -54,18 +54,12 @@ class Mooring(Edge):
         some additional manual setup of the mooring object after it is
         called. <<<
         
-        '''
-        
-        # temporary hack to deal with duplicate parameters
-        if not 'zAnchor' in dd:
-            dd['zAnchor'] = z_anch
-        if not 'span' in dd:
-            dd['span'] = rad_anch - rad_fair
-        
+        '''    
         
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this Mooring
         self.dd = dd
+
         # let's turn the dd into something that holds subdict objects of connectors and sections
         if self.dd:
             # >>> list of sections ?  And optional of section types (e,g, chian, poly) 
@@ -101,6 +95,17 @@ class Mooring(Edge):
         
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem
+        # workaround for users who are making mooring objects based on pre-existing subsystems
+        if self.ss:
+            if not 'zAnchor' in dd:
+                dd['zAnchor'] = -self.ss.depth
+            if not 'span' in dd:
+                dd['span'] = self.ss.span
+            if not 'rad_fair' in dd:
+                dd['rad_fair'] = self.ss.rad_fair
+            if not 'z_fair' in dd:
+                dd['z_fair'] = self.ss.z_fair
+        
         
         # relative positions (variables could be renamed)
         self.rad_anch = dd['span'] + dd['rad_fair']
@@ -271,9 +276,9 @@ class Mooring(Edge):
         types = []
         # run through each line section and collect the length and type
         for i, sec in enumerate(self.dd['sections']):
-            lengths.append(sec['length'])
+            lengths.append(deepcopy(sec['length']))
             # points to existing type dict in self.dd for now
-            types.append(sec['type']) # list of type names
+            types.append(deepcopy(sec['type'])) # list of type names
             #types.append(sec['type']['name']) # list of type names
             #self.ss.lineTypes[i] = sec['type']  
 
@@ -289,7 +294,7 @@ class Mooring(Edge):
         # note: next bit has similar code/function as Connector.makeMoorPyConnector <<<
         
         # add in connector info to subsystem points
-        if case == 0: # has an anchor - need to ignore connection for first point
+        if case == 0: # has an anchor - need to ignore connection for first point because anchor is a point itself so can't have a point attached to a point
             startNum = 1
         else: # no anchor - need to include all connections
             startNum = 0 

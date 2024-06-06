@@ -319,7 +319,7 @@ class DynamicCable(Edge):
         if self.ss:
             print('A subsystem for this Dynamic cable class instance already exists, this will be overwritten.')
             
-        self.ss=Subsystem(depth=-self.dd['zAnchor'], rho=self.rho, g=self.g, span=self.dd['span'], rBfair=self.rB)
+        self.ss=Subsystem(depth=-self.dd['zAnchor'], rho=self.rho, g=self.g, span=self.dd['span'])
         lengths = []
         types = []
         nsegs = []
@@ -334,7 +334,7 @@ class DynamicCable(Edge):
             elif nsegs[-1] < 3:
                 nsegs[-1] = 3
         # make the lines and set the points
-        self.ss.makeGeneric(lengths,types,suspended=case,nsegs=nsegs)
+        self.ss.makeGeneric(lengths,types,suspended=case)
         self.ss.setEndPosition(self.rA,endB=0)
         self.ss.setEndPosition(self.rB,endB=1)
         

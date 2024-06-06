@@ -1402,7 +1402,7 @@ class Project():
                 dd = {}
                 cableType = connDict['props'][i][j] # running on assumption that each thing in props will have equivalent of a design dictionary
                 # may need to add here to get the properties properly put in the design dictionary
-                
+                cable = cableType['name']
                 # create cable object
                 self.cableList[(cable,i*j)] = SubseaCable((cable,i*j),dd=dd)
                 # attach to platforms/substations
