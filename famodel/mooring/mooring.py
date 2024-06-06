@@ -15,8 +15,7 @@ class Mooring(Edge):
     Work in progress. Eventually will inherit from Edge.
     '''
     
-    def __init__(self, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
-                 rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
+    def __init__(self, dd=None, subsystem=None, anchor=None, 
                  rho=1025, g=9.81,id=None):
         '''
         Parameters
@@ -104,8 +103,8 @@ class Mooring(Edge):
         self.ss = subsystem
         
         # end point absolute coordinates, to be set later
-        self.rA = rA
-        self.rB = rB
+        self.rA = None
+        self.rB = None
         self.heading = 0
         
         # relative positions (variables could be renamed)
