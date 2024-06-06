@@ -125,6 +125,7 @@ class Mooring(Edge):
         self.loads = {}
         self.reliability = {}
         self.cost = {}
+        self.failure_probability = {}
     
     
     def setSectionLength(self, L, i):
