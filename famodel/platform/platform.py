@@ -39,7 +39,7 @@ class Platform(Node):
         
         self.body = None # body object in MoorPy associated with the platform
         
-        self.mooring_headings = [np.radians(mooring_headings)] # headings of mooring lines [rad]
+        self.mooring_headings = np.radians(mooring_headings) # headings of mooring lines [rad]
         
         self.n_mooring = len(mooring_headings) # number of mooring lines
         
@@ -58,7 +58,7 @@ class Platform(Node):
         self.failure_probability = {}
     
     
-    def setPosition(self, r, heading=None, degrees=False):
+    def setPosition(self, r, heading=None, degrees=False,project=None):
         '''
         Set the position/orientation of the platform as well as the associated
         anchor points.
@@ -99,7 +99,7 @@ class Platform(Node):
                 heading_i = self.mooring_headings[i] + self.phi
                 
                 # Reposition the whole Mooring
-                self.attachments[mooring]['obj'].reposition(self.r, heading=heading_i)
+                self.attachments[mooring]['obj'].reposition(self.r, heading=heading_i,project=project)
         
     def mooringSystem(self,rotateBool=0,mList=None):
         '''
