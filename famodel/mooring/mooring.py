@@ -15,7 +15,7 @@ class Mooring(Edge):
     Work in progress. Eventually will inherit from Edge.
     '''
     
-    def __init__(self, dd={}, subsystem=None, anchor=None, 
+    def __init__(self, dd=None, subsystem=None, anchor=None,
                  rho=1025, g=9.81,id=None):
         '''
         Parameters
@@ -55,7 +55,6 @@ class Mooring(Edge):
         called. <<<
         
         '''    
-        
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this Mooring
         self.dd = dd
@@ -97,21 +96,22 @@ class Mooring(Edge):
         self.ss = subsystem
         # workaround for users who are making mooring objects based on pre-existing subsystems
         if self.ss:
-            if not 'zAnchor' in dd:
-                dd['zAnchor'] = -self.ss.depth
-            if not 'span' in dd:
-                dd['span'] = self.ss.span
-            if not 'rad_fair' in dd:
-                dd['rad_fair'] = self.ss.rad_fair
-            if not 'z_fair' in dd:
-                dd['z_fair'] = self.ss.z_fair
+            self.dd = {}
+            if not 'zAnchor' in self.dd:
+                self.dd['zAnchor'] = -self.ss.depth
+            if not 'span' in self.dd:
+                self.dd['span'] = self.ss.span
+            if not 'rad_fair' in self.dd:
+                self.dd['rad_fair'] = self.ss.rad_fair
+            if not 'z_fair' in self.dd:
+                self.dd['z_fair'] = self.ss.z_fair
         
         
         # relative positions (variables could be renamed)
-        self.rad_anch = dd['span'] + dd['rad_fair']
-        self.rad_fair = dd['rad_fair']
-        self.z_anch   = dd['zAnchor']  
-        self.z_fair   = dd['z_fair']
+        self.rad_anch = self.dd['span'] + self.dd['rad_fair']
+        self.rad_fair = self.dd['rad_fair']
+        self.z_anch   = self.dd['zAnchor']
+        self.z_fair   = self.dd['z_fair']
         
         # end point absolute coordinates, to be set later
         self.rA = np.array([-self.rad_anch, 0, self.z_anch])
