@@ -246,31 +246,38 @@ def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=10.0
         Wsoil =(np.pi/4)*Dia**2*Len*gamma_soil
         return Wsoil
     
-    Hmax = Np_fixed*L*D*Su_av_L;
-    Vmax = (PileWeight(L,D,t,rhows) + PileSurface(L,D)*alpha*Su_av_L + Nc*Su_tip*np.pi*D**2)/FoSsoil
+    Hmax = Np_fixed*L*D*Su_av_L / FoSh
+    Vmax = (PileWeight(L,D,t,rhows) + PileSurface(L,D)*alpha*Su_av_L + Nc*Su_tip*np.pi*D**2) / FoSsoil / FoSv
     
     Wp = 1.15*PileWeight(L,D,t,(rhows + 1)) 
     
-    H = FoSh*Tm*np.cos(np.deg2rad(thetam)); V = FoSv*Tm*np.sin(np.deg2rad(thetam));
+    H = Tm*np.cos(np.deg2rad(thetam)); V = Tm*np.sin(np.deg2rad(thetam))
+    #H = FoSh*Tm*np.cos(np.deg2rad(thetam)); V = FoSv*Tm*np.sin(np.deg2rad(thetam))
+    #thetam_sf = np.degrees(np.arctan(V_sf/H_sf))
     
     # Capacity envelope
     aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
-    UC = (H/Hmax)**aVH + (V/Vmax)**bVH 
+    UC = (H/Hmax)**aVH + (V/Vmax)**bVH
+    #UC_sf = (H_sf/Hmax)**aVH + (V_sf/Vmax)**bVH
+
+    #print(Hmax, Vmax)
     
     x = np.cos(np.linspace (0,np.pi/2,1000))
     y = (1 - x**bVH)**(1/aVH)
     X = Hmax*x; Y = Vmax*y
 
     iload = np.argwhere(np.diff(np.sign(np.degrees(np.arctan(Y/X)) - thetam))).flatten()[0]
+    #iload = np.argwhere(np.diff(np.sign(np.degrees(np.arctan(Y/X)) - thetam_sf))).flatten()[0]
     H_good = X[iload]
     V_good = Y[iload]
 
-    #H_good = Hmax*np.exp(np.log(0.1)/aVH)
-    #V_good = Vmax*np.exp(np.log(0.9)/bVH)
+    #H_good = Hmax*np.exp(np.log(0.5)/aVH)
+    #V_good = Vmax*np.exp(np.log(0.5)/bVH)
 
     if plot:
         plt.plot(X,Y,color = 'b')
         plt.scatter(H,V,color = 'r')
+        #plt.scatter(H_sf,V_sf,color = 'm')
         plt.scatter(H_good, V_good, color='g')
         # Set labels and title
         plt.xlabel('Horizontal capacity [kN]')
@@ -295,6 +302,37 @@ def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=10.0
 
 if __name__ == '__main__':
           
+
+    D = 10
+    L = 25
+    D = 3.02656557
+    L = 8.95993379
+
+    #fx = 54735571.30174828
+    #fy = 42519484.98012456
+    fx = 4522222.788895202
+    fy = 2948278.926831712
+
+    Tm = np.linalg.norm([fx, fy])/1000
+    thetam = np.degrees(np.arctan(fy/fx))
+    zlug = 2.0
+
+    #resultsSuction = getCapacitySuction(D, L, Tm, thetam, zlug, safety_factor='no')
+
+    resultsSuctionSimp = getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes')
+    
+    print('*************** Suction Pile Result Simp *********************')
+
+    print('Anchor thickness,                    ' , resultsSuctionSimp['t'], '[m]')
+    print('Anchor steel weight,                 ' , resultsSuctionSimp['Weight'], '[t]') 
+    print('Horizontal max. capacity,            ' , resultsSuctionSimp['Horizontal max.'], '[kN]')
+    print('Vertical max. capacity,              ' , resultsSuctionSimp['Vertical max.'], '[kN]') 
+    print('Unity check capacity,                ' , resultsSuctionSimp['UC'], '[-]') 
+
+    print('**************************************************************') 
+
+
+
     ''' 
     Testing the function 
     '''
@@ -333,33 +371,3 @@ if __name__ == '__main__':
     print('**************************************************************') 
           
     """
-    
-
-    #D = 17.749595533988547
-    #L = 27.21004197870531
-    #D = 4.63490196
-    #L = 16.34414018
-    D = 10
-    L = 25
-
-    #fx = 54735571.30174828
-    #fy = 42519484.98012456
-    fx = 4522222.788895202
-    fy = 2948278.926831712
-
-    Tm = np.linalg.norm([fx, fy])/1000
-    thetam = np.degrees(np.arctan(fy/fx))
-    zlug = 2.0
-
-    resultsSuctionSimp = getCapacitySuctionSimp(D, L, Tm, thetam, zlug)
-    
-    print('*************** Suction Pile Result Simp *********************')
-
-    print('Anchor thickness,                    ' , resultsSuctionSimp['t'], '[m]')
-    print('Anchor steel weight,                 ' , resultsSuctionSimp['Weight'], '[t]') 
-    print('Horizontal max. capacity,            ' , resultsSuctionSimp['Horizontal max.'], '[kN]')
-    print('Vertical max. capacity,              ' , resultsSuctionSimp['Vertical max.'], '[kN]') 
-    print('Unity check capacity,                ' , resultsSuctionSimp['UC'], '[-]') 
-
-    print('**************************************************************') 
-

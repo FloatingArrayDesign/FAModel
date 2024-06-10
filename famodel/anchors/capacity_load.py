@@ -75,33 +75,9 @@ def getAnchorLoad(Tm, thetam, zlug, safety_factor='yes', Su0=10.0, k=2.0, nhu=0.
     resultsLoad['V'] = V                       # Horizontal load @ lug
     
     return resultsLoad
-    
-if __name__ == '__main__':
-          
-    ''' 
-    Testing the function in one case
-    '''
-  
-    # retrieves input data from a separate config file
-    with open('LoadConfig.yml', 'r') as f:
-        config = yaml.full_load(f)
-    Tm = config['Tm']; thetam = config['thetam']
-    zlug = config['zlug']; 
-    Su0 = config['Su0']; k = config['k']
-    nhu = config['nhu']; 
-    Nc = config['Nc']; Ab = config['Ab']  
-    
-    resultsLoad = getAnchorLoad(Tm=5000, thetam=25, zlug=14)
-    
-    print('******************  Suction Pile Result  *********************')
 
-    print('Anchor factored load,                 ' , resultsLoad['load'], '[kN]') 
-    print('Anchor factored angle,                ' , resultsLoad['angle'], '[deg]')
-    print('Horizontal factored load @ lug depth, ' , resultsLoad['H'], '[kN]') 
-    print('Horizontal factored load @ lug depth, ' , resultsLoad['V'], '[kN]')
 
-    print('**************************************************************') 
-     
+
 
 def getAnchorLoadDNV(Tm, thetam, zlug, safety_factor='yes', line_type='chain', soil_type='clay', Su0=10.0, k=2.0, d=0.15):
     
@@ -212,7 +188,7 @@ if __name__ == '__main__':
     ''' 
     Testing the function in one case
     '''
-  
+    '''
     # retrieves input data from a separate config file
     with open('LoadConfig.yml', 'r') as f:
         config = yaml.full_load(f)
@@ -221,8 +197,15 @@ if __name__ == '__main__':
     Su0 = config['Su0']; dSu = config['dSu']
     nhu = config['nhu']; 
     Nc = config['Nc'];  Ab = config['Ab']  
+    '''
+    fx = 4522222.788895202
+    fy = 2948278.926831712
+    Tm = np.linalg.norm([fx, fy])/1000
+    thetam = np.degrees(np.arctan(fy/fx))
+    zlug = 8
     
-    resultsLoad = getAnchorLoad(Tm, thetam, zlug, Su0, dSu, nhu, Ab, Nc)
+    resultsLoad = getAnchorLoad(Tm, thetam, zlug)
+    resultsLoadDNV = getAnchorLoadDNV(Tm, thetam, zlug)
     
     print('******************  Suction Pile Result  *********************')
 
@@ -233,3 +216,29 @@ if __name__ == '__main__':
 
     print('**************************************************************') 
      
+
+          
+    ''' 
+    Testing the function in one case
+    '''
+    """
+    # retrieves input data from a separate config file
+    with open('LoadConfig.yml', 'r') as f:
+        config = yaml.full_load(f)
+    Tm = config['Tm']; thetam = config['thetam']
+    zlug = config['zlug']; 
+    Su0 = config['Su0']; k = config['k']
+    nhu = config['nhu']; 
+    Nc = config['Nc']; Ab = config['Ab']  
+    
+    resultsLoad = getAnchorLoad(Tm=5000, thetam=25, zlug=14)
+    
+    print('******************  Suction Pile Result  *********************')
+
+    print('Anchor factored load,                 ' , resultsLoad['load'], '[kN]') 
+    print('Anchor factored angle,                ' , resultsLoad['angle'], '[deg]')
+    print('Horizontal factored load @ lug depth, ' , resultsLoad['H'], '[kN]') 
+    print('Horizontal factored load @ lug depth, ' , resultsLoad['V'], '[kN]')
+
+    print('**************************************************************') 
+    """
