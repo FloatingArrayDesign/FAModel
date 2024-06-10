@@ -565,56 +565,6 @@ class failureGraph():
             if max_x < 0: max_x = 0
             elif min_x > 0: min_x = 0
         return max_x, min_x, max_y, min_y
-    
-
-    def enact_failures(self):
-        use_double_random = True
-        # Ask user which failures they would like to enact
-        if len(self.critical_failures[1]) > 1:
-            user_input = input('\nThere are multiple ctitical failures. Would you like to enact all of them? (y/n) ')
-            if 'n' in user_input:
-                print('Which of the following critical failures would you like to enact? (type failures as seen below with commas seperating them and each without apostrophes)')
-                user_input2 = input('Critical Failures:' + str(self.critical_failures[1]) + '\n')
-                self.critical_failures[1] = list(user_input2.split(", "))
-                for i in range(len(self.critical_failures[1])):
-                    self.critical_failures[1][i] = self.critical_failures[1][i].replace('\\n', '\n')
-
-        # Update FAModel
-        for cf_name in self.critical_failures[1]:
-            # if critical_failure['impacts']:
-                # If the critical failure moves the platform, move the platform & update mooring info
-            if cf_name[-5:len(cf_name)] in self.Array.platformList.keys():
-                old_position = np.array(self.G.nodes[cf_name]['obj'][0].r[:2])
-                print('old position', old_position)
-                if use_double_random:
-                    rand_vector = np.random.rand(2)
-                    rand_movement = np.random.rand()*800
-                    new_vector = rand_vector/(np.sqrt(rand_vector[0]**2 + rand_vector[1]**2)) * rand_movement
-                else: new_vector = [0, 0]
-                self.G.nodes[cf_name]['obj'][0].r[0] += int(new_vector[0])
-                self.G.nodes[cf_name]['obj'][0].r[1] += int(new_vector[1])
-
-                attachments = self.G.nodes[cf_name]['obj'][0].attachments
-                for attach1 in attachments:
-                    # print(attachments[attach1], type(attachments[attach1]))
-                    # print('old', attachments[attach1]['obj'].rA)
-                    # print('old', attachments[attach1]['obj'].rB)
-                    # print(abs(np.array(attachments[attach1]['obj'].rA[:2]) - old_position), abs(attachments[attach1]['obj'].rA[:2] - old_position) < 100)
-                    # print(abs(np.array(attachments[attach1]['obj'].rB[:2]) - old_position), abs(attachments[attach1]['obj'].rB[:2] - old_position) < 100)
-                    if all(abs(attachments[attach1]['obj'].rA[:2] - old_position) < 100):
-                        # print('rA')
-                        attachments[attach1]['obj'].rA[:2] += new_vector
-                    elif all(abs(attachments[attach1]['obj'].rB[:2] - old_position) < 100):
-                        # print('rB')
-                        attachments[attach1]['obj'].rB[:2] += new_vector
-                    # print('new', attachments[attach1]['obj'].rA)
-                    # print('new', attachments[attach1]['obj'].rB, '\n')
-        
-                # If the anchors move, move the anchors & update mooring info
-                # If line (mooring or cable) disconnects, disconnect in FAModel
-        # Check if any new mooring-mooring or mooring-cable clashes are applicable
-        # Update the failure graph with these new clashing failures
-        # Remove critical failure from the graph
 
 
     def update_critical_node(self, criticality_stipulation):
@@ -687,3 +637,58 @@ class failureGraph():
 
         self.critical_failures = critical_prob
         return critical_prob
+    
+
+    def enact_failures(self):
+        '''Update the FAModel based on critical failures occurring
+        Parameters
+        ----------
+        None
+        '''
+        use_double_random = True
+        # Ask user which failures they would like to enact
+        if len(self.critical_failures[1]) > 1:
+            user_input = input('\nThere are multiple ctitical failures. Would you like to enact all of them? (y/n) ')
+            if 'n' in user_input:
+                print('Which of the following critical failures would you like to enact? (type failures as seen below with commas seperating them and each without apostrophes)')
+                user_input2 = input('Critical Failures:' + str(self.critical_failures[1]) + '\n')
+                self.critical_failures[1] = list(user_input2.split(", "))
+                for i in range(len(self.critical_failures[1])):
+                    self.critical_failures[1][i] = self.critical_failures[1][i].replace('\\n', '\n')
+
+        # Update FAModel
+        for cf_name in self.critical_failures[1]:
+            # if critical_failure['impacts']:
+                # If the critical failure moves the platform, move the platform & update mooring info
+            if cf_name[-5:len(cf_name)] in self.Array.platformList.keys():
+                old_position = np.array(self.G.nodes[cf_name]['obj'][0].r[:2])
+                print('old position', old_position)
+                if use_double_random:
+                    rand_vector = np.random.rand(2)
+                    rand_movement = np.random.rand()*800
+                    new_vector = rand_vector/(np.sqrt(rand_vector[0]**2 + rand_vector[1]**2)) * rand_movement
+                else: new_vector = [0, 0]
+                self.G.nodes[cf_name]['obj'][0].r[0] += int(new_vector[0])
+                self.G.nodes[cf_name]['obj'][0].r[1] += int(new_vector[1])
+
+                attachments = self.G.nodes[cf_name]['obj'][0].attachments
+                for attach1 in attachments:
+                    # print(attachments[attach1], type(attachments[attach1]))
+                    # print('old', attachments[attach1]['obj'].rA)
+                    # print('old', attachments[attach1]['obj'].rB)
+                    # print(abs(np.array(attachments[attach1]['obj'].rA[:2]) - old_position), abs(attachments[attach1]['obj'].rA[:2] - old_position) < 100)
+                    # print(abs(np.array(attachments[attach1]['obj'].rB[:2]) - old_position), abs(attachments[attach1]['obj'].rB[:2] - old_position) < 100)
+                    if all(abs(attachments[attach1]['obj'].rA[:2] - old_position) < 100):
+                        # print('rA')
+                        attachments[attach1]['obj'].rA[:2] += new_vector
+                    elif all(abs(attachments[attach1]['obj'].rB[:2] - old_position) < 100):
+                        # print('rB')
+                        attachments[attach1]['obj'].rB[:2] += new_vector
+                    # print('new', attachments[attach1]['obj'].rA)
+                    # print('new', attachments[attach1]['obj'].rB, '\n')
+        
+                # If the anchors move, move the anchors & update mooring info
+                # If line (mooring or cable) disconnects, disconnect in FAModel
+        # Check if any new mooring-mooring or mooring-cable clashes are applicable
+        # Update the failure graph with these new clashing failures
+        # Remove critical failure from the graph
