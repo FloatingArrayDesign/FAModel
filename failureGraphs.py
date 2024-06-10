@@ -13,6 +13,11 @@ class failureGraph():
         self.Array = Project(file=project_file)
         self.G = nx.DiGraph()
 
+        self.critical_failures = None
+        self.criticality_type = None
+        self.imput_and_susceptibility_table = None
+        self.mean_is = None
+
 
     def create_failureGraph(self, matrix_file, matrix_sheet, probabilities_file, probability_sheet):
         '''Create a graph of failures based on the FAModel Project object
@@ -41,8 +46,9 @@ class failureGraph():
             init_prob_dict.update({nodeNames[prob_index]: probabilities[prob_index]})
 
         # Determine angle of clashing we are interested in
-        angle_degree = float(input("What angle do you want to use? (in degrees) "))
-        self.angle_radians = angle_degree/360 * math.pi * 2
+        angle_degree = input("What angle do you want to use? (in degrees) ")
+        if angle_degree == '': self.angle_radians = 0.0
+        else: self.angle_radians = float(angle_degree)/360 * math.pi * 2
 
         # Initialize and create the dictionaries of the children and parents
         self.failures_c = {}
@@ -58,7 +64,9 @@ class failureGraph():
             self.failures_c.update({nodeNames[i]: node_children})
             self.failures_p.update({nodeNames[i]: node_parents})
 
+        # Get the systems (groups of failures by component type) and list of nodes that could impact the FAModel
         systems = self.get_systems(nodeNames)
+        impacts = self.get_impact_nodes(nodeNames)
 
         # Initialize graph, boolean for plotting, and list of probabilities
         self.G = nx.DiGraph()
@@ -77,20 +85,21 @@ class failureGraph():
             for platform_failure in systems['platform']:
                 if platform_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[platform_failure]
                 else: fail_prob = init_prob_dict[platform_failure]
-                self.G.add_node(platform_failure + "\n" + str(platform), probability=fail_prob, obj = [platform_obj])
+                self.G.add_node(platform_failure + "\n" + str(platform), probability=fail_prob, obj=[platform_obj], impacts=impacts[platform_failure])
                 self.G = self.addMoreEdges(platform_failure, platform, [platform])
 
             # Create failure nodes
             for turbine_failure in systems['turbine']:
                 if turbine_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[turbine_failure]
                 else: fail_prob = init_prob_dict[turbine_failure]
-                self.G.add_node(turbine_failure + "\n" + str(platform),  probability=fail_prob, obj = [platform_obj])
+                self.G.add_node(turbine_failure + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], impacts=impacts[turbine_failure])
                 self.G = self.addMoreEdges(turbine_failure, platform, [platform])
 
             # FIRST DEGREE EDGES -------------------------------------------------------------------------------------------
             for attach1 in attachments.keys():
                 attach1_name = str(attachments[attach1]['id'])
                 attach1_type = ''
+                failure_probabilities = attachments[attach1]['obj'].failure_probability
                 if 'mooring' in str(type(attachments[attach1]['obj'])): 
                     if attachments[attach1]['obj'].shared: attach1_type = 'sharedmooring'
                     else: attach1_type = 'mooring'
@@ -102,9 +111,9 @@ class failureGraph():
                 for attach1_failure in systems[attach1_type]:
                     original_name = attach1_name
                     if 'connect' in attach1_failure: attach1_name = platform + attach1_name
-                    if attach1_failure in attachments[attach1]['obj'].failure_probability.keys(): fail_prob = failure_probabilities[attach1_failure]
+                    if attach1_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[attach1_failure]
                     else: fail_prob = init_prob_dict[attach1_failure]
-                    self.G.add_node(attach1_failure + "\n" + attach1_name,  probability=fail_prob, obj = [attachments[attach1]['obj']])
+                    self.G.add_node(attach1_failure + "\n" + attach1_name,  probability=fail_prob, obj=[attachments[attach1]['obj']], impacts=impacts[attach1_failure])
                     self.G = self.addMoreEdges(attach1_failure, attach1_name, [platform, attach1_name])
                     attach1_name = original_name
 
@@ -119,9 +128,9 @@ class failureGraph():
                         if 'shared' in attach1_type and all(abs(np.array(attachments[attach1]['obj'].rB[:2]) - np.array(attachments[attach2]['obj'].rB[:2])) < 100): reverse = True
                         else: reverse = False
                         if self.couldClash(clash_failure, attachments[attach1]['obj'], attachments[attach2]['obj'], reverse):
-                            if clash_failure in attachments[attach1]['obj'].failure_probability.keys(): fail_prob = failure_probabilities[clash_failure]
+                            if clash_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[clash_failure]
                             else: fail_prob = init_prob_dict[clash_failure]
-                            self.G.add_node(clash_failure + "\n" + clash_name,  probability=fail_prob, obj = [attachments[attach1]['obj'], attachments[attach2]['obj']])
+                            self.G.add_node(clash_failure + "\n" + clash_name,  probability=fail_prob, obj=[attachments[attach1]['obj'], attachments[attach2]['obj']], impacts=impacts[clash_failure])
                             self.G = self.addMoreEdges(clash_failure, clash_name, [platform, attach1_name, attach2_name, clash_name])
                             if attach1_type == 'mooring' and attach2_type == attach1_type: mooring_clashes.append(clash_failure + "\n" + clash_name)
                             elif ('shared' not in attach1_type) and ('shared' not in attach2_type): cable_clashes.append(clash_failure + "\n" + clash_name)
@@ -130,6 +139,7 @@ class failureGraph():
                 subcomponents = attachments[attach1]['obj'].subcomponents
                 component_num = 0
                 for component in subcomponents:
+                    failure_probabilities = component.failure_probability
                     component_num += 1
                     if 'mooring' in attach1_type:
                         if 'type' in component.keys():
@@ -167,9 +177,9 @@ class failureGraph():
                             component_name = attach1_name + ' ' + str(component.id)
 
                     for component_failure in systems[component_type]:
-                        if component_failure in component.failure_probability.keys(): fail_prob = failure_probabilities[component_failure]
+                        if component_failure in failure_probabilities: fail_prob = failure_probabilities[component_failure]
                         else: fail_prob = init_prob_dict[component_failure]
-                        self.G.add_node(component_failure + "\n" + component_name,  probability=fail_prob, obj = [component])
+                        self.G.add_node(component_failure + "\n" + component_name,  probability=fail_prob, obj=[component], impacts=impacts[component_failure])
                         self.G = self.addMoreEdges(component_failure, component_name, [platform, attach1])
 
 
@@ -177,6 +187,7 @@ class failureGraph():
                 attached_to = attachments[attach1]['obj'].attached_to
                 for attach1A in attached_to:
                     attach1A_name = str(attach1A.id)
+                    failure_probabilities = attach1A.failure_probability
 
                     # Create anchor failure nodes
                     if 'anchor' in str(type(attach1A)):
@@ -185,7 +196,7 @@ class failureGraph():
                         for anchor_failure in systems[attach1A_type]:
                             if anchor_failure in attach1A.failure_probability.keys(): fail_prob = failure_probabilities[anchor_failure]
                             else: fail_prob = init_prob_dict[anchor_failure]
-                            self.G.add_node(anchor_failure + "\n" + attach1A_name,  probability=fail_prob, obj = [attach1A])
+                            self.G.add_node(anchor_failure + "\n" + attach1A_name,  probability=fail_prob, obj=[attach1A], impacts=impacts[anchor_failure])
                             self.G = self.addMoreEdges(anchor_failure, attach1A_name, [platform, attach1_name, attach1A_name])
                     
                     # Create edges between platforms
@@ -199,16 +210,17 @@ class failureGraph():
                     elif 'substation' in str(type(attach1A)):
                         attach1A_type = 'substation'
                         for grid_failure in systems['grid']:
-                            if grid_failure in attach1A.failure_probability.keys(): fail_prob = failure_probabilities[grid_failure]
+                            if grid_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[grid_failure]
                             else: fail_prob = init_prob_dict[grid_failure]
-                            self.G.add_node(grid_failure + "\n" + attach1A_name,  probability=fail_prob, obj = [attach1A])
+                            self.G.add_node(grid_failure + "\n" + attach1A_name,  probability=fail_prob, obj=[attach1A], impacts=impacts[grid_failure])
                             self.G = self.addMoreEdges(grid_failure, attach1A_name, [platform, attach1_name, attach1A_name])
 
             # Create mooring-mooring clashing failure node if no two mooring lines likely to clash
+            failure_probabilities = self.Array.platformList[platform].failure_probability
             if len(mooring_clashes) < 1:
                 if systems['mooringmooring'][0] in failure_probabilities.keys(): fail_prob = failure_probabilities[systems['mooringmooring'][0]]
                 else: fail_prob = init_prob_dict[systems['mooringmooring'][0]]
-                self.G.add_node(systems['mooringmooring'][0] + "\n" + str(platform),  probability=fail_prob, obj= [platform_obj])
+                self.G.add_node(systems['mooringmooring'][0] + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], impacts=impacts[systems['mooringmooring'][0]])
                 self.G = self.addMoreEdges(systems['mooringmooring'][0], str(platform), [platform])
 
             # Create cable-mooring clashing failure nodes if no cable and mooring pairing likely to clash
@@ -218,9 +230,8 @@ class failureGraph():
                     for clashing_failure in systems['cablemooring']:
                         if clashing_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[clashing_failure]
                         else: fail_prob = init_prob_dict[clashing_failure]
-                        self.G.add_node(clashing_failure + "\n" + str(platform) + ' ' + str(cable_num),  probability=fail_prob, obj = [platform_obj, cable_num])
+                        self.G.add_node(clashing_failure + "\n" + str(platform) + ' ' + str(cable_num),  probability=fail_prob, obj=[platform_obj, cable_num], impacts=impacts[clashing_failure])
                         self.G = self.addMoreEdges(clashing_failure, str(platform) + ' ' + str(cable_num), [platform])
-        return self.G
 
 
 
@@ -260,6 +271,26 @@ class failureGraph():
                    'sharedmooring':nodeNames[sharedmooring], 'sharedmooringcable':nodeNames[mooringcable], 'joints': nodeNames[joints], 'cablesharedmooring':nodeNames[mooringcable], 
                    'sharedmooringmooring':nodeNames[mooringmooring], 'mooringsharedmooring':nodeNames[mooringmooring], 'sharedanchor': nodeNames[sharedanchor]}
         return systems
+    
+
+
+    def get_impact_nodes(self, nodeNames):
+        '''Create dictionary for each node that tells us if the node could impact the FAModel
+        Parameters
+        ----------
+        nodeNames : list
+            List of all the failure names to use to create dictionary of subsystems
+        '''
+        # List of nodes that could impact hte FAModel
+        could_impact = [2, 6, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 20, 21, 23]
+        impactful_nodes = nodeNames[could_impact]
+
+        # Create dictionary of nodes that tells us if the node impacts the FAModel or not
+        impact_dict = {}
+        for node in nodeNames:
+            if node in impactful_nodes: impact_dict.update({node: True})
+            else: impact_dict.update({node: False})
+        return impact_dict
 
 
     def get_critical_node(self, param):
@@ -270,6 +301,7 @@ class failureGraph():
             Measurement for criticality (either initial probability, degree [in, out, or total], susceptibility, or impact)
         '''
         nodalNames = np.array(list(self.G.nodes))
+        self.criticality_type = param
         critical_prob = [0, []]
 
         # Find critical failure for critical indicating the maximum initial probability
@@ -301,6 +333,8 @@ class failureGraph():
             if 'impact' in param: critical_prob = max_impact
             elif 'sus' in param: critical_prob = max_sus
             else: return
+        
+        self.critical_failures = critical_prob
         return critical_prob
         
 
@@ -338,7 +372,7 @@ class failureGraph():
         arr = nx.to_numpy_array(self.G)
         nodeNames = np.reshape(np.array(list(self.G.nodes)), (len(list(self.G.nodes)), ))
         all_probabilities = np.zeros(arr.shape) # Initialize a large array to put all the pairwise probabilities in
-        for start_component in range(1,arr.shape[0]+1): # Iterate through each failure mode/effect in turbine
+        for start_component in range(1,len(list(self.G.nodes))+1): # Iterate through each failure mode/effect in turbine
             a = arr.copy()
             non = nodeNames
             K, a, g, e, m, non = breadth_first_multi(a, nodeNames, [start_component], "child") # Generate tree for Bayesian network
@@ -394,6 +428,9 @@ class failureGraph():
                 index2 = np.where(nodeNames == nodeNamesArray[node])[0][0]
                 all_probabilities[0 * arr.shape[0] + start_component - 1][0 * arr.shape[0] + index2] = sm_table[0]/np.sum(sm_table)
 
+        # Save the probabilities calcuated
+        self.imput_and_susceptibility_table = all_probabilities
+
         # Calculate and return highest impact and susceptibility
         mean_impact = np.mean(all_probabilities, axis=1)
         max_impact = np.max(mean_impact)
@@ -402,7 +439,9 @@ class failureGraph():
         mean_susceptibility = np.mean(all_probabilities, axis=0)
         max_susceptibility = np.max(mean_susceptibility, axis=0)
         max_impact_susceptibility = np.where(mean_impact == max_impact)[0][0]
-        return [max_impact, nodeNamesArray[max_impact_index]], [max_susceptibility, nodeNamesArray[max_impact_susceptibility]]
+
+        self.mean_is = np.hstack(np.reshape(mean_impact, (len(list(self.G.nodes)), 1)), np.reshape(mean_susceptibility, (len(list(self.G.nodes)), 1)))
+        return [max_impact, nodeNames[max_impact_index]], [max_susceptibility, nodeNames[max_impact_susceptibility]]
 
 
 
@@ -526,3 +565,125 @@ class failureGraph():
             if max_x < 0: max_x = 0
             elif min_x > 0: min_x = 0
         return max_x, min_x, max_y, min_y
+    
+
+    def enact_failures(self):
+        use_double_random = True
+        # Ask user which failures they would like to enact
+        if len(self.critical_failures[1]) > 1:
+            user_input = input('\nThere are multiple ctitical failures. Would you like to enact all of them? (y/n) ')
+            if 'n' in user_input:
+                print('Which of the following critical failures would you like to enact? (type failures as seen below with commas seperating them and each without apostrophes)')
+                user_input2 = input('Critical Failures:' + str(self.critical_failures[1]) + '\n')
+                self.critical_failures[1] = list(user_input2.split(", "))
+                for i in range(len(self.critical_failures[1])):
+                    self.critical_failures[1][i] = self.critical_failures[1][i].replace('\\n', '\n')
+
+        # Update FAModel
+        for cf_name in self.critical_failures[1]:
+            # if critical_failure['impacts']:
+                # If the critical failure moves the platform, move the platform & update mooring info
+            if cf_name[-5:len(cf_name)] in self.Array.platformList.keys():
+                old_position = np.array(self.G.nodes[cf_name]['obj'][0].r[:2])
+                print('old position', old_position)
+                if use_double_random:
+                    rand_vector = np.random.rand(2)
+                    rand_movement = np.random.rand()*800
+                    new_vector = rand_vector/(np.sqrt(rand_vector[0]**2 + rand_vector[1]**2)) * rand_movement
+                else: new_vector = [0, 0]
+                self.G.nodes[cf_name]['obj'][0].r[0] += int(new_vector[0])
+                self.G.nodes[cf_name]['obj'][0].r[1] += int(new_vector[1])
+
+                attachments = self.G.nodes[cf_name]['obj'][0].attachments
+                for attach1 in attachments:
+                    # print(attachments[attach1], type(attachments[attach1]))
+                    # print('old', attachments[attach1]['obj'].rA)
+                    # print('old', attachments[attach1]['obj'].rB)
+                    # print(abs(np.array(attachments[attach1]['obj'].rA[:2]) - old_position), abs(attachments[attach1]['obj'].rA[:2] - old_position) < 100)
+                    # print(abs(np.array(attachments[attach1]['obj'].rB[:2]) - old_position), abs(attachments[attach1]['obj'].rB[:2] - old_position) < 100)
+                    if all(abs(attachments[attach1]['obj'].rA[:2] - old_position) < 100):
+                        # print('rA')
+                        attachments[attach1]['obj'].rA[:2] += new_vector
+                    elif all(abs(attachments[attach1]['obj'].rB[:2] - old_position) < 100):
+                        # print('rB')
+                        attachments[attach1]['obj'].rB[:2] += new_vector
+                    # print('new', attachments[attach1]['obj'].rA)
+                    # print('new', attachments[attach1]['obj'].rB, '\n')
+        
+                # If the anchors move, move the anchors & update mooring info
+                # If line (mooring or cable) disconnects, disconnect in FAModel
+        # Check if any new mooring-mooring or mooring-cable clashes are applicable
+        # Update the failure graph with these new clashing failures
+        # Remove critical failure from the graph
+
+
+    def update_critical_node(self, criticality_stipulation):
+        '''Determine and return new critical failures (presumably after the previous critical failure(s) occur)
+        Parameters
+        ----------
+        criticality_stipulation : string
+            Specifies how to determine the new critical failures
+        '''
+        # If multiple critical nodes allowed, give the option to use both of the above methods to find critical nodes
+        if ('child' in criticality_stipulation.lower() and 'global' in criticality_stipulation.lower()) or 'both' in criticality_stipulation.lower():
+            clist1 = self.get_child_critical_node()
+            clist2 = self.get_critical_node(self.criticality_type)
+            self.critical_failures[0] = (clist1[0] + clist2[0])/2
+            self.critical_failures[1] = clist1[1] + clist2[1]
+
+        # Find new critical failure (such that the new critical failure must be a direct effect of the previous one)
+        elif 'child' in criticality_stipulation.lower(): self.critical_failures = self.get_child_critical_node()
+
+        # Find critical node such that it doesn't have to be a direct effect of the previous critical failure
+        elif 'global' in criticality_stipulation.lower(): 
+            for critical_failure in self.critical_failures[1]:
+                self.G.remove_node(critical_failure)
+            self.critical_failures = self.get_critical_node(self.criticality_type)
+
+        return self.critical_failures
+    
+
+    def get_child_critical_node(self):
+        '''Get the critical nodes when user desires future critical nodes be children of original critical failure(s)
+        Parameters
+        ----------
+        None
+        '''
+        # Create list of direct effects from critical failure(s)
+        nodalNames = np.array(list(self.G.nodes))
+        critical_prob = [0, []]
+        critical_successors = []
+        for critical_failure in self.critical_failures[1]:
+            node_index = np.where(nodalNames == critical_failure)[0][0]
+            nodes = diagonal_nodes(nx.to_numpy_array(self.G))
+            a = make_binary(nx.to_numpy_array(self.G), 0)
+            child_bool = nodes @ a[:, node_index]
+            children = child_bool[np.nonzero(child_bool)]
+            for child in children:
+                if not(nodalNames[int(child)] in critical_successors): critical_successors.append(nodalNames[int(child)])
+            self.G.remove_node(critical_failure)
+            
+        # Find critical failure for critical indicating the maximum initial probability
+        if 'prob' in self.criticality_type:
+            nodal_probabilities = nx.get_node_attributes(self.G.subgraph(critical_successors), "probability")
+            for failure_node in nodal_probabilities:
+                if nodal_probabilities[failure_node] > critical_prob[0]: critical_prob = [nodal_probabilities[failure_node], [failure_node]]
+                elif nodal_probabilities[failure_node] == critical_prob[0]: critical_prob[1].append(failure_node)
+        
+        # Find the critical failure for crtitical refering to the maximum degree (either in-degree, out-degree, or total-degree)
+        elif 'deg' in self.criticality_type:
+            out_deg, in_deg, deg = max_degrees(nx.to_numpy_array(self.G), nodalNames, threshold = 0, name = True)
+            if 'in' in self.criticality_type: critical_prob = [in_deg[1], list(in_deg[0])]
+            elif 'out' in self.criticality_type: critical_prob = [out_deg[1], list(out_deg[0])]
+            else: critical_prob = [deg[1], list(deg[0])]
+        
+        # Find the crtitical failure for ctitical refering to the susceptibility or impact of a node
+        elif 'sus' in self.criticality_type or 'impact' in self.criticality_type:
+            if 'sus' in self.criticality_type: row_num = 1
+            elif 'impact' in self.criticality_type: row_num = 0
+            vals = np.zeros(len(critical_successors), 2)
+            for node in critical_successors: vals[0] = self.mean_is[np.where(nodalNames == node)[0][0]]
+            critical_prob = [np.max(vals), critical_successors[np.where(critical_successors == np.max(vals))]]
+
+        self.critical_failures = critical_prob
+        return critical_prob
