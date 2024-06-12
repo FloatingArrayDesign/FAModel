@@ -128,6 +128,7 @@ class Mooring(Edge):
         self.g = g
         
         # Dictionaries for addition information
+        self.envelopes = {}  # 2D motion envelope, buffers, etc.
         self.loads = {}
         self.reliability = {}
         self.cost = {}

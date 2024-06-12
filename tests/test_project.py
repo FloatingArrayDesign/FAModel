@@ -48,7 +48,7 @@ if __name__=='__main__':
     print(f"The depth at {x}, {y} is {z:.3f} m.")
     
     # plot to see if it worked
-    project.plot3d()
+    #project.plot3d()
     plt.show()
     
     

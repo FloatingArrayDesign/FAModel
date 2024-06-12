@@ -52,6 +52,7 @@ class Platform(Node):
         # self.anchorList = {} # dictionary of references to anchor objects connected to this platform
         
         # Dictionaries for addition information
+        self.envelopes = {}  # 2D motion envelope, buffers, etc. Each entry is a dict with x,y or shape
         self.loads = {}
         self.reliability = {}
         self.cost = {}

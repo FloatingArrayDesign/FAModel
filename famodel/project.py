@@ -17,18 +17,18 @@ except:
 
 #from shapely.geometry import Point, Polygon, LineString
 
-from .anchors.anchor_capacity import anchorCapacity
-from .seabed import seabed_tools as sbt
-from .mooring.mooring import Mooring
-from .platform.platform import Platform
-from .mooring.anchor import Anchor
-from .mooring.connector import Connector
-from .substation.substation import Substation
-from .cables.cable import SubseaCable
-from .cables.dynamic_cable import DynamicCable
-from .cables.static_cable import StaticCable
-from .cables.cable_properties import getCableProps, getBuoyProps
-from .cables.components import Joint
+from famodel.anchors.anchor_capacity import anchorCapacity
+from famodel.seabed import seabed_tools as sbt
+from famodel.mooring.mooring import Mooring
+from famodel.platform.platform import Platform
+from famodel.mooring.anchor import Anchor
+from famodel.mooring.connector import Connector
+from famodel.substation.substation import Substation
+from famodel.cables.cable import SubseaCable
+from famodel.cables.dynamic_cable import DynamicCable
+from famodel.cables.static_cable import StaticCable
+from famodel.cables.cable_properties import getCableProps, getBuoyProps
+from famodel.cables.components import Joint
 
 class Project():
     '''
@@ -1413,7 +1413,85 @@ class Project():
                         self.cableList[(cable,i*j)].attachTo(self.substationList[connDict['connections'][i][j][k]],end='B')
                     else:
                         raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations')
-                
+    
+    
+
+    def plot2d(self, ax=None, plot_seabed=True, plot_boundary=True, bare=False, **kwargs):
+        '''Plot aspects of the Project object in matplotlib in 3D.
+        
+        TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
+        
+        Parameters
+        ----------
+        ...
+        bare : bool
+            If True, supress display of extra labeling like the colorbar.
+        '''
+     
+        # Handle extra keyword arguments or use default values
+        figsize = kwargs.get('figsize', (6,4))  # the dimensions of the figure to be plotted
+        
+        
+        # if axes not passed in, make a new figure
+        if ax == None:
+            fig, ax = plt.subplots(1,1, figsize=figsize)
+        else:
+            fig = ax.get_figure()
+        
+        
+        # Bathymetry 
+        if len(self.grid_x) > 1 and len(self.grid_y) > 1:
+            num_levels = 100  # Adjust this value as needed
+            X, Y = np.meshgrid(self.grid_x, self.grid_y)
+            
+            contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=0, vmax=1000)
+            #contourf.norm.autoscale([0,1])
+            #contourf.set_clim(0, 1000)
+        
+            if not bare:  # Add colorbar with label
+                cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)')
+            
+        
+        # Seabed ground/soil type (to update)
+        #X, Y = np.meshgrid(self.soil_x, self.soil_y)
+        #ax.scatter(X, Y, c=self.soil_rocky, s=4, cmap='cividis_r', vmin=-0.5, vmax=1.5)
+        
+        
+        # Plot any object envelopes
+        for platform in self.platformList.values():
+            for name, env in platform.envelopes.items():
+                if 'shape' in env:  # if there's a shapely object
+                    pass  # do nothing for now...
+                elif 'x' in env and 'y' in env:  # otherwise just use coordinates
+                    ax.fill(env['x'], env['y'], edgecolor=[.5,0,0,.8], facecolor='none', linestyle='dashed', lw=0.8)
+        
+        for mooring in self.mooringList.values():
+            for name, env in mooring.envelopes.items():
+                if 'shape' in env:  # if there's a shapely object
+                    pass  # do nothing for now...
+                elif 'x' in env and 'y' in env:  # otherwise just use coordinates
+                    ax.fill(env['x'], env['y'], color=[.6,.3,.3,.6])
+        
+        
+        # Plot moorings one way or another (eventually might want to give Mooring a plot method)
+        for mooring in self.mooringList.values():
+        
+            if mooring.ss:  # plot with Subsystem if available
+                mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
+                                      Xuvec=[1,0,0], Yuvec=[0,1,0])        
+            else: # simple line plot
+                ax.plot([mooring.rA[0], mooring.rB[0]], 
+                        [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5)
+        
+        
+        # Plot platform one way or another (might want to give Platform a plot method)
+        for platform in self.platformList.values():
+            
+            ax.plot(platform.r[0], platform.r[1], 'k*')
+            
+            # TODO - add ability to plot from RAFT FOWT
+        
+        
 
     def plot3d(self, ax=None, figsize=(10,8), fowt=None, save=False,
                draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True):
@@ -1524,24 +1602,7 @@ class Project():
             
             # Increase the resolution when saving the plot
             plt.savefig(output_filename, dpi=300, bbox_inches='tight')  # Adjust the dpi as needed
-            
-
-
-    def plot2d(self, ax=None, plot_seabed=True, plot_boundary=True):
-        '''Plot aspects of the Project object in matplotlib in 3D.
         
-        TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
-        
-        Parameters
-        ----------
-        Placeholder
-        '''
-     
-        # if axes not passed in, make a new figure
-        if ax == None:
-            fig, ax = plt.subplots(1,1, figsize=figsize)
-        else:
-            fig = ax.get_figure()
        
     def getMoorPyArray(self,bodyInfo=None,plt=0, pristineLines=0,cables=0):
         '''Creates an array in moorpy from the mooring, anchor, connector, and platform objects in the array.
@@ -2206,3 +2267,15 @@ System Reliability/failure analysis functions
 Full scenario visualization functions
 Load case setup and constraint eval?
 '''
+
+if __name__ == '__main__':
+
+    
+    # create project class instance from yaml file
+    project = Project(file='OntologySample600m.yaml')
+    
+    project.getMoorPyArray(cables=1,plt=1)
+
+    project.plot2d()
+    
+    plt.show()
