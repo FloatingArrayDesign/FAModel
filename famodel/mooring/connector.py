@@ -76,6 +76,9 @@ class Section(Edge, dict):
 
         dict.__init__(self, **kwargs)  # initialize dict base class
         Edge.__init__(self, id)  # initialize Edge base class
+
+        # Dictionary of failure probabilities
+        self.failure_probability = {}
         
         
         # <<< have a ['type'] entry that stores a type, which could be used for sizing...
