@@ -1471,6 +1471,8 @@ class Project():
         # Seabed ground/soil type (to update)
         #X, Y = np.meshgrid(self.soil_x, self.soil_y)
         #ax.scatter(X, Y, c=self.soil_rocky, s=4, cmap='cividis_r', vmin=-0.5, vmax=1.5)
+        # or if we have a grid of soil types, something like
+        # pcolormesh([X, Y,] C, **kwargs)  wjere C is [x, y, 3 rgba]
         
         
         # Plot any object envelopes
@@ -1551,6 +1553,12 @@ class Project():
             for j in range(len(xs)):
                 rocky[i,j], _,_,_,_ = sbt.interpFromGrid(xs[j], ys[i], 
                            self.soil_x, self.soil_y, self.soil_rocky)
+                           
+        # or if we have a grid of soil types, something like
+        ax.plot_surface(X, Y, h, rstride=1, cstride=1, facecolors = soil grid converted to colors <<<,
+                       linewidth=0, antialiased=False)
+                           
+                           
         # apply colormap
         rc = cmap(norm(rocky))
         bath = ax.plot_surface(X, Y, -self.grid_depth, facecolors=rc, **args_bath)

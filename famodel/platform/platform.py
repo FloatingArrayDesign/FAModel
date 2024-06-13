@@ -170,7 +170,7 @@ class Platform(Node):
         self.ms.solveEquilibrium()
         fig,ax = self.ms.plot()
         
-    def getWatchCircle(self,ms,plot=0,ang_spacing=2):
+    def getWatchCircle(self,ms,plot=0,ang_spacing=2, shapes=True):
         '''
 
         Parameters
@@ -222,7 +222,16 @@ class Platform(Node):
         
             x.append(self.body.r6[0])       
             y.append(self.body.r6[1])
-            
+        
+        # Convert to np array and save in object envelope
+        x = np.array(x)
+        y = np.array(y)
+        self.envelope['mean'] = dict(x=np.array(x), y=np.array(y))
+        
+        if shapes:  # want to *optionally* make a shapely polygon
+            from shapely import Polygon
+            self.envelope['mean']['shape'] = Polygon(list(zip(x,y)))
+        
         if plot:
             plt.figure()
             plt.plot(x,y)
