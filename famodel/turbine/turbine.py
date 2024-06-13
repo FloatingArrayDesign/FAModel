@@ -3,16 +3,18 @@
 import numpy as np
 
 from famodel.seabed.seabed_tools import interpFromGrid
+from famodel.famodel_base import Node
+from copy import deepcopy
 
 
-class Turbine():
+class Turbine(Node):
     '''
     Class for Turbine - used for holding design info and making lookup
     table of thrust force for different conditions. This would typically
     be an entry in a Project turbineTypes list (one per turbine type).
     '''
     
-    def __init__(self, dd):
+    def __init__(self, dd,id):
         '''
         Initialize turbine object based on dictionary from ontology or RAFT
         input file.
@@ -22,6 +24,8 @@ class Turbine():
         dd : dict
             Dictionary describing the design, in RAFT rotor format.
         '''
+        Node.__init__(self, id) # initialize node base class
+        
         
         # Design description dictionary for this Turbine
         self.dd = deepcopy(dd)
@@ -44,7 +48,7 @@ class Turbine():
         self.rotor = Rotor(self.dd, [], 0)
         
     
-    def calcThrustForces(self):
+    def calcThrustForces(self,pitches,yaws,U0):
         '''
         Compute thrust force vector in various cases.
         '''
@@ -66,31 +70,31 @@ class Turbine():
                 loads, derivs = self.rotor.runCCBlade(U0, ptfm_pitch=self.grid_pitches(i_p), 
                                              yaw_misalign=self.grid_yaws(i_y))
                 
-                # Rotation matrix from rotor axis orientation to wind inflow direction
-                R_inflow = rotationMatrix(0, turbine_tilt, yaw_misalign)
+                # # Rotation matrix from rotor axis orientation to wind inflow direction
+                # R_inflow = rotationMatrix(0, self.grid_pitches(i_p), self.grid_yaws(i_y))
                 
-                # Set up vectors in axis frame (Assuming CCBlade forces (but not 
-                # moments) are relative to inflow direction.
-                forces_inflow = np.array([loads["T"][0], loads["Y"][0], loads["Z" ][0]])
-                moments_axis = np.array([loads["My"][0], loads["Q"][0], loads["Mz"][0]])
-                forces_axis = np.matmul(R_inflow, forces_inflow)
+                # # Set up vectors in axis frame (Assuming CCBlade forces (but not 
+                # # moments) are relative to inflow direction.
+                # forces_inflow = np.array([loads["T"][0], loads["Y"][0], loads["Z" ][0]])
+                # moments_axis = np.array([loads["My"][0], loads["Q"][0], loads["Mz"][0]])
+                # forces_axis = np.matmul(R_inflow, forces_inflow)
                 
-                # Rotation matrix from FOWT orientation to rotor axis oriention 
-                R_axis = rotationMatrix(0, np.arctan2(self.rotor.axis[2], self.rotor.axis[0]),
-                                           np.arctan2(self.rotor.axis[1], self.rotor.axis[0]) ) 
+                # # Rotation matrix from FOWT orientation to rotor axis oriention 
+                # R_axis = rotationMatrix(0, np.arctan2(self.rotor.axis[2], self.rotor.axis[0]),
+                #                            np.arctan2(self.rotor.axis[1], self.rotor.axis[0]) ) 
                                            
-                # Rotate forces and moments to be relative to FOWT orientations
+                # # Rotate forces and moments to be relative to FOWT orientations
                 
-                # >>> also need to translate to be about PRP rather than hub <<<
+                # # >>> also need to translate to be about PRP rather than hub <<<
                 
-                self.grid_f6[i_y, i_p, :3] = np.matmul(R_axis, forces_axis)
-                self.grid_f6[i_y, i_p, 3:] = np.matmul(R_axis, moments_axis)
+                # self.grid_f6[i_y, i_p, :3] = np.matmul(R_axis, forces_axis)
+                # self.grid_f6[i_y, i_p, 3:] = np.matmul(R_axis, moments_axis)
                 
-                # Save power too
-                self.grid_p[i_y, i_p] = loads["P"]
+                # # Save power too
+                # self.grid_p[i_y, i_p] = loads["P"]
     
     
-    def getForces(self, yaw, pitch=0)
+    def getForces(self, yaw, pitch=0):
         '''Compute aero force/moment vector at a given yaw misalignment angle
         and platform pitch angle if provided.
         

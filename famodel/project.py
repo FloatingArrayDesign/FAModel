@@ -16,19 +16,19 @@ except:
     pass
 
 #from shapely.geometry import Point, Polygon, LineString
-
-from famodel.anchors.anchor_capacity import anchorCapacity
-from famodel.seabed import seabed_tools as sbt
-from famodel.mooring.mooring import Mooring
-from famodel.platform.platform import Platform
-from famodel.mooring.anchor import Anchor
-from famodel.mooring.connector import Connector
-from famodel.substation.substation import Substation
-from famodel.cables.cable import SubseaCable
-from famodel.cables.dynamic_cable import DynamicCable
-from famodel.cables.static_cable import StaticCable
-from famodel.cables.cable_properties import getCableProps, getBuoyProps
-from famodel.cables.components import Joint
+from .anchors.anchor_capacity import anchorCapacity
+from .seabed import seabed_tools as sbt
+from .mooring.mooring import Mooring
+from .platform.platform import Platform
+from .mooring.anchor import Anchor
+from .mooring.connector import Connector
+from .substation.substation import Substation
+from .cables.cable import SubseaCable
+from .cables.dynamic_cable import DynamicCable
+from .cables.static_cable import StaticCable
+from .cables.cable_properties import getCableProps, getBuoyProps
+from .cables.components import Joint
+from .turbine.turbine import Turbine
 
 class Project():
     '''
@@ -305,6 +305,23 @@ class Project():
             platforms = [] # list of dictionaries of platform information
             platforms = d['platforms']
             RAFTDict['platforms'] = d['platforms']
+            
+        # ----- turbines -----
+        if 'turbine' in d and d['turbine']:
+            # check that there is only one turbine
+            if 'turbines' in d and d['turbines']:
+                raise Exception("Cannot read in items for both 'turbines' and 'turbine' keywords. Use either 'turbine' keyword for one platform or 'turbines' keyword for a list of platforms.")
+            elif type(d['turbine']) is list and len(d['turbine'])>1:
+                raise Exception("'turbine' section keyword must be changed to 'turbines' if multiple turbines are listed")
+            else:
+                turbines = {} # dictionary of turbine information
+                turbines = d['turbine']
+                RAFTDict['turbine'] = d['turbine']
+        # load list of turbine dictionaries into RAFT dictionary
+        elif 'turbines' in d and d['turbines']:
+            turbines = [] # list of dictionaries of turbine information
+            turbines = d['turbines']
+            RAFTDict['turbines'] = d['turbines']
 
                 # I think we want to just store it as a dictionary
                 # validate it,
@@ -495,6 +512,17 @@ class Project():
                     self.platformList[arrayInfo[i]['ID']].zFair = platforms['zFair']
                 # remove pre-set headings (need to append to this list so list should start off empty)
                 self.platformList[arrayInfo[i]['ID']].mooring_headings = []
+                
+                # create turbine instance
+                turb_name = str(arrayInfo[i]['turbineID'])+str(i)
+                if isinstance(turbines,list):
+                    turb_dd = turbines[arrayInfo[i]['turbineID']]
+                else:
+                    turb_dd = turbines
+                self.turbineList[turb_name] = Turbine(turb_dd,turb_name)
+                # attach turbine to platform
+                self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])
+                
                 if not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
                     m_s = arrayInfo[i]['mooringID'] # get mooring system ID
                     mySys = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
@@ -533,7 +561,6 @@ class Project():
                         
                         # set anchor info
                         lineAnch = mySys[j]['anchorType'] # get the anchor type for the line
-                        # lineAnch = mSystems[m_s]['data'][j][2] # get the anchor type for the line
                         ad = getAnchors(lineAnch, mc=mc) # call method to create anchor dictionary
                         ad['angle'] = nAngle
                         
@@ -544,17 +571,6 @@ class Project():
                         # attach mooring object to anchor and platform
                         mc.attachTo(self.anchorList[(arrayInfo[i]['ID'],mct)],end='A')
                         mc.attachTo(self.platformList[arrayInfo[i]['ID']],end='B')
-                        # add mooring class instance to list in anchor class
-                        # self.anchorList[(arrayInfo[i]['ID'],mct)].mooringList[(arrayInfo[i]['ID'],mct)] = mc
-                        
-                        # create connector dictionaries and objects for line 
-                        #getConnectors(c_config,(arrayInfo[i]['ID'],mct))              
-                        # add mooring class instance to mooring list in the platform class instance
-                        # self.platformList[arrayInfo[i]['ID']].mooringList[(arrayInfo[i]['ID'],mct)] = mc
-                        # add 0 to boolean list (platform not connected to line end A)
-                        # self.platformList[arrayInfo[i]['ID']].endB[(arrayInfo[i]['ID'],mct)] = 1
-                        # add anchor class instance to anchor list in platform class instance
-                        # self.platformList[arrayInfo[i]['ID']].anchorList[(arrayInfo[i]['ID'],mct)] = self.anchorList[(arrayInfo[i]['ID'],mct)]
                         
                         # update counter
                         mct += 1
@@ -1645,7 +1661,7 @@ class Project():
                 self.ms.addBody(-1,r6,m=bodyInfo[body]['m'],v=bodyInfo[body]['v'],rCG=np.array(bodyInfo[body]['rCG']),rM=np.array(bodyInfo[body]['rM']),AWP=bodyInfo[body]['AWP'])
             else: # default to UMaine VolturnUS-S design hydrostatics info
                 print('No hydrostatics information given, so default body hydrostatics from UMaine VolturnUS-S will be used.')
-                self.ms.addBody(1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
+                self.ms.addBody(-1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
             PF.body = self.ms.bodyList[-1]
         # create anchor points and all mooring lines connected to the anchors (since all connected to anchors, can't be a shared mooring)
         for i in self.anchorList: # i is key (name) of anchor

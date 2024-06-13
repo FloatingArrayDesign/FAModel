@@ -13,12 +13,13 @@ import numpy as np
 Array = Project(file='../OntologySample600m.yaml')
 
 Array.getMoorPyArray(cables=1,plt=1)
+Array.ms.plot()
 # settings = {}
 # settings["linelabels"] = True
 # settings["pointlabels"] = True     
 # # Array.getMoorPyArray()                    
 # Array.ms.plot( **settings)
-print('Before running RAFT, rA = ',Array.ms.lineList[-1].rA[2],', rB = ', Array.ms.lineList[-1].rB[2])
+# print('Before running RAFT, rA = ',Array.ms.lineList[-1].rA[2],', rB = ', Array.ms.lineList[-1].rB[2])
 # model = Array.array
 # # model.analyzeUnloaded()
 # # model.solveEigen()

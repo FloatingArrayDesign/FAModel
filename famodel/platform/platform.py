@@ -3,7 +3,8 @@
 import numpy as np
 from famodel.famodel_base import Node
 from famodel.mooring.mooring import Mooring
-
+from famodel.turbine.turbine import Turbine
+import matplotlib.pyplot as plt
 
 class Platform(Node):
     '''
@@ -39,7 +40,7 @@ class Platform(Node):
         
         self.body = None # body object in MoorPy associated with the platform
         
-        self.mooring_headings = np.radians(mooring_headings) # headings of mooring lines [rad]
+        self.mooring_headings = list(np.radians(mooring_headings)) # headings of mooring lines [rad]
         
         self.n_mooring = len(mooring_headings) # number of mooring lines
         
@@ -169,3 +170,62 @@ class Platform(Node):
         self.ms.solveEquilibrium()
         fig,ax = self.ms.plot()
         
+    def getWatchCircle(self,ms,plot=0,ang_spacing=2):
+        '''
+
+        Parameters
+        ----------
+        ms : object
+            MoorPy object of the array this platform is a part of
+
+        Returns
+        -------
+        x: list of x-coordinates for watch circle
+        y: list of y-coordinates for watch circle
+
+        '''
+        self.body.type = -1
+        
+        x = []
+        y = []
+        
+        # find turbine attached to platform
+        for i in self.attachments:
+            print(self.attachments[i]['obj'])
+            if isinstance(self.attachments[i]['obj'],Turbine):
+                turbine = self.attachments[i]['obj']
+        try:
+            print(turbine)
+            # create rotor
+            turbine.makeRotor()
+            # get thrust curve
+            turbine.calcThrustForces()
+        except:
+            print('Could not get thrust forces from RAFT, using IEA 15 MW turbine thrust as default')
+            thrust = 1.95e6
+        
+
+        for ang in range(0, 360+ang_spacing, ang_spacing):
+            fx = thrust*np.cos(np.radians(ang))
+            fy = thrust*np.sin(np.radians(ang))
+            
+            self.body.f6Ext = np.array([fx, fy, 0, fy*150, fx*150, 0])       # apply an external force on the body [N]
+            ms.initialize()
+            ms.solveEquilibrium3(DOFtype='both')                        # equilibrate (specify 'both' to enable both free and coupled DOFs)
+
+            # if ang == 0:
+                
+                # stiffness = project.ms.getCoupledStiffness()
+                # k = stiffness[0,0]
+                # surge = self.body.r6[0]
+                # print('Offset ', self.body.r6[0])
+        
+            x.append(self.body.r6[0])       
+            y.append(self.body.r6[1])
+            
+        if plot:
+            plt.figure()
+            plt.plot(x,y)
+                
+            
+        return(x,y)

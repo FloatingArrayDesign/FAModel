@@ -131,7 +131,8 @@ class Node():
             print(f'Adding attachment for {self.id} to {object2.id}')
             self.attachments[object2.id] = dict(obj=object2, id=object2.id, 
                                             r_rel=np.array(r_rel), type='node')
-            object2._attach_to(self)  # tell it it's attached to this Node
+            #object2._attach_to(self)  # tell it it's attached to this Node
+            object2.attachments[self.id] = dict(obj=self,id=self.id,r_rel=np.array(r_rel),type='node')
             
         elif isinstance(object2, Edge):
             self.attachments[object2.id] = dict(obj=object2, id=object2.id, 
