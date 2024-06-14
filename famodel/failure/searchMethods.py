@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-from failure.graphBuilder import *
+from famodel.failure.graphBuilder import *
 
 ''' searchMethods--------------------------------------------------------------------------------------------------
 

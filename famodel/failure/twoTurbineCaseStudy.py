@@ -1,6 +1,6 @@
 import numpy as np
-from failure.graphBuilder import *
-from failure.searchMethods import *
+from famodel.failure.graphBuilder import *
+from famodel.failure.searchMethods import *
 
 ''' twoTurbineCaseStudy.py -----------------------------------------------------------------------------------------------
 

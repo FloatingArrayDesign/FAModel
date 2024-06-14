@@ -2,8 +2,8 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
-from failure.failureProbabilities import *
-from failure.twoTurbineCaseStudy import *
+from famodel.failure.failureProbabilities import *
+from famodel.failure.twoTurbineCaseStudy import *
 from famodel.project import Project
         
 

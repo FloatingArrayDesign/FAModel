@@ -6,9 +6,9 @@ import copy
 import math
 import random
 
-from failure.graphBuilder import *
-from failure.searchMethods import *
-from failure.twoTurbineCaseStudy import *
+from famodel.failure.graphBuilder import *
+from famodel.failure.searchMethods import *
+from famodel.failure.twoTurbineCaseStudy import *
 
 ''' failureProbability -------------------------------------------------------------------------------------------------------------
 
