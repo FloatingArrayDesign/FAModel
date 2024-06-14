@@ -12,6 +12,8 @@ class failureGraph():
         # Create project class instance from yaml file
         self.Array = Project(file=project_file)
         self.G = nx.DiGraph()
+        self.ms = self.Array.ms # MoorPy object
+        self.ms_initialized = False
 
         self.critical_failures = None
         self.criticality_type = None
@@ -66,7 +68,6 @@ class failureGraph():
 
         # Get the systems (groups of failures by component type) and list of nodes that could impact the FAModel
         systems = self.get_systems(nodeNames)
-        impacts = self.get_impact_nodes(nodeNames)
 
         # Initialize graph, boolean for plotting, and list of probabilities
         self.G = nx.DiGraph()
@@ -85,14 +86,14 @@ class failureGraph():
             for platform_failure in systems['platform']:
                 if platform_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[platform_failure]
                 else: fail_prob = init_prob_dict[platform_failure]
-                self.G.add_node(platform_failure + "\n" + str(platform), probability=fail_prob, obj=[platform_obj], impacts=impacts[platform_failure])
+                self.G.add_node(platform_failure + "\n" + str(platform), probability=fail_prob, obj=[platform_obj], failure=platform_failure, m_or_e=self.mode_effect_dict[platform_failure])
                 self.G = self.addMoreEdges(platform_failure, platform, [platform])
 
             # Create failure nodes
             for turbine_failure in systems['turbine']:
                 if turbine_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[turbine_failure]
                 else: fail_prob = init_prob_dict[turbine_failure]
-                self.G.add_node(turbine_failure + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], impacts=impacts[turbine_failure])
+                self.G.add_node(turbine_failure + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], failure=turbine_failure, m_or_e=self.mode_effect_dict[turbine_failure])
                 self.G = self.addMoreEdges(turbine_failure, platform, [platform])
 
             # FIRST DEGREE EDGES -------------------------------------------------------------------------------------------
@@ -113,7 +114,7 @@ class failureGraph():
                     if 'connect' in attach1_failure: attach1_name = platform + attach1_name
                     if attach1_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[attach1_failure]
                     else: fail_prob = init_prob_dict[attach1_failure]
-                    self.G.add_node(attach1_failure + "\n" + attach1_name,  probability=fail_prob, obj=[attachments[attach1]['obj']], impacts=impacts[attach1_failure])
+                    self.G.add_node(attach1_failure + "\n" + attach1_name,  probability=fail_prob, obj=[attachments[attach1]['obj']], failure=attach1_failure, m_or_e=self.mode_effect_dict[attach1_failure])
                     self.G = self.addMoreEdges(attach1_failure, attach1_name, [platform, attach1_name])
                     attach1_name = original_name
 
@@ -130,7 +131,7 @@ class failureGraph():
                         if self.couldClash(clash_failure, attachments[attach1]['obj'], attachments[attach2]['obj'], reverse):
                             if clash_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[clash_failure]
                             else: fail_prob = init_prob_dict[clash_failure]
-                            self.G.add_node(clash_failure + "\n" + clash_name,  probability=fail_prob, obj=[attachments[attach1]['obj'], attachments[attach2]['obj']], impacts=impacts[clash_failure])
+                            self.G.add_node(clash_failure + "\n" + clash_name,  probability=fail_prob, obj=[attachments[attach1]['obj'], attachments[attach2]['obj']], failure=clash_failure, m_or_e=self.mode_effect_dict[clash_failure])
                             self.G = self.addMoreEdges(clash_failure, clash_name, [platform, attach1_name, attach2_name, clash_name])
                             if attach1_type == 'mooring' and attach2_type == attach1_type: mooring_clashes.append(clash_failure + "\n" + clash_name)
                             elif ('shared' not in attach1_type) and ('shared' not in attach2_type): cable_clashes.append(clash_failure + "\n" + clash_name)
@@ -179,7 +180,7 @@ class failureGraph():
                     for component_failure in systems[component_type]:
                         if component_failure in failure_probabilities: fail_prob = failure_probabilities[component_failure]
                         else: fail_prob = init_prob_dict[component_failure]
-                        self.G.add_node(component_failure + "\n" + component_name,  probability=fail_prob, obj=[component], impacts=impacts[component_failure])
+                        self.G.add_node(component_failure + "\n" + component_name,  probability=fail_prob, obj=[component], failure=component_failure, m_or_e=self.mode_effect_dict[component_failure])
                         self.G = self.addMoreEdges(component_failure, component_name, [platform, attach1])
 
 
@@ -196,7 +197,7 @@ class failureGraph():
                         for anchor_failure in systems[attach1A_type]:
                             if anchor_failure in attach1A.failure_probability.keys(): fail_prob = failure_probabilities[anchor_failure]
                             else: fail_prob = init_prob_dict[anchor_failure]
-                            self.G.add_node(anchor_failure + "\n" + attach1A_name,  probability=fail_prob, obj=[attach1A], impacts=impacts[anchor_failure])
+                            self.G.add_node(anchor_failure + "\n" + attach1A_name,  probability=fail_prob, obj=[attach1A], failure=anchor_failure, m_or_e=self.mode_effect_dict[anchor_failure])
                             self.G = self.addMoreEdges(anchor_failure, attach1A_name, [platform, attach1_name, attach1A_name])
                     
                     # Create edges between platforms
@@ -212,7 +213,7 @@ class failureGraph():
                         for grid_failure in systems['grid']:
                             if grid_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[grid_failure]
                             else: fail_prob = init_prob_dict[grid_failure]
-                            self.G.add_node(grid_failure + "\n" + attach1A_name,  probability=fail_prob, obj=[attach1A], impacts=impacts[grid_failure])
+                            self.G.add_node(grid_failure + "\n" + attach1A_name,  probability=fail_prob, obj=[attach1A], failure=grid_failure, m_or_e=self.mode_effect_dict[grid_failure])
                             self.G = self.addMoreEdges(grid_failure, attach1A_name, [platform, attach1_name, attach1A_name])
 
             # Create mooring-mooring clashing failure node if no two mooring lines likely to clash
@@ -220,7 +221,7 @@ class failureGraph():
             if len(mooring_clashes) < 1:
                 if systems['mooringmooring'][0] in failure_probabilities.keys(): fail_prob = failure_probabilities[systems['mooringmooring'][0]]
                 else: fail_prob = init_prob_dict[systems['mooringmooring'][0]]
-                self.G.add_node(systems['mooringmooring'][0] + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], impacts=impacts[systems['mooringmooring'][0]])
+                self.G.add_node(systems['mooringmooring'][0] + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], failure=systems['mooringmooring'][0], m_or_e=self.mode_effect_dict[systems['mooringmooring'][0]])
                 self.G = self.addMoreEdges(systems['mooringmooring'][0], str(platform), [platform])
 
             # Create cable-mooring clashing failure nodes if no cable and mooring pairing likely to clash
@@ -230,7 +231,7 @@ class failureGraph():
                     for clashing_failure in systems['cablemooring']:
                         if clashing_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[clashing_failure]
                         else: fail_prob = init_prob_dict[clashing_failure]
-                        self.G.add_node(clashing_failure + "\n" + str(platform) + ' ' + str(cable_num),  probability=fail_prob, obj=[platform_obj, cable_num], impacts=impacts[clashing_failure])
+                        self.G.add_node(clashing_failure + "\n" + str(platform) + ' ' + str(cable_num),  probability=fail_prob, obj=[platform_obj, cable_num], failure=clashing_failure, m_or_e=self.mode_effect_dict[clashing_failure])
                         self.G = self.addMoreEdges(clashing_failure, str(platform) + ' ' + str(cable_num), [platform])
 
 
@@ -242,6 +243,12 @@ class failureGraph():
         nodeNames : list
             List of all the failure names to use to create dictionary of subsystems
         '''
+        # Create dictionary of which failures are modes and which are effects
+        self.mode_effect_dict = {}
+        for i in range(len(nodeNames)):
+            if i < 26: self.mode_effect_dict.update({nodeNames[i]: 'effect'})
+            else: self.mode_effect_dict.update({nodeNames[i]: 'mode'})
+
         # Systems and indices of corresponding failures in nodeNames
         turbine = [0,1,2,3,4,5,26,27,28,29]
         platform = [6,7,8,9,10,11,30,31,32]
@@ -274,23 +281,23 @@ class failureGraph():
     
 
 
-    def get_impact_nodes(self, nodeNames):
-        '''Create dictionary for each node that tells us if the node could impact the FAModel
-        Parameters
-        ----------
-        nodeNames : list
-            List of all the failure names to use to create dictionary of subsystems
-        '''
-        # List of nodes that could impact hte FAModel
-        could_impact = [2, 6, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 20, 21, 23]
-        impactful_nodes = nodeNames[could_impact]
+    # def get_impact_nodes(self, nodeNames):
+    #     '''Create dictionary for each node that tells us if the node could impact the FAModel
+    #     Parameters
+    #     ----------
+    #     nodeNames : list
+    #         List of all the failure names to use to create dictionary of subsystems
+    #     '''
+    #     # List of nodes that could impact hte FAModel
+    #     could_impact = [2, 6, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 20, 21, 23]
+    #     impactful_nodes = nodeNames[could_impact]
 
-        # Create dictionary of nodes that tells us if the node impacts the FAModel or not
-        impact_dict = {}
-        for node in nodeNames:
-            if node in impactful_nodes: impact_dict.update({node: True})
-            else: impact_dict.update({node: False})
-        return impact_dict
+    #     # Create dictionary of nodes that tells us if the node impacts the FAModel or not
+    #     impact_dict = {}
+    #     for node in nodeNames:
+    #         if node in impactful_nodes: impact_dict.update({node: True})
+    #         else: impact_dict.update({node: False})
+    #     return impact_dict
 
 
     def get_critical_node(self, param):
@@ -567,21 +574,150 @@ class failureGraph():
         return max_x, min_x, max_y, min_y
     
 
-    def enact_failures(self, failure):
+    def run_moorpy_simulation(self):
+        print('HDIGH')
+        self.Array.getMoorPyArray
+        fig, ax = self.ms.plot(ax=ax, color='red')
+        print(self.ms.bodyList[0].r6)
+        self.ms.bodyList[0].f6Ext = np.array([3e6, 0, 0, 0, 0, 0])
+        print(self.ms.bodyList[0].r6)
+    
+
+    def run_raft_simulation(self):
+        return
+
+
+    def enact_failures(self, failure, upper = False):
         '''Update the FAModel based on failure(s) occurring
         Parameters
         ----------
         failure : object
             Object of failure you would like to enact
         '''
-        # Run simulation without failure
-        without_failure = self.Array
+        # Detach from platform
+        if self.G.nodes[failure]['failure'].lower() in ['chain', 'wire rope', 'synthetic rope', 'clump weights or floats', 'connectors', 'dynamic cable', 'terminations']:
+            failure_obj = self.G.nodes[failure]['obj'][0].part_of
+            failure_obj.detachFrom('b')
 
-        # Run simulation with failure
-        with_failure = self.Array
-
-        return without_failure, with_failure
+        # Detach cable at joint
+        if self.G.nodes[failure]['failure'].lower() in ['offshore joints']:
+            failure_obj = self.G.nodes[failure]['obj'][0]
+            failure_obj.detach(failure_obj.attachments[failure_obj.attachments.keys[0]], 'a')
+        # Update MoorPy Array
+        # self.Array.getMoorPyArray
     
+    def get_descendants(self, failure, threshold = 0.0):
+        '''Find the children of a specific failure node
+        Parameters
+        ----------
+        failure : string
+            Name of the failure whose children you want to find
+        threshold : float
+            Value for which we will base our binarization of the adjacency matrix off of
+            (anything > threshold will equal 1, anything < threshold will equal 0)
+        '''
+        # Get adjacency matrix and list of node names from graph
+        adj = nx.to_numpy_array(self.G)
+        arr = np.zeros(adj.shape)
+        nodeNames = np.array(list(self.G.nodes))
+        
+        # Binarize adjacency matrix
+        for i in range(len(nodeNames)):
+            for j in range(len(nodeNames)):
+                if adj[i][j] > threshold: arr[i][j] = 1
+                else: arr[i][j] = 0
+
+        # Find index of failure
+        failure_index = np.where(nodeNames == failure)[0]
+
+        # Create diagonal matrix of row numbers (index starts at 1)
+        nodes = diagonal_nodes(arr)
+
+        # Find children of failure
+        child_bool = arr[failure_index] @ nodes # vector of zeros and child names (numerical names)
+        children_ints = child_bool[np.nonzero(child_bool)] #list of just the child names (numerical names)
+        children = [nodeNames[int(child_index)] for child_index in children_ints]
+
+        # Return list of children of failure
+        return children
+
+
+
+    def check_for_effects(self, failure):
+        '''Check if the children (failures) of the failure enacted were reached
+        Parameters
+        ----------
+        failure : string
+            Name of failure we would like to enact
+        '''
+        x=0
+        # Initialize list of observed effects (those that have occurred)
+        observed_effects = []
+
+        # Enact the failure and get its children
+        without_failure, with_failure = self.enact_failures(failure)
+        children_of_failure = self.get_descendants(failure)
+
+        # Check if effect has occurred. If so, remove the effect from the graph and add it to the list of observed effects
+        for child in children_of_failure:
+            if 'capsize' in child.lower() or 'excess dynamics' in child.lower():
+                platform_obj = self.G.nodes[child]['obj'][0]
+                case_num = 0
+                platform_num = int(platform_obj.id[-1])
+                results = self.Array.array.results['case_metrics'][case_num][platform_num]['<degree of freedom>_max']
+
+            if ('stability' in child.lower() or 'sink' in child.lower()) or 'hydrostatic' in child.lower():
+                platform_obj = self.G.nodes[child]['obj'][0]
+                z_location = platform_obj.body.r6[2]
+
+            if 'change in mooring profile' in child.lower():
+                mooring_obj = self.G.nodes[child]['obj'][0]
+                z_location = mooring_obj.ss.lineList[1]
+
+            if 'drift' in child.lower() or 'clashing' in child.lower():
+                platform_obj = self.G.nodes[child]['obj'][0]
+                x,y = platform_obj.getWatchCircle()
+
+
+            elif without_failure == with_failure:
+                self.G.remove_node(child)
+                observed_effects.append(child)
+        return observed_effects
+    
+
+
+    def choose_new_failure(self, failure):
+        '''Choose new failures to enact based off of enacted failure
+        Parameters
+        ----------
+        failure : string
+            Name of failure we would like to enact/have enacted
+        '''
+        observed_effects = self.check_for_effects(failure)
+        new_failures = []
+
+        # If there are no observed effects, ask if user would like to use the new critical failure. If so, return the new critical failure modes
+        if len(observed_effects) < 1:
+            pick_cf = input("\nThere are no observed effects from " + str(failure).replace('\n', ' ') + ".\nWould you like to update critical failure? (y/n) ")
+            if 'y' in pick_cf: 
+                critical_failures = self.update_critical_node(self.criticality_type)[1]
+
+                # Going through all the critical failures, add the failure modes in the list to the new_failures list
+                for critical_failure in critical_failures:
+                    if self.G.nodes[critical_failure]["m_or_e"] == 'mode': new_failures.append(critical_failure)
+        
+        else:
+            # Find the descendants of each observed effect
+            for observed_effect in observed_effects:
+                possible_failures = self.get_descendants(observed_effect)
+
+                # Going through all the descendants from the observed effect, add the failure modes in the list to the new_failures list
+                for possible_failure in possible_failures:
+                    if self.G.nodes[possible_failure]["m_or_e"] == 'mode': new_failures.append(possible_failure)
+        return new_failures
+
+
+
     def update_critical_node(self, criticality_stipulation):
         '''Determine and return new critical failures (presumably after the previous critical failure(s) occur)
         Parameters
