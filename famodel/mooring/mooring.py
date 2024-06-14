@@ -672,3 +672,56 @@ class Mooring(Edge):
                 MBL_cor = sec['MBL']*( (sec['d_nom']-(corrosion_mm/1000))/sec['d_nom'] )**2  # corroded MBL
             else:
                 MBL_cor = sec['MBL']
+
+
+    def getEnvelope(self,ms,plot=0,ang_spacing=2, shapes=True):
+        '''Computes the motion envelope of the Mooring based on the watch 
+        circle(s) of what it's attached to. If those aren't already 
+        calculated, this method will call the relevant getWatchCircle method.
+        
+        Parameters
+        ----------
+        
+        Returns
+        x: list of x-coordinates of motion envelope
+        y: list of y-coordinates of motion envelope
+        -------
+        '''
+        
+        from famodel.platform.platform import Platform
+        import shapely as sh
+        
+        pts = []  # list of watch circle points (on either end)
+        
+        # Loop through ends A and B
+        for i in range(2):
+            att = self.attached_to[i] # the object the end is attached to
+            
+            # Only consider a watch circle if it's attached to a platform
+            if isinstance(att, Platform):
+                
+                # If no watch circle saved, compute it 
+                if not 'mean' in att.envelope:  
+                    att.getWatchCircle(shape=True)
+                
+                # Add each vertex of the watch circle to the list
+                for x, y in zip(att.envelope['mean']['x'], 
+                                att.envelope['mean']['y']):
+                    
+                    pts.append((x, y))
+            
+            # Otherwise add a single point (e.g. for an anchor)
+            else:
+                pts.append((att.r[0], att.r[1]))
+        
+        # Convert to shapely polygon, then get convex hull
+        poly = sh.Polygon(pts)  # make polygon object
+        hull = sh.convex_hull(poly)  # convex hull (wraps around points)
+        
+        # Convert to np array and save in object envelope
+        x = np.array(hull.exterior.xy[0])
+        y = np.array(hull.exterior.xy[1])
+        self.envelope['mean'] = dict(x=x, y=y, shape=hull)
+        
+        return(x,y)
+
