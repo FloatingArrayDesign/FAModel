@@ -89,13 +89,6 @@ class failureGraph():
                 self.G.add_node(platform_failure + "\n" + str(platform), probability=fail_prob, obj=[platform_obj], failure=platform_failure, m_or_e=self.mode_effect_dict[platform_failure])
                 self.G = self.addMoreEdges(platform_failure, platform, [platform])
 
-            # Create failure nodes
-            for turbine_failure in systems['turbine']:
-                if turbine_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[turbine_failure]
-                else: fail_prob = init_prob_dict[turbine_failure]
-                self.G.add_node(turbine_failure + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], failure=turbine_failure, m_or_e=self.mode_effect_dict[turbine_failure])
-                self.G = self.addMoreEdges(turbine_failure, platform, [platform])
-
             # FIRST DEGREE EDGES -------------------------------------------------------------------------------------------
             for attach1 in attachments.keys():
                 attach1_name = str(attachments[attach1]['id'])
@@ -107,6 +100,14 @@ class failureGraph():
                 elif 'cable' in str(type(attachments[attach1]['obj'])): 
                     attach1_type = 'cable'
                     num_cables.append(attachments[attach1]['obj'])
+                elif 'turbine' in str(type(attachments[attach1]['obj'])):
+                    attach1_type = 'turbine'
+                    # Create turbine failure nodes
+                    # for turbine_failure in systems['turbine']:
+                    #     if turbine_failure in failure_probabilities.keys(): fail_prob = failure_probabilities[turbine_failure]
+                    #     else: fail_prob = init_prob_dict[turbine_failure]
+                    #     self.G.add_node(turbine_failure + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], failure=turbine_failure, m_or_e=self.mode_effect_dict[turbine_failure])
+                    #     self.G = self.addMoreEdges(turbine_failure, platform, [platform])
 
                 # Create moroing/cable failure nodes
                 for attach1_failure in systems[attach1_type]:
@@ -117,6 +118,8 @@ class failureGraph():
                     self.G.add_node(attach1_failure + "\n" + attach1_name,  probability=fail_prob, obj=[attachments[attach1]['obj']], failure=attach1_failure, m_or_e=self.mode_effect_dict[attach1_failure])
                     self.G = self.addMoreEdges(attach1_failure, attach1_name, [platform, attach1_name])
                     attach1_name = original_name
+                
+                if attach1_type == 'turbine': continue
 
                 # Create clashing failure nodes
                 for attach2 in attachments.keys():
@@ -125,6 +128,9 @@ class failureGraph():
                     clash_name = str(attach1_name)+str(attach2_name)
                     if 'mooring' in str(type(attachments[attach2]['obj'])): attach2_type = 'mooring'
                     elif 'cable' in str(type(attachments[attach2]['obj'])): attach2_type = 'cable'
+                    elif 'turbine' in str(type(attachments[attach2]['obj'])): 
+                        attach2_type = 'turbine'
+                        continue
                     for clash_failure in systems[(str(attach1_type)+str(attach2_type))]:
                         if 'shared' in attach1_type and all(abs(np.array(attachments[attach1]['obj'].rB[:2]) - np.array(attachments[attach2]['obj'].rB[:2])) < 100): reverse = True
                         else: reverse = False
@@ -140,7 +146,8 @@ class failureGraph():
                 subcomponents = attachments[attach1]['obj'].subcomponents
                 component_num = 0
                 for component in subcomponents:
-                    failure_probabilities = component.failure_probability
+                    if 'section' in str(type(component)).lower(): failure_probabilities = {}
+                    else: failure_probabilities = component.failure_probability
                     component_num += 1
                     if 'mooring' in attach1_type:
                         if 'type' in component.keys():
@@ -218,14 +225,14 @@ class failureGraph():
 
             # Create mooring-mooring clashing failure node if no two mooring lines likely to clash
             failure_probabilities = self.Array.platformList[platform].failure_probability
-            if len(mooring_clashes) < 1:
+            if len(mooring_clashes) < 1 and not(attach1_type == 'turbine'):
                 if systems['mooringmooring'][0] in failure_probabilities.keys(): fail_prob = failure_probabilities[systems['mooringmooring'][0]]
                 else: fail_prob = init_prob_dict[systems['mooringmooring'][0]]
                 self.G.add_node(systems['mooringmooring'][0] + "\n" + str(platform),  probability=fail_prob, obj=[platform_obj], failure=systems['mooringmooring'][0], m_or_e=self.mode_effect_dict[systems['mooringmooring'][0]])
                 self.G = self.addMoreEdges(systems['mooringmooring'][0], str(platform), [platform])
 
             # Create cable-mooring clashing failure nodes if no cable and mooring pairing likely to clash
-            if len(cable_clashes) < 1:
+            if len(cable_clashes) < 1 and not(attach1_type == 'turbine'):
                 for cable_num_obj in num_cables:
                     cable_num = cable_num_obj.id
                     for clashing_failure in systems['cablemooring']:
