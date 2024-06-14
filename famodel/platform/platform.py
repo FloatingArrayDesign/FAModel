@@ -5,6 +5,8 @@ from famodel.famodel_base import Node
 from famodel.mooring.mooring import Mooring
 from famodel.turbine.turbine import Turbine
 import matplotlib.pyplot as plt
+from copy import deepcopy
+from famodel.cables.cable import SubseaCable
 
 class Platform(Node):
     '''
@@ -170,7 +172,8 @@ class Platform(Node):
         self.ms.solveEquilibrium()
         fig,ax = self.ms.plot()
         
-    def getWatchCircle(self,ms,plot=0,ang_spacing=2, shapes=True):
+        
+    def getWatchCircle(self,ms,plot=0,ang_spacing=2,RNAheight=150,shapes=True):
         '''
 
         Parameters
@@ -189,36 +192,80 @@ class Platform(Node):
         x = []
         y = []
         
-        # find turbine attached to platform
+        moorings = [] # list of mooring lines attached
+        cables = [] # list of cables attached
+        
+        # find turbines, cables, and mooorings attached to platform
         for i in self.attachments:
-            print(self.attachments[i]['obj'])
             if isinstance(self.attachments[i]['obj'],Turbine):
                 turbine = self.attachments[i]['obj']
+            elif isinstance(self.attachments[i]['obj'],Mooring):
+                moorings.append(self.attachments[i]['obj'])
+            elif isinstance(self.attachments[i]['obj'],SubseaCable):
+                # find cable subcomponent attached to this cable
+                if self.attachments[i]['end'] =='a' or 'A':
+                    cables.append(self.attachments[i]['obj'].subcomponents[0])
+                elif self.attachments[i]['end'] == 'b' or 'B':
+                    cables.append(self.attachments[i]['obj'].subcomponents[-1])
+                    
         try:
-            print(turbine)
             # create rotor
             turbine.makeRotor()
             # get thrust curve
             turbine.calcThrustForces()
-        except:
+        except Exception as e:
+            print(e)
             print('Could not get thrust forces from RAFT, using IEA 15 MW turbine thrust as default')
             thrust = 1.95e6
         
-
+        # btenMax = np.zeros((len(moorings),1))
+        # atenMax = np.zeros((len(moorings),1))
+        # CbtenMax = np.zeros((len(cables),1))
+        # CatenMax = np.zeros((len(cables),1))
+        minSag = [None]*len(cables)
+        minCurvSF = [None]*len(cables)
+        CminTenSF = [None]*len(cables)
+        minTenSF = [None]*len(moorings)
+        
         for ang in range(0, 360+ang_spacing, ang_spacing):
             fx = thrust*np.cos(np.radians(ang))
             fy = thrust*np.sin(np.radians(ang))
             
-            self.body.f6Ext = np.array([fx, fy, 0, fy*150, fx*150, 0])       # apply an external force on the body [N]
+            self.body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                       
+            
             ms.initialize()
             ms.solveEquilibrium3(DOFtype='both')                        # equilibrate (specify 'both' to enable both free and coupled DOFs)
-
-            # if ang == 0:
-                
-                # stiffness = project.ms.getCoupledStiffness()
-                # k = stiffness[0,0]
-                # surge = self.body.r6[0]
-                # print('Offset ', self.body.r6[0])
+            
+            # get tensions on mooring line
+            for j,moor in enumerate(moorings): 
+                MBLA = float(moor.ss.lineList[0].type['MBL'])
+                MBLB = float(moor.ss.lineList[-1].type['MBL'])
+                # print(MBLA,MBLB,moor.ss.TA,moor.ss.TB,MBLA/moor.ss.TA,MBLB/moor.ss.TB,abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB))
+                MTSF = min([abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB)])
+                # atenMax[j], btenMax[j] = moor.updateTensions()
+                if not minTenSF[j] or minTenSF[j]>MTSF:
+                    minTenSF[j] = deepcopy(MTSF)
+            
+            # get tensions, sag, and curvature on cable
+            for j,cab in enumerate(cables):
+                MBLA = cab.ss.lineList[0].type['MBL']
+                MBLB = cab.ss.lineList[-1].type['MBL']
+                CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])
+                if not CminTenSF[j] or CminTenSF[j]>CMTSF:
+                    CminTenSF[j] = deepcopy(CMTSF)
+                # CatenMax[j], CbtenMax[j] = cab.updateTensions()
+                cab.ss.calcCurvature()
+                mCSF = cab.ss.getMinCurvSF()
+                if not minCurvSF[j] or minCurvSF[j]>mCSF:
+                    minCurvSF[j] = mCSF
+                # determine number of buoyancy sections
+                nb = len(cab.buoyancySections)
+                m_s = []
+                for k in range(0,nb):
+                    m_s.append(cab.ss.getSag(2*k))
+                mS = min(m_s)
+                if not minSag[j] or minSag[j]<mS:
+                    minSag[j] = deepcopy(mS)
         
             x.append(self.body.r6[0])       
             y.append(self.body.r6[1])
@@ -226,15 +273,18 @@ class Platform(Node):
         # Convert to np array and save in object envelope
         x = np.array(x)
         y = np.array(y)
-        self.envelope['mean'] = dict(x=np.array(x), y=np.array(y))
+        self.envelopes['mean'] = dict(x=np.array(x), y=np.array(y))
         
         if shapes:  # want to *optionally* make a shapely polygon
             from shapely import Polygon
-            self.envelope['mean']['shape'] = Polygon(list(zip(x,y)))
-        
+            self.envelopes['mean']['shape'] = Polygon(list(zip(x,y)))
+             
+        maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))
+
         if plot:
             plt.figure()
             plt.plot(x,y)
                 
             
-        return(x,y)
+        return(x,y,maxVals)
+

@@ -65,6 +65,7 @@ site:
         keys : [wind_speed, wind_heading, turbulence, turbine_status, yaw_misalign, wave_spectrum, wave_period, wave_height, wave_heading  ]
         data :  #   m/s        deg    % or e.g. IIB_NTM    string            deg         string          (s)         (m)         (deg)
             -  [    10.5,         0,            0.01,    operating,          0,        JONSWAP,         12,         6,         0       ]
+            -  [    12.5,         0,            0.01,    operating,          0,        JONSWAP,         12,         6,         0       ]
 
     RAFT_settings:   
         min_freq     :  0.001    #  [Hz]       lowest frequency to consider, also the frequency bin width     
@@ -1483,6 +1484,7 @@ mooring_line_types:
         d_vol:    0.1797
         m:        34.85
         EA:       4.761e7
+        MBL:    11.75e6      # [N] minimum breaking load ### JUST COPIED FROM POLYESTER, NOT REPRESENTATIVE OF A REAL VALUE NECESSARILY#########
         material: rope        
     
     polyester_182mm:

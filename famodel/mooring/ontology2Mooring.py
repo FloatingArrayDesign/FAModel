@@ -14,6 +14,7 @@ Array = Project(file='../OntologySample600m.yaml')
 
 Array.getMoorPyArray(cables=1,plt=1)
 Array.ms.plot()
+x,y,vals = Array.platformList[('fowt2')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
 # settings = {}
 # settings["linelabels"] = True
 # settings["pointlabels"] = True     

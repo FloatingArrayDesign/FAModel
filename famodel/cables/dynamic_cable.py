@@ -268,6 +268,27 @@ class DynamicCable(Edge):
         # sum up the costs in the dictionary and return
         return sum(self.cost.values()) 
     
+    def updateTensions(self):
+        ''' Gets tensions from subsystem and updates the max tensions dictionary if it is larger than a previous tension
+        '''
+        if not 'TAmax' in self.loads:
+            self.loads['TAmax'] = 0
+        if not 'TBmax' in self.loads:
+            self.loads['TBmax'] = 0
+        if not self.ss:
+            if self.shared:
+                self.createSubsystem(case=1)
+            else:
+                self.createSubsystem()
+        # get anchor tensions
+        if abs(self.ss.TA) > self.loads['TAmax']:
+            self.loads['TAmax'] = deepcopy(self.ss.TA)
+        # get TB tensions
+        if abs(self.ss.TB) > self.loads['TBmax']:
+            self.loads['TBmax'] = deepcopy(self.loads.TB)
+            
+        return(self.loads['TAmax'],self.loads['TBmax'])
+    
     def createSubsystem(self, case=0):
         ''' Create a subsystem for a line configuration from the design dictionary
         
@@ -353,6 +374,7 @@ class DynamicCable(Edge):
         #     point.v = self.dd['connectors'][i]['v']
         #     point.CdA = self.dd['connectors'][i]['CdA']
         # solve the system
+        self.ss.initialize()
         self.ss.staticSolve()
         
         return(self.ss)      

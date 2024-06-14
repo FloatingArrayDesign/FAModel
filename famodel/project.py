@@ -713,8 +713,8 @@ class Project():
                 # increment counter
                 mct += 1
         
-        # create a deepcopy of the mooring list to preserve original in case marine growth, corrosion, or other changes made
-        self.mooringListPristine = deepcopy(self.mooringList)    
+        # # create a deepcopy of the mooring list to preserve original in case marine growth, corrosion, or other changes made
+        # self.mooringListPristine = deepcopy(self.mooringList)    
         
         # ===== load Cables ======
         def CableProps(cabType,checkType=1):
@@ -1676,9 +1676,15 @@ class Project():
             ssloc = []
             for j in self.anchorList[i].attachments: # j is key (name) of mooring object in anchor i
                 # create subsystem
-                self.anchorList[i].attachments[j]['obj'].createSubsystem()
-                # set location of subsystem for simpler coding
-                ssloc.append(self.anchorList[i].attachments[j]['obj'].ss)
+                if pristineLines:
+                    print('making pristine line')
+                    self.anchorList[i].attachments[j]['obj'].createSubsystem(pristine=1)
+                    # set location of subsystem for simpler coding
+                    ssloc.append(self.anchorList[i].attachments[j]['obj'].pristine_ss)
+                else:
+                    self.anchorList[i].attachments[j]['obj'].createSubsystem()
+                    # set location of subsystem for simpler coding
+                    ssloc.append(self.anchorList[i].attachments[j]['obj'].ss)
                 self.ms.lineList.append(ssloc[-1])
                 ssloc[-1].number = len(self.ms.lineList)
                 # create anchor point if it doesn't already exist
@@ -2168,7 +2174,7 @@ class Project():
                 cEq = [] # reset cEq
                 cD,cP = self.mooringList[i].addMarineGrowth(mgDict,project=self,idx=i)
                 for j in range(0,len(cP)):
-                    cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.mooringList[i].subsystem.pointList[cP[j]].r[2])
+                    cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.mooringList[i].ss.pointList[cP[j]].r[2])
                 # adjust depth to change based on difference between actual and desired change depth
                 if cEq:
                     mgDict['th'][0][2] = mgDict['th'][0][2] + sum(cEq)/len(cEq)
@@ -2187,7 +2193,7 @@ class Project():
                 if ct == 10:
                     raise Exception(f"Unable to produce marine growth at the indicated change depths within the depth tolerance provided for mooring line index {i}. Please check for errors or increase tolerance.")
                 # assign the newly created subsystem into the right place in the line list
-                self.ms.lineList[ii] = self.mooringList[i].subsystem
+                self.ms.lineList[ii] = self.mooringList[i].ss
                 
     def updateFailureProbability(self):
         '''
