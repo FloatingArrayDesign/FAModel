@@ -348,7 +348,47 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths)
     f.close()
 
 
+def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
+    """Function to return the name of the soil below a specific x/y coordinate by creating shapely polygons based on the shapefile data.
+    It loops through all polygons in the shapefile and if the x/y position is contained in that polygon, it returns the soil of that polygon."""
+    
+    # create a GeoDataFrame of the shapefile
+    soil_gdf = gpd.read_file(soil_file)
 
+    # list of soil names for each geometry in the GeoDataFrame
+    soil_names = [soil for soil in soil_gdf['V4_Lith1']]
+
+    # lists of the polygons in the shapefile, and the lat/long coordinates of each polygon
+    soil_shapes = [shape for shape in soil_gdf['geometry']]
+    soil_longs = [ [x for x,y in shape.exterior.coords] for shape in soil_shapes ]
+    soil_lats = [ [y for x,y in shape.exterior.coords] for shape in soil_shapes ]
+
+    # convert the lat/long coordinates to x/y coordinates
+    soil_xs = [ convertLatLong2Meters(soil_longs[i], soil_lats[i], centroid, latlong_crs, custom_crs, return_centroid=False)[0] for i in range(len(soil_shapes)) ]
+    soil_ys = [ convertLatLong2Meters(soil_longs[i], soil_lats[i], centroid, latlong_crs, custom_crs, return_centroid=False)[1] for i in range(len(soil_shapes)) ]
+
+    # make new coordinates 
+    #soil_coords = [ (soil_xs[i], soil_ys[i]) for i in range(len(soil_xs)) ]
+    soil_coords = [ [ [soil_xs[i][j], soil_ys[i][j]] for j in range(len(soil_xs[i])) ] for i in range(len(soil_xs)) ]
+
+    # make new shapely polygons based on the new x/y coordinates
+    soil_polygons = [ Polygon(soil_coords[i]) for i in range(len(soil_coords)) ]
+
+    # move the large "mud" polygon to the back of the list
+    mud_polygon = soil_polygons[0]
+    soil_polygons[0] = soil_polygons[-1]
+    soil_polygons[-1] = mud_polygon
+    # move the mud name to the back of the list
+    soil_names[0] = 'hard'
+    soil_names[-1] = 'mud'
+
+    # loop through all the new polygons and if the x/y coordinate is within a polygon, return the soil name of that polygon
+    for i,polygon in enumerate(soil_polygons):
+        if polygon.contains(Point(x,y)):
+            soil_type = soil_names[i]
+            break
+
+    return soil_type
 
 
 

@@ -3,6 +3,7 @@ import numpy as np
 #import matplotlib.backends
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
+from scipy import linalg
 import inspect
 
 ###################################
@@ -88,7 +89,7 @@ def py_analysis(profile, L, D, t, E,
         # Extract rock profile data
         f_UCS, f_Em = rock_profile(profile)
         UCS, Em = f_UCS(z[i])/gamma_f, f_Em(z[i])/gamma_f
-        py_funs.append(py_Reese(z[i], D, UCS, Em))
+        py_funs.append(py_Reese(z[i], D, t, UCS, Em))
         k_secant[i] = py_funs[i](y[i])/y[i]
         SCR = nhuc*Em/(UCS*(1 + nhu))*delta_r/D
         alpha = 0.36*SCR - 0.0005
@@ -149,7 +150,7 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
     y_updated - Lateral displacement at each node
     '''
 
-    from scipy import linalg
+    
 
     # Initialize and assemble matrix
     X = np.zeros((N,N))
@@ -203,7 +204,7 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Reese(z, D, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
+def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
 
@@ -225,8 +226,8 @@ def py_Reese(z, D, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
     'p' (N/m) and 'y' (m).
     '''
 
-    from scipy.interpolate import interp1d
-    global var_Reese
+    #from scipy.interpolate import interp1d
+    #global var_Reese
     
     Dref = 0.305; nhu = 0.3; E = 200e9
     I  = np.pi*(D**4 - (D - 2*t)**4)/64.0
@@ -264,7 +265,7 @@ def py_Reese(z, D, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
         elif y[j] > 0:
             p[j] = p[j]                            
  
-    var_Reese = inspect.currentframe().f_locals          
+    #var_Reese = inspect.currentframe().f_locals          
     
     f = interp1d(y,p)   # Interpolation function for p-y curve
     
@@ -308,8 +309,8 @@ def rock_profile(profile,plot_profile='No'):
     f_Em     - 'interp1d' function containing effective vertical stress profile (Pa)
     '''
 
-    from scipy.interpolate import interp1d
-    global var_rock_profile
+    
+    #global var_rock_profile
 
     # Depth of mudline relative to pile head
     z0 = profile[0,0].astype(float)
@@ -337,7 +338,7 @@ def rock_profile(profile,plot_profile='No'):
     f_UCS = interp1d(depth, UCS*1e6, kind='linear') # Pa
     f_Em = interp1d(depth, Em*1e6, kind='linear')   # Pa
     
-    var_rock_profile = inspect.currentframe().f_locals
+    #var_rock_profile = inspect.currentframe().f_locals
 
     return f_UCS, f_Em
 
@@ -349,7 +350,7 @@ if __name__ == '__main__':
                         [18.0, 7.0, 150., 'Name of p-y model'],
                         [50.0, 7.0, 150., 'Name of p-y model']])
 
-    f_UCS, f_Em = rock_profile(profile,plot_profile='No')
+    #f_UCS, f_Em = rock_profile(profile,plot_profile='No')
        
     #Pile dimensions
     L = 5                  # Pile length (m)

@@ -9,6 +9,7 @@ import moorpy.MoorProps as mprop
 
 from .capacity_plate import getCapacityPlate
 from .capacity_suction import getCapacitySuction
+from .capacity_dandg import *
 
 
 

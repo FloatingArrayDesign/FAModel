@@ -179,6 +179,7 @@ def getCapacitySuction(D, L, Tm, thetam, zlug, safety_factor='yes', line_type='c
 
      
 def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=10.0, k=2.0, alpha=0.7, rhows=6.85, plot=True):
+#def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=2.39, k=1.41, alpha=0.7, rhows=6.85, plot=True):
     '''
     Parameters
     ----------
@@ -219,7 +220,7 @@ def getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='yes', Su0=10.0
     if safety_factor == 'yes':
         FoSh = 1.6
         FoSv = 2.0
-        FoSsoil = 2.0
+        FoSsoil = 1.0
     elif safety_factor == 'no':
         FoSh = 1.0
         FoSv = 1.0
@@ -310,8 +311,8 @@ if __name__ == '__main__':
 
     #fx = 54735571.30174828
     #fy = 42519484.98012456
-    fx = 4522222.788895202
-    fy = 2948278.926831712
+    fx = 4522222.788895202/10
+    fy = 2948278.926831712/5
 
     Tm = np.linalg.norm([fx, fy])/1000
     thetam = np.degrees(np.arctan(fy/fx))
