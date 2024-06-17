@@ -16,19 +16,19 @@ except:
     pass
 
 #from shapely.geometry import Point, Polygon, LineString
-from .anchors.anchor_capacity import anchorCapacity
-from .seabed import seabed_tools as sbt
-from .mooring.mooring import Mooring
-from .platform.platform import Platform
-from .mooring.anchor import Anchor
-from .mooring.connector import Connector
-from .substation.substation import Substation
-from .cables.cable import SubseaCable
-from .cables.dynamic_cable import DynamicCable
-from .cables.static_cable import StaticCable
-from .cables.cable_properties import getCableProps, getBuoyProps
-from .cables.components import Joint
-from .turbine.turbine import Turbine
+from famodel.anchors.anchor_capacity import anchorCapacity
+from famodel.seabed import seabed_tools as sbt
+from famodel.mooring.mooring import Mooring
+from famodel.platform.platform import Platform
+from famodel.mooring.anchor import Anchor
+from famodel.mooring.connector import Connector
+from famodel.substation.substation import Substation
+from famodel.cables.cable import SubseaCable
+from famodel.cables.dynamic_cable import DynamicCable
+from famodel.cables.static_cable import StaticCable
+from famodel.cables.cable_properties import getCableProps, getBuoyProps
+from famodel.cables.components import Joint
+from famodel.turbine.turbine import Turbine
 
 class Project():
     '''
@@ -1478,17 +1478,14 @@ class Project():
         # Plot any object envelopes
         for platform in self.platformList.values():
             for name, env in platform.envelopes.items():
-                if 'shape' in env:  # if there's a shapely object
-                    pass  # do nothing for now...
-                elif 'x' in env and 'y' in env:  # otherwise just use coordinates
-                    ax.fill(env['x'], env['y'], edgecolor=[.5,0,0,.8], facecolor='none', linestyle='dashed', lw=0.8)
+                ax.fill(env['x'], env['y'], edgecolor=[.5,0,0,.8], facecolor='none', linestyle='dashed', lw=0.8)
         
         for mooring in self.mooringList.values():
             for name, env in mooring.envelopes.items():
-                if 'shape' in env:  # if there's a shapely object
-                    pass  # do nothing for now...
-                elif 'x' in env and 'y' in env:  # otherwise just use coordinates
-                    ax.fill(env['x'], env['y'], color=[.6,.3,.3,.6])
+                #if 'shape' in env:  # if there's a shapely object
+                #    pass  # do nothing for now...
+                #elif 'x' in env and 'y' in env:  # otherwise just use coordinates
+                ax.fill(env['x'], env['y'], color=[.6,.3,.3,.6])
         
         
         # Plot moorings one way or another (eventually might want to give Mooring a plot method)
@@ -1501,6 +1498,12 @@ class Project():
                 ax.plot([mooring.rA[0], mooring.rB[0]], 
                         [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5)
         
+        # Plot cables one way or another (eventually might want to give Mooring a plot method)
+        for cable in self.cableList.values():
+        
+            # simple line plot for now
+                ax.plot([cable.rA[0], cable.rB[0]], 
+                        [cable.rA[1], cable.rB[1]], 'r--', lw=0.5)
         
         # Plot platform one way or another (might want to give Platform a plot method)
         for platform in self.platformList.values():
@@ -2302,10 +2305,16 @@ if __name__ == '__main__':
 
     
     # create project class instance from yaml file
-    project = Project(file='OntologySample600m.yaml')
+    #project = Project(file='OntologySample600m.yaml')
+    project = Project(file='../tests/simple_farm.yaml')
     
     project.getMoorPyArray(cables=1,plt=1)
 
-    project.plot2d()
+    # make envelopes and watch circles
+    # (Mooring.getEnvelope will call Platform.getWatchCircle when needed)
+    for moor in project.mooringList.values():
+        moor.getEnvelope()
+
+    project.plot2d()  # this should also plot the watch circles/envelopes!
     
     plt.show()

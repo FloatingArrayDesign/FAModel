@@ -674,7 +674,7 @@ class Mooring(Edge):
                 MBL_cor = sec['MBL']
 
 
-    def getEnvelope(self,ms,plot=0,ang_spacing=2, shapes=True):
+    def getEnvelope(self):
         '''Computes the motion envelope of the Mooring based on the watch 
         circle(s) of what it's attached to. If those aren't already 
         calculated, this method will call the relevant getWatchCircle method.
@@ -701,12 +701,12 @@ class Mooring(Edge):
             if isinstance(att, Platform):
                 
                 # If no watch circle saved, compute it 
-                if not 'mean' in att.envelope:  
-                    att.getWatchCircle(shape=True)
+                if not 'mean' in att.envelopes:  
+                    att.getWatchCircle()
                 
                 # Add each vertex of the watch circle to the list
-                for x, y in zip(att.envelope['mean']['x'], 
-                                att.envelope['mean']['y']):
+                for x, y in zip(att.envelopes['mean']['x'], 
+                                att.envelopes['mean']['y']):
                     
                     pts.append((x, y))
             
@@ -721,7 +721,7 @@ class Mooring(Edge):
         # Convert to np array and save in object envelope
         x = np.array(hull.exterior.xy[0])
         y = np.array(hull.exterior.xy[1])
-        self.envelope['mean'] = dict(x=x, y=y, shape=hull)
+        self.envelopes['mean'] = dict(x=x, y=y, shape=hull)
         
         return(x,y)
 

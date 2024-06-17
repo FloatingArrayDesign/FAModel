@@ -173,14 +173,15 @@ class Platform(Node):
         fig,ax = self.ms.plot()
         
         
-    def getWatchCircle(self,ms,plot=0,ang_spacing=2,RNAheight=150,shapes=True):
+    def getWatchCircle(self, plot=0, ang_spacing=15, RNAheight=150,
+                       shapes=True):
         '''
-
+        Compute watch circle of platform based on rated thrust.
+        
         Parameters
         ----------
-        ms : object
-            MoorPy object of the array this platform is a part of
-
+        ang_spacing : float
+            Angle increment to evaluate watch circle at [deg].
         Returns
         -------
         x: list of x-coordinates for watch circle
@@ -188,6 +189,7 @@ class Platform(Node):
 
         '''
         self.body.type = -1
+        ms = self.body.sys  # work with the mooring system the body is part of
         
         x = []
         y = []
@@ -228,6 +230,7 @@ class Platform(Node):
         minTenSF = [None]*len(moorings)
         
         for ang in range(0, 360+ang_spacing, ang_spacing):
+            print(ang)
             fx = thrust*np.cos(np.radians(ang))
             fy = thrust*np.sin(np.radians(ang))
             
