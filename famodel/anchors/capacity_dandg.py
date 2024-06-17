@@ -1,7 +1,6 @@
-# Copyright Asitha Senanayake 2020
-
 import numpy as np
-from matplotlib.pyplot import plot, draw, show
+#from matplotlib.pyplot import plot, draw, show
+#import matplotlib.backends
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 import inspect
@@ -16,7 +15,8 @@ def py_analysis(profile, L, D, t, E,
     '''
     Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, 
-    EI*d4y/dz4 - F*d2y/dz2 + ky = 0 using the finite difference method.
+    EI*d4y/dz4 - V*d2y/dz2 + ky = 0 using the finite difference method.
+    EI*d4y/dz4 - V*d2y/dz2 + K*z*dy/dz + ky = 0 using the finite difference method.
 
     Assumes that EI remains constant with respect to curvature i.e. pile
     material remains in the elastic region.
@@ -25,7 +25,8 @@ def py_analysis(profile, L, D, t, E,
     -----
     Su_profile  - A 2D array of depths (m) and corresponding undrained shear strength(Pa)
                   Eg: array([[z1,Su1],[z2,Su2],[z3,Su3]...])
-                  Use small values for Su (eg: 0.001) instead of zeros to avoid divisions by zero but always start z at 0.0
+                  Use small values for Su (eg: 0.001) instead of zeros to avoid divisions 
+                  by zero but always start z at 0.0
                   Example of a valid data point at the mudline is [0.0, 0.001]
 
     L           - Length of pile         (m)
@@ -43,7 +44,7 @@ def py_analysis(profile, L, D, t, E,
 
     Optional:
     convergence_tracker - Track how k_secant converges to actual p-y curve at a selected node
-    loc                 - Node number at which k_secant to be tracked (2 to n+1)
+    loc         - Node number at which k_secant to be tracked (2 to n+1)
 
     Output:
     ------
@@ -55,7 +56,8 @@ def py_analysis(profile, L, D, t, E,
     # ls = 'x'
 
     # Resistance factor
-    gamma_f = 1.3
+    nhuc = 1; nhu = 0.3; gamma_f = 1.3
+    delta_r = 0.08  # Mean roughness height [m]
     
     # Convert L and D to floating point numbers to avoid rounding errors
     L = float(L)
@@ -74,9 +76,10 @@ def py_analysis(profile, L, D, t, E,
     z = np.zeros(N)
     py_funs = []
     k_secant = np.zeros(N)
+    DQ = []
 
     for i in [0,1]:           # Top two imaginary nodes
-        z[i] = (i-2)*h
+        z[i] = (i - 2)*h
         py_funs.append(0)
         k_secant[i] = 0.0
    
@@ -87,6 +90,11 @@ def py_analysis(profile, L, D, t, E,
         UCS, Em = f_UCS(z[i])/gamma_f, f_Em(z[i])/gamma_f
         py_funs.append(py_Reese(z[i], D, UCS, Em))
         k_secant[i] = py_funs[i](y[i])/y[i]
+        SCR = nhuc*Em/(UCS*(1 + nhu))*delta_r/D
+        alpha = 0.36*SCR - 0.0005
+        fs = alpha*UCS
+        Dq = np.pi*D*fs*z[i]
+        DQ.append(Dq)
 
     for i in [n+3,n+4]:      # Bottom two imaginary nodes
         z[i] = (i - 2)*h
@@ -96,7 +104,7 @@ def py_analysis(profile, L, D, t, E,
     # Track k_secant and current displacements
     if convergence_tracker == 'Yes':
         y1 = np.linspace(-2.*D,2.*D,500)
-        plt.plot(y1,py_funs[loc](y1))
+        plt.plot(y1, py_funs[loc](y1))
         plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
         plt.grid(True)
 
@@ -113,7 +121,7 @@ def py_analysis(profile, L, D, t, E,
     if print_output == 'Yes':
         print(f'y_0 = {y[2]:.3f} m')
 
-    return y[2:-2], z[2:-2]
+    return y[2:-2], z[2:-2], DQ
 
 #################
 #### Solvers ####
@@ -184,10 +192,10 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
     # Populate q with boundary conditions
     q[-1] = 2*H_n*h**3    # Shear at pile tip
     q[-2] = M_n*h**2      # Moment at pile tip
-    q[-3] = 2*H*h**3      # Shear at pile head
-    q[-4] = M*h**2        # Moment at pile head
+    q[-3] = 2*H*h**3     # Shear at pile head
+    q[-4] = M*h**2       # Moment at pile head
 
-    y = linalg.solve(EI*X,q)
+    y = linalg.solve(EI*X, q)
 
     return y
 
@@ -239,7 +247,7 @@ def py_Reese(z, D, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
     y_a = (p_ur/(2*y_rm**0.25*Kir))**1.333    
    
     N = 20
-    y = np.concatenate((-np.logspace(1,-3,N),[0],np.logspace(-3,1,N)))
+    y = np.concatenate((-np.logspace(3,-3,N),[0],np.logspace(-3,3,N)))
     
     p=[]; P=[];
     for i in range (len(y)):
@@ -270,7 +278,7 @@ def py_Reese(z, D, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
         plt.ylim([min(p),max(p)])     
         
     return f # This is f (linear interpolation of y-p)
-
+   
 #######################
 #### Rock Profile #####
 #######################
@@ -285,9 +293,9 @@ def rock_profile(profile,plot_profile='No'):
     profile - A 2D tuple in the following format: ([depth (m), UCS (MPa), Em (MPa), py-model])
               The soil profile should be defined relative to the pile/tower head (i.e. point of lateral load application)
               so that any load eccentricities can be taken into account. An example soil profile is shown below.
-              Eg: array([[z0,UCS0,Em0, 'Matlock', 0.02],
-                         [z1,UCS1,Em1, 'Matlock', 0.01],
-                         [z2,UCS2,Em2, 'Jeanjean', 550],
+              Eg: array([[z0,UCS0,Em0, 'Reese'],
+                         [z1,UCS1,Em1, 'Reese'],
+                         [z2,UCS2,Em2, 'Reese'],
                           ...])
               *The current program cannot define layers with different p-y models. But it will added in the future.
 
@@ -336,34 +344,50 @@ def rock_profile(profile,plot_profile='No'):
 if __name__ == '__main__':
     
     #                   depth  UCS   Em        p-y model    
-    profile = np.array([[0.0,  3.5, 190., 'Name of p-y model'],
-                        [3.0,  3.5, 280., 'Name of p-y model'],
-                        [8.0,  3.5, 400., 'Name of p-y model'],
-                        [15.0, 3.5, 450., 'Name of p-y model']])
+    profile = np.array([[0.0,  7.0, 150., 'Name of p-y model'],
+                        [3.0,  7.0, 150., 'Name of p-y model'],
+                        [18.0, 7.0, 150., 'Name of p-y model'],
+                        [50.0, 7.0, 150., 'Name of p-y model']])
 
     f_UCS, f_Em = rock_profile(profile,plot_profile='No')
        
     #Pile dimensions
-    L = 15.0   # Pile length (m)
-    D = 2.8    # Pile diameter (m)
-    t = 0.075  # Pile wall thickness (m)
-    E = 200e9  # Elastic modulus of steel (Pa)
+    L = 5                  # Pile length (m)
+    D = 1                  # Pile diameter (m)
+    t = (6.35 + D*20)/1e3  # Pile wall thickness (m), API RP2A-WSD
+    E = 200e9              # Elastic modulus of steel (Pa)
     
     #Pile head loads
-    H = 54e6   # Horizontal load on pile head (N)
-    V = 10e6   # Vertical load on pile head (N)
-    M = 0      # Moment on pile head (N*m)
-    H_n = 0    # Horizontal load on pile tip (N)
-    M_n = 0    # Moment on pile tip (N*m)
+    z0 = L/10        # Depth of the rock elevation from pile head (m)
+    H = 4.4e6        # Horizontal load on pile head (N)
+    V = 3.0e6        # Vertical load on pile head (N)
+    M = H*z0         # Moment on pile head (N*m)
+    H_n = 0          # Horizontal load on pile tip (N)
+    M_n = H*z0       # Moment on pile tip (N*m)
     
-    y,z = py_analysis(profile, L=L, D=D, t=t, E=E, 
+    y,z,DQ = py_analysis(profile, L=L, D=D, t=t, E=E, 
                       V=V, H=H, H_n=H_n, M=M, M_n=M_n)
     
+    Qz = np.sum(DQ)
+    
+    if y[0] < 0.1*D:
+        print('The lateral deflection at pile head is below the maximum allowable')
+    else:
+        print('PILE NOT COMPLIANT with lateral loading criteria (ASSESS D, L or t)')
+    
+    if V < Qz:
+        print('The vertical load of the pile is below the axial capacity')
+    else:
+        print('PILE NOT COMPLIANT with vertical capacity criteria (ASSESS D or L)')
+        
+    y0 = np.zeros(len(z))
     #Plot deflection profile of pile
     fig, ax = plt.subplots(figsize=(3,5))    
+    ax.plot(y0,z,'black')
     ax.plot(y,z,'r')
     ax.set_xlabel('Displacement [m]')
     ax.set_ylabel('Depth below pile head [m]')
     ax.set_ylim([L + 2,-2])
-    ax.set_xlim([-0.03*D,0.03*D])
+    ax.set_xlim([-0.1*D,0.1*D])
     ax.grid(ls='--')
+    fig.show()
