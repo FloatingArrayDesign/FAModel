@@ -601,18 +601,74 @@ class failureGraph():
         failure : object
             Object of failure you would like to enact
         '''
-        # Detach from platform
+        # --- Sections to be finished (but not by Emma) ---
+        # Flood a ballast section in RAFT
+        if 'watertightness' in self.G.nodes[failure]['failure'].lower():
+            return
+        # Remove a ballast section in RAFT
+        if 'ballast system' in self.G.nodes[failure]['failure'].lower():
+            return
+        # Replace buoyancy section with regular cable section in MoorPy
+        if 'buoyancy module' in self.G.nodes[failure]['failure'].lower():
+            buoyancy_obj = self.G.nodes[failure]['obj']
+            return
+
+        # --- Working sections ---
+        # Detach line from platform
         if self.G.nodes[failure]['failure'].lower() in ['chain', 'wire rope', 'synthetic rope', 'clump weights or floats', 'connectors', 'dynamic cable', 'terminations']:
             failure_obj = self.G.nodes[failure]['obj'][0].part_of
             failure_obj.detachFrom('b')
+            self.Array.getMoorPyArray()
 
         # Detach cable at joint
         if self.G.nodes[failure]['failure'].lower() in ['offshore joints']:
             failure_obj = self.G.nodes[failure]['obj'][0]
             failure_obj.detach(failure_obj.attachments[failure_obj.attachments.keys[0]], 'a')
-        # Update MoorPy Array
-        # self.Array.getMoorPyArray
+            self.Array.getMoorPyArray()
+        
+        # Anchor becomes a free point
+        if 'anchor' in self.G.nodes[failure]['failure'].lower():
+            anchor = self.G.nodes[failure]['obj'][0]
+            for point in self.Array.ms.pointList:
+                    if all(abs(self.Array.anchorList[anchor].r[:2] - point.r[:2]) < 10):
+                            point.type = 0
+                            self.Array.getMoorPyArray()
+
+        # Turbine not parked above cut-out wind speed (may want to add blades pitched at wrong angles)
+        if self.G.nodes[failure]['failure'].lower() in ['turbine controls']:
+            cut_out_wind_speed = 30 # in m/s --> need a way to determine this value
+            new_case = self.Array.array.design['cases']['data'][-1]
+            new_case[0] = cut_out_wind_speed + 5
+            new_case[3] = 'operating'
+            self.Array.array.design['cases']['data'].append(new_case)
+            self.Array.array.analyzeCases()
+
+        # Update RNA mass/inertia for blade or nacelle falling off/add load for hitting platform
+        if 'RNA' in self.G.nodes[failure]['failure'].lower():
+            tower_obj = self.G.nodes[failure]['obj'][0]
+            turbine_num = int(failure[-1])
+            raft_turbine = self.Array.array.fowtList[turbine_num]
+            raft_turbine.mRNA += 0  # Update RNA mass --> need help on
+            raft_turbine.IxRNA += 0 # Update RNA inerta --> need help on
+            raft_turbine.IrRNA += 0 # Update RNA inerta --> need help on
+
+            platform_obj = self.G.nodes[failure]['obj'][0].attachments[list(self.G.nodes[failure]['obj'][0].attachmentskeys())[0]]
+            platform_obj.loads.update({'z': 0}) # Add load for hitting platform --> need help on
+
+        # Update mass/inertia of tower and RNA to simulate a tower buckling and falling to the side
+        if 'tower structur' in self.G.nodes[failure]['failure'].lower():
+            tower_obj = self.G.nodes[failure]['obj'][0]
+            turbine_num = int(failure[-1])
+            raft_turbine = self.Array.array.fowtList[turbine_num]
+            raft_turbine.calcStatics()
+            raft_turbine.mtower += 0  # Update tower mass --> need help on
+            raft_turbine.rCG_tow += 0 # Update tower center of mass --> need help on
+            raft_turbine.mRNA += 0    # Update RNA mass --> need help on
+            raft_turbine.IxRNA += 0   # Update RNA inerta --> need help on
+            raft_turbine.IrRNA += 0   # Update RNA inerta --> need help on
+
     
+
     def get_descendants(self, failure, threshold = 0.0):
         '''Find the children of a specific failure node
         Parameters
@@ -650,50 +706,67 @@ class failureGraph():
 
 
 
-    def check_for_effects(self, failure):
+    def get_effects_identifiers(self, child):
         '''Check if the children (failures) of the failure enacted were reached
         Parameters
         ----------
         failure : string
             Name of failure we would like to enact
         '''
-        x=0
-        # Initialize list of observed effects (those that have occurred)
-        observed_effects = []
+        results = 'no results'
+        if 'capsize' in child.lower() or 'excess dynamics' in child.lower():
+            platform_obj = self.G.nodes[child]['obj'][0]
+            case_num = 0
+            platform_num = int(platform_obj.id[-1])
+            results = self.Array.array.results['case_metrics'][case_num][platform_num]['<degree of freedom>_max']
 
-        # Enact the failure and get its children
-        without_failure, with_failure = self.enact_failures(failure)
-        children_of_failure = self.get_descendants(failure)
+        elif ('stability' in child.lower() or 'sink' in child.lower()) or 'hydrostatic' in child.lower():
+            # Check z-location of the platform
+            results = self.G.nodes[child]['obj'][0].body.r6[2]
 
-        # Check if effect has occurred. If so, remove the effect from the graph and add it to the list of observed effects
-        for child in children_of_failure:
-            if 'capsize' in child.lower() or 'excess dynamics' in child.lower():
-                platform_obj = self.G.nodes[child]['obj'][0]
-                case_num = 0
-                platform_num = int(platform_obj.id[-1])
-                results = self.Array.array.results['case_metrics'][case_num][platform_num]['<degree of freedom>_max']
+        elif 'change in mooring profile' in child.lower():
+            results = self.G.nodes[child]['obj'][0].ss.lineList[1]
 
-            if ('stability' in child.lower() or 'sink' in child.lower()) or 'hydrostatic' in child.lower():
-                platform_obj = self.G.nodes[child]['obj'][0]
-                z_location = platform_obj.body.r6[2]
+        elif 'drift' in child.lower() or 'clashing' in child.lower():
+            (x,y,maxVals) = self.G.nodes[child]['obj'][0].getWatchCircle(self.Array.ms)
+            results = np.hstack((np.array(x), np.array(y)))
 
-            if 'change in mooring profile' in child.lower():
-                mooring_obj = self.G.nodes[child]['obj'][0]
-                z_location = mooring_obj.ss.lineList[1]
+        elif 'turbine loads' in child.lower():
+            # Check loads on turbine
+            results = self.G.nodes[child]['obj'][0].loads
 
-            if 'drift' in child.lower() or 'clashing' in child.lower():
-                platform_obj = self.G.nodes[child]['obj'][0]
-                x,y = platform_obj.getWatchCircle()
+        elif 'excess mooring loads' in child.lower() or 'nonfunctional' in child.lower():
+            self.G.nodes[child]['obj'][0].updateTensions()
+            results = [self.G.nodes[child]['obj'][0].loads['TAmax'], self.G.nodes[child]['obj'][0].loads['TBmax']]
 
+            # ---------------- or ----------------
+            # results = self.G.nodes[child]['obj'][0].ss.getTen(-1)
+            # iLine = np.where(np.array(self.Array.ms.lineList) == cable.subcomponents[subcomponent].ss)[0]
 
-            elif without_failure == with_failure:
-                self.G.remove_node(child)
-                observed_effects.append(child)
-        return observed_effects
+        elif 'anchor drag' in child.lower():
+            anchor_obj = self.G.nodes[child]['obj'][0]
+            anchor_obj.attachments[list(self.G.nodes[child]['obj'][0].attachments.keys())[0]]['obj'].updateTensions()
+            results = self.G.nodes[child]['obj'][0].loads
+
+            # ---------------- or ----------------
+            # iLine = np.where(np.array(self.Array.ms.lineList) == cable.subcomponents[subcomponent].ss)[0]
+            # results = self.G.nodes[child]['obj'][0].ss.getTen(-1)
+
+        elif 'cable profile' in child.lower() or ('excessive load' in child.lower() and 'cable' in child.lower()):
+            # Check if cable sag, hog, etc are within limits
+            results = []
+            cable = self.G.nodes[child]['obj'][0]
+            for subcomponent in cable.subcomponents:
+                if 'dynamic' in str(type(subcomponent)):
+                    iLine = np.where(np.array(self.Array.ms.lineList) == subcomponent.ss)[0]
+                    a = subcomponent.ss.getCurveSF(iLine) #> 1 = above allowable curvature, < 1= under max allowable curvature;  
+                    b = subcomponent.ss.getSag()
+                    results.append([a,b])
+        return results
     
 
 
-    def choose_new_failure(self, failure):
+    def choose_new_failure_mode(self, failure):
         '''Choose new failures to enact based off of enacted failure
         Parameters
         ----------
