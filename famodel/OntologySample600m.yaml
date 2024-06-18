@@ -1397,7 +1397,7 @@ mooring_line_configs:
     rope_shared:
         name: shared rope 
         
-        span: 1131
+        span: 1484
 
         
         sections:

@@ -94,7 +94,7 @@ class Mooring(Edge):
         
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem
-        self.pristine_ss = None
+        self.ss_mod = None
         # workaround for users who are making mooring objects based on pre-existing subsystems
         if self.ss:
             self.dd = {}
@@ -288,18 +288,22 @@ class Mooring(Edge):
         if not dd:
             dd = self.dd
         # check if a subsystem already exists
-        if self.ss:
-            print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
-        ss=Subsystem(depth=-self.dd['zAnchor'], rho=self.rho, g=self.g, 
+        if pristine:
+            if self.ss:
+                print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
+        else:
+            if self.ss_mod:
+                print('A modified subsystem for this Mooring class instance already exists, this will be overwritten.')
+        ss=Subsystem(depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
                           span=dd['span'], rad_fair=self.rad_fair,
                           z_fair=self.z_fair)
         lengths = []
         types = []
         # run through each line section and collect the length and type
         for i, sec in enumerate(dd['sections']):
-            lengths.append(deepcopy(sec['length']))
+            lengths.append(sec['length'])
             # points to existing type dict in self.dd for now
-            types.append(deepcopy(sec['type'])) # list of type names
+            types.append(sec['type']) # list of type names
             #types.append(sec['type']['name']) # list of type names
             #self.ss.lineTypes[i] = sec['type']  
 
@@ -328,11 +332,11 @@ class Mooring(Edge):
         
         # save ss to the correct Mooring variable
         if pristine:
-            # save to pristine_ss
-            self.pristine_ss = ss
-        else:
-            # save to regular ss
+            # save to ss
             self.ss = ss
+        else:
+            # save to modified ss (may have marine growth, corossion, etc)
+            self.mod_ss = ss
 
         return(ss)
     
@@ -641,7 +645,7 @@ class Mooring(Edge):
         # self.connectorList = connList
         
         # fill out rest of new design dictionary
-        nd1 = self.dd
+        nd1 = deepcopy(self.dd)
         nd1['sections'] = nd
         nd1['connectors'] = connList
         

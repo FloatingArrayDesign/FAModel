@@ -13,10 +13,10 @@ site:
     boundaries:  # project or lease area boundary, via file or vertex list
         file:   # filename of x-y vertex coordinates [m]
         x_y:    # list of polygon vertices in order [m]
-            # -[x1, y1]
-            # -[x2, y2]
-            # -[x3, y3]
-            # -[x4, y4]
+          - [-4000, -4000]
+          - [-4000, 4000]
+          - [4000, 4000]
+          - [4000, -4000]
     
     exclusions:
       - name: round example
@@ -37,7 +37,7 @@ site:
           - [ x1, y1, z1, "soft clay"]
           - [ x2, y2, z1, "medium clay"]    
           
-        file: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
+        file: # 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)
@@ -64,9 +64,9 @@ site:
     RAFT_cases:
         keys : [wind_speed, wind_heading, turbulence, turbine_status, yaw_misalign, wave_spectrum, wave_period, wave_height, wave_heading  ]
         data :  #   m/s        deg    % or e.g. IIB_NTM    string            deg         string          (s)         (m)         (deg)
-            -  [     0,         0,            0,          operating,          0,        JONSWAP,         12,         6,           0        ]
-            -  [    16,         0,            IIB_NTM,    operating,          0,        JONSWAP,         12,         6,           30       ]
-            -  [    10.59,         0,            0.05,    operating,          0,        JONSWAP,         15.75,         11.86,         0       ]
+            # -  [     0,         0,            0,          operating,          0,        JONSWAP,         12,         6,           0        ]
+            # -  [    16,         0,            IIB_NTM,    operating,          0,        JONSWAP,         12,         6,           30       ]
+            # -  [    10.59,         0,            0.05,    operating,          0,        JONSWAP,         15.75,         11.86,         0       ]
 
     RAFT_settings:   
         min_freq     :  0.001    #  [Hz]       lowest frequency to consider, also the frequency bin width     
@@ -79,15 +79,15 @@ site:
 array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [1,     1,         1,         ms1,          -1200,         -1200,          0   ]    # 2 array, shared moorings
-        -  [2,     2,         1,         ms2,          0,           -1200,            0   ] 
-        # -  [3,     1,         1,         ms3,          1200,           -1200,            0   ]
-        # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
-        # -  [5,     1,         1,         ms5,          0,              0,            0   ]
-        # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
-        # -  [7,     1,         1,         ms7,          -1200,           1200,            0   ]
-        # -  [8,     1,         1,         ms8,          0,              1200,            0   ]
-        # -  [9,     1,         1,         ms9,          1200,           1200,            0   ] 
+        -  [FOWT1,     1,         1,         ms1,          -1600,         -1600,          0   ]    # 2 array, shared moorings
+        -  [FOWT2,     2,         1,         ms2,          0,           -1600,            0   ] 
+        -  [FOWT3,     1,         1,         ms3,          1600,           -1600,            0   ]
+        -  [FOWT4,     1,         2,         ms4,          -1600,          0,            0   ]
+        -  [FOWT5,     1,         1,         ms5,          0,              0,            0   ]
+        -  [FOWT6,     1,         1,         ms6,          1600,              0,            0   ]
+        -  [FOWT7,     1,         1,         ms6,          -1600,           1600,            0   ]
+        -  [FOWT8,     1,         1,         ms6,          0,              1600,            0   ]
+        -  [FOWT9,     1,         1,         ms6,          1600,           1600,            0   ] 
 
 
 # Array-level mooring system (in addition to any per-turbine entries later)
@@ -95,7 +95,7 @@ array_mooring:
     anchor_keys :
           [ID, type,  x,  y,  embedment ]
     anchor_data :
-        #- [  1,  suction1, -850  , -593  ,  2   ]
+        # - [  Anch1,  suction1, -1030  , -295  ,  2   ]
         # - [  2,  suction1,  -1900 ,  -1200 ,  2   ]
         # - [  3,  suction1,  -850 ,  -1806 ,  2   ]
         # - [  4,  suction1,  -850 ,  600 ,  2   ]
@@ -104,17 +104,17 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
-        #- [ semitaut-poly_1      ,  Anch 1,  FOWT 1,  NA, 60, 0]
-        #- [ semitaut-poly_1      ,  Anch 1,  FOWT 4, NA, 300,  0]
-        # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  180,  0]
+        # - [ semitaut-poly_SAnch      ,  Anch1,  FOWT1,  NA, 30, 0]
+        # - [ semitaut-poly_SAnch      ,  Anch1,  FOWT4, NA, 150,  0]
+        - [ rope_shared       ,  FOWT2,  FOWT3, 0,  180,  0]
 
 
 # Array cables (compact table format, without routing info)
 array_cables:   
-    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB, headingA, headingB, cableType]
-    data:
-        - [ turbine1, turbine2, lazy_wave1, lazy_wave1,      180,       30, static_36] 
-        - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
+    # keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB, headingA, headingB, cableType]
+    # data:
+        # - [ turbine1, turbine2, lazy_wave1, lazy_wave1,      180,       30, static_36] 
+        # - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
 
 
 # ----- turbines and platforms -----
@@ -2230,6 +2230,8 @@ platforms:
   - potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
     dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
     qtfPath      :  'IEA-15-240-RWT-UMaineSemi.12d'      # path to the qtf file for the platform
+    rFair        :  58
+    zFair        :  -15
 
     members:   # list all members here
         
@@ -2323,6 +2325,8 @@ platforms:
   - potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
     dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
     qtfPath      :  'IEA-15-240-RWT-UMaineSemi.12d'      # path to the qtf file for the platform
+    rFair        :  58
+    zFair        :  -15
   
     members:   # list all members here
         
@@ -2420,38 +2424,38 @@ platforms:
 mooring_systems:
  
     ms1:
-        name: 3-line semi-taut polyester mooring system with one line shared anchor
+        name: 3-line taut polyester mooring system with one line shared anchor
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,   60 ,    suction1,   0 ]
-          - [  semitaut-poly_1,  180 ,    suction1,   0 ]
-          - [  semitaut-poly_1,  300 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  150 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  270 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  30 ,    suction1,   0 ]
     ms2:
-        name: 2-line semitaut with a third shared line
+        name: 2-line semi-taut with a third shared line
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,   120 ,    suction1,   0 ]
-          - [  semitaut-poly_1,  240 ,    suction1,   0 ]
-          - [  semitaut-poly_1,  0 ,    suction1,   0 ]
+          - [  semitaut-poly_1,   210 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  330 ,    suction1,   0 ]
+          # - [  semitaut-poly_1,  0 ,    suction1,   0 ]
     ms3:
         name: 2 line semitaut with a third shared line
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,   60 ,    suction1,   0 ]
-          - [  semitaut-poly_1,  300 ,    suction1,   0 ]
-          - [  semitaut-poly_1,  180 ,    suction1,   0 ]
+          - [  semitaut-poly_1,   30 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  150 ,    suction1,   0 ]
+          # - [  semitaut-poly_1,  180 ,    suction1,   0 ]
           
     ms4:
-        name: 3-line semitaut with one line shared anchor
+        name: 3-line taut with one line shared anchor
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,   60 ,    suction1,   0 ]
-          - [  semitaut-poly_1,  180 ,    suction1,   0 ]
-          # - [  semitaut-poly_1,  300 ,    suction1,   0 ]
+          - [  semitaut-poly_1,   30 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  270 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  150 ,    suction1,   0 ]
           
     ms5:
         name: 4-line semitaut
@@ -2468,9 +2472,9 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  taut-poly_1,   60 ,    suction1,   0 ]
-          - [  taut-poly_1,  180 ,    suction1,   0 ]
-          - [  taut-poly_1,  300 ,    suction1,   0 ]
+          - [  semitaut-poly_1,   60 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  180 ,    suction1,   0 ]
+          - [  semitaut-poly_1,  300 ,    suction1,   0 ]
 
     ms7:
         name: 3-line taut polyester mooring system
@@ -2502,101 +2506,118 @@ mooring_systems:
 # Mooring line configurations
 mooring_line_configs:
     
-    semitaut-poly_1:  # mooring line configuration identifier
+    rope_1:  # mooring line configuration identifier
     
-        name: Semitaut polyester configuration 1  # descriptive name
+        name: rope configuration 1  # descriptive name
         
-        anchoring_radius: 700
-        fairlead_radius: 58
-        fairlead_depth: -14
+        span: 1131.37
+
         
         sections:                 #in order from anchor to fairlead
-          - type: chain_155mm       # ID of a mooring line section type
-            length: 497.7            # [m] usntretched length of line section
+          - type: rope       # ID of a mooring line section type
+            length: 1190            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-            # connectorA: shackle
-            # connectorB: h_link
-          - connectorType: h_link   
-          - type: polyester_182mm        # ID of a mooring line section type
-            length: 199.8           # [m] length (unstretched)
-            # connectorB: shackle
+          # - connectorType: h_link   
         
         # connectors: # in order from end A to end B
         #   - shackle
         #   - h_link
         #   - shackle
+        
+    semitaut-poly_SAnch:
+        name: Semitaut polyester configuration shared anchor  # descriptive name
+    
+        span: 1131.37
+        
+        sections:                 #in order from anchor to fairlead
+          - type: chain_155mm       # ID of a mooring line section type
+            length: 897.7            # [m] usntretched length of line section
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+          - connectorType: h_link   
+          - type: polyester_182mm        # ID of a mooring line section type
+            length: 199.8           # [m] length (unstretched)
+        
+        
+    
+    rope_shared:
+        name: shared rope 
+        
+        span: 1484
+
+        
+        sections:
+          - type: rope
+            length: 150
+          - connectorType: clump_weight_80
+          - type: rope
+            length: 1172
+          - connectorType: clump_weight_80
+          - type: rope
+            length: 150
+    
+    semitaut-poly_1:  # mooring line configuration identifier
+    
+        name: Semitaut polyester configuration 1  # descriptive name
+        
+        span: 642
+        
+        sections:                 #in order from anchor to fairlead
+          - type: chain_155mm       # ID of a mooring line section type
+            length: 497.7            # [m] usntretched length of line section
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+          - connectorType: h_link   
+          - type: polyester_182mm        # ID of a mooring line section type
+            length: 199.8           # [m] length (unstretched)
+
 
     taut-poly_1:  # mooring line configuration identifier
     
         name: Taut polyester configuration 1  # descriptive name
         
-        anchoring_radius: 800
-        fairlead_radius: 58
-        fairlead_depth: -14
+        span: 742
+
         
         sections:
           - connectorType: shackle # anchor connection
           - type: chain_170mm       # ID of a mooring line section type
             length: 120            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-            #connectorA: shackle
-            #connectorB: h_link
           - connectorType: h_link  
-          - type: polyester_226mm        # ID of a mooring line section type
-            length: 660           # [m] length (unstretched)
-            #connectorB: h_link
+          - type: polyester_262mm        # ID of a mooring line section type
+            length: 580           # [m] length (unstretched)
           - connectorType: h_link # anchor connection  
           - type: chain_170mm       # ID of a mooring line section type
             length: 20            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-            #connectorB: shackle
           - connectorType: shackle # anchor connection  
-        # connectors:
-        #   - shackle
-        #   - h_link
-        #   - h_link
-        #   - shackle
 
 
     shared-2-clump:
         name: Shared line with two clump weights
         symmetric: True
         
-        anchoring_radius: 1142
-        fairlead_radius: 58
-        fairlead_depth: -14        
+        span: 1484       
         
         sections:
           - connectorType: shackle # anchor connection
           - type: polyester_182mm   
-            length: 110
-            # connector: shackle
-            # connectorA: shackle
-            # connectorB: clump_weight_20       
+            length: 150      
           - connectorType:  clump_weight_20 
           - type: polyester_182mm   
-            length: 435 # 870  
-            # connectorB: clump_weight_20     
-            
-          # - type: polyester_182mm
-          #   length: 110
-          #   # connectorB: shackle   
-          # - connectorType: shackle
-        # connectors:
-        #   - shackle
-        #   - clump_weight_20
-        #   - clump_weight_20
-        #   - shackle
-          
-        
-        # attachment:
-        #     type:
-        #     coordinate:
-    
+            length: 635 # 870  
+   
     
 # Mooring line cross-sectional properties
 mooring_line_types:
 
+    rope:
+        d_nom:    0.2246
+        d_vol:    0.1797
+        m:        34.85
+        EA:       4.761e7
+        MBL:    11.75e6      # [N] minimum breaking load ### JUST COPIED FROM POLYESTER, NOT REPRESENTATIVE OF A REAL VALUE NECESSARILY#########
+        material: rope 
+    
     polyester_182mm:
         d_nom:    0.182      # [m] nominal diameter
         d_vol:    0.1438     # [m] volume-equivalent diameter
@@ -2610,7 +2631,7 @@ mooring_line_types:
         
     chain_155mm:
         d_nom:    0.155      # [m] nominal diameter
-        d_vol:    0.279      # [m] volume-equivalent diameter
+        d_vol:    0.2791      # [m] volume-equivalent diameter
         m:        480.9      # [kg/m] mass per unit length (linear density)
         EA:      2058e6      # [N] quasi-static stiffness
         MBL:     25.2e6      # [N] minimum breaking load
@@ -2618,7 +2639,7 @@ mooring_line_types:
         material:  chain  # [-] material composition descriptor
         material details: R3 studless
         
-    polyester_226mm:
+    polyester_262mm:
         d_nom:    0.262      # [m] nominal diameter
         d_vol:    0.2258     # [m] volume-equivalent diameter
         m:        55.0       # [kg/m] mass per unit length (linear density)
@@ -2656,6 +2677,10 @@ mooring_connector_types:
     clump_weight_20:
         m   : 20000  # [kg]
         v :  0.8   # [m^3]
+        
+    clump_weight_80:
+        m   : 80000  # [kg]
+        v :  0.0   # [m^3]
         
     buoy_10:
         m   :  560   # [kg]  component mass

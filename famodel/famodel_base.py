@@ -128,7 +128,6 @@ class Node():
             
         # Attach the object (might be a higher-level edge)
         if isinstance(object2, Node):
-            print(f'Adding attachment for {self.id} to {object2.id}')
             self.attachments[object2.id] = dict(obj=object2, id=object2.id, 
                                             r_rel=np.array(r_rel), type='node')
             #object2._attach_to(self)  # tell it it's attached to this Node

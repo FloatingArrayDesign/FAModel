@@ -173,7 +173,7 @@ class Platform(Node):
         fig,ax = self.ms.plot()
         
         
-    def getWatchCircle(self, plot=0, ang_spacing=15, RNAheight=150,
+    def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
                        shapes=True):
         '''
         Compute watch circle of platform based on rated thrust.

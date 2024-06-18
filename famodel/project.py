@@ -41,7 +41,7 @@ class Project():
     
     '''
     
-    def __init__(self, lon=0, lat=0, file=None, depth=202):
+    def __init__(self, lon=0, lat=0, file=None, depth=202,raft=1):
         '''Initialize a Project. If input data is not provided, it will
         be empty and can be filled in later.
         
@@ -68,7 +68,6 @@ class Project():
         self.turbineList = {}
         self.platformList = {}
         self.mooringList = {}  # A dictionary of Mooring objects
-        self.mooringListPristine = {} # A dictionary of Mooring objects in initial condition (no marine growth, corrosion, etc)
         self.anchorList  = {}
         self.cableList = {}  # CableSystem
         self.substationList = {}
@@ -113,11 +112,11 @@ class Project():
         
         # ----- if an input file has been passed, load it -----
         if file:
-            self.load(file)
+            self.load(file,raft=raft)
     
 
 
-    def load(self, project_yaml):
+    def load(self, project_yaml,raft=1):
         '''
         Load a full set of project information from a dictionary or 
         YAML file. This calls other methods for each part of it.
@@ -127,10 +126,11 @@ class Project():
         input : dict or filename
             Dictionary or YAML filename containing project info.
         '''
-        
         # standard function to load dict if input is yaml
         with open(project_yaml) as file:
             project = yaml.load(file, Loader=yaml.FullLoader)
+            if not project:
+                raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
         
         # look for site section
         # call load site method
@@ -138,14 +138,14 @@ class Project():
         
         # look for design section
         # call load design method
-        self.loadDesign(project)
+        self.loadDesign(project,raft=raft)
         
         
     
 
     # ----- Design loading/processing methods -----
     
-    def loadDesign(self, d):
+    def loadDesign(self, d, raft=1):
         '''Load design information from a dictionary or YAML file
         (specified by input). This should be the design portion of
         the floating wind array ontology.'''
@@ -167,7 +167,7 @@ class Project():
         
         # ----- table of cables -----
         arrayCableInfo = []
-        if 'array_cables' in d and d['array_cables']['data']:
+        if 'array_cables' in d and d['array_cables'] and d['array_cables']['data']:
         
             arrayCableInfo = [dict(zip( d['array_cables']['keys'], row))
                          for row in d['array_cables']['data']]
@@ -516,7 +516,7 @@ class Project():
                 # create turbine instance
                 turb_name = str(arrayInfo[i]['turbineID'])+str(i)
                 if isinstance(turbines,list):
-                    turb_dd = turbines[arrayInfo[i]['turbineID']]
+                    turb_dd = turbines[arrayInfo[i]['turbineID']-1]
                 else:
                     turb_dd = turbines
                 self.turbineList[turb_name] = Turbine(turb_dd,turb_name)
@@ -628,12 +628,7 @@ class Project():
                     # attach mooring object to platforms
                     mc.attachTo(self.platformList[PFNum[0]],end='B')
                     mc.attachTo(self.platformList[PFNum[1]],end='A')
-                    # add mooring object to platform mooring list    
-                    # self.platformList[PFNum[0]].mooringList[(PFNum[0],PFNum[1],mct)] = mc
-                    # create connector dictionaries and objects for line 
-                    #getConnectors(c_config,(PFNum[0],PFNum[1],mct))
-                    # append to end B list in platform
-                    # self.platformList[PFNum[0]].endB[(PFNum[0],PFNum[1],mct)] = 1 
+
                 elif any(ids['ID'] == arrayMooring[j]['end A'] for ids in arrayAnchor): # end A is an anchor
                     # get ID of platform connected to line
                     PFNum.append(arrayMooring[j]['end B'])
@@ -653,17 +648,11 @@ class Project():
 
                     # check if anchor instance already exists
                     if any(tt == ('shared', arrayMooring[j]['end A']) for tt in self.anchorList): # anchor name exists already in list
-                    # if any(tt == arrayMooring[j]['end A'] for tt in self.anchorList): # anchor exists
                         # find anchor class instance
                         for anch in self.anchorList:#range(0,len(self.anchorList)):
                             if anch == ('shared', arrayMooring[j]['end A']):
-                            # if anch == arrayMooring[j]['end A']:
-                                # attach mooring object to anchor
                                 mc.attachTo(self.anchorList[anch],end='A')
-                                # add mooring object to list in anchor class
-                                # self.anchorList[anch].mooringList[(PFNum[0],mct)] = mc
-                                # add anchor object to list in platform class
-                                # self.platformList[PFNum[0]].anchorList[anch] = self.anchorList[anch]
+
                     else:
                         # set line anchor type and get dictionary of anchor information
                         lineAnch = arrayAnchor[j]['type']                       
@@ -680,41 +669,26 @@ class Project():
                         mc.z_anch = -zAnew
                         # create anchor object
                         self.anchorList[('shared',arrayAnchor[k]['ID'])] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1],id=('shared',arrayAnchor[k]['ID']))
-                        #self.anchorList[arrayAnchor[k]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1])
                         # attach mooring object to anchor
-                        mc.attachTo(self.anchorList[('shared'),arrayAnchor[k]['ID']],end='B')
-                        # add mooring object to anchor mooring list
-                        # self.anchorList[('shared',arrayAnchor[k]['ID'])].mooringList[(PFNum[0],mct)] = mc
-                        # self.anchorList[arrayAnchor[k]['ID']].mooringList[(PFNum[0],mct)] = mc 
-                        # add anchor object to platform anchor list
-                        # self.platformList[PFNum[0]].anchorList[('shared',arrayAnchor[k]['ID'])] = self.anchorList[('shared',arrayAnchor[k]['ID'])]
-                        # self.platformList[PFNum[0]].anchorList[arrayAnchor[k]['ID']] = self.anchorList[arrayAnchor[k]['ID']]                   
+                        mc.attachTo(self.anchorList[('shared',arrayAnchor[k]['ID'])],end='A')
+                  
                     # add mooring object to project mooring list
                     self.mooringList[(PFNum[0],mct)] = mc
                     # attach mooring object to platform
-                    mc.attachTo(PFNum[0],end='B')
-                    # add mooring object to platform mooring list    
-                    # self.platformList[PFNum[0]].mooringList[(PFNum[0],mct)] = mc
-                    # create connector dictionaries and objects for line 
-                    #getConnectors(c_config,(PFNum[0],mct))
-                    # append to end B list in platform
-                    # self.platformList[PFNum[0]].endB[(PFNum[0],mct)] = 1 
+                    mc.attachTo(self.platformList[PFNum[0]],end='B')
+
                 else: # error in input
                     raise Exception(f"end A input in array_mooring line_data table line '{j}' must be either an ID from the anchor_data table (to specify an anchor) or an ID from the array table (to specify a FOWT).")
                                            
                 # add heading
                 self.platformList[PFNum[0]].mooring_headings.append(np.radians(arrayMooring[j]['headingB']))
                 if len(PFNum)>1: # if shared line
-                    # record shared line on the other platform as well
-                    # self.platformList[PFNum[1]].mooringList[(PFNum[0],PFNum[1],mct)] = mc
                     self.platformList[PFNum[1]].mooring_headings.append(np.radians(arrayMooring[j]['headingA'])) # add heading
-                    # self.platformList[PFNum[1]].endB[(PFNum[0],PFNum[1],mct)] = 0
                     
                 # increment counter
                 mct += 1
         
-        # # create a deepcopy of the mooring list to preserve original in case marine growth, corrosion, or other changes made
-        # self.mooringListPristine = deepcopy(self.mooringList)    
+  
         
         # ===== load Cables ======
         def CableProps(cabType,checkType=1):
@@ -927,54 +901,45 @@ class Project():
                         # set rB of previous line and rA of next line to joint location
                         self.cableList[cable+str(i)].subcomponents[j-1].rB = comp['r']
                         self.cableList[cable+str(i)].subcomponents[j+1].rA = comp['r']
-                # if cable_config in cable_configs:
-                #     linelast = 1
-                #     for j in range(0,len(cable_configs[cable_config]['sections'])):
-                #         # check if a                        
-                #         lc = cableConfigs[cableconfig]['sections'][k] # set location for code clarity later
-                #         # determine if it's a line type or a connector listed
-                #         if 'type' in lc: 
-                #             # this is a line
-                #             if lineLast:
         
         
         # ===== load RAFT model parts =====
         # load info into RAFT dictionary and create RAFT model
-        # RAFTDict = {}
-        # load turbine dictionary into RAFT dictionary
-        if 'turbine' in d and d['turbine']:            
-            # check that there is only one turbine
-            if 'turbines' in d and d['turbines']:
-                raise Exception("Cannot read in items for both 'turbines' and 'turbine' keywords. Use either 'turbine' keyword for one turbine or 'turbines' keyword for a list of turbines.")
-            elif type(d['turbine']) is list and len(d['turbine'])>1:
-                raise Exception("'turbine' section keyword must be changed to 'turbines' if multiple turbines are listed")
-            else:
-                RAFTDict['turbine'] = d['turbine']
-        # load list of turbine dictionaries into RAFT dictionary
-        elif 'turbines' in d and d['turbines']:
-            RAFTDict['turbines'] = d['turbines']
-        
-        # load global RAFT settings into RAFT dictionary
-        if 'RAFT_settings' in d['site'] and d['site']['RAFT_settings']:
-            RAFTDict['settings'] = d['site']['RAFT_settings']
-        # load RAFT cases into RAFT dictionary
-        if 'RAFT_cases' in d['site'] and d['site']['RAFT_cases']:
-            RAFTDict['cases'] = d['site']['RAFT_cases']
-        
-        # load array information into RAFT dictionary
-        RAFTDict['array'] = deepcopy(d['array']) # need to change items so make a deepcopy
-        # load general site info to RAFT dictionary
-        RAFTDict['site'] = {'water_depth':self.depth,'rho_water':self.rho_water,'rho_air':self.rho_air,'mu_air':self.mu_air}
-        RAFTDict['site']['shearExp'] = getFromDict(d['site']['general'],'shearExp',default=0.12)
-        
-        # create a name for the raft model
-        RAFTDict['name'] = 'Project_Array'
-        RAFTDict['type'] = 'input file for RAFT'
-
-        # create RAFT model if necessary components exist
-        if 'platforms' in RAFTDict or 'platform' in RAFTDict:
-            if 'turbine' in RAFTDict or 'turbines' in RAFTDict:
-                self.getRAFT(RAFTDict)
+        if raft:
+            # load turbine dictionary into RAFT dictionary
+            if 'turbine' in d and d['turbine']:            
+                # check that there is only one turbine
+                if 'turbines' in d and d['turbines']:
+                    raise Exception("Cannot read in items for both 'turbines' and 'turbine' keywords. Use either 'turbine' keyword for one turbine or 'turbines' keyword for a list of turbines.")
+                elif type(d['turbine']) is list and len(d['turbine'])>1:
+                    raise Exception("'turbine' section keyword must be changed to 'turbines' if multiple turbines are listed")
+                else:
+                    RAFTDict['turbine'] = d['turbine']
+            # load list of turbine dictionaries into RAFT dictionary
+            elif 'turbines' in d and d['turbines']:
+                RAFTDict['turbines'] = d['turbines']
+            
+            # load global RAFT settings into RAFT dictionary
+            if 'RAFT_settings' in d['site'] and d['site']['RAFT_settings']:
+                RAFTDict['settings'] = d['site']['RAFT_settings']
+            # load RAFT cases into RAFT dictionary
+            if 'RAFT_cases' in d['site'] and d['site']['RAFT_cases']:
+                RAFTDict['cases'] = d['site']['RAFT_cases']
+            
+            # load array information into RAFT dictionary
+            RAFTDict['array'] = deepcopy(d['array']) # need to change items so make a deepcopy
+            # load general site info to RAFT dictionary
+            RAFTDict['site'] = {'water_depth':self.depth,'rho_water':self.rho_water,'rho_air':self.rho_air,'mu_air':self.mu_air}
+            RAFTDict['site']['shearExp'] = getFromDict(d['site']['general'],'shearExp',default=0.12)
+            
+            # create a name for the raft model
+            RAFTDict['name'] = 'Project_Array'
+            RAFTDict['type'] = 'input file for RAFT'
+    
+            # create RAFT model if necessary components exist
+            if 'platforms' in RAFTDict or 'platform' in RAFTDict:
+                if 'turbine' in RAFTDict or 'turbines' in RAFTDict:
+                    self.getRAFT(RAFTDict,pristine=1)
 
         
         
@@ -1022,8 +987,8 @@ class Project():
                     xy = site['boundaries']['x_y']
                     self.boundary = np.zeros([len(xy),2])
                     for i in range(len(xy)):
-                        self.boundary[i,0] = xy[i][0]
-                        self.boundary[i,1] = xy[i][1]
+                        self.boundary[i,0] = float(xy[i][0])
+                        self.boundary[i,1] = float(xy[i][1])
 
         # and set the project boundary/grid based on the loaded information
         # TBD, may not be necessary in the short term. self.setGrid(xs, ys)
@@ -1680,14 +1645,13 @@ class Project():
             for j in self.anchorList[i].attachments: # j is key (name) of mooring object in anchor i
                 # create subsystem
                 if pristineLines:
-                    print('making pristine line')
                     self.anchorList[i].attachments[j]['obj'].createSubsystem(pristine=1)
                     # set location of subsystem for simpler coding
-                    ssloc.append(self.anchorList[i].attachments[j]['obj'].pristine_ss)
+                    ssloc.append(self.anchorList[i].attachments[j]['obj'].ss)
                 else:
                     self.anchorList[i].attachments[j]['obj'].createSubsystem()
                     # set location of subsystem for simpler coding
-                    ssloc.append(self.anchorList[i].attachments[j]['obj'].ss)
+                    ssloc.append(self.anchorList[i].attachments[j]['obj'].ss_mod)
                 self.ms.lineList.append(ssloc[-1])
                 ssloc[-1].number = len(self.ms.lineList)
                 # create anchor point if it doesn't already exist
@@ -1726,9 +1690,12 @@ class Project():
             if check[ii] == 1: # mooring object not in any anchor lists
                 # new shared line
                 # create subsystem for shared line
-                self.mooringList[i].createSubsystem(case=1) # we doubled all symmetric lines so any shared lines should be case 1
+                self.mooringList[i].createSubsystem(case=1,pristine=pristineLines) # we doubled all symmetric lines so any shared lines should be case 1
                 # set location of subsystem for simpler coding
-                ssloc = self.mooringList[i].ss
+                if pristineLines:
+                    ssloc = self.mooringList[i].ss
+                else:
+                    ssloc = self.mooringList[i].ss_mod
                 # add subsystem as a line in moorpy system
                 self.ms.lineList.append(ssloc)
                 ssloc.number = len(self.ms.lineList)               
@@ -1747,8 +1714,7 @@ class Project():
                         PF[1] = self.platformList[k]
                         PFNum[1] = ki # platform index
                         # find key of mooring object in platform mooring list
-                        idx.append(i)
-                                               
+                        idx.append(i)                          
                 # add fairlead point A and attach the line to it
                 self.ms.addPoint(1,ssloc.rA)
                 self.ms.pointList[-1].attachLine(ssloc.number,0)
@@ -1763,11 +1729,7 @@ class Project():
                 # attach the line to point
                 self.ms.pointList[-1].attachLine(ssloc.number,1)
                 # connect line end B to the body
-                self.ms.bodyList[PFNum[1]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[1].r[0],ssloc.rB[1]-PF[1].r[1],ssloc.rB[2]])
-        
-        # initialize, solve equilibrium, and plot the system 
-        # self.ms.initialize()
-        # self.ms.solveEquilibrium(DOFtype='coupled')            
+                self.ms.bodyList[PFNum[1]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[1].r[0],ssloc.rB[1]-PF[1].r[1],ssloc.rB[2]])          
         
         # add in cables if desired
         if cables:
@@ -1779,7 +1741,6 @@ class Project():
                     sub.body = self.ms.bodyList[-1]
             for i in self.cableList:
                 # determine if suspended cable or not - having a static cable as a subcomponent means this is not a suspended cable
-                #if any([isinstance(x,StaticCable) for x in self.cableList[i].subcomponents]):
                 for j,comp in enumerate(self.cableList[i].subcomponents):
                     # don't make a subsystem for a joint - make a point                   
                     if isinstance(comp,Joint):
@@ -1790,8 +1751,11 @@ class Project():
                         pass
                     else:
                         # create subsystem for dynamic cable
-                        comp.createSubsystem()
-                        ssloc = comp.ss
+                        comp.createSubsystem(pristine=pristineLines)
+                        if pristineLines:                           
+                            ssloc = comp.ss
+                        else:
+                            ssloc = comp.ss_mod
                         ssloc.number = len(self.ms.lineList)+1 
                         # add subsystem to line list
                         self.ms.lineList.append(ssloc)
@@ -1820,35 +1784,11 @@ class Project():
                                 comp.attached_to[-1].makeMoorPyConnector(self.ms)
                             joint = comp.attached_to[-1].mpConn
                             joint.attachLine(ssloc.number,1)                                   
-                # else:
-                #     # this is a suspended cable, should be only one section
-                #     self.cableList[i].subcomponents[0].createSubsystem(case=1)
-                #     # set location of subsystem for easy coding
-                #     ssloc = self.cableList[i].subcomponents[0].ss
-                #     ssloc.number = len(self.ms.lineList)+1
-                #     # add subsystem to line list
-                #     self.ms.lineList.append(ssloc)
-                #     # attach to correct bodies
-                #     for j,body in enumerate(self.cableList[i].attached_to):
-                #         if j==0:
-                #             self.ms.addPoint(1,ssloc.rA)
-                #             self.ms.pointList[-1].attachLine(ssloc.number,0)
-                #             # attach rA point to body                            
-                #             body.body.attachPoint(len(self.ms.pointList),[ssloc.rA[0]-body.body.r6[0],ssloc.rA[1]-body.body.r6[1],ssloc.rA[2]])
-                #         else:
-                #             self.ms.addPoint(1,ssloc.rB)
-                #             self.ms.pointList[-1].attachLine(ssloc.number,1)
-                #             # attach rB point to body                            
-                #             body.body.attachPoint(len(self.ms.pointList),[ssloc.rB[0]-body.body.r6[0],ssloc.rB[1]-body.body.r6[1],ssloc.rB[2]])
 
         # initialize, solve equilibrium, and plot the system 
         self.ms.initialize()
         self.ms.solveEquilibrium(DOFtype='coupled')
         
-        if pristineLines:
-            for i in self.mooringList: # here, i is key (name) of mooring object
-                # add subsystems to pristine mooring objects
-                self.mooringListPristine[i].ss = deepcopy(self.mooringList[i].subsystem)
         
         # Plot array if requested
         if plt:
@@ -2081,7 +2021,7 @@ class Project():
         return(aeps)
 
     
-    def getRAFT(self,RAFTDict):
+    def getRAFT(self,RAFTDict,pristine=0):
         '''Create a RAFT object and store in the project class
         
         Parameters
@@ -2120,7 +2060,7 @@ class Project():
                 bodyInfo[RAFTable[i]['ID']] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
             # create moorpy array if it doesn't exist
             if not self.ms:
-                self.getMoorPyArray(bodyInfo)
+                self.getMoorPyArray(bodyInfo,pristineLines=pristine)
             # assign moorpy array to RAFT object
             self.array.ms = self.ms
             # connect RAFT fowt to the correct moorpy body
