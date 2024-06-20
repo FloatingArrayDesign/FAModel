@@ -268,7 +268,7 @@ class Mooring(Edge):
             self.loads['TAmax'] = deepcopy(self.ss.TA)
         # get TB tensions
         if abs(self.ss.TB) > self.loads['TBmax']:
-            self.loads['TBmax'] = deepcopy(self.loads.TB)
+            self.loads['TBmax'] = deepcopy(self.ss.TB)
             
         return(self.loads['TAmax'],self.loads['TBmax'])
     
