@@ -40,12 +40,14 @@ class failureGraph():
         df = pd.read_excel(matrix_file, sheet_name=matrix_sheet)
         arr = df.to_numpy()[:,1:]
         nodeNames = df.to_numpy()[:, 0].flatten()
+        self.nodeNames = nodeNames
 
         # Get initial failure probabilities for each failure mode and effect
         probabilities, array_of_probs = getProbabilities(probabilities_file, probability_sheet)
         init_prob_dict = {}
         for prob_index in range(len(probabilities)):
             init_prob_dict.update({nodeNames[prob_index]: probabilities[prob_index]})
+        self.init_prob_dict = init_prob_dict
 
         # Determine angle of clashing we are interested in
         angle_degree = input("What angle do you want to use? (in degrees) ")
@@ -68,6 +70,7 @@ class failureGraph():
 
         # Get the systems (groups of failures by component type) and list of nodes that could impact the FAModel
         systems = self.get_systems(nodeNames)
+        self.systems = systems
 
         # Initialize graph, boolean for plotting, and list of probabilities
         self.G = nx.DiGraph()
@@ -307,7 +310,7 @@ class failureGraph():
     #     return impact_dict
 
 
-    def get_critical_node(self, param):
+    def get_critical_node(self, param, mode = False):
         '''Identify and return the critical failure(s) of the failure graph
         Parameters
         ----------
@@ -323,30 +326,46 @@ class failureGraph():
             nodal_probabilities = nx.get_node_attributes(self.G, "probability")
             for failure_node in nodal_probabilities:
                 if nodal_probabilities[failure_node] > critical_prob[0]:
-                    critical_prob[0] = nodal_probabilities[failure_node]
-                    critical_prob[1] = [failure_node]
+                    if not mode or (mode and self.G.nodes[failure_node]['m_or_e'] == 'mode'):
+                        critical_prob[0] = nodal_probabilities[failure_node]
+                        critical_prob[1] = [failure_node]
                 elif nodal_probabilities[failure_node] == critical_prob[0]:
                     critical_prob[1].append(failure_node)
         
         # Find the critical failure for crtitical refering to the maximum degree (either in-degree, out-degree, or total-degree)
         elif 'deg' in param:
-            out_deg, in_deg, deg = max_degrees(nx.to_numpy_array(self.G), nodalNames, threshold = 0, name = True)
-            if 'in' in param:
-                critical_prob[0] = in_deg[1]
-                critical_prob[1] = list(in_deg[0])
-            elif 'out' in param:
-                critical_prob[0] = out_deg[1]
-                critical_prob[1] = list(out_deg[0])
-            else:
-                critical_prob[0] = deg[1]
-                critical_prob[1] = list(deg[0])
-        
+            # Binaraize adjacency matrix
+            arr_altered = nx.to_numpy_array(self.G)
+            for i in range(0, arr_altered.shape[0]):
+                for j in range(arr_altered.shape[0]):
+                    if nx.to_numpy_array(self.G)[i,j] > 0: arr_altered[i,j] = 1
+                    else: arr_altered[i,j] = 0
+
+            # Get list of degrees
+            if 'in' in param: degrees = np.sum(arr_altered, axis=0)
+            elif 'out' in param: degrees = np.sum(arr_altered, axis=1)
+            else: degrees = np.sum(arr_altered, axis=0) + np.sum(arr_altered, axis=1)
+            
+            # Determine max degree
+            for node in range(len(degrees)):
+                degree = degrees[node]
+                if not mode or (mode and self.G.nodes[list(self.G.nodes)[node]]['m_or_e'] == 'mode'):
+                    if degrees[node] > critical_prob[0]:
+                        critical_prob[0] = degrees[node]
+                        critical_prob[1] = [list(self.G.nodes)[node]]
+                    elif degrees[node] == critical_prob[0]: critical_prob[1].append(list(self.G.nodes)[node])
+
         # Find the crtitical failure for ctitical refering to the susceptibility or impact of a node
         elif 'sus' in param or 'impact' in param:
-            max_impact, max_sus = self.get_susceptibility_and_impact()
-            if 'impact' in param: critical_prob = max_impact
-            elif 'sus' in param: critical_prob = max_sus
-            else: return
+            self.get_susceptibility_and_impact()
+            if 'impact' in param: average_lst = np.mean(self.imput_and_susceptibility_table, axis=1)
+            elif 'sus' in param: average_lst= np.mean(self.imput_and_susceptibility_table, axis=0)
+            for node in range(len(average_lst)):
+                if not mode or (mode and self.G.nodes[list(self.G.nodes)[node]]['m_or_e'] == 'mode'):
+                    if average_lst[node] > critical_prob[0]:
+                        critical_prob[0] = average_lst[node]
+                        critical_prob[1] = [list(self.G.nodes)[node]]
+                    elif average_lst[node] == critical_prob[0]: critical_prob[1].append(list(self.G.nodes)[node])
         
         self.critical_failures = critical_prob
         return critical_prob
@@ -581,25 +600,13 @@ class failureGraph():
         return max_x, min_x, max_y, min_y
     
 
-    def run_moorpy_simulation(self):
-        print('HDIGH')
-        self.Array.getMoorPyArray
-        fig, ax = self.ms.plot(ax=ax, color='red')
-        print(self.ms.bodyList[0].r6)
-        self.ms.bodyList[0].f6Ext = np.array([3e6, 0, 0, 0, 0, 0])
-        print(self.ms.bodyList[0].r6)
-    
 
-    def run_raft_simulation(self):
-        return
-
-
-    def enact_failures(self, failure, upper = False):
+    def enact_failures(self, failure):
         '''Update the FAModel based on failure(s) occurring
         Parameters
         ----------
-        failure : object
-            Object of failure you would like to enact
+        failure : string
+            Sting (name) of failure we would like to enact
         '''
         # --- Sections to be finished (but not by Emma) ---
         # Flood a ballast section in RAFT
@@ -630,7 +637,7 @@ class failureGraph():
         if 'anchor' in self.G.nodes[failure]['failure'].lower():
             anchor = self.G.nodes[failure]['obj'][0]
             for point in self.Array.ms.pointList:
-                    if all(abs(self.Array.anchorList[anchor].r[:2] - point.r[:2]) < 10):
+                    if all(abs(anchor.r[:2] - point.r[:2]) < 10):
                             point.type = 0
                             self.Array.getMoorPyArray()
 
@@ -666,6 +673,9 @@ class failureGraph():
             raft_turbine.mRNA += 0    # Update RNA mass --> need help on
             raft_turbine.IxRNA += 0   # Update RNA inerta --> need help on
             raft_turbine.IrRNA += 0   # Update RNA inerta --> need help on
+        
+        # if failure in list(self.G.nodes):
+        #     self.G.remove_node(failure)
 
     
 
@@ -704,8 +714,6 @@ class failureGraph():
         # Return list of children of failure
         return children
 
-
-
     def get_effects_identifiers(self, child):
         '''Check if the children (failures) of the failure enacted were reached
         Parameters
@@ -713,29 +721,47 @@ class failureGraph():
         failure : string
             Name of failure we would like to enact
         '''
+        print("Starting effects check...'", child.replace('\n',' '))
         results = 'no results'
+
+        # Check platform angles
         if 'capsize' in child.lower() or 'excess dynamics' in child.lower():
             platform_obj = self.G.nodes[child]['obj'][0]
             case_num = 0
             platform_num = int(platform_obj.id[-1])
-            results = self.Array.array.results['case_metrics'][case_num][platform_num]['<degree of freedom>_max']
+            results = []
+            self.Array.array.analyzeCases()
+            results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['surge_max'])
+            results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['sway_max'])
+            results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['heave_max'])
+            results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['roll_max'])
+            results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['pitch_max'])
+            results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['yaw_max'])
+            # ---- Uncomment below if you want to include these measures ----
+            # results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['AxRNA_max'])
+            # results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['Mbase_max'])
+            # results.append(self.Array.array.results['case_metrics'][case_num][platform_num - 1]['omega_max'])
 
+        # Check z-location of the platform
         elif ('stability' in child.lower() or 'sink' in child.lower()) or 'hydrostatic' in child.lower():
-            # Check z-location of the platform
             results = self.G.nodes[child]['obj'][0].body.r6[2]
 
+        # Check for rope drag (taut/semitaut lines), line lay length (catenary/semitaut), shared line deep enough
         elif 'change in mooring profile' in child.lower():
             results = self.G.nodes[child]['obj'][0].ss.lineList[1]
 
+        # Check watch circle
         elif 'drift' in child.lower() or 'clashing' in child.lower():
-            (x,y,maxVals) = self.G.nodes[child]['obj'][0].getWatchCircle(self.Array.ms)
-            results = np.hstack((np.array(x), np.array(y)))
+            # (x,y,maxVals) = self.G.nodes[child]['obj'][0].getWatchCircle()
+            # results = np.hstack((np.array(x), np.array(y)))
+            results = 'WATCH CIRCLE STILL NOT WORKING'
 
+        # Check loads on turbine
         elif 'turbine loads' in child.lower():
-            # Check loads on turbine
             results = self.G.nodes[child]['obj'][0].loads
 
-        elif 'excess mooring loads' in child.lower() or 'nonfunctional' in child.lower():
+        # Check if tensions exceed MBL or connector MBL?
+        elif ('moor' in child.lower() and 'loads' in child.lower()) or 'nonfunctional' in child.lower():
             self.G.nodes[child]['obj'][0].updateTensions()
             results = [self.G.nodes[child]['obj'][0].loads['TAmax'], self.G.nodes[child]['obj'][0].loads['TBmax']]
 
@@ -743,6 +769,7 @@ class failureGraph():
             # results = self.G.nodes[child]['obj'][0].ss.getTen(-1)
             # iLine = np.where(np.array(self.Array.ms.lineList) == cable.subcomponents[subcomponent].ss)[0]
 
+        # Check if vertical tension for DEA, check if tensions exceed MBL
         elif 'anchor drag' in child.lower():
             anchor_obj = self.G.nodes[child]['obj'][0]
             anchor_obj.attachments[list(self.G.nodes[child]['obj'][0].attachments.keys())[0]]['obj'].updateTensions()
@@ -752,16 +779,19 @@ class failureGraph():
             # iLine = np.where(np.array(self.Array.ms.lineList) == cable.subcomponents[subcomponent].ss)[0]
             # results = self.G.nodes[child]['obj'][0].ss.getTen(-1)
 
-        elif 'cable profile' in child.lower() or ('excessive load' in child.lower() and 'cable' in child.lower()):
+        # Check if cable sag,hog,etc are within limits
+        elif ('profile' in child.lower() or 'load' in child.lower()) and 'cable' in child.lower():
             # Check if cable sag, hog, etc are within limits
             results = []
             cable = self.G.nodes[child]['obj'][0]
             for subcomponent in cable.subcomponents:
                 if 'dynamic' in str(type(subcomponent)):
+                    continue
                     iLine = np.where(np.array(self.Array.ms.lineList) == subcomponent.ss)[0]
                     a = subcomponent.ss.getCurveSF(iLine) #> 1 = above allowable curvature, < 1= under max allowable curvature;  
                     b = subcomponent.ss.getSag()
                     results.append([a,b])
+            results = 'NEED TO FIX NONETYPE BUG'
         return results
     
 
@@ -773,32 +803,188 @@ class failureGraph():
         failure : string
             Name of failure we would like to enact/have enacted
         '''
-        observed_effects = self.check_for_effects(failure)
-        new_failures = []
+        possible_failures = self.get_descendants(failure) # Finding children of failure effect
+        new_failures = [] # List of new fialure modes
 
-        # If there are no observed effects, ask if user would like to use the new critical failure. If so, return the new critical failure modes
-        if len(observed_effects) < 1:
-            pick_cf = input("\nThere are no observed effects from " + str(failure).replace('\n', ' ') + ".\nWould you like to update critical failure? (y/n) ")
-            if 'y' in pick_cf: 
-                critical_failures = self.update_critical_node(self.criticality_type)[1]
-
-                # Going through all the critical failures, add the failure modes in the list to the new_failures list
-                for critical_failure in critical_failures:
-                    if self.G.nodes[critical_failure]["m_or_e"] == 'mode': new_failures.append(critical_failure)
-        
-        else:
-            # Find the descendants of each observed effect
-            for observed_effect in observed_effects:
-                possible_failures = self.get_descendants(observed_effect)
-
-                # Going through all the descendants from the observed effect, add the failure modes in the list to the new_failures list
-                for possible_failure in possible_failures:
-                    if self.G.nodes[possible_failure]["m_or_e"] == 'mode': new_failures.append(possible_failure)
+        # Going through all the children of the failure effect, add the failure modes in the list to the new_failures list
+        for possible_failure in possible_failures:
+            if self.G.nodes[possible_failure]["m_or_e"] == 'mode': new_failures.append(possible_failure)
         return new_failures
 
 
 
-    def update_critical_node(self, criticality_stipulation):
+    def run_failure_simulation_iteration(self, param='prob'):
+        '''Enact failure mode and determine if failure effects have occurred
+        Parameters
+        ----------
+        param : string
+            Measurement for criticality (either initial probability, degree [in, out, or total], susceptibility, or impact)
+        '''
+        # Determine failure modes to enact
+        if not self.critical_failures: self.critical_failures = self.get_critical_node(param, mode=True)
+        critical_node = self.critical_failures
+
+        observed_effects = [] # List of observed failure effects
+        new_critical_failures = []
+
+        for node in critical_node[1]:
+            print('\n----------- Enacting', node.replace('\n', ' '), '-----------')
+            children = self.get_descendants(node) # Children of failure mode to check
+            results_before = {}
+            results_after = {}
+
+            # Check starting state of failure effects
+            for child in children: 
+                results_before.update({child: self.get_effects_identifiers(child)})
+
+            # Enact failure
+            self.enact_failures(node)
+
+            # Check ending state of failure effects
+            for child in children: 
+                results_after.update({child: self.get_effects_identifiers(child)})
+                
+                # Identify if tensions are above MBL
+                if (('moor' in child.lower() and 'loads' in child.lower()) or 'nonfunctional' in child.lower()) or 'anchor drag' in child.lower():
+                    if ('moor' in child.lower() and 'loads' in child.lower()) or 'nonfunctional' in child.lower():
+                        MBL = self.G.nodes[child]['obj'][0].dd['sections'][0]['type']['MBL']
+                    elif 'anchor drag' in child.lower():
+                        moor_line = self.G.nodes[child]['obj'][0].attachments[list(self.G.nodes[child]['obj'][0].attachments.keys())[0]]
+                        MBL = moor_line.dd['sections'][0]['type']['MBL']
+                    if 'e' in MBL:
+                        MBL_info = MBL.split('e')
+                        MBL = float(MBL_info[0]) ** int(MBL_info[1])
+                    else: MBL = float(MBL)
+
+                    if results_after[child][0] > MBL or results_after[1] > MBL:
+                        observed_effects.append(child)
+                        new_failure_modes = self.choose_new_failure_mode(child)
+                        for nfm in new_failure_modes:
+                            if not nfm in new_critical_failures and not nfm == node: new_critical_failures.append(nfm)
+                        if len(new_failure_modes) > 1: print("Effect found -", child.replace('\n', ' '))
+                    
+                    if child in list(self.G.nodes):
+                        self.G.remove_node(child)
+
+                # Identify if state of failure effect has changed
+                elif not(results_before[child] == results_after[child]):
+                    observed_effects.append(child)
+                    new_failure_modes = self.choose_new_failure_mode(child)
+                    for nfm in new_failure_modes:
+                        if not nfm in new_critical_failures and not nfm == node: new_critical_failures.append(nfm)
+
+                    if child in list(self.G.nodes):
+                        self.G.remove_node(child)
+                    if len(new_failure_modes) > 1: print("Effect found -", child.replace('\n', ' '))
+            
+            # Check for new possibilities of clashing ndoes
+            systems = self.systems
+            connected_components = []
+            for failure in list(self.G.nodes):
+                # Find first line
+                if ('cable' in str(self.G.nodes[failure]['obj'][0]) or 'moor' in str(self.G.nodes[failure]['obj'][0]))and not ('anchor' in str(type(self.G.nodes[failure]['obj'][0]))):
+                    line1 = self.G.nodes[failure]['obj'][0]
+                    # Find type of line
+                    if 'cable'in str(self.G.nodes[failure]['obj'][0]): line1_type = 'cable'
+                    elif line1.shared: line1_type = 'sharedmooring'
+                    else: line1_type = 'mooring'
+                    # Identify connected failures to attach edges to
+                    if line1.attached_to:
+                        for item in line1.attached_to:
+                            if item: connected_components.append(item)
+                        for subitem in line1.subcomponents:
+                            if subitem: connected_components.append(subitem)
+                        
+                        # Find second line
+                        for failure2 in list(self.G.nodes):
+                            if (('cable' in str(self.G.nodes[failure2]['obj'][0]) or 'moor' in str(self.G.nodes[failure2]['obj'][0])) and not(line1 == self.G.nodes[failure2]['obj'][0])) and not ('anchor' in str(type(self.G.nodes[failure2]['obj'][0]))):
+                                line2 = self.G.nodes[failure2]['obj'][0]
+                                # Find type of line
+                                if 'cable'in str(self.G.nodes[failure2]['obj'][0]): line2_type = 'cable'
+                                elif 'moor' in str(self.G.nodes[failure2]['obj'][0]) and line2.shared: line2_type = 'sharedmooring'
+                                else: line2_type = 'mooring'
+                                # Identify connected failrues to attach edges to
+                                if line2.attached_to:
+                                    for item in line2.attached_to:
+                                        if item: connected_components.append(item)
+                                    for subitem in line2.subcomponents:
+                                        if subitem: connected_components.append(subitem)
+                                    connected_components.append(str(line1.id)+str(line2.id))
+
+                                    # Check if the cables could clash. If so, create clashing node and constructed edges between appropriate failure nodes
+                                    for clash_failure in systems[(str(line1_type)+str(line2_type))]:
+                                        if 'shared' in line1_type and all(abs(np.array(line1.rB[:2]) - np.array(line2.rB[:2])) < 100): reverse = True
+                                        else: reverse = False
+                                        if self.couldClash(clash_failure, line1, line2, reverse) and not(clash_failure + "\n" + str(line1.id)+str(line2.id) in list(self.G.nodes)):
+                                            if clash_failure in line1.failure_probability.keys(): fail_prob = line1.failure_probability[clash_failure]
+                                            else: fail_prob = self.init_prob_dict[clash_failure]
+                                            if not(('shared' in line1_type or 'shared' in line2_type) and ('anchor' in clash_failure.lower())):
+                                                print('NEW CLASHING NODE -', clash_failure.replace('\n', ' ') + "\n" + str(line1.id)+str(line2.id))
+                                                self.G.add_node(clash_failure + "\n" + str(line1.id)+str(line2.id),  probability=fail_prob, obj=[line1, line2], failure=clash_failure, m_or_e=self.mode_effect_dict[clash_failure])
+                                                self.G = self.addMoreEdges(clash_failure, str(line1.id)+str(line2.id), connected_components)
+        print()
+        return new_critical_failures
+    
+
+
+    def run_failure_simulation(self):
+        '''Run one iteration of enacting/checking failures, then decide which new failure mode to enact
+        Parameters
+        ----------
+        None
+        '''
+        # Determine criticality measure
+        param = input('How would like to select the first failure mode to enact? (probability, degree, impact, or susceptibility) ')
+        self.criticality_type = param
+        continue_on = True
+
+        # While the user wants to continue and there are nodes left to enact, continue the following
+        while len(self.G.nodes) > 0 and continue_on:
+
+            # Run an interation of enacting a failure mode and checking for failure effects
+            new_critical_failures = self.run_failure_simulation_iteration(param)
+
+            # If there are no new failures, determine which failures to continue with
+            if len(new_critical_failures) < 1:
+                print('There are no observed effects from the FAModel!')
+                continue_bool = input('Would you like to choose a new critical node (type \'cr\'), enter a new critical node (type \'tcr\'), or quit (type \'q\')? ')
+                
+                # If the user wants us to determine the new critical node, find the new critical nodes based on previous criteria
+                if continue_bool.lower() == 'cr':
+                    stipulation = input('Would you like child, global, or combined critical failures? (type \'child\', \'global\', or \'both\') ')
+                    self.update_critical_node(stipulation, mode = True)
+                    print(self.critical_failures)
+
+                # If the user wants to input their own failure, get their failure and set it as the new critical failure
+                elif continue_bool == 'tcr':
+                    new_failure = input('Please type failure here: ')
+                    while not(new_failure in list(self.G.nodes)) and not('q' in new_failure): 
+                        print('Failure not in graph.')
+                        show_nodes = bool('y' in input('Show list of failure nodes? (y/n) '))
+                        if show_nodes:
+                            for node in range(len(list(self.G.nodes))):
+                                print([node, list(self.G.nodes)[node]])
+                        new_failure_num = input('Please type number associated with failure (or \'q\' to quit): ')
+                        new_failure = list(self.G.nodes)[int(new_failure_num)]
+                    if 'q' in new_failure: quit()
+                    self.G.remove_nodes_from(self.critical_failures[1])
+                    self.critical_failures[1] = [new_failure]
+                    self.critical_failures[0] = 0
+                
+                # If the user wants to quit, quit the program
+                elif continue_bool == 'q':
+                    quit()
+
+            # If there are new failure modes identified in the iteration, set them as the critical failures and remove old critical failures
+            else:
+                self.G.remove_nodes_from(self.critical_failures[1])
+                self.critical_failures[1] = new_critical_failures
+                
+            continue_on = bool('y' in input('Are you ready to continue to next failure simulation? (y/n) '))
+
+    
+
+    def update_critical_node(self, criticality_stipulation, critical_failures = None, mode = False):
         '''Determine and return new critical failures (presumably after the previous critical failure(s) occur)
         Parameters
         ----------
@@ -807,24 +993,24 @@ class failureGraph():
         '''
         # If multiple critical nodes allowed, give the option to use both of the above methods to find critical nodes
         if ('child' in criticality_stipulation.lower() and 'global' in criticality_stipulation.lower()) or 'both' in criticality_stipulation.lower():
-            clist1 = self.get_child_critical_node()
-            clist2 = self.get_critical_node(self.criticality_type)
+            clist1 = self.get_child_critical_node(critical_failures=critical_failures, mode = mode)
+            clist2 = self.get_critical_node(self.criticality_type, mode)
             self.critical_failures[0] = (clist1[0] + clist2[0])/2
             self.critical_failures[1] = clist1[1] + clist2[1]
 
         # Find new critical failure (such that the new critical failure must be a direct effect of the previous one)
-        elif 'child' in criticality_stipulation.lower(): self.critical_failures = self.get_child_critical_node()
+        elif 'child' in criticality_stipulation.lower(): self.get_child_critical_node(critical_failures=critical_failures, mode=mode)
 
         # Find critical node such that it doesn't have to be a direct effect of the previous critical failure
         elif 'global' in criticality_stipulation.lower(): 
             for critical_failure in self.critical_failures[1]:
                 self.G.remove_node(critical_failure)
-            self.critical_failures = self.get_critical_node(self.criticality_type)
+            self.critical_failures = self.get_critical_node(self.criticality_type, mode)
 
         return self.critical_failures
     
 
-    def get_child_critical_node(self):
+    def get_child_critical_node(self, critical_failures = None, mode = False):
         '''Get the critical nodes when user desires future critical nodes be children of original critical failure(s)
         Parameters
         ----------
@@ -834,16 +1020,20 @@ class failureGraph():
         nodalNames = np.array(list(self.G.nodes))
         critical_prob = [0, []]
         critical_successors = []
-        for critical_failure in self.critical_failures[1]:
+        if not critical_failures: critical_failures = self.critical_failures[1]
+        for critical_failure in critical_failures:
             node_index = np.where(nodalNames == critical_failure)[0][0]
             nodes = diagonal_nodes(nx.to_numpy_array(self.G))
             a = make_binary(nx.to_numpy_array(self.G), 0)
             child_bool = nodes @ a[:, node_index]
             children = child_bool[np.nonzero(child_bool)]
             for child in children:
-                if not(nodalNames[int(child)] in critical_successors): critical_successors.append(nodalNames[int(child)])
-            self.G.remove_node(critical_failure)
-            
+                if not(nodalNames[int(child)] in critical_successors) and not(nodalNames[int(child)] in self.critical_failures[1]):
+                    if not mode or (mode and self.G.nodes[nodalNames[int(child)]]['m_or_e'] == 'mode'):
+                        critical_successors.append(nodalNames[int(child)])
+            if critical_failure in list(self.G.nodes):
+                self.G.remove_node(critical_failure)
+        
         # Find critical failure for critical indicating the maximum initial probability
         if 'prob' in self.criticality_type:
             nodal_probabilities = nx.get_node_attributes(self.G.subgraph(critical_successors), "probability")
