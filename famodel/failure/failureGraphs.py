@@ -862,7 +862,17 @@ class failureGraph():
                         for nfm in new_failure_modes:
                             if not nfm in new_critical_failures and not nfm == node: new_critical_failures.append(nfm)
                         if len(new_failure_modes) > 1: print("Effect found -", child.replace('\n', ' '))
-                    
+                    if child in list(self.G.nodes):
+                        self.G.remove_node(child)
+
+                # If the angle of roll is greater than 180 degrees (or pi in radians), then the turbine capsized
+                elif 'capsize' in child.lower():
+                    if results_after[3] > math.pi:
+                        observed_effects.append(child)
+                        new_failure_modes = self.choose_new_failure_mode(child)
+                        for nfm in new_failure_modes:
+                            if not nfm in new_critical_failures and not nfm == node: new_critical_failures.append(nfm)
+                        if len(new_failure_modes) > 1: print("Effect found -", child.replace('\n', ' '))
                     if child in list(self.G.nodes):
                         self.G.remove_node(child)
 
