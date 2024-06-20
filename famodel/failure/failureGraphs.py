@@ -615,43 +615,6 @@ class failureGraph():
         # Remove a ballast section in RAFT
         if 'ballast system' in self.G.nodes[failure]['failure'].lower():
             return
-        # Replace buoyancy section with regular cable section in MoorPy
-        if 'buoyancy module' in self.G.nodes[failure]['failure'].lower():
-            dynamic_cable_dict = self.G.nodes[failure]['obj'][0].subcomponents[0].dd
-            if 'sections' in list(self.G.nodes[failure]['obj'][0].subcomponents[0].dd.keys()):
-                print()
-            return
-
-        # --- Working sections ---
-        # Detach line from platform
-        if self.G.nodes[failure]['failure'].lower() in ['chain', 'wire rope', 'synthetic rope', 'clump weights or floats', 'connectors', 'dynamic cable', 'terminations']:
-            failure_obj = self.G.nodes[failure]['obj'][0].part_of
-            failure_obj.detachFrom('b')
-            self.Array.getMoorPyArray()
-
-        # Detach cable at joint
-        if self.G.nodes[failure]['failure'].lower() in ['offshore joints']:
-            failure_obj = self.G.nodes[failure]['obj'][0]
-            failure_obj.detach(failure_obj.attachments[failure_obj.attachments.keys[0]], 'a')
-            self.Array.getMoorPyArray()
-        
-        # Anchor becomes a free point
-        if 'anchor' in self.G.nodes[failure]['failure'].lower():
-            anchor = self.G.nodes[failure]['obj'][0]
-            for point in self.Array.ms.pointList:
-                    if all(abs(anchor.r[:2] - point.r[:2]) < 10):
-                            point.type = 0
-                            self.Array.getMoorPyArray()
-
-        # Turbine not parked above cut-out wind speed (may want to add blades pitched at wrong angles)
-        if self.G.nodes[failure]['failure'].lower() in ['turbine controls']:
-            cut_out_wind_speed = 30 # in m/s --> need a way to determine this value
-            new_case = self.Array.array.design['cases']['data'][-1]
-            new_case[0] = cut_out_wind_speed + 5
-            new_case[3] = 'operating'
-            self.Array.array.design['cases']['data'].append(new_case)
-            self.Array.array.analyzeCases()
-
         # Update RNA mass/inertia for blade or nacelle falling off/add load for hitting platform
         if 'RNA' in self.G.nodes[failure]['failure'].lower():
             tower_obj = self.G.nodes[failure]['obj'][0]
@@ -676,12 +639,54 @@ class failureGraph():
             raft_turbine.IxRNA += 0   # Update RNA inerta --> need help on
             raft_turbine.IrRNA += 0   # Update RNA inerta --> need help on
         
-        # if failure in list(self.G.nodes):
-        #     self.G.remove_node(failure)
+
+        # --- Working sections ---
+        # Detach line from platform
+        if self.G.nodes[failure]['failure'].lower() in ['chain', 'wire rope', 'synthetic rope', 'clump weights or floats', 'connectors', 'dynamic cable', 'terminations']:
+            failure_obj = self.G.nodes[failure]['obj'][0].part_of
+            failure_obj.detachFrom('b')
+
+        # Detach cable at joint
+        if self.G.nodes[failure]['failure'].lower() in ['offshore joints']:
+            failure_obj = self.G.nodes[failure]['obj'][0]
+            failure_obj.detach(failure_obj.attachments[failure_obj.attachments.keys[0]], 'a')
+        
+        # Anchor becomes a free point
+        if 'anchor' in self.G.nodes[failure]['failure'].lower() and not('tether' in self.G.nodes[failure]['failure'].lower()):
+            anchor_pnt = self.G.nodes[failure]['obj'][0].r
+            for point in self.Array.ms.pointList:
+                    print(anchor_pnt[:2], point.r[:2])
+                    if all(abs(anchor_pnt[:2] - point.r[:2]) < 10):
+                            point.type = 0
+
+        # Turbine not parked above cut-out wind speed (may want to add blades pitched at wrong angles)
+        if self.G.nodes[failure]['failure'].lower() in ['turbine controls']:
+            cut_out_wind_speed = 30 # in m/s --> need a way to determine this value
+            new_case = self.Array.array.design['cases']['data'][-1]
+            new_case[0] = cut_out_wind_speed + 5
+            new_case[3] = 'operating'
+            self.Array.array.design['cases']['data'].append(new_case)
+            self.Array.array.analyzeCases()
+        
+        # Replace buoyancy section with regular cable section in MoorPy
+        if 'buoyancy' in self.G.nodes[failure]['failure'].lower():
+            all_buoys = True #bool('y' in input('Would you like to change all buoy sections? (y/n) '))
+            names = []
+            # Find buoyancy sections of cable
+            for i in range(len(self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'])):
+                if 'buoy' in self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type']['name'].lower(): 
+                    names.append(i)
+            if not all_buoys: names = [names[0]]
+            # Replace buoyancy section(s) with regular section
+            for i in names:
+                new_type = self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i-1]['type']
+                self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type'] = new_type
+            return
 
     
 
     def get_descendants(self, failure, threshold = 0.0):
+        self.Array.getMoorPyArray(cables=1, pristineLines=1)
         '''Find the children of a specific failure node
         Parameters
         ----------
@@ -725,6 +730,7 @@ class failureGraph():
         '''
         print("Starting effects check...'", child.replace('\n',' '))
         results = 'no results'
+        self.Array.getMoorPyArray(cables = 1, pristineLines=1)
 
         # Check platform angles
         if 'capsize' in child.lower() or 'excess dynamics' in child.lower():
@@ -750,7 +756,8 @@ class failureGraph():
 
         # Check for rope drag (taut/semitaut lines), line lay length (catenary/semitaut), shared line deep enough
         elif 'change in mooring profile' in child.lower():
-            results = self.G.nodes[child]['obj'][0].ss.lineList[1]
+            results = []
+            # results = self.G.nodes[child]['obj'][0].ss.lineList[1]
 
         # Check watch circle
         elif 'drift' in child.lower() or 'clashing' in child.lower():
@@ -783,17 +790,20 @@ class failureGraph():
 
         # Check if cable sag,hog,etc are within limits
         elif ('profile' in child.lower() or 'load' in child.lower()) and 'cable' in child.lower():
-            # Check if cable sag, hog, etc are within limits
             results = []
-            cable = self.G.nodes[child]['obj'][0]
-            for subcomponent in cable.subcomponents:
-                if 'dynamic' in str(type(subcomponent)):
-                    # continue
-                    iLine = np.where(np.array(self.Array.ms.lineList) == subcomponent.ss)[0]
-                    a = subcomponent.ss.getCurveSF(iLine) #> 1 = above allowable curvature, < 1= under max allowable curvature;  
-                    b = subcomponent.ss.getSag()
-                    results.append([a,b])
-            results = 'NEED TO FIX NONETYPE BUG'
+            # Get platform(s) connected to cable
+            for platform in self.G.nodes[child]['obj'][0].attached_to:
+                    if 'platform' in str(type(platform)):
+                        cables = []
+                        # Determine which index the cable is in
+                        for attachment in platform.attachments:
+                                if 'cable' in str(type(platform.attachments[attachment]['obj'])).lower(): cables.append(platform.attachments[attachment]['obj'])
+                        cable_index = np.where(np.array(cables) == self.G.nodes[child]['obj'][0])[0][0]
+                        # Get the watch circle from the platform, which gives us the min curve and min sag of the array cable
+                        a,b,c = platform.getWatchCircle(self.Array.ms)
+                        results.append(c['minCurvSF'][cable_index])
+                        results.append(c['minSag'][cable_index])
+
         return results
     
 
@@ -959,13 +969,12 @@ class failureGraph():
             # If there are no new failures, determine which failures to continue with
             if len(new_critical_failures) < 1:
                 print('There are no observed effects from the FAModel!')
-                continue_bool = input('Would you like to choose a new critical node (type \'cr\'), enter a new critical node (type \'tcr\'), or quit (type \'q\')? ')
+                continue_bool = 'cr' #input('Would you like to choose a new critical node (type \'cr\'), enter a new critical node (type \'tcr\'), or quit (type \'q\')? ')
                 
                 # If the user wants us to determine the new critical node, find the new critical nodes based on previous criteria
                 if continue_bool.lower() == 'cr':
-                    stipulation = input('Would you like child, global, or combined critical failures? (type \'child\', \'global\', or \'both\') ')
+                    stipulation = 'global' #input('Would you like child, global, or combined critical failures? (type \'child\', \'global\', or \'both\') ')
                     self.update_critical_node(stipulation, mode = True)
-                    print(self.critical_failures)
 
                 # If the user wants to input their own failure, get their failure and set it as the new critical failure
                 elif continue_bool == 'tcr':
@@ -992,7 +1001,7 @@ class failureGraph():
                 self.G.remove_nodes_from(self.critical_failures[1])
                 self.critical_failures[1] = new_critical_failures
                 
-            continue_on = bool('y' in input('Are you ready to continue to next failure simulation? (y/n) '))
+            # continue_on = bool('y' in input('Are you ready to continue to next failure simulation? (y/n) '))
 
     
 
