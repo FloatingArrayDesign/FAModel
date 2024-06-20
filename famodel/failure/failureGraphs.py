@@ -617,7 +617,9 @@ class failureGraph():
             return
         # Replace buoyancy section with regular cable section in MoorPy
         if 'buoyancy module' in self.G.nodes[failure]['failure'].lower():
-            buoyancy_obj = self.G.nodes[failure]['obj']
+            dynamic_cable_dict = self.G.nodes[failure]['obj'][0].subcomponents[0].dd
+            if 'sections' in list(self.G.nodes[failure]['obj'][0].subcomponents[0].dd.keys()):
+                print()
             return
 
         # --- Working sections ---
@@ -709,7 +711,7 @@ class failureGraph():
         # Find children of failure
         child_bool = arr[failure_index] @ nodes # vector of zeros and child names (numerical names)
         children_ints = child_bool[np.nonzero(child_bool)] #list of just the child names (numerical names)
-        children = [nodeNames[int(child_index)] for child_index in children_ints]
+        children = [nodeNames[int(child_index - 1)] for child_index in children_ints]
 
         # Return list of children of failure
         return children
@@ -752,9 +754,9 @@ class failureGraph():
 
         # Check watch circle
         elif 'drift' in child.lower() or 'clashing' in child.lower():
-            # (x,y,maxVals) = self.G.nodes[child]['obj'][0].getWatchCircle()
-            # results = np.hstack((np.array(x), np.array(y)))
-            results = 'WATCH CIRCLE STILL NOT WORKING'
+            output = self.G.nodes[child]['obj'][0].getWatchCircle()
+            results = np.hstack((np.array(output[0]), np.array(output[1])))
+            # results = 'WATCH CIRCLE STILL NOT WORKING'
 
         # Check loads on turbine
         elif 'turbine loads' in child.lower():
@@ -786,7 +788,7 @@ class failureGraph():
             cable = self.G.nodes[child]['obj'][0]
             for subcomponent in cable.subcomponents:
                 if 'dynamic' in str(type(subcomponent)):
-                    continue
+                    # continue
                     iLine = np.where(np.array(self.Array.ms.lineList) == subcomponent.ss)[0]
                     a = subcomponent.ss.getCurveSF(iLine) #> 1 = above allowable curvature, < 1= under max allowable curvature;  
                     b = subcomponent.ss.getSag()
