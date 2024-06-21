@@ -31,6 +31,8 @@ for anch in project.anchorList.values():      # go through each anchor object in
 turb_coords = []                            # initialize an empty list to store platform locations in
 for PF in project.platformList.values():    # go through each platform object in the farm
     turb_coords.append(deepcopy(PF.r))                # add the x-y location of this substation object to the anchor_xy list
+    # add buffer zone around anchors etc
+    PF.getbufferzones()
     
 # substations
 substation_coords = []
@@ -42,7 +44,7 @@ boundary_coords = project.boundary
     
     
     
-########## get watch circles and envelopes for platforms and mooring lines #############
+# ########## get watch circles and envelopes for platforms and mooring lines #############
 print('Creating watch circles and envelopes')
 # This step will take a long time...
 for moor in project.mooringList.values():

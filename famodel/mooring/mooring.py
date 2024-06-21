@@ -334,11 +334,13 @@ class Mooring(Edge):
         if pristine:
             # save to ss
             self.ss = ss
+            return(self.ss)
         else:
             # save to modified ss (may have marine growth, corossion, etc)
-            self.mod_ss = ss
+            self.ss_mod = ss
+            return(self.ss_mod)
 
-        return(ss)
+        
     
     """
     # rough method ideas...maybe not necessary or can use existing dict methods
@@ -420,7 +422,7 @@ class Mooring(Edge):
         changeDepths = [] # index of list that has the corresponding changeDepth
         
         # set first connector
-        connList.append(oldLine.connectorList[0])
+        connList.append(self.dd['connectors'][0])
         # go through each line section
         for i in range(0,len(oldLine.lineList)):
             slthick = [] # mg thicknesses for the section (if rA is above rB, needs to be flipped before being added to full subsystem list LThick)
@@ -469,7 +471,7 @@ class Mooring(Edge):
                     slthick.append(th[j][0])
                     Mats.append(ssLine.type['material'])
                     # add an empty connector object to list for split location
-                    connList.append(Connector())
+                    connList.append(Connector(str(len(connList))+'_empty'))
                     changePoints.append(len(connList)-1)
                     schangeDepth.append([j,rs])
                     
@@ -527,7 +529,7 @@ class Mooring(Edge):
                 Lengths.append(ssLine.L)
                 
             # add connector at end of section to list
-            connList.append(oldLine.connectorList[i+1])
+            connList.append(self.dd['connectors'][i+1])
                 
         # Set up list variables for pristine line info
         EA = []
@@ -559,7 +561,10 @@ class Mooring(Edge):
         nd = [] # list of dictionaries for new design dictionary sections part
         
         for j,ltyp in enumerate(LTypes):
-            st =  deepcopy(oldLine.ss.lineTypes)
+            st =  deepcopy(oldLine.lineTypes)
+            for k in st:
+                if st[k]['name'] == ltyp:
+                    ltyp = k
             # add in information for each line type without marine growth
             EA.append(st[ltyp]['EA'])
             m.append(st[ltyp]['m'])
@@ -629,13 +634,13 @@ class Mooring(Edge):
                 # add line details to dictionary
                 ndt['material'] = Mats[j]
                 ndt['name'] = str(j)
-                if 'MBL' in oldLine.ss.lineTypes[ltyp]:
-                    ndt['MBL'] = oldLine.ss.lineTypes[ltyp]['MBL']
-                if 'cost' in oldLine.ss.lineTypes[ltyp]:
-                    ndt['cost'] = oldLine.ss.lineTypes[ltyp]['cost']
+                if 'MBL' in oldLine.lineTypes[ltyp]:
+                    ndt['MBL'] = oldLine.lineTypes[ltyp]['MBL']
+                if 'cost' in oldLine.lineTypes[ltyp]:
+                    ndt['cost'] = oldLine.lineTypes[ltyp]['cost']
                 ndt['EA'] = EA[j]
-                if 'EAd' in oldLine.ss.lineTypes[ltyp]:
-                    ndt['EAd'] = oldLine.ss.lineTypes[ltyp]['EAd']
+                if 'EAd' in oldLine.lineTypes[ltyp]:
+                    ndt['EAd'] = oldLine.lineTypes[ltyp]['EAd']
             # add lengths                 
             nd[j]['length'] = Lengths[j]
         
@@ -678,7 +683,7 @@ class Mooring(Edge):
                 MBL_cor = sec['MBL']
 
 
-    def getEnvelope(self):
+    def getEnvelope(self,ang_spacing=45):
         '''Computes the motion envelope of the Mooring based on the watch 
         circle(s) of what it's attached to. If those aren't already 
         calculated, this method will call the relevant getWatchCircle method.
@@ -706,7 +711,7 @@ class Mooring(Edge):
                 
                 # If no watch circle saved, compute it 
                 if not 'mean' in att.envelopes:  
-                    att.getWatchCircle()
+                    att.getWatchCircle(ang_spacing=ang_spacing)
                 
                 # Add each vertex of the watch circle to the list
                 for x, y in zip(att.envelopes['mean']['x'], 

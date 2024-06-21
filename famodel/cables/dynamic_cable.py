@@ -319,33 +319,34 @@ class DynamicCable(Edge):
             dd['sections'] = []
             if not self.buoyancySections:
                 dd['sections'].append({'type':self.cableType,'length':self.L})
-            for i,bs in enumerate(self.buoyancySections):
-                # get buoyancy section information
-                Ls,m,w,d_vol = self.calcEquivBuoyancy(bs) 
-                
-                if i == 0 and bs['L_mid']<Ls/2:
-                    pass
-                else:            
-                    # cable doesn't start with a buoyancy section of this is a mid section - need to add cable length section before buoyancy section
-                    dd['sections'].append({'type':self.cableType})                
-                    dd['sections'][-1]['length'] = bs['L_mid'] - Ls/2 - currentL
-                    currentL = bs['L_mid'] - Ls/2 # save the end location of the section
-                # create buoyancy section equivalent cable type dict
-                buoyCableType = deepcopy(self.cableType)
-                buoyCableType['d_vol'] = d_vol
-                buoyCableType['m'] = m
-                buoyCableType['w'] = w
-                buoyCableType['name'] = self.cableType['name']+'_'+'buoy'+str(i)
-                dd['sections'].append({'type':buoyCableType})
-                dd['sections'][-1]['length'] = Ls
-                # update end location of the section 
-                currentL += Ls 
-               
-                if i == len(self.buoyancySections)-1:
-                    # this is the last section - add cable length at the end
-                    dd['sections'].append({'type':self.cableType})
-                    dd['sections'][-1]['length'] = self.L - bs['L_mid'] - Ls/2
-                    currentL += self.L - bs['L_mid'] - Ls/2
+            else:
+                for i,bs in enumerate(self.buoyancySections):
+                    # get buoyancy section information
+                    Ls,m,w,d_vol = self.calcEquivBuoyancy(bs) 
+                    
+                    if i == 0 and bs['L_mid']<Ls/2:
+                        pass
+                    else:            
+                        # cable doesn't start with a buoyancy section of this is a mid section - need to add cable length section before buoyancy section
+                        dd['sections'].append({'type':self.cableType})                
+                        dd['sections'][-1]['length'] = bs['L_mid'] - Ls/2 - currentL
+                        currentL = bs['L_mid'] - Ls/2 # save the end location of the section
+                    # create buoyancy section equivalent cable type dict
+                    buoyCableType = deepcopy(self.cableType)
+                    buoyCableType['d_vol'] = d_vol
+                    buoyCableType['m'] = m
+                    buoyCableType['w'] = w
+                    buoyCableType['name'] = self.cableType['name']+'_'+'buoy'+str(i)
+                    dd['sections'].append({'type':buoyCableType})
+                    dd['sections'][-1]['length'] = Ls
+                    # update end location of the section 
+                    currentL += Ls 
+                   
+                    if i == len(self.buoyancySections)-1:
+                        # this is the last section - add cable length at the end
+                        dd['sections'].append({'type':self.cableType})
+                        dd['sections'][-1]['length'] = self.L - bs['L_mid'] - Ls/2
+                        currentL += self.L - bs['L_mid'] - Ls/2
 
                    
         # check if a subsystem already exists
@@ -397,10 +398,11 @@ class DynamicCable(Edge):
         # save it in the object
         if pristine:
             self.ss = ss
+            return(self.ss)
         else:
             self.ss_mod = ss
-        
-        return(self.ss)      
+            return(self.ss_mod)
+              
     
     def addMarineGrowth(self, mgDict, project=None, idx=None):
         '''Re-creates sections part of design dictionary to account for marine 
@@ -443,20 +445,19 @@ class DynamicCable(Edge):
         oldLine = self.ss
         # create a reference subsystem if it doesn't already exist
         if not oldLine:
-            self.createSubsystem()          
+            self.createSubsystem(pristine=1)          
         # set up variables
         LTypes = [] # list of line types for new lines (types listed are from reference object)
         Lengths = [] # lengths of each section for new line
-        Mats = [] # materials list for new line        
-        connList = [] # new list of connectors (need to add empty connector objects in between changeDepths)
+        # Mats = [] # materials list for new line        
+        sCount = [] # new list of connectors (need to add empty connector objects in between changeDepths)
         LThick = [] # list of mg thicknesses for new lines
         ln_raw = [] # list of line lengths from rA to current split in line (needed to determine length of new sections when there are multiple splits in one line section)
         # set up variables needed to check before/after of changeDepths
         changePoints = []
         changeDepths = [] # index of list that has the corresponding changeDepth
         
-        # set first connector
-        connList.append(oldLine.connectorList[0])
+        sCount = 0
         # go through each line section
         for i in range(0,len(oldLine.lineList)):
             slthick = [] # mg thicknesses for the section (if rA is above rB, needs to be flipped before being added to full subsystem list LThick)
@@ -465,7 +466,7 @@ class DynamicCable(Edge):
             # set reference subsystem line section location
             ssLine = oldLine.lineList[i]
             # add line material, type to list
-            Mats.append(ssLine.type['material'])
+            # Mats.append(ssLine.type['material'])
             LTypes.append(ssLine.type['name'])
                        
             # check whether rA is above rB (can happen for sections of shared lines)
@@ -503,10 +504,10 @@ class DynamicCable(Edge):
                     # line section will be split - add line type, mg thickness, and material to list
                     LTypes.append(ssLine.type['name'])
                     slthick.append(th[j][0])
-                    Mats.append(ssLine.type['material'])
+                    # Mats.append(ssLine.type['material'])
                     # add an empty connector object to list for split location
-                    connList.append(Connector())
-                    changePoints.append(len(connList)-1)
+                    sCount += 1
+                    changePoints.append(sCount)
                     schangeDepth.append([j,rs])
                     
                     # get length of line between each node
@@ -561,20 +562,22 @@ class DynamicCable(Edge):
                 changeDepths.extend(schangeDepth)
             else: # line section was not split, add full line length
                 Lengths.append(ssLine.L)
-                
-            # add connector at end of section to list
-            connList.append(oldLine.connectorList[i+1])
-                
+            
+            sCount += 1
+            # changePoints.append(sCount)
+                               
         # Set up list variables for pristine line info
         EA = []
         m = []
         d_ve_old = []
         cd = []
         cdAx = []
+        d_nom_old = []
+        ve_nom_adjust = []
                                             
         # create arrays
-        d_nom_old = np.zeros((len(LTypes),1))        
-        ve_nom_adjust = np.zeros((len(LTypes),1))
+        # d_nom_old = np.zeros((len(LTypes),1))        
+        # ve_nom_adjust = np.zeros((len(LTypes),1))
         mu_mg = np.zeros((len(LTypes),1))
         rho_mg = np.ones((len(LTypes),1))*1325
         # adjust rho value if alternative provided
@@ -595,11 +598,17 @@ class DynamicCable(Edge):
         nd = [] # list of dictionaries for new design dictionary sections part
         
         for j,ltyp in enumerate(LTypes):
-            st =  deepcopy(oldLine.ss.lineTypes)
+            st =  deepcopy(oldLine.lineTypes)
             # add in information for each line type without marine growth
             EA.append(st[ltyp]['EA'])
             m.append(st[ltyp]['m'])
             d_ve_old.append(st[ltyp]['d_vol'])
+            if not 'd_nom' in st[ltyp]:
+                # calculate d_nom assume 0.8 d_vol_d_nom_adjust
+                d_nom_old.append(st[ltyp]['d_vol']/0.8)
+            else:               
+                d_nom_old.append(st[ltyp]['d_nom'])
+            ve_nom_adjust.append(d_ve_old[-1]/d_nom_old[-1])
             # new dictionary for this line type
             nd.append({'type':{}, 'length':{}}) # new design dictionary
             ndt = nd[j]['type']
@@ -607,24 +616,24 @@ class DynamicCable(Edge):
             # load in line props from MoorProps
             opt = helpers.loadLineProps(None)
             
-            if 'd_nom' in st[ltyp]:
-                d_nom_old[j] = st[ltyp]['d_nom']
-                # get ratio between ve and nom diameter normally
-                ve_nom_adjust[j] = d_ve_old[j]/d_nom_old[j]
-            elif Mats[j] in opt:
-                # get ratio between ve and nom diameter from MoorProps yaml                
-                ve_nom_adjust[j] = opt[Mats[j]]['dvol_dnom']
+            # if 'd_nom' in st[ltyp]:
+            #     d_nom_old[j] = st[ltyp]['d_nom']
+            #     # get ratio between ve and nom diameter normally
+            #     ve_nom_adjust[j] = d_ve_old[j]/d_nom_old[j]
+            # elif Mats[j] in opt:
+            #     # get ratio between ve and nom diameter from MoorProps yaml                
+            #     ve_nom_adjust[j] = opt[Mats[j]]['dvol_dnom']
             # get cd and cdAx if given, or assign to default value
-            if Mats[j] in opt and not 'Cd' in st[ltyp]:
-                cd.append(opt[Mats[j]]['Cd'])
-            elif 'Cd' in st[ltyp]:
+            # if Mats[j] in opt and not 'Cd' in st[ltyp]:
+            #     cd.append(opt[Mats[j]]['Cd'])
+            if 'Cd' in st[ltyp]:
                 cd.append(st[LTypes[j]]['Cd'])
             else:
                 #print('No Cd given in line type and material not found in MoorProps yaml. Default Cd of 1 will be used.')
                 cd.append(2)
-            if Mats[j] in opt and not 'CdAx' in st[ltyp]:
-                cdAx.append(opt[Mats[j]]['CdAx'])
-            elif 'CdAx' in st[ltyp]:
+            # if Mats[j] in opt and not 'CdAx' in st[ltyp]:
+            #     cdAx.append(opt[Mats[j]]['CdAx'])
+            if 'CdAx' in st[ltyp]:
                 cdAx.append(st[LTypes[j]]['CdAx'])
             else:
                 #print('No CdAx given in line type and material not found in MoorProps yaml. Default CdAx of 0.5 will be used.')
@@ -634,11 +643,11 @@ class DynamicCable(Edge):
                 nd[j]['type'] = deepcopy(st[ltyp])
                 nd[j]['type']['name'] = j
             else:
-                # get mu for material
-                if Mats[j] == 'chain' or Mats[j] == 'chain_studlink':
-                    mu_mg[j] = 2
-                else:
-                    mu_mg[j] = 1
+                # # get mu for material
+                # if Mats[j] == 'chain' or Mats[j] == 'chain_studlink':
+                #     mu_mg[j] = 2
+                # else:
+                mu_mg[j] = 1
                 
                 # re-form dictionaries with marine growth values            
                 # calculate nominal diameter
@@ -663,15 +672,15 @@ class DynamicCable(Edge):
                 ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
                 
                 # add line details to dictionary
-                ndt['material'] = Mats[j]
+                # ndt['material'] = Mats[j]
                 ndt['name'] = str(j)
-                if 'MBL' in oldLine.ss.lineTypes[ltyp]:
-                    ndt['MBL'] = oldLine.ss.lineTypes[ltyp]['MBL']
-                if 'cost' in oldLine.ss.lineTypes[ltyp]:
-                    ndt['cost'] = oldLine.ss.lineTypes[ltyp]['cost']
+                if 'MBL' in oldLine.lineTypes[ltyp]:
+                    ndt['MBL'] = oldLine.lineTypes[ltyp]['MBL']
+                if 'cost' in oldLine.lineTypes[ltyp]:
+                    ndt['cost'] = oldLine.lineTypes[ltyp]['cost']
                 ndt['EA'] = EA[j]
-                if 'EAd' in oldLine.ss.lineTypes[ltyp]:
-                    ndt['EAd'] = oldLine.ss.lineTypes[ltyp]['EAd']
+                if 'EAd' in oldLine.lineTypes[ltyp]:
+                    ndt['EAd'] = oldLine.lineTypes[ltyp]['EAd']
             # add lengths                 
             nd[j]['length'] = Lengths[j]
         
@@ -683,7 +692,6 @@ class DynamicCable(Edge):
         # fill out rest of new design dictionary
         nd1 = deepcopy(self.dd)
         nd1['sections'] = nd
-        nd1['connectors'] = connList
         
         # call createSubsystem() to make moorpy subsystem with marine growth
         if self.shared:

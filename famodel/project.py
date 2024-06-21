@@ -52,7 +52,6 @@ class Project():
             information describing the project, following the ontology.
         '''
         
-        
         # ----- design information -----
         
         # higher-level design data structures
@@ -149,6 +148,7 @@ class Project():
         '''Load design information from a dictionary or YAML file
         (specified by input). This should be the design portion of
         the floating wind array ontology.'''
+        
         print('Loading design')
         # standard function to load dict if input is yaml
         if not isinstance(d,dict):#if the input is not a dictionary, it is a yaml
@@ -1362,7 +1362,7 @@ class Project():
         
         # also save in RAFT, in its MoorPy System(s)
     
-    def addCablesConnections(self,connDict):
+    def addCablesConnections(self,connDict,cableType='dynamic_cable_66'):
         '''Adds cables and connects them to existing platforms/substations based on info in connDict
         Designed to work with cable optimization output designed by Michael Biglu
 
@@ -1377,23 +1377,54 @@ class Project():
 
         '''
         # go through each index in the list and create a cable, connect to platforms
-        for i in range(0,connDict['connections']): # go through each cluster
-            for j in range(0,connDict['connections'][i]):
-                # collect design dictionary info on cable
-                dd = {}
-                cableType = connDict['props'][i][j] # running on assumption that each thing in props will have equivalent of a design dictionary
-                # may need to add here to get the properties properly put in the design dictionary
-                cable = cableType['name']
-                # create cable object
-                self.cableList[(cable,i*j)] = SubseaCable((cable,i*j),dd=dd)
-                # attach to platforms/substations
-                for k in range(0,2): # cable will always only go between 2 points
-                    if connDict['connections'][i][j][k] in self.platformList:
-                        self.cableList[(cable,i*j)].attachTo(self.platformList[connDict['connections'][i][j][k]],end='A')
-                    elif connDict['connections'][i][j][k] in self.substationList:
-                        self.cableList[(cable,i*j)].attachTo(self.substationList[connDict['connections'][i][j][k]],end='B')
-                    else:
-                        raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations')
+        print(len(connDict))
+        for i in range(0,len(connDict)): # go through each cable
+            print('i=',i)
+            # collect design dictionary info on cable
+            dd = {}
+            dd['cables'] = [{}]
+            cd = dd['cables'][0]
+            # print(connDict[i])
+            cd['span'] = connDict[i]['2Dlength']
+            cd['length'] = connDict[i]['2Dlength']
+            cd['A'] = connDict[i]['A_min_con']
+            cd['type'] = 'dynamic'
+            
+            cabProps = getCableProps(connDict[i]['A_min_con'],cableType,source="default")
+            # fix units
+            cabProps['EA'] = cabProps['EA']*1e6
+            cabProps['EI'] = cabProps['EI']*1e3
+            cabProps['MBL'] = cabProps['MBL']*1e3
+            cabProps['power'] = cabProps['power']*1e6
+            cd['cable_type'] = cabProps
+            dd['name'] = cableType
+
+            # detach and delete existing cable list
+            if self.cableList:
+                for j,cab in enumerate(self.cableList.values()):
+                    cab.detachFrom('a')
+                    cab.detachFrom('b')
+            self.cableList = {}     
+            
+            # create cable object
+            self.cableList[cableType+str(i)] = SubseaCable(cableType+str(i),d=dd)
+            print(connDict[i])
+            # attach to platforms/substations
+            for k in range(0,2): # cable will always only go between 2 points
+                print('Turbine IDs: ',connDict[i]['turbineA_glob_id'],connDict[i]['turbineB_glob_id'])
+                if connDict[i]['turbineA_glob_id'] in self.platformList:
+                    self.cableList[cableType+str(i)].attachTo(self.platformList[connDict[i]['turbineA_glob_id']],end='A')
+                elif connDict[i]['turbineA_glob_id'] in self.substationList:
+                    self.cableList[cableType+str(i)].attachTo(self.substationList[connDict[i]['turbineA_glob_id']],end='A')
+                else:
+                    raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations')
+                
+                if connDict[i]['turbineB_glob_id'] in self.platformList:
+                    self.cableList[cableType+str(i)].attachTo(self.platformList[connDict[i]['turbineB_glob_id']],end='B')
+                elif connDict[i]['turbineA_glob_id'] in self.substationList:
+                    self.cableList[cableType+str(i)].attachTo(self.substationList[connDict[i]['turbineB_glob_id']],end='B')
+                else:
+                    raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations') 
     
     
 
@@ -2105,6 +2136,10 @@ class Project():
             idx = []
             for i in self.mooringList:
                 idx.append(i)
+            for i in self.cableList:
+                for j,cab in enumerate(self.cableList[i].subcomponents):
+                    if isinstance(cab,DynamicCable):
+                        idx.append([i,j])
         else:
             idx = lines
         
@@ -2115,9 +2150,15 @@ class Project():
             mgDict = deepcopy(mgDict_start)
             while np.absolute(sum(cEq)/len(cEq)) > tol and ct<10: # while mean difference between actual and desired change depth is larger than tolerance and count is less than 10
                 cEq = [] # reset cEq
-                cD,cP = self.mooringList[i].addMarineGrowth(mgDict,project=self,idx=i)
-                for j in range(0,len(cP)):
-                    cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.mooringList[i].ss.pointList[cP[j]].r[2])
+                if isinstance(i,list):
+                    # this is a cable
+                    cD,cP = self.cableList[i[0]].subcomponents[i[1]].addMarineGrowth(mgDict)
+                    for j in range(0,len(cP)):
+                        cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.cableList[i[0]].subcomponents[i[1]].ss_mod.pointList[cP[j]].r[2])
+                else:
+                    cD,cP = self.mooringList[i].addMarineGrowth(mgDict,project=self,idx=i)
+                    for j in range(0,len(cP)):
+                        cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.mooringList[i].ss_mod.pointList[cP[j]].r[2])
                 # adjust depth to change based on difference between actual and desired change depth
                 if cEq:
                     mgDict['th'][0][2] = mgDict['th'][0][2] + sum(cEq)/len(cEq)
@@ -2136,7 +2177,10 @@ class Project():
                 if ct == 10:
                     raise Exception(f"Unable to produce marine growth at the indicated change depths within the depth tolerance provided for mooring line index {i}. Please check for errors or increase tolerance.")
                 # assign the newly created subsystem into the right place in the line list
-                self.ms.lineList[ii] = self.mooringList[i].ss
+                if isinstance(i,list):
+                    self.ms.lineList[ii] = self.cableList[i[0]].subcomponents[i[1]].ss_mod
+                else:
+                    self.ms.lineList[ii] = self.mooringList[i].ss_mod
                 
     def updateFailureProbability(self):
         '''
@@ -2248,7 +2292,7 @@ if __name__ == '__main__':
     #project = Project(file='OntologySample600m.yaml')
     project = Project(file='../tests/simple_farm.yaml')
     
-    project.getMoorPyArray(cables=1,plt=1)
+    project.getMoorPyArray(cables=1,plt=1,pristineLines=1)
 
     # make envelopes and watch circles
     # (Mooring.getEnvelope will call Platform.getWatchCircle when needed)

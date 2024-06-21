@@ -7,6 +7,7 @@ from famodel.turbine.turbine import Turbine
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from famodel.cables.cable import SubseaCable
+from famodel.mooring.anchor import Anchor
 
 class Platform(Node):
     '''
@@ -290,4 +291,90 @@ class Platform(Node):
                 
             
         return(x,y,maxVals)
+    
+    def getMoorings(self):
+        '''
+        Function to get mooring lines connected to this platform
+
+        Returns
+        -------
+        mooringList: dict
+            dictionary of mooring objects connected to the platform
+
+        '''
+        mooringList = {}
+        for i,att in enumerate(self.attachments):
+            if isinstance(att['obj'],Mooring):
+                mooringList[att['id']] = att['obj']
+        
+        return(mooringList)
+                
+    def getCables(self):
+        '''
+        Function to get cables connected to this platform
+
+        Returns
+        -------
+        cableList: dict
+            dictionary of cable objects connected to the platform
+
+        '''
+        cableList = {}
+        for att in self.attachments:
+            if isinstance(att['obj'],SubseaCable):
+                cableList[att['id']] = att['obj']
+                
+        return(cableList)
+    
+    def getAnchors(self):
+        '''
+        Function to find anchors associated with this platform
+        
+        Returns
+        -------
+        anchorList: dict
+            dictionary of cable objects connected to the platform
+
+        '''
+        anchorList = {}
+        mList = self.getMoorings()
+        for moor in mList.values():
+            for att in moor.attached_to.values():
+                if isinstance(att,Anchor):
+                    anchorList[att.id] = att
+                
+        return(anchorList)
+        
+
+    def getbufferzones(self, buffer_rad=25):     
+        ''' Function to calculate buffer zones around mooring lines and anchors.
+        
+        Parameters
+        ----------
+        buffer_rad: Radius of buffer zones in m
+                
+        '''
+        from shapely.geometry import LineString, MultiLineString, Polygon
+        from shapely.ops import unary_union
+        
+        # get anchor objects connected to platform
+        anchorList = self.getAnchors()
+        
+        # Create LineString geometries and buffer them
+        buffer_group = []
+        for j,anch in enumerate(anchorList):
+            # im = 3*i + j  # global index of mooring/anchor
+            
+            line = LineString([self.r, anchorList[anch].r])
+            #line = LineString([self.turb_coords[i,:], self.anchor_coords[im,:]])
+            buffer = line.buffer(buffer_rad)
+            buffer_group.append(buffer)
+        
+        # Combine the buffered lines connected to the same turbine into one polygon
+        polygon = unary_union(buffer_group)  # Combine buffers for each turbine
+        if isinstance(polygon, MultiLineString):
+            # Convert MultiLineString to Polygon
+            self.envelopes['buffer_zones'] = Polygon(polygon)
+
+        return  self.envelopes['buffer_zones']
 
