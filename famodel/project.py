@@ -23,7 +23,7 @@ from famodel.platform.platform import Platform
 from famodel.mooring.anchor import Anchor
 from famodel.mooring.connector import Connector
 from famodel.substation.substation import Substation
-from famodel.cables.cable import SubseaCable
+from famodel.cables.cable import Cable
 from famodel.cables.dynamic_cable import DynamicCable
 from famodel.cables.static_cable import StaticCable
 from famodel.cables.cable_properties import getCableProps, getBuoyProps
@@ -864,7 +864,7 @@ class Project():
                             
                 
                 # create subsea cable object
-                self.cableList[cable+str(i)] = SubseaCable(cable+str(i),d=dd)
+                self.cableList[cable+str(i)] = Cable(cable+str(i),d=dd)
                 
                         
                 # connect cable to platform/substation
@@ -1407,7 +1407,7 @@ class Project():
             self.cableList = {}     
             
             # create cable object
-            self.cableList[cableType+str(i)] = SubseaCable(cableType+str(i),d=dd)
+            self.cableList[cableType+str(i)] = Cable(cableType+str(i),d=dd)
             print(connDict[i])
             # attach to platforms/substations
             for k in range(0,2): # cable will always only go between 2 points
@@ -1427,7 +1427,6 @@ class Project():
                     raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations') 
     
     
-
     def plot2d(self, ax=None, plot_seabed=True, plot_boundary=True, bare=False, **kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         

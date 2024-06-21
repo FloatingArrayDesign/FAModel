@@ -11,7 +11,7 @@ from famodel.cables.components import Joint
 from famodel.famodel_base import Edge
 
 
-class SubseaCable(Edge):
+class Cable(Edge):
     '''Class for an entire subsea cable that transmits power between two 
     turbines or between a turbine and a substation. This can include a
     dynamic cable section (at each end), a static cable section, and

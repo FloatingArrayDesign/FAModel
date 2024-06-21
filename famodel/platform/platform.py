@@ -6,7 +6,7 @@ from famodel.mooring.mooring import Mooring
 from famodel.turbine.turbine import Turbine
 import matplotlib.pyplot as plt
 from copy import deepcopy
-from famodel.cables.cable import SubseaCable
+from famodel.cables.cable import Cable
 from famodel.mooring.anchor import Anchor
 
 class Platform(Node):
@@ -204,7 +204,7 @@ class Platform(Node):
                 turbine = self.attachments[i]['obj']
             elif isinstance(self.attachments[i]['obj'],Mooring):
                 moorings.append(self.attachments[i]['obj'])
-            elif isinstance(self.attachments[i]['obj'],SubseaCable):
+            elif isinstance(self.attachments[i]['obj'],Cable):
                 # find cable subcomponent attached to this cable
                 if self.attachments[i]['end'] =='a' or 'A':
                     cables.append(self.attachments[i]['obj'].subcomponents[0])
