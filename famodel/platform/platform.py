@@ -303,9 +303,9 @@ class Platform(Node):
 
         '''
         mooringList = {}
-        for i,att in enumerate(self.attachments):
-            if isinstance(att['obj'],Mooring):
-                mooringList[att['id']] = att['obj']
+        for i in self.attachments:
+            if isinstance(self.attachments[i]['obj'],Mooring):
+                mooringList[self.attachments[i]['id']] = self.attachments[i]['obj']
         
         return(mooringList)
                 
@@ -339,7 +339,7 @@ class Platform(Node):
         anchorList = {}
         mList = self.getMoorings()
         for moor in mList.values():
-            for att in moor.attached_to.values():
+            for att in moor.attached_to:
                 if isinstance(att,Anchor):
                     anchorList[att.id] = att
                 
@@ -362,19 +362,27 @@ class Platform(Node):
         
         # Create LineString geometries and buffer them
         buffer_group = []
-        for j,anch in enumerate(anchorList):
+        for anch in anchorList:
             # im = 3*i + j  # global index of mooring/anchor
-            
-            line = LineString([self.r, anchorList[anch].r])
+            line = LineString([self.r, anchorList[anch].r[:2]])
             #line = LineString([self.turb_coords[i,:], self.anchor_coords[im,:]])
             buffer = line.buffer(buffer_rad)
             buffer_group.append(buffer)
         
         # Combine the buffered lines connected to the same turbine into one polygon
         polygon = unary_union(buffer_group)  # Combine buffers for each turbine
+        self.envelopes['buffer_zones'] = {}
         if isinstance(polygon, MultiLineString):
             # Convert MultiLineString to Polygon
-            self.envelopes['buffer_zones'] = Polygon(polygon)
+            self.envelopes['buffer_zones']['shape'] = Polygon(polygon)
+        else:
+            self.envelopes['buffer_zones']['shape'] = polygon
+        # get coords of object
+        xx,yy = self.envelopes['buffer_zones']['shape'].exterior.coords.xy
+        x = xx.tolist()
+        y = yy.tolist()
+        self.envelopes['buffer_zones']['x'] = x
+        self.envelopes['buffer_zones']['y'] = y
 
         return  self.envelopes['buffer_zones']
 
