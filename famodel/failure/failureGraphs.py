@@ -19,6 +19,7 @@ class failureGraph():
         self.criticality_type = None
         self.imput_and_susceptibility_table = None
         self.mean_is = None
+        self.iteration = 0
 
 
     def create_failureGraph(self, matrix_file, matrix_sheet, probabilities_file, probability_sheet):
@@ -244,6 +245,19 @@ class failureGraph():
                         self.G.add_node(clashing_failure + "\n" + str(platform) + ' ' + str(cable_num),  probability=fail_prob, obj=[platform_obj, cable_num], failure=clashing_failure, m_or_e=self.mode_effect_dict[clashing_failure])
                         self.G = self.addMoreEdges(clashing_failure, str(platform) + ' ' + str(cable_num), [platform])
 
+        # If the user wants to input probabilities for specific edges, reweight edges based on the user's inputs
+        user_inputs = input("Would you like to input probabilities into adjacency matrix? ")
+        if (user_inputs == 'y' or user_inputs == 'yes') or user_inputs == 'True':
+            for i in range(len(self.G.edges)):
+                edge = list(self.G.edges)[i]
+                self.G = self.edgeReweight(edge)
+
+        # Initialize MoorPy array
+        self.Array.getMoorPyArray(cables = 1, pristineLines=1)
+        self.Array.ms.initialize()
+        self.Array.ms.solveEquilibrium()
+        print()
+
 
 
     def get_systems(self, nodeNames):
@@ -391,11 +405,13 @@ class failureGraph():
             twoTurbine_calculationType = True
             for i in range(len(self.G.edges)):
                 edge = list(self.G.edges)[i]
-                if ('rift off' in edge[0].replace("\n", " ") or 'ncreased' in edge[0].replace("\n", " ")) or 'ynamics' in edge[0].replace("\n", " "): self.G = self.edgeReweight(edge)
-                elif ('apsize' in edge[0].replace("\n", " ") or '-cable' in edge[0].replace("\n", " ")) or 'ing line non' in edge[0].replace("\n", " "): self.G = self.edgeReweight(edge)
-                elif ('ragging' in edge[0].replace("\n", " ") or 'hain' in edge[0].replace("\n", " ")) or 'ire rope' in edge[0].replace("\n", " "): self.G = self.edgeReweight(edge)
-                elif ('ynthetic' in edge[0].replace("\n", " ") or 'able profile' in edge[0].replace("\n", " ")) or 'ared line' in edge[0].replace("\n", " "): self.G = self.edgeReweight(edge)
-                elif ('load on cable' in edge[0].replace("\n", " ") or 'eight' in edge[0].replace("\n", " ")): self.G = self.edgeReweight(edge)
+                self.G = self.edgeReweight(edge)
+                # -------------------------> If using the two-Turbine test case, uncomment below for quicker reweighting: <-------------------------
+                # if ('rift off' in edge[0].replace("\n", " ") or 'ncreased' in edge[0].replace("\n", " ")) or 'ynamics' in edge[0].replace("\n", " "): self.G = self.edgeReweight(edge)
+                # elif ('apsize' in edge[0].replace("\n", " ") or '-cable' in edge[0].replace("\n", " ")) or 'ing line non' in edge[0].replace("\n", " "): self.G = self.edgeReweight(edge)
+                # elif ('ragging' in edge[0].replace("\n", " ") or 'hain' in edge[0].replace("\n", " ")) or 'ire rope' in edge[0].replace("\n", " "): self.G = self.edgeReweight(edge)
+                # elif ('ynthetic' in edge[0].replace("\n", " ") or 'able profile' in edge[0].replace("\n", " ")) or 'ared line' in edge[0].replace("\n", " "): self.G = self.edgeReweight(edge)
+                # elif ('load on cable' in edge[0].replace("\n", " ") or 'eight' in edge[0].replace("\n", " ")): self.G = self.edgeReweight(edge)
 
         # Ask user if they are ready to continue to Bayesian network calculations (if not, quit)
         continue_input = input("Ready to continue? ")
@@ -467,13 +483,13 @@ class failureGraph():
         # Calculate and return highest impact and susceptibility
         mean_impact = np.mean(all_probabilities, axis=1)
         max_impact = np.max(mean_impact)
-        max_impact_index = np.where(mean_impact == max_impact)[0][0]
+        max_impact_index = np.where(mean_impact == max_impact)[0]
 
         mean_susceptibility = np.mean(all_probabilities, axis=0)
         max_susceptibility = np.max(mean_susceptibility, axis=0)
-        max_impact_susceptibility = np.where(mean_impact == max_impact)[0][0]
+        max_impact_susceptibility = np.where(mean_impact == max_impact)[0]
 
-        self.mean_is = np.hstack(np.reshape(mean_impact, (len(list(self.G.nodes)), 1)), np.reshape(mean_susceptibility, (len(list(self.G.nodes)), 1)))
+        self.mean_is = np.hstack((np.reshape(mean_impact, (len(list(self.G.nodes)), 1)), np.reshape(mean_susceptibility, (len(list(self.G.nodes)), 1))))
         return [max_impact, nodeNames[max_impact_index]], [max_susceptibility, nodeNames[max_impact_susceptibility]]
 
 
@@ -608,6 +624,9 @@ class failureGraph():
         failure : string
             Sting (name) of failure we would like to enact
         '''
+        if failure not in list(self.G.nodes):
+            return
+        
         # --- Sections to be finished (but not by Emma) ---
         # Flood a ballast section in RAFT
         if 'watertightness' in self.G.nodes[failure]['failure'].lower():
@@ -644,7 +663,13 @@ class failureGraph():
         # Detach line from platform
         if self.G.nodes[failure]['failure'].lower() in ['chain', 'wire rope', 'synthetic rope', 'clump weights or floats', 'connectors', 'dynamic cable', 'terminations']:
             failure_obj = self.G.nodes[failure]['obj'][0].part_of
+            if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
             failure_obj.detachFrom('b')
+            if not failure_obj.attached_to[-1]:
+                failure_obj.attached_to = failure_obj.attached_to[:-1]
+            failure_obj.ss.disconnectLineEnd()
+            # print(failure_obj.attached_to)
+            # self.Array.getMoorPyArray(cables = 1, pristineLines=1)
 
         # Detach cable at joint
         if self.G.nodes[failure]['failure'].lower() in ['offshore joints']:
@@ -653,11 +678,12 @@ class failureGraph():
         
         # Anchor becomes a free point
         if 'anchor' in self.G.nodes[failure]['failure'].lower() and not('tether' in self.G.nodes[failure]['failure'].lower()):
-            anchor_pnt = self.G.nodes[failure]['obj'][0].r
-            for point in self.Array.ms.pointList:
-                    print(anchor_pnt[:2], point.r[:2])
-                    if all(abs(anchor_pnt[:2] - point.r[:2]) < 10):
-                            point.type = 0
+            # anchor_pnt = self.G.nodes[failure]['obj'][0].r
+            # for point in self.Array.ms.pointList:
+            #         print(anchor_pnt[:2], point.r[:2])
+            #         if all(abs(anchor_pnt[:2] - point.r[:2]) < 10):
+            #                 point.type = 0
+            self.G.nodes[failure]['obj'][0].mpAnchor.type = 0
 
         # Turbine not parked above cut-out wind speed (may want to add blades pitched at wrong angles)
         if self.G.nodes[failure]['failure'].lower() in ['turbine controls']:
@@ -681,12 +707,14 @@ class failureGraph():
             for i in names:
                 new_type = self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i-1]['type']
                 self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type'] = new_type
-            return
+        # self.Array.getMoorPyArray(cables=1, pristineLines=1)
+        self.Array.ms.initialize()
+        self.Array.ms.solveEquilibrium()
+        return
 
     
 
     def get_descendants(self, failure, threshold = 0.0):
-        self.Array.getMoorPyArray(cables=1, pristineLines=1)
         '''Find the children of a specific failure node
         Parameters
         ----------
@@ -727,10 +755,9 @@ class failureGraph():
         ----------
         failure : string
             Name of failure we would like to enact
-        '''
+        '''        
         print("Starting effects check...'", child.replace('\n',' '))
         results = 'no results'
-        self.Array.getMoorPyArray(cables = 1, pristineLines=1)
 
         # Check platform angles
         if 'capsize' in child.lower() or 'excess dynamics' in child.lower():
@@ -803,7 +830,9 @@ class failureGraph():
                         a,b,c = platform.getWatchCircle(self.Array.ms)
                         results.append(c['minCurvSF'][cable_index])
                         results.append(c['minSag'][cable_index])
-
+        # Plotting code - feel free to uncomment
+        # self.Array.plot2d()
+        # plt.show()
         return results
     
 
@@ -825,7 +854,7 @@ class failureGraph():
 
 
 
-    def run_failure_simulation_iteration(self, param='prob'):
+    def run_failure_simulation_iteration(self, param='prob', plot = False):
         '''Enact failure mode and determine if failure effects have occurred
         Parameters
         ----------
@@ -849,8 +878,19 @@ class failureGraph():
             for child in children: 
                 results_before.update({child: self.get_effects_identifiers(child)})
 
+            # Plot before failure enactment
+            if plot:
+                self.Array.plot2d()
+                plt.savefig("famodel/failure/Demos/" + param + "/" + str(self.iteration) + node.replace("\n", "-").replace("/","-") + "_demo_before.png")
+
             # Enact failure
             self.enact_failures(node)
+
+            # Reevaluate state of FOWT
+            self.Array.array.solveStatics(case=0) # Solve statics in RAFT
+            self.Array.ms.solveEquilibrium() # Solve equilibruim in MoorPy
+            for platform in self.Array.platformList:
+                self.Array.platformList[platform].getWatchCircle() # Update/get watch circles for each platform
 
             # Check ending state of failure effects
             for child in children: 
@@ -868,7 +908,7 @@ class failureGraph():
                         MBL = float(MBL_info[0]) ** int(MBL_info[1])
                     else: MBL = float(MBL)
 
-                    if results_after[child][0] > MBL or results_after[1] > MBL:
+                    if results_after[child][0] > MBL or results_after[child][1] > MBL:
                         observed_effects.append(child)
                         new_failure_modes = self.choose_new_failure_mode(child)
                         for nfm in new_failure_modes:
@@ -879,7 +919,7 @@ class failureGraph():
 
                 # If the angle of roll is greater than 180 degrees (or pi in radians), then the turbine capsized
                 elif 'capsize' in child.lower():
-                    if results_after[3] > math.pi:
+                    if results_after[child][3] > math.pi:
                         observed_effects.append(child)
                         new_failure_modes = self.choose_new_failure_mode(child)
                         for nfm in new_failure_modes:
@@ -944,32 +984,39 @@ class failureGraph():
                                                 print('NEW CLASHING NODE -', clash_failure.replace('\n', ' ') + "\n" + str(line1.id)+str(line2.id))
                                                 self.G.add_node(clash_failure + "\n" + str(line1.id)+str(line2.id),  probability=fail_prob, obj=[line1, line2], failure=clash_failure, m_or_e=self.mode_effect_dict[clash_failure])
                                                 self.G = self.addMoreEdges(clash_failure, str(line1.id)+str(line2.id), connected_components)
+            # Plot after failure enactment
+            if plot:
+                self.Array.plot2d()
+                plt.savefig("famodel/failure/Demos/" + param + "/" + str(self.iteration) + node.replace("\n", "-").replace("/","-") + "_demo_after.png")
+            self.iteration += 1
         print()
         return new_critical_failures
     
 
 
-    def run_failure_simulation(self):
+    def run_failure_simulation(self, auto = True, plot = False):
         '''Run one iteration of enacting/checking failures, then decide which new failure mode to enact
         Parameters
         ----------
         None
         '''
-        # Determine criticality measure
-        param = input('How would like to select the first failure mode to enact? (probability, degree, impact, or susceptibility) ')
-        self.criticality_type = param
+        # Determine criticality measure or input critical node
+        param = input('How would like to select the first failure mode to enact? (probability, degree, impact, susceptibility, or type-in) ')
+        if 'type' in param.lower(): self.get_user_failure_node()
+        else: self.criticality_type = param
         continue_on = True
 
         # While the user wants to continue and there are nodes left to enact, continue the following
         while len(self.G.nodes) > 0 and continue_on:
 
             # Run an interation of enacting a failure mode and checking for failure effects
-            new_critical_failures = self.run_failure_simulation_iteration(param)
+            new_critical_failures = self.run_failure_simulation_iteration(param, plot)
 
             # If there are no new failures, determine which failures to continue with
             if len(new_critical_failures) < 1:
                 print('There are no observed effects from the FAModel!')
-                continue_bool = 'cr' #input('Would you like to choose a new critical node (type \'cr\'), enter a new critical node (type \'tcr\'), or quit (type \'q\')? ')
+                continue_bool = 'cr'
+                if not auto: continue_bool = input('Would you like to choose a new critical node (type \'cr\'), enter a new critical node (type \'tcr\'), or quit (type \'q\')? ')
                 
                 # If the user wants us to determine the new critical node, find the new critical nodes based on previous criteria
                 if continue_bool.lower() == 'cr':
@@ -977,20 +1024,7 @@ class failureGraph():
                     self.update_critical_node(stipulation, mode = True)
 
                 # If the user wants to input their own failure, get their failure and set it as the new critical failure
-                elif continue_bool == 'tcr':
-                    new_failure = input('Please type failure here: ')
-                    while not(new_failure in list(self.G.nodes)) and not('q' in new_failure): 
-                        print('Failure not in graph.')
-                        show_nodes = bool('y' in input('Show list of failure nodes? (y/n) '))
-                        if show_nodes:
-                            for node in range(len(list(self.G.nodes))):
-                                print([node, list(self.G.nodes)[node]])
-                        new_failure_num = input('Please type number associated with failure (or \'q\' to quit): ')
-                        new_failure = list(self.G.nodes)[int(new_failure_num)]
-                    if 'q' in new_failure: quit()
-                    self.G.remove_nodes_from(self.critical_failures[1])
-                    self.critical_failures[1] = [new_failure]
-                    self.critical_failures[0] = 0
+                elif continue_bool == 'tcr': self.get_user_failure_node()
                 
                 # If the user wants to quit, quit the program
                 elif continue_bool == 'q':
@@ -1000,8 +1034,42 @@ class failureGraph():
             else:
                 self.G.remove_nodes_from(self.critical_failures[1])
                 self.critical_failures[1] = new_critical_failures
-                
-            # continue_on = bool('y' in input('Are you ready to continue to next failure simulation? (y/n) '))
+            # print("NEW CFs:", self.critical_failures)
+            if len(self.critical_failures[1]) < 1: continue_on = False
+            if not auto: continue_on = bool('y' in input('Are you ready to continue to next failure simulation? (y/n) '))
+
+
+
+    def get_user_failure_node(self):
+        '''Get the failure node from the user
+        Parameters
+        ----------
+        None
+        '''
+        # Ask for failure node
+        new_failure = input('Please type failure here: ')
+
+        # If failure not in graph, keep asking
+        while not(new_failure in list(self.G.nodes)) and not('q' in new_failure): 
+            print('Failure not in graph.')
+
+            # If the user wants to see the list of failure nodes, list them below
+            show_nodes = bool('y' in input('Show list of failure nodes? (y/n) '))
+            if show_nodes:
+                for node in range(len(list(self.G.nodes))):
+                    print([node, list(self.G.nodes)[node]])
+            
+            # Ask for number with associated failure (numbers shown in list produced above)
+            new_failure_num = input('Please type number associated with failure (or \'q\' to quit): ')
+            new_failure = list(self.G.nodes)[int(new_failure_num)]
+
+        # If the user wants to quit, quit
+        if 'q' in new_failure: quit()
+
+        # Set new critical failures
+        self.G.remove_nodes_from(self.critical_failures[1])
+        self.critical_failures[1] = [new_failure]
+        self.critical_failures[0] = 0
 
     
 
@@ -1025,7 +1093,7 @@ class failureGraph():
         # Find critical node such that it doesn't have to be a direct effect of the previous critical failure
         elif 'global' in criticality_stipulation.lower(): 
             for critical_failure in self.critical_failures[1]:
-                self.G.remove_node(critical_failure)
+                if critical_failure in list(self.G.nodes): self.G.remove_node(critical_failure)
             self.critical_failures = self.get_critical_node(self.criticality_type, mode)
 
         return self.critical_failures
