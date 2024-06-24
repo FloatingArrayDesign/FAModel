@@ -83,7 +83,7 @@ array:
         -  [FOWT2,     2,         1,         ms2,          0,           -1600,            0   ] 
         -  [FOWT3,     1,         1,         ms3,          1600,           -1600,            0   ]
         -  [FOWT4,     1,         2,         ms4,          -1600,          0,            0   ]
-        -  [FOWT5,     1,         1,         ms5,          0,              0,            0   ]
+        -  [FOWT5,     1,         1,         ms5,          0,              0,            45   ]
         -  [FOWT6,     1,         1,         ms6,          1600,              0,            0   ]
         -  [FOWT7,     1,         1,         ms6,          -1600,           1600,            0   ]
         -  [FOWT8,     1,         1,         ms6,          0,              1600,            0   ]
@@ -106,7 +106,7 @@ array_mooring:
     line_data :
         # - [ semitaut-poly_SAnch      ,  Anch1,  FOWT1,  NA, 30, 0]
         # - [ semitaut-poly_SAnch      ,  Anch1,  FOWT4, NA, 150,  0]
-        - [ rope_shared       ,  FOWT2,  FOWT3, 0,  180,  0]
+        - [ rope_shared       ,  FOWT2,  FOWT3, 90,  270,  0]
 
 
 # Array cables (compact table format, without routing info)

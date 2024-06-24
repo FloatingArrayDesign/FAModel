@@ -44,11 +44,11 @@ boundary_coords = project.boundary
     
     
     
-# ########## get watch circles and envelopes for platforms and mooring lines #############
-print('Creating watch circles and envelopes')
-# This step will take a long time...
-for moor in project.mooringList.values():
-    moor.getEnvelope()
+# # ########## get watch circles and envelopes for platforms and mooring lines #############
+# print('Creating watch circles and envelopes')
+# # This step will take a long time...
+# for moor in project.mooringList.values():
+#     moor.getEnvelope()
 
 project.plot2d()  # this should also plot the watch circles/envelopes!
 

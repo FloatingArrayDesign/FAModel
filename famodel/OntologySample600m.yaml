@@ -111,7 +111,7 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
-          - [ rope_shared   ,  fowt1,  fowt2,  180, 180, 0]
+          - [ rope_shared   ,  fowt1,  fowt2,  270, 270, 0]
          # - [ rope_shared   ,  Anch 1,  FOWT 4, NA, 300,  0]
         # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
 
@@ -120,8 +120,8 @@ array_mooring:
 array_cables:   
     keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, lengthAdjust]
     data:
-      - [ array_cable1, fowt1, fowt2,  180,       180, 0] 
-      - [ suspended_cable1, fowt2, substation1,  0,       180, 0] 
+      - [ array_cable1, fowt1, fowt2,  270,       270, 0] 
+      - [ suspended_cable1, fowt2, substation1,  90,       270, 0] 
 
 # ----- substations -------
 

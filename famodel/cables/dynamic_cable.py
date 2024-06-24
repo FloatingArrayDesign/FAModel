@@ -258,13 +258,16 @@ class DynamicCable(Edge):
                 self.heading = np.radians(heading)
             else:
                 self.heading = heading
-            
+        
+        phi = np.radians(90-self.heading) # heading in x-y radian convention [rad]
+        
         # heading 2D unit vector
-        u = np.array([np.cos(self.heading), np.sin(self.heading)])
+        u = np.array([np.cos(phi), np.sin(phi)])
         #print(u)
         r_center = np.array(r_center)[:2]
         # Set the updated fairlead location
         self.setEndPosition(np.hstack([r_center + self.rad_fair*u, self.z_fair]), 'b')
+        
         
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
@@ -364,7 +367,7 @@ class DynamicCable(Edge):
             Ls,m,w,d_vol = self.calcEquivBuoyancy(bs) 
             
             # If this buoyancy section isn't at the very start of the cable
-            if i > 0 or Ls/2 > bs['L_mid']:  
+            if i > 0 or Ls/2 < bs['L_mid']:  
                 # Add a bare cable section before this buoyancy section
                 dd['sections'].append({'type':self.cableType})                
                 dd['sections'][-1]['length'] = bs['L_mid'] - Ls/2 - currentL
@@ -386,7 +389,6 @@ class DynamicCable(Edge):
                 dd['sections'].append({'type':self.cableType})
                 dd['sections'][-1]['length'] = self.L - bs['L_mid'] - Ls/2
                 currentL += self.L - bs['L_mid'] - Ls/2
-
         '''
         currentL = 0
         # add buoyancy sections to design dictionary if it doesn't already exist

@@ -549,8 +549,8 @@ class Project():
                         
                         # create mooring class instance as part of mooring list in the project class instance
                         mc = (Mooring(dd=m_config, id=(arrayInfo[i]['ID'],mct)))
-                        mc.rA = [m_config['span']+m_config['rad_fair'],0,m_config['zAnchor']]
-                        mc.rB = [m_config['rad_fair'],0,m_config['z_fair']]
+                        # mc.rA = [m_config['span']+m_config['rad_fair'],0,m_config['zAnchor']]
+                        # mc.rB = [m_config['rad_fair'],0,m_config['z_fair']]
                         # adjust end positions based on platform location and mooring and platform headings
                         mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, project=self)
                         # adjust anchor z location and rA based on location of anchor
@@ -609,8 +609,9 @@ class Project():
                         elif arrayInfo[k]['ID'] == PFNum[1]:
                             rowA = arrayInfo[k]
                     # get headings (mooring heading combined with platform heading)
-                    headingA = np.radians(arrayMooring[j]['headingA']) + self.platformList[PFNum[1]].phi
-                    headingB = np.radians(arrayMooring[j]['headingB']) + self.platformList[PFNum[0]].phi
+                    headingA = np.radians(90-arrayMooring[j]['headingA']) - self.platformList[PFNum[1]].phi
+                    headingB = np.radians(90-arrayMooring[j]['headingB']) - self.platformList[PFNum[0]].phi
+                    print('headingA: ',headingA,'listed headingA',arrayMooring[j]['headingA'],'phi: ',self.platformList[PFNum[1]].phi)
                     # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
                     Aloc = [rowA['x_location']+np.cos(headingA)*self.platformList[PFNum[1]].rFair, rowA['y_location']+np.sin(headingA)*self.platformList[PFNum[1]].rFair, self.platformList[PFNum[1]].zFair]
                     Bloc = [rowB['x_location']+np.cos(headingB)*self.platformList[PFNum[0]].rFair, rowB['y_location']+np.sin(headingB)*self.platformList[PFNum[0]].rFair, self.platformList[PFNum[0]].zFair]
@@ -819,10 +820,10 @@ class Project():
                                     
                                     if j == 0:
                                         # add heading for end A to this cable
-                                        cCondd['headingA'] = arrayCableInfo[i]['headingA']
+                                        cCondd['headingA'] = np.radians(90-arrayCableInfo[i]['headingA'])
                                     elif j == len(cableInfo[cable]['sections']-1):
                                         # add heading for end B to this cable
-                                        cCondd['headingB'] = arrayCableInfo[i]['headingB']
+                                        cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
                                     dd['cables'].append(cCondd)
                                 elif 'connectorType' in cabSection:
                                     dd['joints'].append(d['cable_joints'][cabSection['connectorType']])
@@ -838,10 +839,10 @@ class Project():
                                     cCondd = getCables(cabSection)
                                     if j == 0:
                                         # add heading for end A to this cable
-                                        cCondd['headingA'] = np.radians(arrayCableInfo[i]['headingA'])
+                                        cCondd['headingA'] = np.radians(90-arrayCableInfo[i]['headingA'])
                                     elif j == len(cableInfo[cable]['sections'])-1:
                                         # add heading for end B to this cable
-                                        cCondd['headingB'] = np.radians(arrayCableInfo[i]['headingB'])
+                                        cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
                                     dd['cables'].append(cCondd)
                                     cabLast = 1
                                 elif 'connectorType' in cabSection:
@@ -854,8 +855,8 @@ class Project():
                         # just a simple one line cable (no joints)
                         cabSection = cableInfo[cable]['sections'][0]
                         cCondd = getCables(cabSection)
-                        cCondd['headingA'] = np.radians(arrayCableInfo[i]['headingA'])
-                        cCondd['headingB'] = np.radians(arrayCableInfo[i]['headingB'])
+                        cCondd['headingA'] = np.radians(90-arrayCableInfo[i]['headingA'])
+                        cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
                         dd['cables'].append(cCondd)
                         
                 else:

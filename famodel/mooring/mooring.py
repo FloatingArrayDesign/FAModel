@@ -190,7 +190,7 @@ class Mooring(Edge):
                 self.heading = heading
             else:
                 self.heading = np.degrees(heading)
-        
+        print(self.heading)
         phi = np.radians(90-self.heading) # heading in x-y radian convention [rad]
         
         # heading 2D unit vector

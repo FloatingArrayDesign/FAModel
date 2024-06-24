@@ -93,8 +93,12 @@ class Platform(Node):
             else:
                 self.phi = heading
         
+        # correction for xy coords
+        corr = np.radians(90)
+        print('phi: ',self.phi,'pf corr: ',corr-self.phi)
+        
         # Get 2D rotation matrix
-        self.R = np.array([[np.cos(self.phi), -np.sin(self.phi)],[np.sin(self.phi), np.cos(self.phi)]])
+        self.R = np.array([[np.cos(corr-self.phi), -np.sin(corr-self.phi)],[np.sin(corr-self.phi), np.cos(corr-self.phi)]])
         
         # Update the position of any Moorings
         for i, mooring in enumerate(self.attachments):
@@ -321,8 +325,8 @@ class Platform(Node):
         '''
         cableList = {}
         for att in self.attachments:
-            if isinstance(att['obj'],SubseaCable):
-                cableList[att['id']] = att['obj']
+            if isinstance(self.attachments[att]['obj'],Cable):
+                cableList[self.attachments[att]['id']] = self.attachments[att]['obj']
                 
         return(cableList)
     
@@ -346,7 +350,7 @@ class Platform(Node):
         return(anchorList)
         
 
-    def getbufferzones(self, buffer_rad=25):     
+    def getbufferzones(self, buffer_rad=50):     
         ''' Function to calculate buffer zones around mooring lines and anchors.
         
         Parameters

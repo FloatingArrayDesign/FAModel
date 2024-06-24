@@ -58,7 +58,6 @@ class Cable(Edge):
                 subcons.append(self.dd['joints'][i])
             subcons.append(self.dd['cables'][-1])
             self.addSubcomponents(subcons)  # Edge method to connect and store em
-            print('done connecting SubSeaCable subcomponents')
             # Indices of connectors and sections in self.subcomponents list
             self.i_con = list(range(0, 2*self.n_sec+1, 2))
             self.i_sec = list(range(1, 2*self.n_sec+1, 2))
@@ -99,8 +98,9 @@ class Cable(Edge):
         
     def reposition(self):
         # reposition cable and set end points for the first and last cable sections (or the dynamic cable for a suspended cable)
-        headingA = self.subcomponents[0].headingA + self.attached_to[0].phi
-        headingB = self.subcomponents[-1].headingB +self.attached_to[1].phi
+        headingA = self.subcomponents[0].headingA - self.attached_to[0].phi
+        headingB = self.subcomponents[-1].headingB - self.attached_to[1].phi
+        print('headingA',headingA,'given headingA:',self.subcomponents[0].headingA,'phi',self.attached_to[0].phi)
         # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
         Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*self.attached_to[0].rFair, self.attached_to[0].r[1]+np.sin(headingA)*self.attached_to[0].rFair, self.attached_to[0].zFair]
         Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*self.attached_to[1].rFair, self.attached_to[1].r[1]+np.sin(headingB)*self.attached_to[1].rFair, self.attached_to[1].zFair]
@@ -124,13 +124,13 @@ class Cable(Edge):
         
         # if joint closer to end A, use end A heading + platform A phi
         if len(self.subcomponents)/2 > joint+1:
-            heading = self.subcomponents[0].headingA + self.attached_to[0].phi
+            heading = self.subcomponents[0].headingA - self.attached_to[0].phi
             jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
             jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
             # self.subcomponents[joint].r = [jLocX,jLocY,depth]
         # if joint closer to end B, use opposite of (end B heading + platform B phi)
         else:
-            heading = np.pi + self.subcomponents[-1].headingB + self.attached_to[1].phi
+            heading = np.pi + self.subcomponents[-1].headingB - self.attached_to[1].phi
             jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
             jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
             # depth = Project.getDepthAtLocation(jLocX,jLocY)
