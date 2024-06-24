@@ -253,7 +253,7 @@ class failureGraph():
                 self.G = self.edgeReweight(edge)
 
         # Initialize MoorPy array
-        self.Array.getMoorPyArray(cables = 1, pristineLines=1)
+        self.Array.getMoorPyArray(cables=1, pristineLines=1)
         self.Array.ms.initialize()
         self.Array.ms.solveEquilibrium()
         print()
@@ -663,11 +663,13 @@ class failureGraph():
         # Detach line from platform
         if self.G.nodes[failure]['failure'].lower() in ['chain', 'wire rope', 'synthetic rope', 'clump weights or floats', 'connectors', 'dynamic cable', 'terminations']:
             failure_obj = self.G.nodes[failure]['obj'][0].part_of
-            if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
-            failure_obj.detachFrom('b')
-            if not failure_obj.attached_to[-1]:
-                failure_obj.attached_to = failure_obj.attached_to[:-1]
-            failure_obj.ss.disconnectLineEnd()
+            if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0].subcomponents[0]
+            elif 'cable' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
+            # failure_obj.detachFrom('b')
+            # if not failure_obj.attached_to[-1]:
+            #     failure_obj.attached_to = failure_obj.attached_to[:-1]
+            # if 'moor' in str(type(failure_obj)): self.Array.ms.disconnectLineEnd(lineID=failure_obj.ss.number, endB=1)
+            self.Array.ms.disconnectLineEnd(lineID=failure_obj.ss.number, endB=1)
             # print(failure_obj.attached_to)
             # self.Array.getMoorPyArray(cables = 1, pristineLines=1)
 
@@ -678,12 +680,12 @@ class failureGraph():
         
         # Anchor becomes a free point
         if 'anchor' in self.G.nodes[failure]['failure'].lower() and not('tether' in self.G.nodes[failure]['failure'].lower()):
-            anchor_pnt = self.G.nodes[failure]['obj'][0].r
-            for point in self.Array.ms.pointList:
-                    print(anchor_pnt[:2], point.r[:2])
-                    if all(abs(anchor_pnt[:2] - point.r[:2]) < 10):
-                            point.type = 0
-            # self.G.nodes[failure]['obj'][0].mpAnchor.type = 0
+            # anchor_pnt = self.G.nodes[failure]['obj'][0].r
+            # for point in self.Array.ms.pointList:
+            #         print(anchor_pnt[:2], point.r[:2])
+            #         if all(abs(anchor_pnt[:2] - point.r[:2]) < 10):
+            #                 point.type = 0
+            self.G.nodes[failure]['obj'][0].mpAnchor.type = 0
 
         # Turbine not parked above cut-out wind speed (may want to add blades pitched at wrong angles)
         if self.G.nodes[failure]['failure'].lower() in ['turbine controls']:
@@ -708,8 +710,8 @@ class failureGraph():
                 new_type = self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i-1]['type']
                 self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type'] = new_type
         # self.Array.getMoorPyArray(cables=1, pristineLines=1)
-        self.Array.ms.initialize()
-        self.Array.ms.solveEquilibrium()
+        # self.Array.ms.initialize()
+        # self.Array.ms.solveEquilibrium()
         return
 
     
@@ -879,6 +881,7 @@ class failureGraph():
                 results_before.update({child: self.get_effects_identifiers(child)})
 
             # Plot before failure enactment
+            self.Array.updatePositions()
             if plot:
                 self.Array.plot2d()
                 plt.savefig("famodel/failure/Demos/" + param + "/" + str(self.iteration) + node.replace("\n", "-").replace("/","-") + "_demo_before.png")
@@ -887,8 +890,8 @@ class failureGraph():
             self.enact_failures(node)
 
             # Reevaluate state of FOWT
-            self.Array.array.solveStatics(case=0) # Solve statics in RAFT
-            self.Array.ms.solveEquilibrium() # Solve equilibruim in MoorPy
+            # self.Array.array.solveStatics(case=0) # Solve statics in RAFT
+            # self.Array.ms.solveEquilibrium() # Solve equilibruim in MoorPy
             for platform in self.Array.platformList:
                 self.Array.platformList[platform].getWatchCircle() # Update/get watch circles for each platform
 
@@ -985,6 +988,7 @@ class failureGraph():
                                                 self.G.add_node(clash_failure + "\n" + str(line1.id)+str(line2.id),  probability=fail_prob, obj=[line1, line2], failure=clash_failure, m_or_e=self.mode_effect_dict[clash_failure])
                                                 self.G = self.addMoreEdges(clash_failure, str(line1.id)+str(line2.id), connected_components)
             # Plot after failure enactment
+            self.Array.updatePositions()
             if plot:
                 self.Array.plot2d()
                 plt.savefig("famodel/failure/Demos/" + param + "/" + str(self.iteration) + node.replace("\n", "-").replace("/","-") + "_demo_after.png")
