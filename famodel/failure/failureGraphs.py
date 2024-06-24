@@ -663,9 +663,10 @@ class failureGraph():
         # Detach line from platform
         if self.G.nodes[failure]['failure'].lower() in ['chain', 'wire rope', 'synthetic rope', 'clump weights or floats', 'connectors', 'dynamic cable', 'terminations']:
             failure_obj = self.G.nodes[failure]['obj'][0].part_of
+            if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
+            failure_obj.detachFrom('b')
             if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0].subcomponents[0]
             elif 'cable' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
-            # failure_obj.detachFrom('b')
             # if not failure_obj.attached_to[-1]:
             #     failure_obj.attached_to = failure_obj.attached_to[:-1]
             # if 'moor' in str(type(failure_obj)): self.Array.ms.disconnectLineEnd(lineID=failure_obj.ss.number, endB=1)
@@ -710,8 +711,8 @@ class failureGraph():
                 new_type = self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i-1]['type']
                 self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type'] = new_type
         # self.Array.getMoorPyArray(cables=1, pristineLines=1)
-        # self.Array.ms.initialize()
-        # self.Array.ms.solveEquilibrium()
+        self.Array.ms.initialize()
+        self.Array.ms.solveEquilibrium()
         return
 
     
@@ -890,8 +891,8 @@ class failureGraph():
             self.enact_failures(node)
 
             # Reevaluate state of FOWT
-            # self.Array.array.solveStatics(case=0) # Solve statics in RAFT
-            # self.Array.ms.solveEquilibrium() # Solve equilibruim in MoorPy
+            self.Array.array.solveStatics(case=0) # Solve statics in RAFT
+            self.Array.ms.solveEquilibrium() # Solve equilibruim in MoorPy
             for platform in self.Array.platformList:
                 self.Array.platformList[platform].getWatchCircle() # Update/get watch circles for each platform
 
