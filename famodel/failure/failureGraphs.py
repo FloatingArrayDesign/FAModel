@@ -678,12 +678,12 @@ class failureGraph():
         
         # Anchor becomes a free point
         if 'anchor' in self.G.nodes[failure]['failure'].lower() and not('tether' in self.G.nodes[failure]['failure'].lower()):
-            # anchor_pnt = self.G.nodes[failure]['obj'][0].r
-            # for point in self.Array.ms.pointList:
-            #         print(anchor_pnt[:2], point.r[:2])
-            #         if all(abs(anchor_pnt[:2] - point.r[:2]) < 10):
-            #                 point.type = 0
-            self.G.nodes[failure]['obj'][0].mpAnchor.type = 0
+            anchor_pnt = self.G.nodes[failure]['obj'][0].r
+            for point in self.Array.ms.pointList:
+                    print(anchor_pnt[:2], point.r[:2])
+                    if all(abs(anchor_pnt[:2] - point.r[:2]) < 10):
+                            point.type = 0
+            # self.G.nodes[failure]['obj'][0].mpAnchor.type = 0
 
         # Turbine not parked above cut-out wind speed (may want to add blades pitched at wrong angles)
         if self.G.nodes[failure]['failure'].lower() in ['turbine controls']:
