@@ -1427,6 +1427,14 @@ class Project():
                 else:
                     raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations') 
     
+    def updatePositions(self):
+        '''Temporary quick-fix to update Platform object positions based on
+        RAFT or MoorPy body positions.'''
+        
+        for platform in self.platformList.values():
+            platform.r[0] = platform.body.r6[0]
+            platform.r[1] = platform.body.r6[1]
+        
     
     def plot2d(self, ax=None, plot_seabed=True, plot_boundary=True, bare=False, **kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
