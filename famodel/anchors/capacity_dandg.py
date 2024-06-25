@@ -12,7 +12,7 @@ import inspect
 
 def py_analysis(profile, L, D, t, E,  
                 V, H, H_n, M, M_n, n=10, iterations=10,
-                print_output='Yes', convergence_tracker='Yes', loc=2):
+                print_output='No', convergence_tracker='No', loc=2):
     '''
     Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, 
@@ -204,7 +204,7 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
+def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='No'):
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
 
@@ -248,7 +248,7 @@ def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
     y_a = (p_ur/(2*y_rm**0.25*Kir))**1.333    
    
     N = 20
-    y = np.concatenate((-np.logspace(3,-3,N),[0],np.logspace(-3,3,N)))
+    y = np.concatenate((-np.logspace(5,-3,N),[0],np.logspace(-3,5,N)))
     
     p=[]; P=[];
     for i in range (len(y)):
@@ -343,6 +343,42 @@ def rock_profile(profile,plot_profile='No'):
     return f_UCS, f_Em
 
 if __name__ == '__main__':
+
+    profile = np.array([[0.0,  7, 50, 'Name of p-y model'],
+                        [1e10,  7, 50, 'Name of p-y model']])
+    
+    L = 10
+    D = 1
+    t = 0.05
+    H = 3187638.5081103545
+    V = 2975548.3405682378
+    H = H
+    V = V
+    '''
+    y,z,DQ = py_analysis(profile, L=L, D=D, t=t, E=200e9, 
+                        V=V, H=H, H_n=0, M=0, M_n=0)
+    print(y[0])
+    '''
+    ys = []
+    ls = np.arange(2, 40, 1)
+    ds = np.arange(1,20,1)
+    for l in ls:
+    #for d in ds:
+        y,z,DQ = py_analysis(profile, L=l, D=D, t=t, E=200e9, 
+                        V=V, H=H, H_n=0, M=0, M_n=0)
+        ys.append(y[0])
+
+    fig, ax = plt.subplots(1,1)
+    ax.plot(ls, ys)
+    ax.set_xlabel('Pile Length [m]')
+    ax.set_ylabel('Deflection (y) [m]')
+    ax.text(ls[0], min(ys), f'D={D} m; t={t*1000} mm; H={H/1e6:.1f} MN; V={V/1e6:.1f} MN')
+    plt.show()
+    
+
+
+
+
     
     #                   depth  UCS   Em        p-y model    
     profile = np.array([[0.0,  7.0, 150., 'Name of p-y model'],
