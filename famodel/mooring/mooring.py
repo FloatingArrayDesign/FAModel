@@ -190,7 +190,7 @@ class Mooring(Edge):
                 self.heading = heading
             else:
                 self.heading = np.degrees(heading)
-        print(self.heading)
+
         phi = np.radians(90-self.heading) # heading in x-y radian convention [rad]
         
         # heading 2D unit vector
@@ -273,16 +273,20 @@ class Mooring(Edge):
         return(self.loads['TAmax'],self.loads['TBmax'])
     
     
-    def createSubsystem(self, case=0,pristine=0,dd=None):
+    def createSubsystem(self, case=0,pristine=True,dd=None):
         ''' Create a subsystem for a line configuration from the design dictionary
         
         Parameters
         ----------
-        case : int
+        pristine : bool, optional
+            0/False: modified line (marine growth, corrosion, etc) 1/True: pristine line (default)
+        case : int, optional
             Selector shared/suspended cases:
                 - 0 (default): end A is on the seabed
                 - 1: assembly is suspended and end A is at another floating system
                 - 2: the assembly is suspended and assumed symmetric, end A is the midpoint
+        dd : dict, optional
+            Dictionary describing the design
         '''
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:

@@ -77,9 +77,9 @@ site:
 array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [1,     1,         1,         ms1,          0,         0,          180   ]    # 2 array, shared moorings
-        -  [2,     1,         1,         ms2,          1600,           0,            0   ] 
-        -  [3,     1,         1,         ms3,          0,           1600,            0   ]
+        -  [FOWT1,     1,         1,         ms1,          0,         0,          180   ]    # 2 array, shared moorings
+        -  [FOWT2,     1,         1,         ms2,          1600,           0,            0   ] 
+        -  [FOWT3,     1,         1,         ms3,          0,           1600,            0   ]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
         # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
@@ -93,7 +93,7 @@ array_mooring:
     anchor_keys :
           [ID, type,  x,  y,  embedment ]
     anchor_data :
-        #- [  1,  suction1, -850  , -593  ,  2   ]
+        - [  Anch1,  suction1, -850  , -593  ,  2   ]
         # - [  2,  suction1,  -1900 ,  -1200 ,  2   ]
         # - [  3,  suction1,  -850 ,  -1806 ,  2   ]
         # - [  4,  suction1,  -850 ,  600 ,  2   ]
@@ -102,18 +102,29 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
-          - [ rope_shared   ,  FOWT 1,  FOWT 2,  180, 180, 0]
-         - [ rope   ,  Anch 1,  FOWT 1, NA, 300,  0]
-         - [ rope   ,  Anch 1,  FOWT 3, NA, 300,  0]
+        - [ rope_shared   ,  FOWT1,  FOWT2,  270, 270, 0]
+        - [ rope   ,  Anch1,  FOWT1, NA, 45,  0]
+        - [ rope   ,  Anch1,  FOWT3, NA, 135,  0]
         # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
 
 
 # Array cables (compact table format, without routing info)
 array_cables:   
-    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB, headingA, headingB, cableType]
+    keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, lengthAdjust]
     data:
-        - [ turbine1, turbine2, lazy_wave1, lazy_wave1,      180,       30, static_36] 
-        - [ turbine2, turbine3, lazy_wave1, lazy_wave1,      150,       30, static_36] 
+      - [ array_cable1, FOWT1, FOWT2,  270,       270, 0] 
+      - [ suspended_cable1, FOWT2, FOWT3,  90,       270, 0]
+      - [ suspended_cable1, FOWT3, substation1, 90, 270, 0] 
+
+# ----- substations -------
+
+substation:
+    substation1:
+        x_location: 1600
+        y_location: 1600 
+        zFair: -20
+        rFair: 30
+        heading: 0
 
 
 # ----- turbines and platforms -----
@@ -1281,7 +1292,7 @@ mooring_systems:
         data:
           - [  rope_1,   45 ,    suction1,   0 ]
           - [  rope_1,  315 ,    suction1,   0 ]
-          #- [  semitaut-poly_1,  300 ,    suction1,   0 ]
+
     ms2:
         name: 2-line semitaut with a third shared line
         
@@ -1289,70 +1300,7 @@ mooring_systems:
         data:
           - [  rope_1,   45 ,    suction1,   0 ]
           - [  rope_1,  315 ,    suction1,   0 ]
-          #- [  semitaut-poly_1,  0 ,    suction1,   0 ]
-    # ms3:
-    #     name: 2 line semitaut with a third shared line
-        
-    #     keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-    #     data:
-    #       - [  semitaut-poly_1,   60 ,    suction1,   0 ]
-    #       - [  semitaut-poly_1,  300 ,    suction1,   0 ]
-    #       - [  semitaut-poly_1,  180 ,    suction1,   0 ]
-          
-    # ms4:
-    #     name: 3-line semitaut with one line shared anchor
-        
-    #     keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-    #     data:
-    #       - [  semitaut-poly_1,   60 ,    suction1,   0 ]
-    #       - [  semitaut-poly_1,  180 ,    suction1,   0 ]
-    #       # - [  semitaut-poly_1,  300 ,    suction1,   0 ]
-          
-    # ms5:
-    #     name: 4-line semitaut
-        
-    #     keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-    #     data:
-    #       - [  semitaut-poly_1,   0 ,    suction1,   0 ]
-    #       - [  semitaut-poly_1,  90 ,    suction1,   0 ]
-    #       - [  semitaut-poly_1,  180 ,    suction1,   0 ]
-    #       - [  semitaut-poly_1,  270 ,    suction1,   0 ]
-          
-    # ms6:
-    #     name: 3-line taut polyester mooring system
-        
-    #     keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-    #     data:
-    #       - [  taut-poly_1,   60 ,    suction1,   0 ]
-    #       - [  taut-poly_1,  180 ,    suction1,   0 ]
-    #       - [  taut-poly_1,  300 ,    suction1,   0 ]
-
-    # ms7:
-    #     name: 3-line taut polyester mooring system
-        
-    #     keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-    #     data:
-    #       - [  taut-poly_1,   60 ,    suction1,   0 ]
-    #       - [  taut-poly_1,  180 ,    suction1,   0 ]
-    #       - [  taut-poly_1,  300 ,    suction1,   0 ]
-
-    # ms8:
-    #     name: 3-line taut polyester mooring system
-        
-    #     keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-    #     data:
-    #       - [  taut-poly_1,   60 ,    suction1,   0 ]
-    #       - [  taut-poly_1,  180 ,    suction1,   0 ]
-    #       - [  taut-poly_1,  300 ,    suction1,   0 ]    
-
-    # ms9:
-    #     name: 3-line semi-taut polyester mooring system
-        
-    #     keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
-    #     data:
-    #       - [  semitaut-poly_1,   60 ,    suction1,   0 ]
-    #       - [  semitaut-poly_1,  180 ,    suction1,   0 ]
-    #       - [  semitaut-poly_1,  300 ,    suction1,   0 ]
+ 
 
 # Mooring line configurations
 mooring_line_configs:
@@ -1368,12 +1316,7 @@ mooring_line_configs:
           - type: rope       # ID of a mooring line section type
             length: 1190            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-          # - connectorType: h_link   
-        
-        # connectors: # in order from end A to end B
-        #   - shackle
-        #   - h_link
-        #   - shackle
+
     rope_shared:
         name: shared rope 
         
@@ -1402,23 +1345,18 @@ mooring_line_configs:
           - type: chain_170mm       # ID of a mooring line section type
             length: 120            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-            #connectorA: shackle
-            #connectorB: h_link
+
           - connectorType: h_link  
           - type: polyester_226mm        # ID of a mooring line section type
             length: 660           # [m] length (unstretched)
-            #connectorB: h_link
+
           - connectorType: h_link # anchor connection  
           - type: chain_170mm       # ID of a mooring line section type
             length: 20            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
-            #connectorB: shackle
+
           - connectorType: shackle # anchor connection  
-        # connectors:
-        #   - shackle
-        #   - h_link
-        #   - h_link
-        #   - shackle
+
 
 
     shared-2-clump:
@@ -1432,28 +1370,10 @@ mooring_line_configs:
           - connectorType: shackle # anchor connection
           - type: polyester_182mm   
             length: 110
-            # connector: shackle
-            # connectorA: shackle
-            # connectorB: clump_weight_20       
+      
           - connectorType:  clump_weight_20 
           - type: polyester_182mm   
             length: 435 # 870  
-            # connectorB: clump_weight_20     
-            
-          # - type: polyester_182mm
-          #   length: 110
-          #   # connectorB: shackle   
-          # - connectorType: shackle
-        # connectors:
-        #   - shackle
-        #   - clump_weight_20
-        #   - clump_weight_20
-        #   - shackle
-          
-        
-        # attachment:
-        #     type:
-        #     coordinate:
     
     
 # Mooring line cross-sectional properties
@@ -1508,13 +1428,6 @@ mooring_line_types:
         material:  chain  # [-] material composition descriptor
         material details: R3 studless
 
-    # # alternative table-based format
-    # keys :   [name,   EA ,  MBL ]
-    # data :
-    #     -    [poly1  , 3232, 23]
-    #     -    [chain27, 3232, 23]
-
-
 # Mooring connector properties
 mooring_connector_types:
     
@@ -1550,3 +1463,172 @@ anchor_types:
         L      :  8 
         m      :  8242
 
+cables:
+
+    array_cable_basic: 
+        name: basic array cable to be used in conjunction with Michaels cable layout optimization
+    
+        sections:
+          - type: basic1
+
+    array_cable1:      
+        name: array cable with lazy wave - static - lazy wave sections # descriptive cable name
+        # type : static_cable_80   # cable section type ID
+   
+        sections: # refers to a configuration in cable_configs
+        # first entry is at end A, last entry is at end B
+          - type: dynamic_lazy_wave1
+          - connectorType: joint_1
+          - type: static_1
+          - connectorType: joint_1
+          - type: dynamic_lazy_wave1
+   
+
+      
+    suspended_cable1:
+        sections: 
+          - type: dynamic_suspended_1
+         
+    rope_shared:
+        sections: 
+          - type: rope_shared
+
+
+# Dynamic and static cable configurations
+cable_configs:
+# contains the subsections that make up each section of the subsea cable (i.e., what sections make up the lazywave cable in array_cable_1)
+    basic1:
+        name: basic cable configuration, essentially a straight line between platforms
+        span: 1600
+        conductorSize: 70
+        PowerRating: 100
+        type: dynamic
+        zJTube: -30 # depth out of J-tube that cable starts
+  
+        cableFamily: dynamic_cable_33
+        length: 1700
+        A: 100 # cable conductor cross-sectional area [mm^2] (Required for types listed in cable props yaml)
+          
+          
+          
+        
+    dynamic_lazy_wave1:
+        name: Lazy wave configuration 1 (simpler approach)
+        voltage: 66 # [kV]
+        span : 600    # [m] horizontal distance to end of dynamic cable
+        zJTube: -20 # depth the cable comes out of the j-tube
+        type: dynamic # dynamic or static
+        A: 300
+        
+
+        cableFamily: dynamic_cable_33        # ID of a cable section type1
+        length: 900                   # [m] length (unstretched) 
+       
+        sections: 
+          - type: Buoyancy_750m #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 450 # [m] from end A
+            N_modules: 5
+            spacing: 21 # [m]
+            V: 2        
+       
+    
+    static_1:
+        name: Static cable configuration 1 
+        voltage: 66 # [kV]
+        span: 350
+        type: static
+        
+        typeID: static_cable_36
+        length: 2200
+            
+        # unsure how the vertex points work (was already here), but I suspect this would be where Michael's routing info fits in  
+        routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
+          - [1000, 1200, 20] 
+          - [2000, 1500, 20] 
+        
+        burial:  # optional definition of cable burial depth over its length
+            station: [0, 1]                # length along cable, normalized by first and last value
+            depth  : [0.1, 0.2]            # [m] burial depth
+    
+    dynamic_suspended_1:
+        name: Dynamic suspended cable configuration 1 
+        voltage: 33 
+        span: 1500
+        type: dynamic
+           
+        cableFamily: dynamic_cable_33        # ID of a cable section type1
+        A: 300
+        length: 1650                   # [m] length (unstretched)
+            
+        sections:            
+          
+          - type: Buoyancy_750m #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 625 # [m] from end A
+            N_modules: 5
+            spacing: 21 # [m]
+            V: 2
+            
+          - type: Buoyancy_750m #_w_buoy # (section properties including averaged effect of buoyancy modules)
+            L_mid: 1025 # [m] from end A
+            N_modules: 5
+            spacing: 21 # [m]
+            V: 2
+            
+# Cable cross-sectional properties
+cable_types:
+
+    cable1: # random values of basic properties (these will be overwritten by cable layout optimization)
+        dynamic: True
+        kV   :        66   # [kV] voltage rating
+        A    :       300   # [mm^2] cross-sectional area of each conductor (3 conductors)
+        d    :      0.20   # [m] outer diameter
+        m    :     30.59   # [kg/m] mass per unit length
+        EA   :    700000   # [kN] axial stiffness 
+        EI   :      10.0   # [kN.m^2] bending stiffness
+        MBL  :       100   # [kN] minimum breaking load
+        MBR  :       2.0   # [m] minimum bending radius
+    
+    dynamic_cable_66 :     # cable type identifier
+        
+        dynamic :   True   # Flag for dynamic cable (default static)
+        kV   :        66   # [kV] voltage rating
+        A    :       300   # [mm^2] cross-sectional area of each conductor (3 conductors)
+        d    :      0.20   # [m] outer diameter
+        m    :     30.59   # [kg/m] mass per unit length
+        EA   :    700000   # [kN] axial stiffness 
+        EI   :      10.0   # [kN.m^2] bending stiffness
+        MBL  :       100   # [kN] minimum breaking load
+        MBR  :       2.0   # [m] minimum bending radius
+
+    static_cable_36:
+  
+        dynamic :  False   # Flag for dynamic cable (default static)
+        DC   :     False   # Flag for DC (default AC)
+        kV   :        36   # [kV] voltage rating
+        A    :       300   # [mm^2] cross-sectional area of each conductor (3 conductors)
+        d    :    0.1248   # [m] outer diameter
+        m    :     12.90   # [kg/m] mass per unit length
+        EA   :    245000   # [kN] axial stiffness 
+        EI   :      5.10   # [kN.m^2] bending stiffness
+        MBL  :      54.0   # [kN] minimum breaking load
+        MBR  :     1.875   # [m] minimum bending radius
+        
+# Cable appendages
+cable_appendages:
+
+    buoyancy_module_1:
+        mass:    2700   # [kg]  mass
+        volume: 8.615   # [m^3] volumetric displacement 
+        CdA:     3.8    # [m^2] product of cross-sectional area and drag coefficient
+        length:  2.2    # [m]   length taked up along cable
+        density: 313.41
+        
+    buoyancy_module_bead:
+        mass:    730    # [kg]
+        volume:  1.16   # [m^3]
+        density: 629    # [kg/m^3]
+
+
+cable_joints:
+    joint_1:
+        mass: 100000 # TBD

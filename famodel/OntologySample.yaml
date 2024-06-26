@@ -2502,9 +2502,27 @@ mooring_systems:
           - [  semitaut-poly_1,   60 ,    suction1,   0 ]
           - [  semitaut-poly_1,  180 ,    suction1,   0 ]
           - [  semitaut-poly_1,  300 ,    suction1,   0 ]
+          
+    ms10:
+        name: 3-line catenary mooring system
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  catenary_1,   60 ,    suction1,   0 ]
+          - [  catenary_1,  180 ,    suction1,   0 ]
+          - [  catenary_1,  300 ,    suction1,   0 ]
 
 # Mooring line configurations
 mooring_line_configs:
+    
+    catenary_1:
+        name: catenary configuration 1
+        
+        span: 779.6 
+        
+        sections:
+          - type: chain_185
+            length: 850
+            adjustable: True
     
     rope_1:  # mooring line configuration identifier
     
@@ -2610,6 +2628,14 @@ mooring_line_configs:
 # Mooring line cross-sectional properties
 mooring_line_types:
 
+    chain_185:
+        d_nom:    0.185 
+        d_vol:    0.333
+        m:        685 
+        EA:       3270000000
+        MBL:      22286000
+        material: chain
+    
     rope:
         d_nom:    0.2246
         d_vol:    0.1797

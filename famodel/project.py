@@ -1635,7 +1635,7 @@ class Project():
             plt.savefig(output_filename, dpi=300, bbox_inches='tight')  # Adjust the dpi as needed
         
        
-    def getMoorPyArray(self,bodyInfo=None,plt=0, pristineLines=0,cables=0):
+    def getMoorPyArray(self,bodyInfo=None,plt=0, pristineLines=True,cables=0):
         '''Creates an array in moorpy from the mooring, anchor, connector, and platform objects in the array.
 
         Parameters
@@ -1646,8 +1646,7 @@ class Project():
             Controls whether to create a plot of the MoorPy array. 1=create plot, 0=no plot The default is 0.
 
         pristineLines : boolean, optional
-            Controls whether the moorpy array subsystems to be created can also be assigned to the mooringListPristine objects. Essentially, a boolean describing
-            if the mooringList objects have been altered (0) or not (1) from their pristine, initial condition.
+            A boolean describing if the mooringList objects have been altered (0/False) or not (1/True) from their pristine, initial condition.
     
         cables : boolean, optional
             Controls whether to include cables in the moorpy array
