@@ -136,6 +136,23 @@ class Mooring(Edge):
         self.failure_probability = {}
     
     
+    def update(self, dd=None):
+        '''Update the Mooring object based on the current state of the design
+        dictionary (self.dd) or, if passed in, a new design dictionary (dd).
+        '''
+        
+        if not dd == None:  # if dd passed in
+            self.dd.update(dd)  # move contents of dd into Mooring.dd
+        
+        # Update section lengths and types
+        for i, sec in enumerate(dd['sections']):
+            if self.ss:
+                self.ss.lineList[i].setL(sec[i]['L'])
+                self.ss.lineTypes[i] = sec[i]['type']
+        
+        #TODO: update any other things (connectors, positions...)
+        
+        
     def setSectionLength(self, L, i):
         '''Sets length of section, including in the subdsystem if there is
         one.'''
@@ -163,6 +180,8 @@ class Mooring(Edge):
         
         if self.ss:  # is Subsystem exists, adjust length there too
             self.ss.lineTypes[i] = lineType
+    
+    
     
     
     def reposition(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
@@ -665,6 +684,7 @@ class Mooring(Edge):
             self.createSubsystem(dd=nd1,pristine=0)
             
         return(changeDepths,changePoints)
+
 
     def addCorrosion(self,corrosion_mm=10):
         '''
