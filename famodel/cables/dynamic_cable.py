@@ -175,7 +175,7 @@ class DynamicCable(Edge):
             
             
             # If this buoyancy section isn't at the very start of the cable
-            if i > 0 or Ls/2 > bs['L_mid']:  
+            if case:  
                 iLine +=1 
                 
                 # >>> note: this approach clashes/overlaps with the 'case' approach - should pick one <<<

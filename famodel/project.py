@@ -11,7 +11,7 @@ from moorpy import helpers
 import yaml
 from copy import deepcopy
 try: 
-    import raft
+    import raft as RAFT
 except:
     pass
 
@@ -655,13 +655,14 @@ class Project():
                                 mc.attachTo(self.anchorList[anch],end='A')
 
                     else:
-                        # set line anchor type and get dictionary of anchor information
-                        lineAnch = arrayAnchor[j]['type']                       
+                                               
                         # find location of anchor in arrayAnchor table
                         for k in range(0,len(arrayAnchor)):
                             if arrayAnchor[k]['ID'] == arrayMooring[j]['end A']:
                                 aloc = [arrayAnchor[k]['x'],arrayAnchor[k]['y']] 
                                 aNum.append(k) # get anchor row number
+                                # set line anchor type and get dictionary of anchor information
+                                lineAnch = arrayAnchor[k]['type']
                         ad = getAnchors(lineAnch,aNum=aNum[-1]) # call method to create dictionary
                         # adjust anchor location and rA based on location of anchor
                         zAnew, nAngle = self.getDepthAtLocation(aloc[0], aloc[1], return_n=True)
@@ -723,9 +724,6 @@ class Project():
                     raise Exception('To use CableProps yaml, you must specify an area A for the cable family')
                 cabProps = getCableProps(cabType['A'],cabType['cableFamily'],source="default")
                 # fix units
-                cabProps['EA'] = cabProps['EA']*1e6
-                cabProps['EI'] = cabProps['EI']*1e3
-                cabProps['MBL'] = cabProps['MBL']*1e3
                 cabProps['power'] = cabProps['power']*1e6
                 dd = cabProps
                 dd['name'] = cabType['cableFamily']
@@ -2086,7 +2084,7 @@ class Project():
                 RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
 
             # create raft model
-            self.array = raft.Model(RAFTDict)
+            self.array = RAFT.Model(RAFTDict)
             # create dictionary of dictionaries of body hydrostatics for MoorPy bodies
             bodyInfo = {}
             for i,body in enumerate(self.array.fowtList):

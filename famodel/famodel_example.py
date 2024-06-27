@@ -42,6 +42,31 @@ for sub in project.substationList.values():    # go through each substation obje
 # get site boundary x-y coordinates
 boundary_coords = project.boundary
     
+print('Obtaining coordinates of each mooring line to use with shapely')
+import numpy as np
+x_moorList = [] # list of arrays to be filled in
+y_moorList = []
+z_moorList = []
+for moor in project.mooringList.values():  # go through each mooring object
+    x_sec = []  # list of coordinate arrays for each section (temporary variable)
+    y_sec = []
+    z_sec = []
+    for line in moor.ss.lineList: # go through each section of mooring object
+        xs,ys,zs,T = line.getLineCoords(Time=0) # get line coordinates
+        x_sec.append(xs) # append coordinates to section level temp variable
+        y_sec.append(ys)
+        z_sec.append(zs)
+    x_moorList.append(np.hstack((x_sec))) # add the temp variable info to the overall list, stacking each section together to get the full mooring line
+    y_moorList.append(np.hstack((y_sec)))
+    z_moorList.append(np.hstack((z_sec)))
+    
+    ### x_moorList is now a list of arrays, with an array for each mooring (even if there is multiple sections)
+    ### To get all the x-coordinates for one mooring object, use x_moorList[0]. To get a specific x-coordinate for one mooring object, use x_moorList[0][0]
+    
+for i in range(0,len(x_moorList)): # for loop to go through each mooring object
+    # create your shapely object with coordinates for mooring object i (x_moorList[i],y_moorList[i],z_moorList[i])...
+        
+    
     
     
 # # ########## get watch circles and envelopes for platforms and mooring lines #############

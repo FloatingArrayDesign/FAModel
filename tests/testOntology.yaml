@@ -77,9 +77,9 @@ site:
 array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [FOWT1,     1,         1,         ms1,          0,         0,          180   ]    # 2 array, shared moorings
+        -  [FOWT1,     1,         1,         ms3,          0,         0,          180   ]    # 2 array, shared moorings
         -  [FOWT2,     1,         1,         ms2,          1600,           0,            0   ] 
-        -  [FOWT3,     1,         1,         ms3,          0,           1600,            0   ]
+        -  [FOWT3,     1,         1,         ms1,          0,           1656,            0   ]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
         # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
@@ -93,7 +93,7 @@ array_mooring:
     anchor_keys :
           [ID, type,  x,  y,  embedment ]
     anchor_data :
-        - [  Anch1,  suction1, -850  , -593  ,  2   ]
+        - [  Anch1,  suction1, -828  , 828  ,  2   ]
         # - [  2,  suction1,  -1900 ,  -1200 ,  2   ]
         # - [  3,  suction1,  -850 ,  -1806 ,  2   ]
         # - [  4,  suction1,  -850 ,  600 ,  2   ]
@@ -103,8 +103,8 @@ array_mooring:
           [MooringConfigID  ,  end A,   end B,  headingA, headingB, lengthAdjust]
     line_data :
         - [ rope_shared   ,  FOWT1,  FOWT2,  270, 270, 0]
-        - [ rope   ,  Anch1,  FOWT1, NA, 45,  0]
-        - [ rope   ,  Anch1,  FOWT3, NA, 135,  0]
+        - [ rope_1   ,  Anch1,  FOWT1, NA, 135,  0]
+        - [ rope_1   ,  Anch1,  FOWT3, NA, 225,  0]
         # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
 
 
@@ -113,7 +113,7 @@ array_cables:
     keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, lengthAdjust]
     data:
       - [ array_cable1, FOWT1, FOWT2,  270,       270, 0] 
-      - [ suspended_cable1, FOWT2, FOWT3,  90,       270, 0]
+      - [ suspended_cable1, FOWT1, FOWT3,  180,       180, 0]
       - [ suspended_cable1, FOWT3, substation1, 90, 270, 0] 
 
 # ----- substations -------
@@ -1290,7 +1290,7 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  rope_1,   45 ,    suction1,   0 ]
+          - [  rope_1,   90 ,    suction1,   0 ]
           - [  rope_1,  315 ,    suction1,   0 ]
 
     ms2:
@@ -1299,8 +1299,14 @@ mooring_systems:
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
           - [  rope_1,   45 ,    suction1,   0 ]
-          - [  rope_1,  315 ,    suction1,   0 ]
- 
+          - [  rope_1,  135 ,    suction1,   0 ]
+          
+    ms3: 
+        name: 3-line semi-taut polyester mooring system with one line shared anchor and one shared line
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  rope_1,  45 ,    suction1,   0 ]
 
 # Mooring line configurations
 mooring_line_configs:
@@ -1320,7 +1326,7 @@ mooring_line_configs:
     rope_shared:
         name: shared rope 
         
-        span: 1131
+        span: 1484
 
         
         sections:
@@ -1432,21 +1438,21 @@ mooring_line_types:
 mooring_connector_types:
     
     h_link:
-        mass   : 140    # [kg]  component mass
-        volume : 0.13   # [m^3] component volumetric displacement
+        m   : 140    # [kg]  component mass
+        v   : 0.13   # [m^3] component volumetric displacement
         
     clump_weight_80:
-        mass   : 20000  # [kg]
-        volume :  0.0   # [m^3]
+        m   : 80000  # [kg]
+        v   :  0.0   # [m^3]
         
     buoy_10:
-        mass   :  560   # [kg]  component mass
-        volume : 10.2   # [m^3] component volumetric displacement
+        m   :  560   # [kg]  component mass
+        v   : 10.2   # [m^3] component volumetric displacement
         CdA    :  3.5   # [m^2] produce of cross sectional area and drag coefficient
     
     shackle:
-        mass   : 200
-        volume : .2
+        m   : 200
+        v   : .2
 
 # Anchor type properties
 anchor_types:

@@ -179,7 +179,7 @@ class Platform(Node):
         
         
     def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
-                       shapes=True):
+                       shapes=True,Fth=None):
         '''
         Compute watch circle of platform based on rated thrust.
         
@@ -187,10 +187,14 @@ class Platform(Node):
         ----------
         ang_spacing : float
             Angle increment to evaluate watch circle at [deg].
+        plot : bool
+            Plots the shape of the watch circle
+        RNAheight : 
         Returns
         -------
         x: list of x-coordinates for watch circle
         y: list of y-coordinates for watch circle
+        maxVals: dictionary of minimum safety factors for line tension, cable tension and cable curvature, and the minimum sag of cables
 
         '''
         self.body.type = -1
@@ -214,16 +218,19 @@ class Platform(Node):
                     cables.append(self.attachments[i]['obj'].subcomponents[0])
                 elif self.attachments[i]['end'] == 'b' or 'B':
                     cables.append(self.attachments[i]['obj'].subcomponents[-1])
-                    
-        try:
-            # create rotor
-            turbine.makeRotor()
-            # get thrust curve
-            turbine.calcThrustForces()
-        except Exception as e:
-            print(e)
-            print('Could not get thrust forces from RAFT, using IEA 15 MW turbine thrust as default')
-            thrust = 1.95e6
+        
+        if Fth:
+            thrust = Fth
+        else:
+            try:
+                # create rotor
+                turbine.makeRotor()
+                # get thrust curve
+                turbine.calcThrustForces()
+            except Exception as e:
+                print(e)
+                print('Could not get thrust forces from RAFT, using IEA 15 MW turbine thrust as default')
+                thrust = 1.95e6
         
         # btenMax = np.zeros((len(moorings),1))
         # atenMax = np.zeros((len(moorings),1))
@@ -267,7 +274,7 @@ class Platform(Node):
                 if not minCurvSF[j] or minCurvSF[j]>mCSF:
                     minCurvSF[j] = mCSF
                 # determine number of buoyancy sections
-                nb = len(cab.buoyancySections)
+                nb = len(cab.dd['buoyancy_sections'])
                 m_s = []
                 for k in range(0,nb):
                     m_s.append(cab.ss.getSag(2*k))
@@ -292,6 +299,10 @@ class Platform(Node):
         if plot:
             plt.figure()
             plt.plot(x,y)
+            
+        # restore platform to equilibrium position 
+        self.body.r6[0] = self.r[0]
+        self.body.r6[1] = self.r[1]
                 
             
         return(x,y,maxVals)

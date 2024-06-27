@@ -11,6 +11,18 @@ import matplotlib.pyplot as plt
 
 from famodel import Project
 
+from famodel.mooring.mooring import Mooring
+from famodel.platform.platform import Platform
+from famodel.mooring.anchor import Anchor
+from famodel.mooring.connector import Connector
+from famodel.substation.substation import Substation
+from famodel.cables.cable import Cable
+from famodel.cables.dynamic_cable import DynamicCable
+from famodel.cables.static_cable import StaticCable
+from famodel.cables.cable_properties import getCableProps, getBuoyProps
+from famodel.cables.components import Joint
+from famodel.turbine.turbine import Turbine
+
 """
 
 def test_tensions_swap():
@@ -35,13 +47,12 @@ def test_tensions_swap():
                     np.hstack([ms.lineList[1].fB, ms.lineList[1].fA]), rtol=0, atol=10.0, verbose=True)
 """
 
-if __name__=='__main__':
-    
+def test_bathymetry():
     # initialize a blank project
     project = Project()
     
     # load bathymetry file (MoorDyn style)
-    project.loadBathymetry('bathymetry_sample.txt')
+    project.loadBathymetry('tests/bathymetry_sample.txt')
     
     # sample the depth somewhere
     x=20
@@ -52,23 +63,10 @@ if __name__=='__main__':
     # plot to see if it worked
     #project.plot3d()
     plt.show()
-    
-    
-    ######## test load design features ################
-    project.load('testOntology.yaml')
-    
-    from famodel.mooring.mooring import Mooring
-    from famodel.platform.platform import Platform
-    from famodel.mooring.anchor import Anchor
-    from famodel.mooring.connector import Connector
-    from famodel.substation.substation import Substation
-    from famodel.cables.cable import Cable
-    from famodel.cables.dynamic_cable import DynamicCable
-    from famodel.cables.static_cable import StaticCable
-    from famodel.cables.cable_properties import getCableProps, getBuoyProps
-    from famodel.cables.components import Joint
-    from famodel.turbine.turbine import Turbine
-    
+
+def test_create_components():
+    project = Project(file='tests/testOntology.yaml',raft=0)
+       
     # check number of mooring lines
     assert len(project.mooringList) == 8
     
@@ -87,9 +85,8 @@ if __name__=='__main__':
     # check number of platforms
     assert len(project.platformList) == 3
     
-    
-    
-    
+def test_check_connections():
+    project = Project(file='tests/testOntology.yaml',raft=0)
     # check connections
     for i,anch in enumerate(project.anchorList.values()):
         
@@ -98,9 +95,9 @@ if __name__=='__main__':
             assert len(anch.attachments) == 2
             
         # check anchor is attached to a mooring line and mooring line is attached to the anchor
-        for j in range(0,len(anch.attachments)):
+        for j,att in enumerate(anch.attachments):
             # get mooring line attached to anchor
-            moor = anch.attachments[j]['obj']
+            moor = anch.attachments[att]['obj']
             # check that it is a mooring line
             assert isinstance(moor,Mooring)
             # check that mooring line is attached to anchor
@@ -109,17 +106,21 @@ if __name__=='__main__':
     for i, pf in enumerate(project.platformList.values()):
         
         # check number of things connected to platform
-        if i == 0:
+        if i == 1:
             assert len(pf.attachments) == 5 # 3 lines, 1 turbine, 1 cable 
         else:
             assert len(pf.attachments) == 6 # 3 lines, 1 turbine, 2 cables
-        
-    # check angles and repositioning for regular mooring line and shared mooring line
-    assert_allclose(project.mooringList[0].rA,[-828.637,-828.637,-600],rtol=0,atol=0.1)
-    assert_allclose(project.mooringList[-1].rA,)
+            
+def test_headings_repositioning():
+    project = Project(file='tests/testOntology.yaml',raft=0)
+    # check angles and repositioning for regular mooring line and shared mooring line, reg cable and suspended cable
+    assert_allclose(np.hstack((project.mooringList[('FOWT1',0)].rA,project.mooringList[('FOWT2','FOWT1',5)].rA)),
+                    np.hstack(([-828.637,-828.637,-600],[40.5,0,-20])),rtol=0,atol=0.5)
+    assert_allclose(np.hstack((project.cableList['array_cable10'].subcomponents[0].rB,project.cableList['suspended_cable11'].subcomponents[0].rB)),
+                    np.hstack(([640.5,0,-600],[0,1615.5,-20])),rtol=0,atol=0.5)
 
     
-    
-        
-        
-        
+
+if __name__=='__main__':
+    '''
+    '''
