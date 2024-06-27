@@ -103,7 +103,7 @@ class DynamicCable(Edge):
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
-    
+        
     
     def makeCableType(self,cabDict):
         '''
@@ -129,7 +129,7 @@ class DynamicCable(Edge):
     
     def updateSubsystem(self, pristine=True):
         '''Adjusts the subsystem properties when the buoyancy section info changes.
-        The contents of self.dd['bouyancy_sections'] should already be changed before
+        The contents of self.dd['buoyancy_sections'] should already be changed before
         calling this method. The length (L) could also change.
         
         Parameters
@@ -149,10 +149,14 @@ class DynamicCable(Edge):
                 raise Exception('Subsystem does not yet exist in this DynamicCable')
             ss = self.ss_mod
         
+        if not self.L == self.dd['length']:  # ensure consistency (currently redundant)
+            breakpoint()
+            print("Lengths not consistent in DynamicCable dd and .L")
+        
         # make sure the number of buoyancy sections matches the subsystem
-        if len(self.dd['bouyancy_sections'])*2 + 1 == self.ss.nLines:  
+        if len(self.dd['buoyancy_sections'])*2 + 1 == self.ss.nLines:  
             case = 1  # typical case where buoyancy sections are in middle of cable
-        elif len(self.dd['bouyancy_sections'])*2 == self.ss.nLines: 
+        elif len(self.dd['buoyancy_sections'])*2 == self.ss.nLines: 
             case = 0  # case where buoyancy section starts right at end A
         else:
             raise Exception("Number of buoyancy sections doesn't match subsystem")
@@ -162,7 +166,7 @@ class DynamicCable(Edge):
         iLine = 0  # index of the current Line along the subsystem
         
         # Turn what's in dd into a list of buoyancy section info dicts
-        for i, bs in self.dd['bouyancy_sections']:
+        for i, bs in enumerate(self.dd['buoyancy_sections']):
         
             # bs contains 'L_mid', 'module_props', 'N_modules', 'spacing'
             
@@ -183,7 +187,7 @@ class DynamicCable(Edge):
             
             
             # update properties of the corresponding Subsystem Line
-            self.ss.lineList[2*i+case].setL(L)
+            self.ss.lineList[2*i+case].setL(Ls)
             #self.dd['sections'][iLine]['length'] = Ls
             
             self.ss.lineTypes[2*i+case]['m'] = m
@@ -197,7 +201,7 @@ class DynamicCable(Edge):
             # update end location of the section 
             currentL += Ls 
            
-            if i == len(self.dd['bouyancy_sections'])-1:
+            if i == len(self.dd['buoyancy_sections'])-1:
                 # this is the last section - adjust cable length at the end
                 L_end = self.L - bs['L_mid'] - Ls/2
                 self.ss.lineList[iLine+1].setL(L_end)
@@ -205,7 +209,9 @@ class DynamicCable(Edge):
                 currentL += L_end
             
             iLine +=1 
-            
+        # >>> the total length of self.ss doesn't seem to be right <<<  breakpoint()    
+        print(f"Total DynamicCable.ss length is {sum([l.L0 for l in self.ss.lineList])}")
+        
     
     def calcEquivBuoyancy(self,bs):
         '''Calculates new cable information that includes equivalent buoyancy of buoys
@@ -232,18 +238,19 @@ class DynamicCable(Edge):
         # compute what diameter of buoyancy module is needed to achieve this buoyancy per unit length
         d_inner = self.d0  # inner diameter for buoyancy module [m]
         rho_buoy = bs['module_props']['density']  # constant density of buoyancy modules [kg/m^3]
-        v_buoy = bs['module_props']['volume']  # displaced volume [m^3]
+        v_buoy = bs['module_props']['volume']*bs['N_modules']  # displaced volume [m^3]
         
         # equivalent outer diameter of buoyancy section
-        d_outer = np.sqrt(4*v_buoy/bs['spacing']/np.pi + d_inner**2) 
+        d_outer = np.sqrt(4*v_buoy/L/np.pi + d_inner**2) 
         
         # mass per meter of spread buoyancy module [kg/m]
-        m_buoy = rho_buoy*v_buoy/bs['spacing']
+        m_buoy = rho_buoy*v_buoy/L
         
         m = self.m0 + m_buoy  # mass per unit length of combined cable + spread buoyancy modules [kg/m]
         w = m*self.g - self.rho*(np.pi/4*(d_outer**2))*self.g  # weight per unit length [N/m]
         
         return(L,m,w,d_outer)
+    
     
     def reposition(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
         '''Adjusts mooring position based on changed platform location or
@@ -384,7 +391,7 @@ class DynamicCable(Edge):
             lengths.append(self.L) 
         
         # Parse buoyancy sections to compute their properties and all lengths
-        for i,bs in enumerate(self.dd['buoyancy_sections']):
+        for i, bs in enumerate(self.dd['buoyancy_sections']):
             # get buoyancy section information
             Ls,m,w,d_vol = self.calcEquivBuoyancy(bs) 
             
@@ -419,15 +426,16 @@ class DynamicCable(Edge):
                 lengths.append(self.L - bs['L_mid'] - Ls/2)
                 
                 currentL += self.L - bs['L_mid'] - Ls/2
+        
         '''
         currentL = 0
         # add buoyancy sections to design dictionary if it doesn't already exist
         if not 'sections' in dd:
             dd['sections'] = []
-            if not self.dd['bouyancy_sections']:
+            if not self.dd['buoyancy_sections']:
                 dd['sections'].append({'type':self.cableType,'length':self.L})
             else:
-                for i,bs in enumerate(self.dd['bouyancy_sections']):
+                for i,bs in enumerate(self.dd['buoyancy_sections']):
                     # get buoyancy section information
                     Ls,m,w,d_vol = self.calcEquivBuoyancy(bs) 
                     
@@ -449,7 +457,7 @@ class DynamicCable(Edge):
                     # update end location of the section 
                     currentL += Ls 
                    
-                    if i == len(self.dd['bouyancy_sections'])-1:
+                    if i == len(self.dd['buoyancy_sections'])-1:
                         # this is the last section - add cable length at the end
                         dd['sections'].append({'type':self.cableType})
                         dd['sections'][-1]['length'] = self.L - bs['L_mid'] - Ls/2

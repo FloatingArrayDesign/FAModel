@@ -115,11 +115,11 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     mass = ctd['mass_d'][0]*d**2 + ctd['mass_d'][1]*d + ctd['mass_d'][2] # linear density [kg/m]
     w = (mass - np.pi/4*(d/1000)**2 *rho)*g  # apparent (wet) weight per unit length [N/m]
     
-    EA   = ctd['EA_d'][0]*d**2 + ctd['EA_d'][1]*d + ctd['EA_d'][2]  # axial stiffness [N]
-    EI   = ctd['EI_d'][0]*d**2 + ctd['EI_d'][1]*d + ctd['EI_d'][2]  # bending stiffness [Nm]
+    EA   = 1e6*( ctd['EA_d'][0]*d**2 + ctd['EA_d'][1]*d + ctd['EA_d'][2])  # axial stiffness [N]
+    EI   = 1e3*( ctd['EI_d'][0]*d**2 + ctd['EI_d'][1]*d + ctd['EI_d'][2])  # bending stiffness [Nm]
     
     # minimum breaking load in tension [N]
-    MBL  = ctd['MBL_D_coefs'][0]*d**2 + ctd['MBL_D_coefs'][1]*d + ctd['MBL_D_coefs'][2]
+    MBL  = 1e3*( ctd['MBL_D_coefs'][0]*d**2 + ctd['MBL_D_coefs'][1]*d + ctd['MBL_D_coefs'][2])
     
     # minimum bending radius [m]
     MBR  = ctd['MBR_D_coefs'][0]*d + ctd['MBR_D_coefs'][1]
@@ -238,12 +238,10 @@ def getBuoyProps(V, buoy_type, buoyProps=None, source=None, name="", rho=1025.0,
     d = ctd['D_BM']*np.cbrt(V)  # buoyancy module outer diameter [m]
     l = ctd['L_BM']*np.cbrt(V)  # buoyancy module length [m]
     
-    B = V
+    mass = ctd['density']*V  # mass [kg]
+    w = (mass - V*rho)*g  # apparent (wet) weight [N]
     
-    mass = ctd['density']*B  # mass [kg]
-    w = (mass - B*rho)*g  # apparent (wet) weight [N]
-    
-    cost = ctd['cost_B']*B   # cost per buoy
+    cost = ctd['cost_B'][0]*V + ctd['cost_B'][1]   # cost per buoy
     
     # Set up a main identifier for the cable type unless one is provided
     if name=="":
