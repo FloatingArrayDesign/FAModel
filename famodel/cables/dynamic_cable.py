@@ -778,10 +778,10 @@ class DynamicCable(Edge):
                 ndt['m'] =  float(growthMass + m[j]) # kg/m (total mass)
                 
                 # calculate the submerged weight per meter including marine growth
-                ndt['w'] = float(growthMass*(1-1025/rho_mg[j])*9.81 + (m[j]-np.pi/4*d_ve_old[j]**2*1025)*9.81) # N/m
+                ndt['w'] = float(growthMass*(1-self.rho/rho_mg[j])*self.g + (m[j]-np.pi/4*d_ve_old[j]**2*self.rho)*self.g) # N/m
                 
                 # calculate new volume-equivalent diameter (cannot use regular chain/polyester conversion because of added marine growth)
-                ndt['d_vol'] = np.sqrt(4*((ndt['m']*9.81-ndt['w'])/1025/9.81)/np.pi)
+                ndt['d_vol'] = np.sqrt(4*((ndt['m']*self.g-ndt['w'])/self.rho/self.g)/np.pi)
                 
                 # calculate new increased drag coefficient from marine growth
                 # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
