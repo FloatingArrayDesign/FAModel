@@ -84,7 +84,7 @@ array:
         -  [FOWT3,     1,         1,         ms3,          1600,           -1600,            0   ]
         -  [FOWT4,     1,         2,         ms4,          -1600,          0,            0   ]
         -  [FOWT5,     1,         1,         ms5,          0,              0,            45   ]
-        -  [FOWT6,     1,         1,         ms6,          1600,              0,            0   ]
+        -  [FOWT6,     1,         1,         ms10,          1600,              0,            0   ]
         -  [FOWT7,     1,         1,         ms6,          -1600,           1600,            0   ]
         -  [FOWT8,     1,         1,         ms6,          0,              1600,            0   ]
         -  [FOWT9,     1,         1,         ms6,          1600,           1600,            0   ] 
@@ -2520,7 +2520,8 @@ mooring_line_configs:
         span: 779.6 
         
         sections:
-          - type: chain_185
+          - mooringFamily: chain
+            d_nom: 0.185 # m
             length: 850
             adjustable: True
     

@@ -63,7 +63,7 @@ for moor in project.mooringList.values():  # go through each mooring object
     ### x_moorList is now a list of arrays, with an array for each mooring (even if there is multiple sections)
     ### To get all the x-coordinates for one mooring object, use x_moorList[0]. To get a specific x-coordinate for one mooring object, use x_moorList[0][0]
     
-for i in range(0,len(x_moorList)): # for loop to go through each mooring object
+# for i in range(0,len(x_moorList)): # for loop to go through each mooring object
     # create your shapely object with coordinates for mooring object i (x_moorList[i],y_moorList[i],z_moorList[i])...
         
     

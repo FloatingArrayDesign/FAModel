@@ -256,9 +256,9 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  end A,   end B,  lengthAdjust]
     line_data :
-        - [ Taut-Poly_1      ,  anch1,  fowt1,   0]
-        - [ Taut-Poly_1      ,  anch2,  fowt1,   0]
-        - [ Taut-Poly_2      ,  fowt1,  f2,   0]
+        - [ semitaut-poly_1      ,  anch1,  fowt1,   0]
+        - [ semitaut-poly_1      ,  anch2,  fowt1,   0]
+        - [ semitaut-poly_2      ,  fowt1,  f2,   0]
 ```
 
 ### Array Cables
@@ -267,7 +267,8 @@ This section provides a straightforward and compact way to define the power
 cables in the array. For each end (A and B) of the cable, it specifies the
 turbine (matching and ID in the array table) or substation (matching an ID in the substation section)
 attached to, the [Top Level Cables](#top-level-cables) 
-used, the heading of the cable at the attachment of each end, and length adjustment. 
+used, the heading of the cable at the attachment of each end, and length adjustment. A 0-degree heading aligns with 
+North and rotates clockwise.
 Additional detail related to subsections of the top level cable, joints, and any cable 
 routing are in the [Cables](#cables) section. 
 The CableID refers to an entry in the [Top Level Cables](#top-level-cables) section.
@@ -276,8 +277,8 @@ The CableID refers to an entry in the [Top Level Cables](#top-level-cables) sect
 array_cables:   
     keys:  [ CableID,       AttachA,   AttachB,      headingA, headingB, lengthAdjust]
     data:
-      - [ array_cable1,     fowt1,     f2,        180,      180,      0] 
-      - [ suspended_cable1, f2,     substation1,  0,        180,      0]  
+      - [ array_cable1,     fowt1,     f2,        270,      270,      0] 
+      - [ suspended_cable1, f2,     substation1,  90,        270,      0]  
 ```
 
 ## Substation(s)
@@ -350,7 +351,7 @@ anchor characteristics.
 This section describes the mooring systems that could be used for individual turbines and repeated throughout the array. Each mooring system contains a 
 list of mooring lines, which contains the mooring configuration ID, the heading, the anchor type, and a possible length adjustment. The 
 mooring configuration ID links to the details about the segments lengths and types in the mooring line configurations section. The heading refers to the angle of the mooring line and it rotates 
-counterclockwise from +X. The anchor type links to details about the anchor 
+clockwise from North. The anchor type links to details about the anchor 
 size and dimensions in the [anchor types section](#anchor-types). The length adjustment
 is an optional parameter that can adjust the mooring line length for a shallower or deeper depth, for example. 
 
@@ -361,9 +362,9 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  taut-poly_1,   60 ,    suction 1,   0 ]
-          - [  taut-poly_1,  180 ,    suction 1,   0 ]
-          - [  taut-poly_1,  300 ,    suction 1,   0 ]
+          - [  semitaut-poly_1,   30 ,    suction 1,   0 ]
+          - [  semitaut-poly_1,  150 ,    suction 1,   0 ]
+          - [  semitaut-poly_1,  270 ,    suction 1,   0 ]
 ```
 
 ### Mooring Line Configurations
@@ -372,7 +373,8 @@ The mooring line configurations lists the segment lengths and line types that ma
 as the MooringConfigID in the mooring systems section. The span is specified for each configuration, which represents the distance in the x-y plane between 
 the two connection points of the line - i.e. between fairlead and anchor, or for shared lines, fairlead and fairlead. Fairlead radius and fairlead depth are specified in the [Platform](#platforms) section.
  Each line contains a list of sections that details the line section type and length. The line type name
-connects to information in the mooring [line section properties](#mooring-line-section-properties). 
+connects to information in the mooring [line section properties](#mooring-line-section-properties) if the keyword 'type' is used. If 'mooringFamily' is instead 
+specified (as in the catenary_1 example below), the mooring line properties are determined from MoorPy MooringProps values. In the latter case, the nominal diameter in m 'd_nom' must also be provided for that line section. 
 Additionally, before and after each line section has an optional input which can list the 
 ID of a [connector type](#mooring-connectors), such as an H-link or buoy. 
 This information allows the weight and buoyancy of the connections to be included 
@@ -382,48 +384,54 @@ There is also a True/False options for whether the section length is adjustable.
 Shared or suspended lines may also have an optional 'symmetric' input which, if set to true, signifies that 
 the line is symmetric and only the first half of the line is provided in the 'sections' list. When loaded in to the project class, the mooring object will automatically be fully filled out by mirroring 
 the first half of the line. If a connector is provided as the last item in the sections list for a symmetric line, it is assumed that the middle line is two identical lines with the given connector between, otherwise 
-the middle line (last line given in the list) is doubled in length in the mirroring process. For example, the 'shared_2_clump' config in the yaml below would produce a symmetric shared line with sections in the following order
-an 80m section of poly_180, a clump weight, a 762 m section of poly_180 (note the doubled length), a clump weight, and finally an 80 m section of poly_180.
+the middle line (last line given in the list) is doubled in length in the mirroring process. For example, the 'rope_shared' config in the yaml below would produce a symmetric shared line with sections in the following order
+a 150 m section of rope, a clump weight, a 1172 m section of rope (note the doubled length), a clump weight, and finally a 150 m section of rope.
 
 
 
 ```yaml
   mooring_line_configs:
     
-    taut-poly_1:  # mooring line configuration identifier
+    catenary_1:
+        name: catenary configuration 1
+        
+        span: 779.6 
+        
+        sections:
+          - mooringFamily: chain
+            d_nom: 0.185 # m
+            length: 850
+            adjustable: True
+			
+	semitaut-poly_1:  # mooring line configuration identifier
     
-        name: Taut polyester configuration 1  # descriptive name	
+        name: Semitaut polyester configuration 1  # descriptive name
+        
+        span: 642
+        
+        sections:                 #in order from anchor to fairlead
+          - type: chain_155mm       # ID of a mooring line section type
+            length: 497.7            # [m] usntretched length of line section
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+          - connectorType: h_link   
+          - type: polyester_182mm        # ID of a mooring line section type
+            length: 199.8           # [m] length (unstretched)
 
-        span: 800 # x-y distance between fairlead and anchor, or for shared lines, fairlead and fairlead
+
+    rope_shared:
+        name: shared rope 
+		symmetric: True
+        
+        span: 1484
+
         
         sections:
-          - connectorType: shackke # ID of a connector type (optional)
-          - type: chain_160       # ID of a mooring line section type
-            length: 80            # [m] usntretched length of line section
-            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...			
+          - type: rope
+            length: 150
+          - connectorType: clump_weight_80
+          - type: rope
+            length: 586
 
-          - connectorType: h_link    # ID of a connector type (optional)
-          
-          - type: poly_180        # ID of a mooring line section type
-            length: 762           # [m] length (unstretched)
-
-          - connectorType: shackle    # ID of a connector type (optional)
-
-
-    shared-2-clump:
-        name: Shared line with two clump weights
-        symmetric: True		
-
-        span: 1142
-        
-        sections:
-          - type: poly_180   
-            length: 80   
-
-          - connectorType: clump_weight_20
-            
-          - type: poly_180
-            length: 431
 ```    
     
 ### Mooring line section properties

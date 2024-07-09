@@ -26,7 +26,7 @@ from famodel.substation.substation import Substation
 from famodel.cables.cable import Cable
 from famodel.cables.dynamic_cable import DynamicCable
 from famodel.cables.static_cable import StaticCable
-from famodel.cables.cable_properties import getCableProps, getBuoyProps
+from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCableProps,loadBuoyProps
 from famodel.cables.components import Joint
 from famodel.turbine.turbine import Turbine
 
@@ -283,7 +283,8 @@ class Project():
                 for j,m_s in enumerate(mSystems): # loop through each mooring system
                     msys = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
                     for i in range(0,len(msys)): #len(mSystems[m_s]['data'])): # loop through each line listed in the system
-                        if not msys[i]['MooringConfigID'] in lineConfigs: # check if they match
+                         if not msys[i]['MooringConfigID'] in lineConfigs: # check if they match
+                            
                             raise Exception(f"Mooring line configuration '{msys[m_s][i]['MooringConfigID']}' listed in mooring_systems is not found in mooring_line_configs")
                             
         # ----- platforms -----
@@ -326,6 +327,47 @@ class Project():
                 # I think we want to just store it as a dictionary
                 # validate it,
                 # then have it available for use when making Mooring objects and subsystems
+        
+        def MooringProps(mCon,checkType=1):
+            '''
+            Parameters
+            ----------
+            mType : dictionary
+                Dictionary of mooring details from the mooring_line_configs key
+                Includes type (reference to name in mooring_line_types or cable_props yaml)
+            checkType : boolean
+                Controls whether or not to first look for the cable type in the project yaml dictionary before
+                attempting to get the cable properties from cable props yaml.
+
+            Returns
+            -------
+            dd : design dictionary
+
+            '''
+            if 'type' in mCon and mCon['type'] in d['mooring_line_types']:
+                dd = d['mooring_line_types'][mCon['type']]
+                dd['name'] = mCon['type']
+                if 'd_vol' in dd:
+                    d_vol = dd['d_vol']
+                # else:
+                #     d_vol = dd['d']
+                dd['w'] = (dd['m']-np.pi/4*d_vol**2*self.rho_water)*self.g
+                if 'mooringFamily' in mCon:
+                    raise Exception('type and moorFamily listed in yaml - use type to reference a mooring type in the mooring_line_types section of the yaml and mooringFamily to obtain mooring properties from MoorProps_default.yaml')
+            elif 'mooringFamily' in mCon:
+                from moorpy.helpers import loadLineProps, getLineProps
+                if not 'd_nom' in mCon:
+                    raise Exception('To use MoorProps yaml, you must specify a nominal diameter in mm for the mooring line family')
+                lineprops = loadLineProps(None)
+                mProps = getLineProps(mCon['d_nom']*1000,mCon['mooringFamily'],lineProps=lineprops)
+                dd = mProps
+                dd['name'] = mCon['mooringFamily']
+                dd['d_nom'] = mProps['input_d']
+            elif 'type' in mCon and not mCon['type'] in d['mooring_line_types']:
+                raise Exception(f'Type {mCon["type"]} provided in mooring_line_config {mCon} is not found in mooring_line_types section. Check for errors.')
+
+            return(dd)
+        
         def getMoorings(lineconfig,i):
             '''
 
@@ -355,27 +397,31 @@ class Project():
             
                 lc = lineConfigs[lineconfig]['sections'][k] # set location for code clarity later
                 # determine if it's a line type or a connector listed
-                if 'type' in lc: 
+                if 'type' in lc or 'mooringFamily' in lc: 
                     # this is a line
                     if lineLast: # previous item in list was a line (or this is the first item in a list)
                         # no connector was specified for before this line - add an empty connector
                         c_config.append({})                        
-                    # set line information                                                
-                    lt = self.lineTypes[lc['type']] # set location for code clarity and brevity later
+                    # set line information
+                    lt = MooringProps(lc)                                             
+                    # lt = self.lineTypes[lc['type']] # set location for code clarity and brevity later
                     # set up sub-dictionaries that will contain info on the line type
-                    m_config['sections'].append({'type':{'name':str(ct)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA'])}})
-                    # need to calculate the submerged weight of the line (not currently available in ontology yaml file)
-                    m_config['sections'][ct]['type']['w'] = (lt['m']-np.pi/4*lt['d_vol']**2*self.rho_water)*self.g
+                    m_config['sections'].append({'type':lt})# {'name':str(ct)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA'])}})
+                    m_config['sections'][ct]['type']['name'] = str(ct)+'_'+lt['name']
+                    # make EA a float not a string
+                    m_config['sections'][ct]['type']['EA'] = float(lt['EA'])
+                    # # need to calculate the submerged weight of the line (not currently available in ontology yaml file)
+                    # m_config['sections'][ct]['type']['w'] = (lt['m']-np.pi/4*lt['d_vol']**2*self.rho_water)*self.g
                     # add cost if given
-                    if 'cost' in lt:
-                        m_config['sections'][ct]['type']['cost'] = lt['cost']
-                    # add MBL if given
-                    if 'MBL' in lt:
-                        m_config['sections'][ct]['type']['MBL'] = lt['MBL']
-                    # add dynamic stretching if there is any
-                    if 'EAd' in lt: 
-                        m_config['sections'][ct]['type']['EAd'] = lt['EAd']
-                        m_config['sections'][ct]['type']['EAd_Lm'] = lt['EAd_Lm']
+                    # if 'cost' in lt:
+                    #     m_config['sections'][ct]['type']['cost'] = lt['cost']
+                    # # add MBL if given
+                    # if 'MBL' in lt:
+                    #     m_config['sections'][ct]['type']['MBL'] = lt['MBL']
+                    # # add dynamic stretching if there is any
+                    # if 'EAd' in lt: 
+                    #     m_config['sections'][ct]['type']['EAd'] = lt['EAd']
+                    #     m_config['sections'][ct]['type']['EAd_Lm'] = lt['EAd_Lm']
                         
                     # set line length
                     m_config['sections'][ct]['length'] = lc['length']
@@ -611,7 +657,7 @@ class Project():
                     # get headings (mooring heading combined with platform heading)
                     headingA = np.radians(90-arrayMooring[j]['headingA']) - self.platformList[PFNum[1]].phi
                     headingB = np.radians(90-arrayMooring[j]['headingB']) - self.platformList[PFNum[0]].phi
-                    print('headingA: ',headingA,'listed headingA',arrayMooring[j]['headingA'],'phi: ',self.platformList[PFNum[1]].phi)
+                    # print('headingA: ',headingA,'listed headingA',arrayMooring[j]['headingA'],'phi: ',self.platformList[PFNum[1]].phi)
                     # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
                     Aloc = [rowA['x_location']+np.cos(headingA)*self.platformList[PFNum[1]].rFair, rowA['y_location']+np.sin(headingA)*self.platformList[PFNum[1]].rFair, self.platformList[PFNum[1]].zFair]
                     Bloc = [rowB['x_location']+np.cos(headingB)*self.platformList[PFNum[0]].rFair, rowB['y_location']+np.sin(headingB)*self.platformList[PFNum[0]].rFair, self.platformList[PFNum[0]].zFair]
@@ -722,7 +768,8 @@ class Project():
             elif 'cableFamily' in cabType:
                 if not 'A' in cabType:
                     raise Exception('To use CableProps yaml, you must specify an area A for the cable family')
-                cabProps = getCableProps(cabType['A'],cabType['cableFamily'],source="default")
+                cp = loadCableProps(None)
+                cabProps = getCableProps(cabType['A'],cabType['cableFamily'],cableProps=cp)
                 # fix units
                 cabProps['power'] = cabProps['power']*1e6
                 dd = cabProps
@@ -752,7 +799,8 @@ class Project():
             if buoyType['type'] in d['cable_appendages']:
                 dd['module_props'] = d['cable_appendages'][buoyType['type']]
             else:
-                buoyProps = getBuoyProps(buoyType['V'],buoyType['type'],source="default")
+                bp = loadBuoyProps(None)
+                buoyProps = getBuoyProps(buoyType['V'],buoyType['type'],buoyProps=bp)
                 dd['module_props'] = buoyProps
             
             # add number of modules and spacing
