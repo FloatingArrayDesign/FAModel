@@ -114,7 +114,7 @@ def test_check_connections():
 def test_headings_repositioning():
     project = Project(file='tests/testOntology.yaml',raft=0)
     # check angles and repositioning for regular mooring line and shared mooring line, reg cable and suspended cable
-    assert_allclose(np.hstack((project.mooringList[('FOWT1',0)].rA,project.mooringList[('FOWT2','FOWT1',5)].rA)),
+    assert_allclose(np.hstack((project.mooringList['FOWT1a'].rA,project.mooringList['FOWT1-FOWT2'].rA)),
                     np.hstack(([-828.637,-828.637,-600],[40.5,0,-20])),rtol=0,atol=0.5)
     assert_allclose(np.hstack((project.cableList['array_cable10'].subcomponents[0].rB,project.cableList['suspended_cable11'].subcomponents[0].rB)),
                     np.hstack(([640.5,0,-600],[0,1615.5,-20])),rtol=0,atol=0.5)

@@ -41,7 +41,7 @@ def test_MoorPy_integration():
     project = Project(file='tests/testOntology.yaml',raft=0)
     project.getMoorPyArray(cables=1,plt=1)
     # check a random mooring line for ss
-    assert project.mooringList[('FOWT1',0)].ss is not None
+    assert project.mooringList['FOWT1a'].ss is not None
 def test_RAFT_integration():
     project = Project(file='tests/testOntology.yaml')
     assert project.array is not None

@@ -281,11 +281,13 @@ class Project():
             # check line configurations listed in mooring systems matches those in line configs list
             if mSystems: # if mooring_systems section is included in dictionary
                 for j,m_s in enumerate(mSystems): # loop through each mooring system
-                    msys = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
-                    for i in range(0,len(msys)): #len(mSystems[m_s]['data'])): # loop through each line listed in the system
-                         if not msys[i]['MooringConfigID'] in lineConfigs: # check if they match
-                            
-                            raise Exception(f"Mooring line configuration '{msys[m_s][i]['MooringConfigID']}' listed in mooring_systems is not found in mooring_line_configs")
+                    for i in range(0, len(arrayInfo)): # loop through each entry in array
+                        if m_s == arrayInfo[i]['mooringID']:
+                            msys = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
+                            for i in range(0,len(msys)): #len(mSystems[m_s]['data'])): # loop through each line listed in the system
+                                 if not msys[i]['MooringConfigID'] in lineConfigs: # check if they match
+                                    
+                                    raise Exception(f"Mooring line configuration '{msys[i]['MooringConfigID']}' listed in mooring_systems is not found in mooring_line_configs")
                             
         # ----- platforms -----
         
@@ -542,7 +544,10 @@ class Project():
         # check that all necessary sections of design dictionary exist to create non-shared lines
         if self.lineTypes and lineConfigs and mSystems:
             mct = 0 # counter for number of mooring lines
-                    
+            # set up a list of the alphabet for assigning names purposes
+            import string
+            alph = list(string.ascii_lowercase)
+                               
             for i in range(0, len(arrayInfo)): # loop through each platform in array
                 
                 # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
@@ -571,7 +576,9 @@ class Project():
                 
                 if not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
                     m_s = arrayInfo[i]['mooringID'] # get mooring system ID
-                    mySys = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
+                    mySys_unsorted = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
+                    # sort the mooring lines in the mooring system by heading from 0 (North)
+                    mySys = sorted(mySys_unsorted,key=lambda x:x['heading'])
                     # get mooring headings (need this for platform class)
                     headings = []
                     for ii in range(0,len(mySys)):
@@ -594,7 +601,7 @@ class Project():
                         
                         
                         # create mooring class instance as part of mooring list in the project class instance
-                        mc = (Mooring(dd=m_config, id=(arrayInfo[i]['ID'],mct)))
+                        mc = (Mooring(dd=m_config, id=str(arrayInfo[i]['ID'])+alph[j]))
                         # mc.rA = [m_config['span']+m_config['rad_fair'],0,m_config['zAnchor']]
                         # mc.rB = [m_config['rad_fair'],0,m_config['z_fair']]
                         # adjust end positions based on platform location and mooring and platform headings
@@ -611,11 +618,11 @@ class Project():
                         ad['angle'] = nAngle
                         
                         # add anchor class instance to anchorList in project class
-                        self.anchorList[(arrayInfo[i]['ID'],mct)] = (Anchor(dd=ad, r=mc.rA, id=(arrayInfo[i]['ID'],mct)))
+                        self.anchorList[str(arrayInfo[i]['ID'])+alph[j]] = (Anchor(dd=ad, r=mc.rA, id=str(arrayInfo[i]['ID'])+alph[j]))
                         # add mooring class instance to mooringlist in project class
-                        self.mooringList[(arrayInfo[i]['ID'],mct)] = mc
+                        self.mooringList[str(arrayInfo[i]['ID'])+alph[j]] = mc
                         # attach mooring object to anchor and platform
-                        mc.attachTo(self.anchorList[(arrayInfo[i]['ID'],mct)],end='A')
+                        mc.attachTo(self.anchorList[str(arrayInfo[i]['ID'])+alph[j]],end='A')
                         mc.attachTo(self.platformList[arrayInfo[i]['ID']],end='B')
                         
                         # update counter
@@ -665,13 +672,17 @@ class Project():
                     lineconfig = arrayMooring[j]['MooringConfigID']                       
                     # create mooring and connector dictionary for that line
                     m_config = getMoorings(lineconfig,Bnum)
+                    # get letter number for mooring line
+                    ind = len(self.platformList[PFNum[1]].getMoorings())
                     # create mooring class instance
-                    mc = (Mooring(dd=m_config, id=(PFNum[0],PFNum[1],mct)))
+                    mc = (Mooring(dd=m_config, id=str(PFNum[1])+'-'+str(PFNum[0])))
                     mc.shared = 1
                     mc.rA = Aloc
                     mc.rB = Bloc
                     # add mooring object to project mooring list
-                    self.mooringList[(PFNum[0],PFNum[1],mct)] = mc
+                    
+                    
+                    self.mooringList[str(PFNum[1])+'-'+str(PFNum[0])] = mc
                     # attach mooring object to platforms
                     mc.attachTo(self.platformList[PFNum[0]],end='B')
                     mc.attachTo(self.platformList[PFNum[1]],end='A')
@@ -686,8 +697,10 @@ class Project():
                     lineconfig = arrayMooring[j]['MooringConfigID']                       
                     # create mooring and connector dictionary for that line
                     m_config = getMoorings(lineconfig,Bnum)
+                    # get letter number for mooring line
+                    ind = len(self.platformList[PFNum[0]].getMoorings())
                     # create mooring class instance
-                    mc = (Mooring(dd=m_config, id=(PFNum[0],mct)))
+                    mc = (Mooring(dd=m_config, id=str(PFNum[0])+alph[ind]))
                     mc.rA = [m_config['span']+self.platformList[PFNum[0]].rFair,0,m_config['zAnchor']]
                     mc.rB = [self.platformList[PFNum[0]].rFair,0,self.platformList[PFNum[0]].zFair]
                     # adjust end positions based on platform location and mooring and platform heading
@@ -721,7 +734,7 @@ class Project():
                         mc.attachTo(self.anchorList[('shared',arrayAnchor[k]['ID'])],end='A')
                   
                     # add mooring object to project mooring list
-                    self.mooringList[(PFNum[0],mct)] = mc
+                    self.mooringList[str(PFNum[0])+alph[ind]] = mc
                     # attach mooring object to platform
                     mc.attachTo(self.platformList[PFNum[0]],end='B')
 
@@ -1423,10 +1436,20 @@ class Project():
         None.
 
         '''
-        # go through each index in the list and create a cable, connect to platforms
+        
         print(len(connDict))
+        # create substation object with id 200
+        dd = {'r':[100,100]}
+        self.substationList[200] = Substation(dd,id=200)
+        
+        # detach and delete existing cable list
+        if self.cableList:
+            for j,cab in enumerate(self.cableList.values()):
+                cab.detachFrom('a')
+                cab.detachFrom('b')
+        self.cableList = {} 
+        # go through each index in the list and create a cable, connect to platforms
         for i in range(0,len(connDict)): # go through each cable
-            print('i=',i)
             # collect design dictionary info on cable
             dd = {}
             dd['cables'] = [{}]
@@ -1437,39 +1460,42 @@ class Project():
             cd['A'] = connDict[i]['A_min_con']
             cd['type'] = 'dynamic'
             
-            cabProps = getCableProps(connDict[i]['A_min_con'],cableType,source="default")
+            cp = loadCableProps(None)
+            cabProps = getCableProps(connDict[i]['A_min_con'],cableType,cableProps=cp)
             # fix units
-            cabProps['EA'] = cabProps['EA']*1e6
-            cabProps['EI'] = cabProps['EI']*1e3
-            cabProps['MBL'] = cabProps['MBL']*1e3
+            # cabProps['EA'] = cabProps['EA']*1e6
+            # cabProps['EI'] = cabProps['EI']*1e3
+            # cabProps['MBL'] = cabProps['MBL']*1e3
             cabProps['power'] = cabProps['power']*1e6
             cd['cable_type'] = cabProps
             dd['name'] = cableType
 
-            # detach and delete existing cable list
-            if self.cableList:
-                for j,cab in enumerate(self.cableList.values()):
-                    cab.detachFrom('a')
-                    cab.detachFrom('b')
-            self.cableList = {}     
+                
             
             # create cable object
             self.cableList[cableType+str(i)] = Cable(cableType+str(i),d=dd)
-            print(connDict[i])
             # attach to platforms/substations
             for k in range(0,2): # cable will always only go between 2 points
-                print('Turbine IDs: ',connDict[i]['turbineA_glob_id'],connDict[i]['turbineB_glob_id'])
+                # print('Turbine IDs: ',connDict[i]['turbineA_glob_id'],connDict[i]['turbineB_glob_id'])
                 if connDict[i]['turbineA_glob_id'] in self.platformList:
                     self.cableList[cableType+str(i)].attachTo(self.platformList[connDict[i]['turbineA_glob_id']],end='A')
+                    # # update platform location
+                    # self.platformList[connDict[i]['turbineA_glob_id']].r = connDict[i]['coordinates'][0]
                 elif connDict[i]['turbineA_glob_id'] in self.substationList:
                     self.cableList[cableType+str(i)].attachTo(self.substationList[connDict[i]['turbineA_glob_id']],end='A')
+                    # update substation location
+                    self.substationList[connDict[i]['turbineA_glob_id']].r = connDict[i]['coordinates'][0]
                 else:
                     raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations')
                 
                 if connDict[i]['turbineB_glob_id'] in self.platformList:
                     self.cableList[cableType+str(i)].attachTo(self.platformList[connDict[i]['turbineB_glob_id']],end='B')
-                elif connDict[i]['turbineA_glob_id'] in self.substationList:
+                    # # update platform location
+                    # self.platformList[connDict[i]['turbineB_glob_id']].r = connDict[i]['coordinates'][1]
+                elif connDict[i]['turbineB_glob_id'] in self.substationList:
                     self.cableList[cableType+str(i)].attachTo(self.substationList[connDict[i]['turbineB_glob_id']],end='B')
+                    # update substation location
+                    self.substationList[connDict[i]['turbineB_glob_id']].r = connDict[i]['coordinates'][1]
                 else:
                     raise Exception('ID in connDict does not correspond to the IDs of any platforms or substations') 
     
@@ -2235,6 +2261,34 @@ class Project():
                 else:
                     self.ms.lineList[ii] = self.mooringList[i].ss_mod
                 
+    
+    def getCorrosion(self,corr_th=10,lines='all'):
+        '''
+        Function to reduce MBL of specified lines based on corrosion thickness
+
+        Parameters
+        ----------
+        corr_th : float, optional
+            Thickness of corrosion in mm. The default is 10.
+        lines : list or string, optional
+            List of line ids to add corrosion to. The default is 'all', which adds to every line.
+
+        Returns
+        -------
+        None.
+
+        '''
+        if lines == 'all':
+            idx = []
+            for i in self.mooringList:
+                idx.append(i)
+        elif isinstance(lines,list):
+            idx = lines
+        
+        for ii,i in enumerate(idx):
+            self.mooringList[i].addCorrosion(corrosion_mm=corr_th)
+    
+    
     def updateFailureProbability(self):
         '''
         Function to populate (or update) failure probability dictionaries in each object 

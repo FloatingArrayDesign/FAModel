@@ -95,7 +95,6 @@ class Platform(Node):
         
         # correction for xy coords
         corr = np.radians(90)
-        print('phi: ',self.phi,'pf corr: ',corr-self.phi)
         
         # Get 2D rotation matrix
         self.R = np.array([[np.cos(corr-self.phi), -np.sin(corr-self.phi)],[np.sin(corr-self.phi), np.cos(corr-self.phi)]])
