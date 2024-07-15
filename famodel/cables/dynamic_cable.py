@@ -176,9 +176,13 @@ class DynamicCable(Edge):
             # call function to calculate equivalent buoyancy 
             Ls, m, w, d_outer = self.calcEquivBuoyancy(bs)
             
+            # Save end A and B arc lengths of the buoyancy section
+            bs['L_A'] = bs['L_mid'] - Ls/2
+            bs['L_B'] = bs['L_mid'] + Ls/2
             
             # If this buoyancy section isn't at the very start of the cable
             if cstart:  
+            #if i > 0 or bs['L_mid'] > Ls/2:  
                 iLine +=1 
                 
                 # >>> note: this approach clashes/overlaps with the 'case' approach - should pick one <<<
@@ -210,12 +214,37 @@ class DynamicCable(Edge):
                 self.ss.lineList[-1].setL(L_end)
                 #self.dd['sections'][-1]['length'] = L_end
                 currentL += L_end
-            
+                
             iLine +=1 
-            
-        # >>> the total length of self.ss doesn't seem to be right <<<  breakpoint()    
-        # print(f"Total DynamicCable.ss length is {sum([l.L0 for l in self.ss.lineList])}")
         
+        print(f"Total DynamicCable.ss length is {sum([l.L0 for l in self.ss.lineList])}")
+    
+    
+    def getBuoyancyOverlaps(self):
+        '''Calculate the margin for any buoyancy sections overlapping with
+        each other or with the cable ends. The returned values could be used
+        as constraints to avoid overlap in an optimization.
+        
+        Returns
+        -------
+        array
+            List of overlap margins (negative means overlap) of end A, of each
+            successive buoyancy section (1-N), and then of end B.
+        '''
+        
+        bss = self.dd['buoyancy_sections']
+        
+        overlap_margin = np.zeros(len(self.i_buoy)+1)
+        
+        overlap_margin[0] = bss[0]['L_A']
+        
+        for i in range(len(self.i_buoy)-1):
+            overlap_margin[i] = bss[i+1]['L_A'] - bss[i]['L_B']
+        
+        overlap_margin[-1] = self.dd['length'] - bss[-1]['L_B']
+        
+        return overlap_margin
+    
     
     def calcEquivBuoyancy(self,bs):
         '''Calculates new cable information that includes equivalent buoyancy of buoys
