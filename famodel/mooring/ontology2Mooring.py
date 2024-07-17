@@ -16,6 +16,8 @@ Array.getMoorPyArray(pristineLines=1,plt=1,cables=1)
 mgDict = {'th':[[0,-600,-100],[.05,-100,-80],[.1,-80,0]],'rho':1325}
 # Array.getMarineGrowth(mgDict)
 Array.ms.plot()
+for moor in Array.mooringList.values():
+    moor.getEnvelope()
 # x,y,vals = Array.platformList[('fowt2')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
 # Array.platformList[('fowt1')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
 # Array.plot2d()

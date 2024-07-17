@@ -92,7 +92,7 @@ class DynamicCable(Edge):
         
         self.adjuster = None  # custom function that can adjust the mooring
         
-        self.shared = 0 # boolean for if the mooring line is a fully suspended cable  (2 = symmetric)
+        self.shared = 0 # boolean for if a fully suspended cable  (2 = symmetric)
         
         # relevant site info
         self.rho = rho
@@ -253,7 +253,7 @@ class DynamicCable(Edge):
     
     
     def reposition(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
-        '''Adjusts mooring position based on changed platform location or
+        '''Adjusts dynamic cable position based on changed platform location or
         heading. It can call a custom "adjuster" function if one is
         provided. Otherwise it will just update the end positions.
         
@@ -299,7 +299,7 @@ class DynamicCable(Edge):
     
     
     def setEndPosition(self, r, end, sink=False):
-        '''Set the position of an end of the mooring.
+        '''Set the position of an end of the dynamic cable.
         
         Parameters
         ----------
@@ -522,8 +522,8 @@ class DynamicCable(Edge):
               
     
     def addMarineGrowth(self, mgDict, project=None, idx=None):
-        '''Re-creates sections part of design dictionary to account for marine 
-        growth on the subystem, then calls createSubsystem() to recreate the line
+        '''Creates a new design dictionary (does not overwrite old one) to account for marine 
+        growth on the subystem, then calls createSubsystem() to recreate the cable
 
         Parameters
         ----------

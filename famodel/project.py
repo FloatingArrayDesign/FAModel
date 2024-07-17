@@ -1644,7 +1644,7 @@ class Project():
         '''
         #################
         from matplotlib import cm
-        args_bath = {'cmap':cm.GnBu}
+        args_bath = {'cmap':cm.GnBu_r}
         ####################
         bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
         
@@ -1676,13 +1676,21 @@ class Project():
                 # mooring.subsystem.drawLine(0, ax,color=color)
                 # ct = ct + 1
                 mooring.ss.drawLine(0,ax)
+                
+        for cable in self.cableList.values():
+            for sub in cable.subcomponents:
+                if isinstance(sub,DynamicCable):
+                    if sub.ss:
+                        sub.ss.drawLine(0,ax)
         
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if fowt:
-            for i in range(self.nt):
-                xy = self.turb_coords[i,:]
-                fowt.setPosition([xy[0], xy[1], 0,0,0,0])
-                fowt.plot(ax, zorder=20)
+            for pf in self.array.fowtlist:
+                pf.plot(ax,zorder=20)
+            # for i in range(self.nt):
+            #     xy = self.turb_coords[i,:]
+            #     fowt.setPosition([xy[0], xy[1], 0,0,0,0])
+            #     fowt.plot(ax, zorder=20)
         
         # Show full depth range
         ax.set_zlim([-np.max(self.grid_depth), 0])

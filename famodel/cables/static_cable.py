@@ -53,6 +53,7 @@ class StaticCable(Edge):
         # Nonzero radius wraps around the vertex at that radius.
         self.x = []  # cable route vertex global x coordinate [m]
         self.y = []  # cable route vertex global y coordinate [m]
+        self.z = []  # cable route vertex global z coordinate [m]
         self.r = []  # cable route vertex corner radius [m]
         
         # Dictionaries for addition information

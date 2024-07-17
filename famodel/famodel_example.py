@@ -11,10 +11,13 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 # Create the famodel farm and save it under the variable name project
 print('Creating farm project')
-project = Project(file='OntologySample.yaml',raft=0)
+project1 = Project(file='OntologySample.yaml',raft=0)
 # create MoorPy array
 print('Creating MoorPy array')
-project.getMoorPyArray(pristineLines=1,plt=1) # use unmodified mooring lines
+project1.getMoorPyArray(pristineLines=1,plt=1) # use unmodified mooring lines
+
+for moor in project1.mooringList.values():
+    moor.getEnvelope()
 
 # plot the famodel farm
 print('Plotting farm')

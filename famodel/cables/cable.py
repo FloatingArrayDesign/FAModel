@@ -136,4 +136,21 @@ class Cable(Edge):
             # depth = Project.getDepthAtLocation(jLocX,jLocY)
             # self.subcomponents[joint].r = [jLocX,jLocY,depth]
         return(jLocX,jLocY)     
+    
+    def getCost(self):
+        '''
+        Get the total cost of the cable (includes all cable subcomponent costs)
+        
+        Returns
+        -------
+        cost: total cost of the cable
+        '''
+        
+        cost = 0
+        for sub in self.subcomponents:
+            if isinstance(sub,Joint):
+                if 'cost' in sub.dd:
+                    cost += sub.dd['cost']
+            elif 'cost' in sub.dd['cableType']:
+                cost += sub.dd['cableType']*sub.dd['L']   
         

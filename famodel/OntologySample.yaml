@@ -2574,6 +2574,22 @@ mooring_line_configs:
           - type: rope
             length: 150
     
+    # semitaut-poly_1:  # mooring line configuration identifier
+    
+    #     name: Semitaut polyester configuration 1  # descriptive name
+        
+    #     span: 642
+        
+    #     sections:                 #in order from anchor to fairlead
+    #       - mooringFamily: chain      # ID of a mooring line section type
+    #         d_nom: 154.9
+    #         length: 497.7            # [m] usntretched length of line section
+    #         adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+    #       - connectorType: h_link   
+    #       - mooringFamily: polyester        # ID of a mooring line section type
+    #         d_nom: 182
+    #         length: 199.8           # [m] length (unstretched)
+    
     semitaut-poly_1:  # mooring line configuration identifier
     
         name: Semitaut polyester configuration 1  # descriptive name
@@ -2581,11 +2597,13 @@ mooring_line_configs:
         span: 642
         
         sections:                 #in order from anchor to fairlead
-          - type: chain_155mm       # ID of a mooring line section type
+          - mooringFamily: chain      # ID of a mooring line section type
+            d_nom: .1549
             length: 497.7            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
           - connectorType: h_link   
-          - type: polyester_182mm        # ID of a mooring line section type
+          - mooringFamily: polyester        # ID of a mooring line section type
+            d_nom: .182
             length: 199.8           # [m] length (unstretched)
 
 

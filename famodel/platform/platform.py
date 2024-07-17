@@ -178,7 +178,7 @@ class Platform(Node):
         
         
     def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
-                       shapes=True,Fth=None):
+                       shapes=True,Fth=None,SFs=True):
         '''
         Compute watch circle of platform based on rated thrust.
         
@@ -188,7 +188,14 @@ class Platform(Node):
             Angle increment to evaluate watch circle at [deg].
         plot : bool
             Plots the shape of the watch circle
-        RNAheight : 
+        RNAheight : float
+            Height of the rotor-nacelle assembly
+        shapes : bool
+            Whether or not to create shapely objects
+        Fth : float
+            Thrust force
+        SFs : bool
+            WHether or not to calculate safety factors etc for the line
         Returns
         -------
         x: list of x-coordinates for watch circle
@@ -198,6 +205,7 @@ class Platform(Node):
         '''
         self.body.type = -1
         ms = self.body.sys  # work with the mooring system the body is part of
+        ms.initialize()
         
         x = []
         y = []
@@ -247,39 +255,39 @@ class Platform(Node):
             
             self.body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                       
             
-            ms.initialize()
             ms.solveEquilibrium3(DOFtype='both')                        # equilibrate (specify 'both' to enable both free and coupled DOFs)
             
-            # get tensions on mooring line
-            for j,moor in enumerate(moorings): 
-                MBLA = float(moor.ss.lineList[0].type['MBL'])
-                MBLB = float(moor.ss.lineList[-1].type['MBL'])
-                # print(MBLA,MBLB,moor.ss.TA,moor.ss.TB,MBLA/moor.ss.TA,MBLB/moor.ss.TB,abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB))
-                MTSF = min([abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB)])
-                # atenMax[j], btenMax[j] = moor.updateTensions()
-                if not minTenSF[j] or minTenSF[j]>MTSF:
-                    minTenSF[j] = deepcopy(MTSF)
-            
-            # get tensions, sag, and curvature on cable
-            for j,cab in enumerate(cables):
-                MBLA = cab.ss.lineList[0].type['MBL']
-                MBLB = cab.ss.lineList[-1].type['MBL']
-                CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])
-                if not CminTenSF[j] or CminTenSF[j]>CMTSF:
-                    CminTenSF[j] = deepcopy(CMTSF)
-                # CatenMax[j], CbtenMax[j] = cab.updateTensions()
-                cab.ss.calcCurvature()
-                mCSF = cab.ss.getMinCurvSF()
-                if not minCurvSF[j] or minCurvSF[j]>mCSF:
-                    minCurvSF[j] = mCSF
-                # determine number of buoyancy sections
-                nb = len(cab.dd['buoyancy_sections'])
-                m_s = []
-                for k in range(0,nb):
-                    m_s.append(cab.ss.getSag(2*k))
-                mS = min(m_s)
-                if not minSag[j] or minSag[j]<mS:
-                    minSag[j] = deepcopy(mS)
+            if SFs:
+                # get tensions on mooring line
+                for j,moor in enumerate(moorings): 
+                    MBLA = float(moor.ss.lineList[0].type['MBL'])
+                    MBLB = float(moor.ss.lineList[-1].type['MBL'])
+                    # print(MBLA,MBLB,moor.ss.TA,moor.ss.TB,MBLA/moor.ss.TA,MBLB/moor.ss.TB,abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB))
+                    MTSF = min([abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB)])
+                    # atenMax[j], btenMax[j] = moor.updateTensions()
+                    if not minTenSF[j] or minTenSF[j]>MTSF:
+                        minTenSF[j] = deepcopy(MTSF)
+                
+                # get tensions, sag, and curvature on cable
+                for j,cab in enumerate(cables):
+                    MBLA = cab.ss.lineList[0].type['MBL']
+                    MBLB = cab.ss.lineList[-1].type['MBL']
+                    CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])
+                    if not CminTenSF[j] or CminTenSF[j]>CMTSF:
+                        CminTenSF[j] = deepcopy(CMTSF)
+                    # CatenMax[j], CbtenMax[j] = cab.updateTensions()
+                    cab.ss.calcCurvature()
+                    mCSF = cab.ss.getMinCurvSF()
+                    if not minCurvSF[j] or minCurvSF[j]>mCSF:
+                        minCurvSF[j] = mCSF
+                    # determine number of buoyancy sections
+                    nb = len(cab.dd['buoyancy_sections'])
+                    m_s = []
+                    for k in range(0,nb):
+                        m_s.append(cab.ss.getSag(2*k))
+                    mS = min(m_s)
+                    if not minSag[j] or minSag[j]<mS:
+                        minSag[j] = deepcopy(mS)
         
             x.append(self.body.r6[0])       
             y.append(self.body.r6[1])
@@ -292,19 +300,21 @@ class Platform(Node):
         if shapes:  # want to *optionally* make a shapely polygon
             from shapely import Polygon
             self.envelopes['mean']['shape'] = Polygon(list(zip(x,y)))
-             
-        maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))
+         
 
         if plot:
             plt.figure()
             plt.plot(x,y)
             
         # restore platform to equilibrium position 
-        self.body.r6[0] = self.r[0]
-        self.body.r6[1] = self.r[1]
+        self.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
+        ms.solveEquilibrium3(DOFtype='both')
                 
-            
-        return(x,y,maxVals)
+        if SFs:
+            maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
+            return(x,y,maxVals)
+        else:
+            return(x,y)
     
     def getMoorings(self):
         '''
