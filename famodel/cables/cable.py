@@ -34,6 +34,8 @@ class Cable(Edge):
         
         self.dd = {'joints':[],'cables':[]}  # save design dictionary
         self.n_sec = len(d['cables'])
+        if 'upstream_turb_count' in d:
+            self.upstream_turb_count = d['upstream_turb_count']
         
         # Turn what's in dd and turn it into Sections and Connectors (if there is more than one section)
         if len(d['cables'])>1:
@@ -47,8 +49,12 @@ class Cable(Edge):
             for i, sec in enumerate(d['cables']):
                 Cid = id+'_'+sec['cable_type']['name']+str(i)
                 if sec['type'] == 'static':
+                    if 'routing_xyr' in sec:
+                        d['cables'][i]['routing_xyr'] = sec['routing_xyr']
                     self.dd['cables'].append(StaticCable(Cid, dd=d['cables'][i], **d['cables'][i]))
                 else:
+                    if 'routing_xyr' in sec:
+                        d['cables'][i]['routing_xyr'] = sec['routing_xyr']
                     self.dd['cables'].append(DynamicCable(Cid, dd=d['cables'][i], **d['cables'][i]))
             
             # Connect them and store them in self(Edge).subcomponents!
@@ -67,6 +73,10 @@ class Cable(Edge):
             Cid = id+'_'+d['cables'][0]['cable_type']['name']+str(0)
             self.dd['cables'].append(DynamicCable(Cid, dd=d['cables'][0],**d['cables'][0]))
             self.addSubcomponents([self.dd['cables'][0]])
+        
+        # add overall routing to design dictionary
+        if 'routing_xyr' in d:
+            self.dd['routing_xyr'] = d['routing_xyr']
 
         '''
         self.system = system
@@ -149,8 +159,10 @@ class Cable(Edge):
         cost = 0
         for sub in self.subcomponents:
             if isinstance(sub,Joint):
-                if 'cost' in sub.dd:
-                    cost += sub.dd['cost']
-            elif 'cost' in sub.dd['cableType']:
-                cost += sub.dd['cableType']*sub.dd['L']   
+                if 'cost' in sub:
+                    cost += sub['cost']
+            elif 'cost' in sub.dd['cable_type']:
+                cost += sub.dd['cable_type']['cost']*sub.dd['length']   
+                
+        self.cost = cost
         

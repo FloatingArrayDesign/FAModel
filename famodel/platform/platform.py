@@ -52,7 +52,7 @@ class Platform(Node):
         # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
         
         # >>> replace these with the Node attachments dict? <<<
-        self.mooringList = {}  # dictionary to be filled by references to Mooring objects
+        # self.mooringList = {}  # dictionary to be filled by references to Mooring objects
         # self.anchorList = {} # dictionary of references to anchor objects connected to this platform
         
         # Dictionaries for addition information

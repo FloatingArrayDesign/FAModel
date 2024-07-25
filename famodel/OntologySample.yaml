@@ -2549,12 +2549,14 @@ mooring_line_configs:
         span: 1131.37
         
         sections:                 #in order from anchor to fairlead
+          - connectorType: shackle
           - type: chain_155mm       # ID of a mooring line section type
             length: 897.7            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
           - connectorType: h_link   
           - type: polyester_182mm        # ID of a mooring line section type
             length: 199.8           # [m] length (unstretched)
+          - connectorType: shackle
         
         
     
