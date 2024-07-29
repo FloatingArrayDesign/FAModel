@@ -166,3 +166,5 @@ class Cable(Edge):
                 
         self.cost = cost
         
+        return(cost)
+        
