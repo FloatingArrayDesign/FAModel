@@ -100,14 +100,16 @@ class Platform(Node):
         self.R = np.array([[np.cos(corr-self.phi), -np.sin(corr-self.phi)],[np.sin(corr-self.phi), np.cos(corr-self.phi)]])
         
         # Update the position of any Moorings
+        count = 0 # mooring counter (there are some attachments that aren't moorings)
         for i, mooring in enumerate(self.attachments):
             if isinstance(self.attachments[mooring]['obj'], Mooring): 
         
                 # Heading of the mooring line
-                heading_i = self.mooring_headings[i] + self.phi
-                
+                heading_i = self.mooring_headings[count] + self.phi
                 # Reposition the whole Mooring
-                self.attachments[mooring]['obj'].reposition(self.r, heading=heading_i,project=project)
+                self.attachments[mooring]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
+                
+                count += 1
         
     def mooringSystem(self,rotateBool=0,mList=None):
         '''

@@ -22,7 +22,7 @@ class DynamicCable(Edge):
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81,span=2000,length=2200,A=None,conductorSize=None, 
                  type='dynamic',zJTube=-30,voltage=66,powerRating=None,cable_type=None,
-                 headingA=None,headingB=None,buoyancy_sections=None,zAnchor=-200):
+                 headingA=None,headingB=None,buoyancy_sections=None):
         '''
         Parameters
         ----------
@@ -38,7 +38,7 @@ class DynamicCable(Edge):
         self.n_sec = 1
         
         self.span = span  # <<< what about self.dd['span']? TODO: ensure they stay consistent
-        self.depth = -zAnchor  # <<< may want to make 'depth' an input
+        self.depth = -z_anch  # <<< may want to make 'depth' an input
         
         # Store the cable type properties dict here for easy access (temporary - may be an inconsistent coding choice)
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict

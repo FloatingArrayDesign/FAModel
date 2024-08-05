@@ -214,7 +214,7 @@ class Mooring(Edge):
         
         # heading 2D unit vector
         u = np.array([np.cos(phi), np.sin(phi)])
-        #print(u)
+        
         r_center = np.array(r_center)[:2]
         # Set the updated fairlead location
         self.setEndPosition(np.hstack([r_center + self.rad_fair*u, self.z_fair]), 'b')

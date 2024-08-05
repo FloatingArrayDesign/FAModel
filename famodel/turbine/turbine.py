@@ -14,7 +14,7 @@ class Turbine(Node):
     be an entry in a Project turbineTypes list (one per turbine type).
     '''
     
-    def __init__(self, dd,id):
+    def __init__(self, dd,id,D=240):
         '''
         Initialize turbine object based on dictionary from ontology or RAFT
         input file.
@@ -29,6 +29,8 @@ class Turbine(Node):
         
         # Design description dictionary for this Turbine
         self.dd = deepcopy(dd)
+        
+        self.D = D # rotor diameter [m]
 
         # Dictionaries for addition information
         self.loads = {}

@@ -570,7 +570,7 @@ class Project():
                     turb_dd = turbines[arrayInfo[i]['turbineID']-1]
                 else:
                     turb_dd = turbines
-                self.turbineList[turb_name] = Turbine(turb_dd,turb_name)
+                self.turbineList[turb_name] = Turbine(turb_dd,turb_name,D=turb_dd['blade']['Rtip']*2)
                 # attach turbine to platform
                 self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])
                 
@@ -2295,6 +2295,165 @@ class Project():
         
         for ii,i in enumerate(idx):
             self.mooringList[i].addCorrosion(corrosion_mm=corr_th)
+    
+    
+    def updateUniformArray(self,n_rows,pf_rows,spacingXY,grid_rotang=0,grid_skew_x=0,grid_skew_y=0,grid_trans_x=0,grid_trans_y=0,phis=[0,0],center=[0,0]):
+        '''
+        Function to update the array spacing, angles, platform locations and headings, etc for a uniform array
+        
+        Parameters
+        ----------
+        n_rows : int
+            Number of rows
+        pf_rows : int or list
+            Number of platforms in each row. If an int, the number of platforms is constant (essentially equivalent to number of columns). 
+            If a list, each entry represents the number of platforms for an individual row
+        spacingXY : list
+            2 entry list that provides the spacing in the x and y direction respectively [m]. If an integer is provided 
+            that is less than 20, it is assumed the value given is in multiples of the turbine diameter instead of [m].
+            If the x and y entries are lists themselves, this specifies the spacing between each row/col individually
+        grid_rotang : float
+            Rotation of the grid [deg] from 0 North, optional. Default is 0
+        grid_skew_x : float
+            Angle of the parallelogram between adjacent rows [deg], optional. Default is 0
+        grid_skew_y : float
+            Angle of the parallelogram between adjacent columns [deg], optional. Default is 0
+        grid_trans_x : float
+            x offset [m] from Western-most boundary point (if no boundary in project, x offset from [0,0] origin) for all turbine positions.
+        grid_trans_y : float
+            y offset [m] from Southern-most boundary point (if no boundary in project, y offset from [0,0] origin) for all turbine positions.
+        phis : list
+            Platform headings for rows. The length of the list dictates the repeat pattern 
+            (a length of 2 indicates that odd rows will have phis[0] heading and even rows will have phis[1] heading)
+            If each list entry is also a list, this sublist indicates the repeat pattern of phi within the row from west to east
+        center : list
+            x and y coordinate of array layout center, around which any rotations/skews would occur. Optional, default is [0,0]
+        
+        Returns
+        -------
+        None.
+
+        '''
+        r = np.zeros([len(self.platformList),2])   # xy location of each platform
+        phi = np.zeros(len(self.platformList)) # rotation heading of each platform
+        D = 0
+        for turb in self.turbineList.values():
+            D += turb.D 
+            D = D/2
+        # get a list of platform names for use later
+        pfIDs = []
+        for pf in self.platformList:
+            pfIDs.append(pf)
+
+        # calculate grid rotation and skew (from fadesign layout_helpers create_rotated_layout function)
+        # Shear transformation in X
+        # Calculate trigonometric values
+        cos_theta = np.cos(np.radians(-grid_rotang))
+        sin_theta = np.sin(np.radians(-grid_rotang))
+        tan_phi_x = np.tan(np.radians(grid_skew_x))
+        tan_phi_y = np.tan(np.radians(grid_skew_y))
+
+        # Compute combined rotation and skew transformation matrix
+        transformation_matrix = np.array([[cos_theta - sin_theta*tan_phi_y, cos_theta*tan_phi_x - sin_theta],
+                                          [sin_theta + cos_theta*tan_phi_y, sin_theta*tan_phi_x + cos_theta]])
+        
+        west_bound = None
+        north_bound = None
+        # determine if a boundary exists for the project
+        if self.boundary.size > 0:
+            # find western-most boundary point
+            west_bound = self.boundary[0][0]
+            north_bound = self.boundary[0][1]
+            for xy in self.boundary:
+                if xy[0] < west_bound:
+                    west_bound = xy[0]
+                if xy[1] > north_bound:
+                    north_bound = xy[1]
+            #print(north_bound)
+        
+        # set up grid
+        ct = 0 # counter variable
+        p = 0  # counter variable for phi rows
+        xx = 0 # store previous row location
+        yy = 0 # store previous column location
+        for i in range(0,n_rows):
+            # find number of platforms in the row
+            if isinstance(pf_rows,list):
+                num = pf_rows[i]
+            else:
+                num = pf_rows     
+            
+            for j in range(0,num):
+                # find spacing from previous rows + cols
+                if isinstance(spacingXY[0],list):
+                    spacing_x = spacingXY[0][j]
+                else:
+                    spacing_x = spacingXY[0]
+                if isinstance(spacingXY[1],list):
+                    spacing_y = spacingXY[1][i]
+                else:
+                    spacing_y = spacingXY[1]
+                if spacing_x < 20:
+                    spacing_x = spacing_x*D
+                if spacing_y < 20:
+                    spacing_y = spacing_y*D
+                
+                # assign location of platform in the row (temporary, does not include rotation or skew)
+                r[ct][0] = spacing_x + xx
+                r[ct][1] = -spacing_y - yy
+                
+                xx = r[ct][0]
+                                
+                # include grid rotation around center
+                x,y = np.dot(transformation_matrix,[r[ct][0]-center[0],r[ct][1]-center[1]])
+                
+                if west_bound:
+                    # set offsets from north and west boundaries
+                    xoff = west_bound + grid_trans_x
+                    yoff = north_bound - grid_trans_y
+                else:
+                    # use grid_trans_x and grid_trans_y as offsets
+                    xoff = grid_trans_x
+                    yoff = grid_trans_y
+                    
+                r[ct][0] = x + xoff
+                r[ct][1] = y + yoff
+                
+                # get platform heading
+                if p == len(phis):
+                    p = 0
+
+                if isinstance(phis[p],list):
+                    phi[ct] = phis[p][j]
+                else:
+                    print(phis[p])
+                    phi[ct] = phis[p]
+                    
+                # call platform function to set location, phi, moorings, and anchors
+                #breakpoint()
+                self.platformList[pfIDs[ct]].setPosition(r[ct],heading=phi[ct],degrees=True)
+                # update anchor locations
+                anchs = self.platformList[pfIDs[ct]].getAnchors()
+                for anch in anchs.values():
+                    for att in anch.attachments:
+                        if isinstance(anch.attachments[att]['obj'],Mooring):
+                            anch.r = anch.attachments[att]['obj'].rA
+                            # update depth of anchor as needed
+                            aDepth = self.getDepthAtLocation(anch.r[0],anch.r[1])
+                            anch.attachments[att]['obj'].rA[2] = -aDepth                                                                       
+                
+                # increase counter
+                ct += 1
+           
+            xx = 0
+            yy = r[ct-1][1]
+            # increase phi counter
+            p += 1
+                
+        # update moorpy
+        self.getMoorPyArray(plt=1)
+        
+        
     
     
     def updateFailureProbability(self):
