@@ -853,7 +853,7 @@ class Project():
                     cCondd['burial'] = cC['burial']
                     
                 # add depth
-                cCondd['zAnchor'] = -self.depth
+                cCondd['z_anch'] = -self.depth
                 
             return(cCondd)
         
@@ -2335,6 +2335,7 @@ class Project():
 
         '''
         r = np.zeros([len(self.platformList),2])   # xy location of each platform
+        r_no_off = np.zeros([len(self.platformList),2]) # xy location of each platform not considering offsets
         phi = np.zeros(len(self.platformList)) # rotation heading of each platform
         D = 0
         for turb in self.turbineList.values():
@@ -2385,27 +2386,34 @@ class Project():
             
             for j in range(0,num):
                 # find spacing from previous rows + cols
-                if isinstance(spacingXY[0],list):
-                    spacing_x = spacingXY[0][j]
+                # if first row or first col, spacing = 0
+                if j == 0:
+                    spacing_x = 0 
                 else:
-                    spacing_x = spacingXY[0]
-                if isinstance(spacingXY[1],list):
-                    spacing_y = spacingXY[1][i]
+                    if isinstance(spacingXY[0],list):
+                        spacing_x = spacingXY[0][j-1]
+                    else:
+                        spacing_x = spacingXY[0]
+                    if spacing_x < 20:
+                        spacing_x = spacing_x*D
+                if i == 0:
+                    spacing_y = 0 
                 else:
-                    spacing_y = spacingXY[1]
-                if spacing_x < 20:
-                    spacing_x = spacing_x*D
-                if spacing_y < 20:
-                    spacing_y = spacing_y*D
+                    if isinstance(spacingXY[1],list):
+                        spacing_y = spacingXY[1][i-1]
+                    else:
+                        spacing_y = spacingXY[1]                    
+                    if spacing_y < 20:
+                        spacing_y = spacing_y*D
                 
                 # assign location of platform in the row (temporary, does not include rotation or skew)
-                r[ct][0] = spacing_x + xx
-                r[ct][1] = -spacing_y - yy
+                r_no_off[ct][0] = spacing_x + xx
+                r_no_off[ct][1] = -spacing_y + yy
                 
-                xx = r[ct][0]
+                xx = r_no_off[ct][0]
                                 
-                # include grid rotation around center
-                x,y = np.dot(transformation_matrix,[r[ct][0]-center[0],r[ct][1]-center[1]])
+                # # include grid rotation around center
+                # x,y = np.dot(transformation_matrix,[r_no_off[ct][0]-center[0],r_no_off[ct][1]-center[1]])
                 
                 if west_bound:
                     # set offsets from north and west boundaries
@@ -2416,8 +2424,11 @@ class Project():
                     xoff = grid_trans_x
                     yoff = grid_trans_y
                     
-                r[ct][0] = x + xoff
-                r[ct][1] = y + yoff
+                r[ct][0] = r_no_off[ct][0] + xoff + center[0]
+                r[ct][1] = r_no_off[ct][1] + yoff + center[1]
+                
+                # include grid rotation around center
+                x,y = np.dot(transformation_matrix,[r[ct][0]-center[0],r[ct][1]-center[1]])
                 
                 # get platform heading
                 if p == len(phis):
@@ -2429,9 +2440,13 @@ class Project():
                     print(phis[p])
                     phi[ct] = phis[p]
                     
-                # call platform function to set location, phi, moorings, and anchors
+                # call platform function to set location, phi, moorings, cables, and anchors
                 #breakpoint()
-                self.platformList[pfIDs[ct]].setPosition(r[ct],heading=phi[ct],degrees=True)
+                self.platformList[pfIDs[ct]].setPosition([x,y],heading=phi[ct],degrees=True)
+                # update cable lengths as needed
+                cabs = self.platformList[pfIDs[ct]].getCables()
+                # for cab in cabs.values():
+                #     cab.
                 # update anchor locations
                 anchs = self.platformList[pfIDs[ct]].getAnchors()
                 for anch in anchs.values():
@@ -2446,7 +2461,7 @@ class Project():
                 ct += 1
            
             xx = 0
-            yy = r[ct-1][1]
+            yy = r_no_off[ct-1][1]
             # increase phi counter
             p += 1
                 

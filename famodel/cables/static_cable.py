@@ -170,4 +170,5 @@ class StaticCable(Edge):
         # sum up the costs in the dictionary and return
         return sum(self.cost.values()) 
     
+    
     # maybe cable routing methods would go here (currently drafted in cable.py)

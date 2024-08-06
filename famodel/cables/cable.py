@@ -106,11 +106,27 @@ class Cable(Edge):
         # failure probability
         self.failure_probability = {}
         
-    def reposition(self):
+    def reposition(self,headings=None):
+        '''
+        Repositions the cable based on headings of the end subcomponents and the locations of attached nodes
+
+        Parameters
+        ----------
+        headings : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        None.
+
+        '''
         # reposition cable and set end points for the first and last cable sections (or the dynamic cable for a suspended cable)
-        headingA = self.subcomponents[0].headingA - self.attached_to[0].phi
-        headingB = self.subcomponents[-1].headingB - self.attached_to[1].phi
-        print('headingA',headingA,'given headingA:',self.subcomponents[0].headingA,'phi',self.attached_to[0].phi)
+        if not headings:
+            headingA = self.subcomponents[0].headingA - self.attached_to[0].phi
+            headingB = self.subcomponents[-1].headingB - self.attached_to[1].phi
+        else:
+            headingA = headings[0]
+            headingB = headings[1]
         # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
         Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*self.attached_to[0].rFair, self.attached_to[0].r[1]+np.sin(headingA)*self.attached_to[0].rFair, self.attached_to[0].zFair]
         Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*self.attached_to[1].rFair, self.attached_to[1].r[1]+np.sin(headingB)*self.attached_to[1].rFair, self.attached_to[1].zFair]
@@ -137,14 +153,15 @@ class Cable(Edge):
             heading = self.subcomponents[0].headingA - self.attached_to[0].phi
             jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
             jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
-            # self.subcomponents[joint].r = [jLocX,jLocY,depth]
+            #depth = self.subcomponents[joint].r[2]
+            self.subcomponents[joint].r = [jLocX,jLocY]
         # if joint closer to end B, use opposite of (end B heading + platform B phi)
         else:
             heading = np.pi + self.subcomponents[-1].headingB - self.attached_to[1].phi
             jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
             jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
-            # depth = Project.getDepthAtLocation(jLocX,jLocY)
-            # self.subcomponents[joint].r = [jLocX,jLocY,depth]
+            #depth = self.subcomponents[joint].r[2]
+            self.subcomponents[joint].r = [jLocX,jLocY]
         return(jLocX,jLocY)     
     
     def getCost(self):
@@ -167,4 +184,63 @@ class Cable(Edge):
         self.cost = cost
         
         return(cost)
+    
+    def updateSpan(self,newSpan):
+        '''
+        Change the lengths of subcomponents based on the new total span
+        For dynamic-static-dynamic configurations, just increase static span
+        For suspended cable, increase lengths of non-buoyant sections
+
+        Parameters
+        ---------
+        newSpan : float
+            New span of full cable object from platform to platform or platform to substation
+        
+        Returns
+        -------
+        None.
+
+        '''
+        # determine old span 
+        oldSpan = 0
+        for sub in self.subcomponents:
+            if not isinstance(sub,Joint):
+                oldSpan += sub.span
+        # determine difference between old and new span
+        spanDiff = newSpan - oldSpan
+        
+        jointCount = 0
+        # determine number of subcomponents
+        if len(self.subcomponents) > 1:
+            # this is not a suspended cable
+            for i,sub in enumerate(self.subcomponents):
+                if isinstance(sub,StaticCable):
+                    sub.span = sub.span + spanDiff
+                
+                elif isinstance(sub,Joint):
+                    jointCount += 1
+                    # move all joints after the first joint (since the dynamic cable span is unchanged, first joint loc is unchanged too)
+                    if jointCount > 1:
+                        self.estJointLoc(i)
+        else:
+            # this is a suspended cable
+            # determine number of buoyancy sections
+            nb = len(sub.dd['buoyancy_sections'])
+            if sub.dd['buoyancy_sections'][0]['L_mid'] < sub.dd['buoyancy_sections'][0]['N_modules']*sub.dd['buoyancy_sections'][0]['spacing']/2:
+                # starts with a buoyancy section - # of regular sections = # of buoyancy sections
+                nrs = nb
+            else:
+                # starts with a regular section - # of reg sections = # of buoyancy sections + 1
+                nrs = nb + 1
+            
+            # add length to each regular section 
+            
+                
+            
+                
+                    
+                    
+                    
+                
+        
         

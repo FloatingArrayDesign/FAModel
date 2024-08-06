@@ -22,7 +22,7 @@ class DynamicCable(Edge):
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81,span=2000,length=2200,A=None,conductorSize=None, 
                  type='dynamic',zJTube=-30,voltage=66,powerRating=None,cable_type=None,
-                 headingA=None,headingB=None,buoyancy_sections=None):
+                 headingA=None,headingB=None,buoyancy_sections=None,shared=0):
         '''
         Parameters
         ----------
@@ -92,7 +92,7 @@ class DynamicCable(Edge):
         
         self.adjuster = None  # custom function that can adjust the mooring
         
-        self.shared = 0 # boolean for if a fully suspended cable  (2 = symmetric)
+        self.shared = shared # boolean for if a fully suspended cable  (2 = symmetric)
         
         # relevant site info
         self.rho = rho
@@ -716,15 +716,19 @@ class DynamicCable(Edge):
         
         for j,ltyp in enumerate(LTypes):
             st =  deepcopy(oldLine.lineTypes)
+            # find which old line linetypes have the same name as LTypes
+            for k in st:
+                if st[k]['name'] == ltyp:
+                    linekey = k
             # add in information for each line type without marine growth
-            EA.append(st[ltyp]['EA'])
-            m.append(st[ltyp]['m'])
-            d_ve_old.append(st[ltyp]['d_vol'])
-            if not 'd_nom' in st[ltyp]:
+            EA.append(st[linekey]['EA'])
+            m.append(st[linekey]['m'])
+            d_ve_old.append(st[linekey]['d_vol'])
+            if not 'd_nom' in st[linekey]:
                 # calculate d_nom assume 0.8 d_vol_d_nom_adjust
-                d_nom_old.append(st[ltyp]['d_vol']/0.8)
+                d_nom_old.append(st[linekey]['d_vol']/0.8)
             else:               
-                d_nom_old.append(st[ltyp]['d_nom'])
+                d_nom_old.append(st[linekey]['d_nom'])
             ve_nom_adjust.append(d_ve_old[-1]/d_nom_old[-1])
             # new dictionary for this line type
             nd.append({'type':{}, 'length':{}}) # new design dictionary
@@ -743,21 +747,21 @@ class DynamicCable(Edge):
             # get cd and cdAx if given, or assign to default value
             # if Mats[j] in opt and not 'Cd' in st[ltyp]:
             #     cd.append(opt[Mats[j]]['Cd'])
-            if 'Cd' in st[ltyp]:
-                cd.append(st[LTypes[j]]['Cd'])
+            if 'Cd' in st[linekey]:
+                cd.append(st[linekey]['Cd'])
             else:
                 #print('No Cd given in line type and material not found in MoorProps yaml. Default Cd of 1 will be used.')
                 cd.append(2)
             # if Mats[j] in opt and not 'CdAx' in st[ltyp]:
             #     cdAx.append(opt[Mats[j]]['CdAx'])
-            if 'CdAx' in st[ltyp]:
-                cdAx.append(st[LTypes[j]]['CdAx'])
+            if 'CdAx' in st[linekey]:
+                cdAx.append(st[linekey]['CdAx'])
             else:
                 #print('No CdAx given in line type and material not found in MoorProps yaml. Default CdAx of 0.5 will be used.')
                 cdAx.append(0.5)
             
             if LThick[j] == 0:
-                nd[j]['type'] = deepcopy(st[ltyp])
+                nd[j]['type'] = deepcopy(st[linekey])
                 nd[j]['type']['name'] = j
             else:
                 # # get mu for material
@@ -791,13 +795,13 @@ class DynamicCable(Edge):
                 # add line details to dictionary
                 # ndt['material'] = Mats[j]
                 ndt['name'] = str(j)
-                if 'MBL' in oldLine.lineTypes[ltyp]:
-                    ndt['MBL'] = oldLine.lineTypes[ltyp]['MBL']
-                if 'cost' in oldLine.lineTypes[ltyp]:
-                    ndt['cost'] = oldLine.lineTypes[ltyp]['cost']
+                if 'MBL' in oldLine.lineTypes[linekey]:
+                    ndt['MBL'] = oldLine.lineTypes[linekey]['MBL']
+                if 'cost' in oldLine.lineTypes[linekey]:
+                    ndt['cost'] = oldLine.lineTypes[linekey]['cost']
                 ndt['EA'] = EA[j]
-                if 'EAd' in oldLine.lineTypes[ltyp]:
-                    ndt['EAd'] = oldLine.lineTypes[ltyp]['EAd']
+                if 'EAd' in oldLine.lineTypes[linekey]:
+                    ndt['EAd'] = oldLine.lineTypes[linekey]['EAd']
             # add lengths                 
             nd[j]['length'] = Lengths[j]
         
@@ -817,6 +821,78 @@ class DynamicCable(Edge):
             self.createSubsystem(dd=nd1,pristine=0)
             
         return(changeDepths,changePoints)
+    
+    def symmetricalMirror(self):
+        # determine if given sections ends on a buoyancy section or a regular section
+        Ls = []
+        bEnd = 0
+        currentL = 0
+        print('Span: ',self.span)
+        if 'buoyancy_sections' in self.dd:
+            for i, bs in enumerate(self.dd['buoyancy_sections']):
+                lenseg = bs['N_modules']*bs['spacing']
+                if lenseg/2 >= bs['L_mid']:
+                    #buoyancy section
+                    Ls.append(lenseg)
+                else:
+                    Ls.append(bs['L_mid']-lenseg/2) # regular section
+                    Ls.append(lenseg) # buoyancy section
+                    
+                bsEnd = bs['L_mid'] + bs['N_modules']*bs['spacing']/2
+                currentL = bsEnd
+                if bsEnd  >= self.span/2:
+                    print('Mirror ends during a buoyancy section')
+                    # ends on a buoyancy section - double the buoyancy section
+                    bs['L_mid'] = bsEnd
+                    bs['N_modules'] = bs['N_modules']*2 
+                    #  halfL = sum(Ls)
+                    print('Ls:',Ls)
+                    bEnd = 1 # flag boolean for ending on buoyancy section
+                    currentL = bsEnd + bs['N_modules']*bs['spacing']/2
+                    Ls[-1] = Ls[-1]*2
+            
+            if bEnd == 0:
+                # halfL = sum(Ls)
+                print('Ls:',Ls)
+                # determine length of last regular section based on end of last buoyancy section
+                regL = self.span/2 - bsEnd
+                Ls.append(regL*2)
+                # double this length by adding next buoyancy section regL*2 away from last one
+                self.dd['buoyancy_sections'].append(deepcopy(bs))
+                # adjust L_mid
+                newbs = self.dd['buoyancy_sections'][-1]
+                newbs['L_mid'] = bsEnd + regL*2 + bs['N_modules']*bs['spacing']/2
+                currentL = newbs['L_mid'] + bs['N_modules']*bs['spacing']/2
+                Ls.append(bs['N_modules']*bs['spacing'])
+            
+            if len(self.dd['buoyancy_sections']) >= 2+bEnd:
+                for ii in range(0,len(self.dd['buoyancy_sections'])-2):
+                    j = len(self.dd['buoyancy_sections']) - ii - 2 - bEnd
+                    # add new buoyancy section
+                    self.dd['buoyancy_sections'].append(deepcopy(self.dd['buoyancy_sections'][j]))
+                    # adjust L_mid
+                    newbs = self.dd['buoyancy_sections'][-1]
+                    if bEnd:
+                        Ls.append(-2-ii*2) # regular section
+                        newbs['L_mid'] = self.dd['buoyancy_sections'][-2]['L_mid'] +  self.dd['buoyancy_sections'][-2]['N_sections']*self.dd['buoyancy_sections'][-2]['spacing']/2 + Ls[-1] +newbs['N_modules']*newbs['spacing']/2
+                        Ls.append(newbs['N_modules']*newbs['spacing']) # buoyancy section
+                    else:
+                        Ls.append(Ls[-4-ii*2]) # regular line
+                        newbs['L_mid'] = self.dd['buoyancy_sections'][-2]['L_mid'] + Ls[-2-ii*2]/2 + Ls[-1] + newbs['N_modules']*newbs['spacing']/2
+                        Ls.append(newbs['N_modules']*newbs['spacing']) # buoyancy section
+                    #newbs['L_mid'] = self.dd['buoyancy_sections'][-2]['L_mid'] + Ls[]
+        else:
+            # no buoyancy sections
+            print('No Buoyancy Sections!!!')
+        
+        print(self.dd)
+        breakpoint()
+            
+            
+            
+            
+            
+            
     """  Could have similar marine growth method as Mooring, but need to also consider buoyancy modules
     def addMarineGrowth(self, mgDict, project=None, idx=None):
         '''Re-creates sections part of design dictionary to account for marine 
