@@ -194,7 +194,7 @@ def processASC(gebcofilename, lat, lon, outfilename=""):
     return Xs, Ys, depths, lats, longs
 
 
-def processGeotiff(filename, lat, lon, outfilename="", **kwargs):
+def processGeotiff(filename, lat, lon, outfilename="processGeotiff.txt", **kwargs):
     '''Process a geotiff file containing bathymetry (or other info)
     and convert into a rectangular bathymetry grid in units of m relative to 
     the project reference point.
@@ -275,8 +275,7 @@ def processGeotiff(filename, lat, lon, outfilename="", **kwargs):
                                                              latlong_crs, target_crs, 
                                                              ncols, nrows, **kwargs)
     # export to MoorPy-readable file
-    writeBathymetryFile('test output.txt', bath_xs, bath_ys, bath_depths)
-
+    writeBathymetryFile(outfilename, bath_xs, bath_ys, bath_depths)
 
     return bath_xs, bath_ys, bath_depths
 
@@ -679,16 +678,16 @@ if __name__ == '__main__':
     xs = np.arange(-30000,30001,400)
     ys = np.arange(-40000,40001,400)
     
-    xs, ys, depths = processGeotiff('humboldt.tif', centroid[0], centroid[1], xs=xs, ys=ys)
+    xs, ys, depths = processGeotiff('humboldt.tif', centroid[0], centroid[1], xs=xs, ys=ys, outfilename='test output.txt')
     
     import moorpy as mp
     ms = mp.System(depth=np.max(depths), bathymetry='test output.txt')
     ms.initialize()
     ms.plot(hidebox=True, args_bath={'cmap':'viridis'})
-
+    '''
     # try converting to a different grid
     x_new = np.arange(-20000, 20001, 800)
     y_new = np.arange(-20000, 20001, 800)
     depths_new = resampleGrid(x_new, y_new, xs, ys, depths)
-    
+    '''
     plt.show()
