@@ -209,8 +209,9 @@ class DynamicCable(Edge):
                 currentL += L_end
             
             iLine +=1 
+            
         # >>> the total length of self.ss doesn't seem to be right <<<  breakpoint()    
-        print(f"Total DynamicCable.ss length is {sum([l.L0 for l in self.ss.lineList])}")
+        # print(f"Total DynamicCable.ss length is {sum([l.L0 for l in self.ss.lineList])}")
         
     
     def calcEquivBuoyancy(self,bs):
@@ -836,7 +837,6 @@ class DynamicCable(Edge):
         Ls = []
         bEnd = 0
         currentL = 0
-        print('Span: ',self.span)
         if 'buoyancy_sections' in self.dd:
             for i, bs in enumerate(self.dd['buoyancy_sections']):
                 lenseg = bs['N_modules']*bs['spacing']
@@ -850,19 +850,22 @@ class DynamicCable(Edge):
                 bsEnd = bs['L_mid'] + bs['N_modules']*bs['spacing']/2
                 currentL = bsEnd
                 if bsEnd  >= self.span/2:
-                    print('Mirror ends during a buoyancy section')
-                    # ends on a buoyancy section - double the buoyancy section
-                    bs['L_mid'] = bsEnd
-                    bs['N_modules'] = bs['N_modules']*2 
+                    # ends on a buoyancy section - find out where in the buoyancy section
+                    if bsEnd == self.span/2:
+                        # double the buoyancy section
+                        bs['L_mid'] = bsEnd
+                        bs['N_modules'] = bs['N_modules']*2 
+                        Ls[-1] = Ls[-1]*2
+                    else:
+                        # keep buoyancy section the same
+                        pass
                     #  halfL = sum(Ls)
-                    print('Ls:',Ls)
                     bEnd = 1 # flag boolean for ending on buoyancy section
-                    currentL = bsEnd + bs['N_modules']*bs['spacing']/2
-                    Ls[-1] = Ls[-1]*2
+                    # currentL = bsEnd + bs['N_modules']*bs['spacing']/2
+                    
             
             if bEnd == 0:
                 # halfL = sum(Ls)
-                print('Ls:',Ls)
                 # determine length of last regular section based on end of last buoyancy section
                 regL = self.span/2 - bsEnd
                 Ls.append(regL*2)
@@ -871,7 +874,7 @@ class DynamicCable(Edge):
                 # adjust L_mid
                 newbs = self.dd['buoyancy_sections'][-1]
                 newbs['L_mid'] = bsEnd + regL*2 + bs['N_modules']*bs['spacing']/2
-                currentL = newbs['L_mid'] + bs['N_modules']*bs['spacing']/2
+                # currentL = newbs['L_mid'] + bs['N_modules']*bs['spacing']/2
                 Ls.append(bs['N_modules']*bs['spacing'])
             
             if len(self.dd['buoyancy_sections']) >= 2+bEnd:
@@ -892,10 +895,8 @@ class DynamicCable(Edge):
                     #newbs['L_mid'] = self.dd['buoyancy_sections'][-2]['L_mid'] + Ls[]
         else:
             # no buoyancy sections
-            print('No Buoyancy Sections!!!')
+            pass
         
-        print(self.dd['buoyancy_sections'])
-        # breakpoint()
             
             
             
