@@ -216,6 +216,7 @@ class Cable(Edge):
             for i,sub in enumerate(self.subcomponents):
                 if isinstance(sub,StaticCable):
                     sub.span = sub.span + spanDiff
+                    sub.L = sub.L + spanDiff
                 
                 elif isinstance(sub,Joint):
                     jointCount += 1
@@ -224,17 +225,30 @@ class Cable(Edge):
                         self.estJointLoc(i)
         else:
             # this is a suspended cable
+            sub = self.subcomponents[0]
+            # update span
+            sub.span = sub.span + spanDiff
+            sub.L = sub.L + spanDiff
             # determine number of buoyancy sections
             nb = len(sub.dd['buoyancy_sections'])
             if sub.dd['buoyancy_sections'][0]['L_mid'] < sub.dd['buoyancy_sections'][0]['N_modules']*sub.dd['buoyancy_sections'][0]['spacing']/2:
                 # starts with a buoyancy section - # of regular sections = # of buoyancy sections
-                nrs = nb
+                addS = 0
             else:
                 # starts with a regular section - # of reg sections = # of buoyancy sections + 1
-                nrs = nb + 1
+                addS = 1
+            
+            nrs = nb + addS
             
             # add length to each regular section 
-            
+            addL = spanDiff/nrs
+            # if abs((oldSpan-newSpan)/newSpan) > 0.1:
+            #     # add buoyancy as well
+            #     addL = spanDiff/(nrs+len(sub.dd['buoyancy_sections']))
+            #     for i,bs in enumerate(sub.dd['buoyancy_sections']):
+            #         # determine number of add'l buoyancy modules
+            for i,bs in enumerate(sub.dd['buoyancy_sections']):
+                bs['L_mid'] = bs['L_mid'] + addL*(i+addS)
                 
             
                 

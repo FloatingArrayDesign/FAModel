@@ -306,6 +306,8 @@ class Mooring(Edge):
                 - 2: the assembly is suspended and assumed symmetric, end A is the midpoint
         dd : dict, optional
             Dictionary describing the design
+        flag : whether or not the warning for a subsystem already existing has been printed (to prevent mass printing to screen
+                                                                                             for big projects)
         '''
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:
@@ -313,10 +315,12 @@ class Mooring(Edge):
         # check if a subsystem already exists
         if pristine:
             if self.ss:
-                print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
+                #print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
+                flag = 1
         else:
             if self.ss_mod:
-                print('A modified subsystem for this Mooring class instance already exists, this will be overwritten.')
+                #print('A modified subsystem for this Mooring class instance already exists, this will be overwritten.')
+                flag = 1
         ss=Subsystem(depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
                           span=dd['span'], rad_fair=self.rad_fair,
                           z_fair=self.z_fair)
@@ -362,6 +366,7 @@ class Mooring(Edge):
             # save to modified ss (may have marine growth, corossion, etc)
             self.ss_mod = ss
             return(self.ss_mod)
+        
 
         
     

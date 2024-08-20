@@ -118,10 +118,22 @@ array_mooring:
 
 # Array cables (compact table format, without routing info)
 array_cables:   
-    keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, lengthAdjust]
+    keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, route, lengthAdjust]
     data:
-      - [ array_cable1, fowt1, fowt2,  270,       270, 0] 
-      - [ suspended_cable1, fowt2, substation1,  90,       270, 0] 
+      - [ array_cable1, fowt1, fowt2,  270,       270, route1, 0] 
+      - [ suspended_cable1, fowt2, substation1,  90,  270, route2, 0] 
+
+# Cable routing for each route called out in the array_cables table
+# consider making routing in a local reference frame (refernce to the AttachA object's location?)   
+route_cables:
+    route1: 
+      - cable_configID: static_1
+        routing:
+          - joint 
+          - [2000,1500,10,50] # [x (m), y (m), embedment depth (m), radius (m)
+          - [2100,1500,15,50]
+          - joint
+
 
 # ----- substations -------
 
@@ -1662,13 +1674,13 @@ cable_configs:
         length: 2200
             
         # unsure how the vertex points work (was already here), but I suspect this would be where Michael's routing info fits in  
-        routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
-          - [1000, 1200, 20] 
-          - [2000, 1500, 20] 
+        # routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
+          # - [1000, 1200, 20] 
+          # - [2000, 1500, 20] 
         
-        burial:  # optional definition of cable burial depth over its length
-            station: [0, 1]                # length along cable, normalized by first and last value
-            depth  : [0.1, 0.2]            # [m] burial depth
+        # burial:  # optional definition of cable burial depth over its length
+            # station: [0, 1]                # length along cable, normalized by first and last value
+            # depth  : [0.1, 0.2]            # [m] burial depth
     
     dynamic_suspended_1:
         name: Dynamic suspended cable configuration 1 

@@ -52,13 +52,14 @@ class StaticCable(Edge):
         # Vectors of optional vertex points along the cable route. 
         # Nonzero radius wraps around the vertex at that radius.
         self.coordinates = routing_xyr
-        self.x = [coord[0] for coord in self.coordinates]#[]  # cable route vertex global x coordinate [m]
-        self.y = [coord[1] for coord in self.coordinates]#[]  # cable route vertex global y coordinate [m]
-        # Check if radius available
-        if len(self.coordinates[0]) <= 2:
-            self.r = []  # cable route vertex corner radius [m]
-        else:
-            self.r = [coord[1] for coord in self.coordinates]  # cable route vertex corner radius [m]
+        if routing_xyr:
+            self.x = [coord[0] for coord in self.coordinates]#[]  # cable route vertex global x coordinate [m]
+            self.y = [coord[1] for coord in self.coordinates]#[]  # cable route vertex global y coordinate [m]
+            # Check if radius available
+            if len(self.coordinates[0]) <= 2:
+                self.r = []  # cable route vertex corner radius [m]
+            else:
+                self.r = [coord[1] for coord in self.coordinates]  # cable route vertex corner radius [m]
         
         # Dictionaries for addition information
         self.loads = {}

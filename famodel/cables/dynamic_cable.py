@@ -19,7 +19,7 @@ class DynamicCable(Edge):
     '''
     
     def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
-                 rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
+                 rad_anch=None, rad_fair=58, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81,span=2000,length=2200,A=None,conductorSize=None, 
                  type='dynamic',zJTube=-30,voltage=66,powerRating=None,cable_type=None,
                  headingA=None,headingB=None,buoyancy_sections=None,shared=0):
@@ -85,8 +85,11 @@ class DynamicCable(Edge):
         # self.dd['lenght'] <<< also/or use this?
         
         # relative positions (variables could be renamed)
-        self.rad_anch = rad_anch
         self.rad_fair = rad_fair
+        if not rad_anch:
+            self.rad_anch = self.dd['span'] + self.rad_fair
+        else:
+            self.rad_anch = rad_anch
         self.z_anch   = z_anch  
         self.z_fair   = z_fair
         
@@ -398,7 +401,7 @@ class DynamicCable(Edge):
             for i, sec in enumerate(dd['sections']):
                 types.append(sec['type'])
                 lengths.append(sec['length'])
-        else:       
+        elif 'buoyancy_sections' in dd:       
             # Parse buoyancy sections to compute their properties and all lengths
             for i, bs in enumerate(dd['buoyancy_sections']):
                 # get buoyancy section information

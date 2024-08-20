@@ -7,7 +7,7 @@ from famodel.turbine.turbine import Turbine
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from famodel.cables.cable import Cable
-from famodel.mooring.anchor import Anchor
+from famodel.anchors.anchor import Anchor
 
 class Platform(Node):
     '''
@@ -51,6 +51,7 @@ class Platform(Node):
         # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
         # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
         
+        self.rc = None # optional [row,col] information in array (useful in updateUniformArray etc.)
         # >>> replace these with the Node attachments dict? <<<
         # self.mooringList = {}  # dictionary to be filled by references to Mooring objects
         # self.anchorList = {} # dictionary of references to anchor objects connected to this platform
