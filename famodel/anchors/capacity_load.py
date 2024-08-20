@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
 
-def getAnchorLoad(Tm, thetam, zlug, safety_factor='yes', Su0=10.0, k=2.0, nhu=0.5, Nc=14, Ab=2.6):
+def getAnchorLoad(Tm, thetam, zlug, safety_factor='no', soil_type='sand', Su0=30.0, k=0.0, nhu=0.40, Nc=20, Ab=2.5, d=0.15):
     
     '''Calculate the inclined load capacity of a Suction Caisson Anchor in sand or clay.
     The calculation is based on the soil properties, anchor geometry, and the angle of inclined load.  
@@ -36,6 +36,8 @@ def getAnchorLoad(Tm, thetam, zlug, safety_factor='yes', Su0=10.0, k=2.0, nhu=0.
         Effective unit bearing area (2.5 - 2.6 times Chain Dia)
     Nc : float
         Bearing capacity factor (9 and 14) DNV-RP-E301 
+    d : float
+        Chain diameter [m]
     
     Returns
     -------
@@ -54,32 +56,36 @@ def getAnchorLoad(Tm, thetam, zlug, safety_factor='yes', Su0=10.0, k=2.0, nhu=0.
         FoSh = 1.0
         FoSv = 1.0
         
-    ez = (Su0*zlug**2/2 + k*zlug**3/3)/(Su0*zlug + k*zlug**2/2)
-    Su_av_lug = Su0 + k*zlug/3
-    zexQap = Ab*Nc*Su_av_lug
+    thetam =  np.radians(thetam)
+    print(thetam)
     
+    if soil_type == 'clay':                           
+        Su_av_lug = Su0*zlug + k*zlug**2/2
+        zaQav = Ab*d*Nc*Su_av_lug
+        
+    elif soil_type == 'sand':
+        gamma = 9
+        zaQav = Ab*d*Nc*gamma*zlug**2/2
+        
     def LoadTransfer(beta):
-        return(np.sqrt((2*np.e**(nhu*(beta - thetam))*zexQap)/Tm + thetam**2) - beta)
+        return(2*zaQav*np.e**(nhu*(beta - thetam)) - Tm *(beta**2 - thetam**2))
     
-    thetaa = fsolve(LoadTransfer,thetam); 
-    thetaa = thetaa[0]; #print(thetaa)
+    thetaa = fsolve(LoadTransfer, thetam) 
+    thetaa = thetaa[0] 
     Ta = Tm/(np.e**(nhu*(thetaa - thetam)))
     
-    H = FoSh*Ta*np.cos(np.radians(thetaa)) 
-    V = FoSv*Ta*np.sin(np.radians(thetaa))
+    H = FoSh*Ta*np.cos(thetaa) 
+    V = FoSv*Ta*np.sin(thetaa)
        
     resultsLoad = {}
-    resultsLoad['load'] = Ta                   # Capacity at specified loading angle
-    resultsLoad['angle'] = thetaa              # Horizontal load @ lug
-    resultsLoad['H'] = H                       # Capacity at specified loading angle
-    resultsLoad['V'] = V                       # Horizontal load @ lug
+    resultsLoad['load'] = Ta                   # Load magnitude @ lug
+    resultsLoad['angle'] = np.rad2deg(thetaa)  # Load angle @ lug
+    resultsLoad['H'] = H                       # Horizontal component @ lug
+    resultsLoad['V'] = V                       # Vertical component @ lug
     
     return resultsLoad
 
-
-
-
-def getAnchorLoadDNV(Tm, thetam, zlug, safety_factor='yes', line_type='chain', soil_type='clay', Su0=10.0, k=2.0, d=0.15):
+def getAnchorLoadDNV(Tm, thetam, zlug, safety_factor='no', line_type='chain', soil_type='clay', Su0=15.0, k=2.0, d=0.14):
     
     '''Calculate the inclined load capacity of a Suction Caisson Anchor in sand or clay.
     The calculation is based on the soil properties, anchor geometry, and the angle of inclined load.  
@@ -100,6 +106,8 @@ def getAnchorLoadDNV(Tm, thetam, zlug, safety_factor='yes', line_type='chain', s
         Undrained shear strength gradient (clay only), default is 1.41. [kPa/m]
     Nc : float
         Bearing capacity factor (clay and sand)
+    d : float
+        Chain diameter [m]        
     
     Returns
     -------
@@ -118,10 +126,9 @@ def getAnchorLoadDNV(Tm, thetam, zlug, safety_factor='yes', line_type='chain', s
         FoSh = 1.0
         FoSv = 1.0
         
-    # Setting default gamma values per soil type
-    # Effective unit weight of the sand soil, default is 9 for sand, 4.7 for clay. [kN/m3]
+    # Setting bearing capacity values per soil type
     if soil_type == 'clay':
-        Nc = 11.5
+        Nc = 8.5
     elif soil_type == 'sand':
         Nc = 9
     
@@ -155,33 +162,34 @@ def getAnchorLoadDNV(Tm, thetam, zlug, safety_factor='yes', line_type='chain', s
     H = FoSh*Ta*np.cos(thetaa); V = FoSv*Ta*np.sin(thetaa) 
     length_values = deltas*len(drag_values)
      
-    resultsLoad = {}
-    resultsLoad['load'] = Ta                   # Capacity at specified loading angle
-    resultsLoad['angle'] = np.rad2deg(thetaa)  # Horizontal load @ lug
-    resultsLoad['H'] = H                       # Capacity at specified loading angle
-    resultsLoad['V'] = V                       # Horizontal load @ lug
-    resultsLoad['length'] = length_values      # Length of the embedded line
+    resultsLoadDNV = {}
+    resultsLoadDNV['load'] = Ta                   # Load magnitude @ lug
+    resultsLoadDNV['angle'] = np.rad2deg(thetaa)  # Load angle @ lug
+    resultsLoadDNV['H'] = H                       # Horizontal component @ lug
+    resultsLoadDNV['V'] = V                       # Vertical component @ lug
+    resultsLoadDNV['length'] = length_values      # Length of the embedded line
     
     # Plot of the line and extreme line tension
     drag_values = [-1*i for i in drag_values]
     depth_values = [-1*j for j in depth_values]
-    ax = plt.axes()
+    fig, ax = plt.subplots(figsize=(20, 5)); n = 2000
     ax.scatter(drag_values[-1],depth_values[-1],color='g',zorder=5)
     ax.scatter(0,0,color='r',zorder=4)
-    ax.arrow(0,0,Tm*np.cos(np.deg2rad(thetam))/500,Tm*np.sin(np.deg2rad(thetam))/500,
+    ax.arrow(0,0,Tm*np.cos(np.deg2rad(thetam))/n,Tm*np.sin(np.deg2rad(thetam))/n,
           head_width=0.25,head_length=0.5,color='r',zorder=3)
-    ax.arrow(drag_values[-1],depth_values[-1],Ta*np.cos(thetaa)/500,Ta*np.sin(thetaa)/500,
+    ax.arrow(drag_values[-1],depth_values[-1],Ta*np.cos(thetaa)/n,Ta*np.sin(thetaa)/n,
           head_width=0.25,head_length=0.5,color='g',zorder=2)
     ax.plot(drag_values,depth_values,color='b',zorder=1)
      
     #Set labels and title
     plt.xlabel('Drag distance [m]')
     plt.ylabel('Embedded depth [m]')
-    plt.suptitle('Inverse catenary profile in soil')
+    plt.suptitle('Inverse catenary profile in soil DNV')
+    #plt.axis([0,1.3*max(X[0],H),0,1.3*max(Y[-1],V)]) 
     plt.grid(True)
     plt.show()
     
-    return resultsLoad
+    return resultsLoadDNV
     
 if __name__ == '__main__':
           
@@ -198,30 +206,29 @@ if __name__ == '__main__':
     nhu = config['nhu']; 
     Nc = config['Nc'];  Ab = config['Ab']  
     '''
-    fx = 4522222.788895202
-    fy = 2948278.926831712
-    Tm = np.linalg.norm([fx, fy])/1000
-    thetam = np.degrees(np.arctan(fy/fx))
-    zlug = 8
     
-    resultsLoad = getAnchorLoad(Tm, thetam, zlug)
+    zlug = 14.31
+
+    Tm = 21000
+    thetam = 5
+    
+    #resultsLoad = getAnchorLoad(Tm, thetam, zlug)
     resultsLoadDNV = getAnchorLoadDNV(Tm, thetam, zlug)
     
-    print('******************  Suction Pile Result  *********************')
+    # print('******************* Load Transfer Resuls *********************')
 
-    print('Anchor factored load,                 ' , resultsLoad['load'], '[kN]') 
-    print('Anchor factored angle,                ' , resultsLoad['angle'], '[deg]')
-    print('Horizontal factored load @ lug depth, ' , resultsLoad['H'], '[kN]') 
-    print('Horizontal factored load @ lug depth, ' , resultsLoad['V'], '[kN]')
+    # print('Anchor load,                          ' , resultsLoad['load'], '[kN]') 
+    # print('Anchor angle,                         ' , resultsLoad['angle'], '[deg]')
+    # print('Horizontal load @ lug depth,          ' , resultsLoad['H'], '[kN]') 
+    # print('Vertical load @ lug depth,            ' , resultsLoad['V'], '[kN]')
 
-    print('**************************************************************') 
+    # print('**************************************************************') 
      
 
           
     ''' 
     Testing the function in one case
-    '''
-    """
+
     # retrieves input data from a separate config file
     with open('LoadConfig.yml', 'r') as f:
         config = yaml.full_load(f)
@@ -230,15 +237,15 @@ if __name__ == '__main__':
     Su0 = config['Su0']; k = config['k']
     nhu = config['nhu']; 
     Nc = config['Nc']; Ab = config['Ab']  
+    '''
     
-    resultsLoad = getAnchorLoad(Tm=5000, thetam=25, zlug=14)
     
-    print('******************  Suction Pile Result  *********************')
+    print('***************** Load Transfer Results DNV *******************')
 
-    print('Anchor factored load,                 ' , resultsLoad['load'], '[kN]') 
-    print('Anchor factored angle,                ' , resultsLoad['angle'], '[deg]')
-    print('Horizontal factored load @ lug depth, ' , resultsLoad['H'], '[kN]') 
-    print('Horizontal factored load @ lug depth, ' , resultsLoad['V'], '[kN]')
+    print('Anchor load,                          ' , resultsLoadDNV['load'], '[kN]') 
+    print('Anchor angle,                         ' , resultsLoadDNV['angle'], '[deg]')
+    print('Horizontal load @ lug depth,          ' , resultsLoadDNV['H'], '[kN]') 
+    print('Vertical load @ lug depth,            ' , resultsLoadDNV['V'], '[kN]')
 
     print('**************************************************************') 
-    """
+

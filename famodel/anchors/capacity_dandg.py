@@ -104,7 +104,7 @@ def py_analysis(profile, L, D, t, E,
 
     # Track k_secant and current displacements
     if convergence_tracker == 'Yes':
-        y1 = np.linspace(-2.*D,2.*D,500)
+        y1 = np.linspace(-2.*D, 2.*D, 500)
         plt.plot(y1, py_funs[loc](y1))
         plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
         plt.grid(True)
@@ -116,7 +116,7 @@ def py_analysis(profile, L, D, t, E,
         if convergence_tracker == 'Yes':
             plt.plot(y[loc], k_secant[loc]*y[loc])
 
-        for i in range(2,n+3):
+        for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]
 
     if print_output == 'Yes':
@@ -193,8 +193,8 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
     # Populate q with boundary conditions
     q[-1] = 2*H_n*h**3    # Shear at pile tip
     q[-2] = M_n*h**2      # Moment at pile tip
-    q[-3] = 2*H*h**3     # Shear at pile head
-    q[-4] = M*h**2       # Moment at pile head
+    q[-3] = 2*H*h**3      # Shear at pile head
+    q[-4] = M*h**2        # Moment at pile head
 
     y = linalg.solve(EI*X, q)
 
@@ -204,7 +204,7 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='No'):
+def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
 
@@ -247,6 +247,7 @@ def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='No'):
     y_rm = krm*D
     y_a = (p_ur/(2*y_rm**0.25*Kir))**1.333    
    
+    # Normalized lateral displacement
     N = 20
     y = np.concatenate((-np.logspace(5,-3,N),[0],np.logspace(-3,5,N)))
     
@@ -267,24 +268,24 @@ def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='No'):
  
     #var_Reese = inspect.currentframe().f_locals          
     
-    f = interp1d(y,p)   # Interpolation function for p-y curve
+    f = interp1d(y, p)   # Interpolation function for p-y curve
     
     if print_curves == 'Yes':           
-        plt.plot(y,p), 
-        plt.xlabel('y (m)'), 
+        plt.plot(y, p) 
+        plt.xlabel('y (m)') 
         plt.ylabel('p (kN/m)'),
         plt.title('PY Curves - Reese (1997)')
         plt.grid(True)
         plt.xlim([-0.03*D,0.03*D])
         plt.ylim([min(p),max(p)])     
         
-    return f # This is f (linear interpolation of y-p)
+    return f      # This is f (linear interpolation of y-p)
    
 #######################
 #### Rock Profile #####
 #######################
 
-def rock_profile(profile,plot_profile='No'):
+def rock_profile(profile, plot_profile='No'):
     '''
     Define the (weak) rock profile used by the p-y analyzer. Outputs 'interp1d' functions containing 
     UCS and Em profiles to be used by the p-y curve functions.
@@ -376,13 +377,10 @@ if __name__ == '__main__':
     plt.show()
     
 
-
-
-
     
     #                   depth  UCS   Em        p-y model    
     profile = np.array([[0.0,  7.0, 150., 'Name of p-y model'],
-                        [3.0,  7.0, 150., 'Name of p-y model'],
+                        [10.0, 7.0, 150., 'Name of p-y model'],
                         [18.0, 7.0, 150., 'Name of p-y model'],
                         [50.0, 7.0, 150., 'Name of p-y model']])
 
@@ -425,6 +423,6 @@ if __name__ == '__main__':
     ax.set_xlabel('Displacement [m]')
     ax.set_ylabel('Depth below pile head [m]')
     ax.set_ylim([L + 2,-2])
-    ax.set_xlim([-0.1*D,0.1*D])
+    ax.set_xlim([-0.1*D, 0.1*D])
     ax.grid(ls='--')
     fig.show()
