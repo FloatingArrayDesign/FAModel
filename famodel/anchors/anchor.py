@@ -173,9 +173,37 @@ class Anchor(Node):
                     print(f'Warning: Soil type {soil} is not compatible with suction pile anchor')
             pass
         elif anchType == 'helical':
-            pass
+            if 'H' and 'V' in loads:
+                if soil == 'sand':
+                    if 'phi' and 'gamma' and 'beta' in ground_conds:
+                        # call helical pile function!!
+                        pass
+                    else:
+                        raise Exception('Ground conditions dictionary needs phi, gamma and beta information for clay helical pile anchor')
+                elif soil == 'clay':
+                    if 'Su0' and 'k' and 'gamma' and 'alpha_star' in ground_conds:
+                        # call helical pile function!!
+                        pass 
+                    else:
+                        raise Exception('Ground conditions dictionary needs Su0, k, and gamma, and alpha_star information for clay helical pile anchor')
+                else:
+                    print(f'Warning: Soil type {soil} is not compatible with helical pile anchor')
         elif anchType == 'torpedo':
-            pass
+            if soil == 'clay':
+                if 'Su0' and 'k' and 'alpha' in ground_conds:
+                    if 'Tm' and 'thetam' in loads:
+                        # get line type of connected mooring 
+                        for att in self.attached:
+                            if isinstance(att,Mooring):
+                                mtype = att.dd['sections'][0]['type']
+                                md = att.dd['sections'][0]['d_nom']
+                        # call torpedo pile function!!
+                    else:
+                        raise Exception('Loads dictionary needs Tm and thetam information')
+                else:
+                    raise Exception('Ground conditions dictionary needs Su0, k, and alpha information')
+            else:
+                print('Warning: Soil type {soil} is not compatible with torpedo pile anchor')
         elif anchType == 'driven': # driven pile anchor
             # check loads
             if 'H' and 'V' in loads:
