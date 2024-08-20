@@ -1458,6 +1458,7 @@ mooring_connector_types:
 anchor_types:
 
     suction1:
+        type   :  SCA
         d      :  5  # [m] Diameter (optional)
         L      :  10 # [m] Length (optional)
         m      :  10000 # [kg] Mass (optional)
@@ -1465,6 +1466,7 @@ anchor_types:
         t      :     # [mm] Thickness (optional)
         h      :     # [m] Embedment depth (optional)
     drag-embedment1:
+        type   :  DEA
         d      :  7 
         L      :  8 
         m      :  8242

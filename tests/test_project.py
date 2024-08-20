@@ -13,7 +13,7 @@ from famodel import Project
 
 from famodel.mooring.mooring import Mooring
 from famodel.platform.platform import Platform
-from famodel.mooring.anchor import Anchor
+from famodel.anchors.anchor import Anchor
 from famodel.mooring.connector import Connector
 from famodel.substation.substation import Substation
 from famodel.cables.cable import Cable

@@ -4,6 +4,7 @@
 import moorpy as mp
 import numpy as np
 from famodel.famodel_base import Node
+from famodel.mooring.mooring import Mooring
 
 class Anchor(Node):
     
@@ -120,7 +121,106 @@ class Anchor(Node):
             Dictionary of other information on the anchor such as mass, cost, etc. May vary by type of anchor.
 
         '''
-        anchType = self.dd['type']
+        anchType = self.dd['type'] # geometric anchor information
+        
+        soil = self.dd['soil_type'] # soil type
+        
+        # logic to determine what functions to call based on anchor type and model type...
+        if anchType == 'SEPLA':
+            if soil == 'clay':
+                if 'Su0' and 'k' and 'gamma' and 'Los' in ground_conds:
+                    if 'Tm' and 'thetam' in loads:
+                        # get line type of connected mooring 
+                        for att in self.attached:
+                            if isinstance(att,Mooring):
+                                mtype = att.dd['sections'][0]['type']
+                                md = att.dd['sections'][0]['d_nom']
+                        # call SEPLA function!!
+                    else:
+                        raise Exception('Loads dictionary needs Tm, thetam information for SEPLA')
+                else:
+                    raise Exception('Ground conditions dictionary needs Su0, k, gamma, Los information for clay SEPLA')
+            else:
+                print(f'Warning: Soil type {soil} is not compatible with plate anchors (SEPLA)')
+                                
+        elif anchType == 'DEA':
+            if soil == 'clay':
+                if 'Su0' and 'k' and 'nhu' in ground_conds:
+                    if 'Tmax' and 'z0' and 'bm' and 'En' in loads:
+                        # call DEA function!!
+                        pass
+                    else:
+                        raise Exception('Loads dictionary needs Tmax, z0, bm, and En information for DEA')
+                else:
+                    raise Exception('Ground conditions dictionary needs Su0, k, and nhu information for clay DEA')
+            else:
+                print(f'Warning: Soil type {soil} is not compatible with drag-embedment anchors')
+        elif anchType == 'SCA':
+            if 'Tm' and 'thetam' in loads:
+                if soil == 'sand':
+                    if 'phi' and 'beta' in ground_conds:
+                        # call suction pile function!!!
+                        pass
+                    else:
+                        raise Exception('Ground conditions dictionary needs phi and beta information for sand suction pile anchor')
+                elif soil == 'clay':
+                    if 'Su0' and 'k' and 'alpha' in ground_conds:
+                        # call suction pile function!!!
+                        pass
+                    else:
+                        raise Exception('Ground conditions dictionary needs Su0, k, and alpha information for clay suction pile anchor')
+                else:
+                    print(f'Warning: Soil type {soil} is not compatible with suction pile anchor')
+            pass
+        elif anchType == 'helical':
+            pass
+        elif anchType == 'torpedo':
+            pass
+        elif anchType == 'driven': # driven pile anchor
+            # check loads
+            if 'H' and 'V' in loads:
+                # check soil
+                if soil == 'weak_rock':
+                    if 'UCS' in ground_conds and 'Em' in ground_conds and 'depth' in ground_conds:
+                        # call driven pil anchor function!!!
+                        pass
+                    else:
+                        raise Exception('Ground conditions dictionary needs UCS, Em, and depth information for weak rock driven pile anchor')
+                elif soil == 'sand':
+                    if 'phi' in ground_conds and 'gamma' in ground_conds and 'S_eff' in ground_conds and 'k' in ground_conds and 'depth' in ground_conds:
+                        # call driven pile function!!
+                        pass
+                    else:
+                        raise Exception('Ground conditions dictionary needs phi, gamma, S_eff, k, and depth information for sand driven pile anchor')
+                elif soil == 'clay':
+                    if 'Su' in ground_conds and 'gamma' in ground_conds and 'S_eff' in ground_conds and 'depth' in ground_conds:
+                        # call driven pile function!!
+                        pass
+                    else:
+                        raise Exception('Ground conditions dictionary needs Su, gamma,S_eff and depth information for clay driven pile anchor')
+                else:
+                    print(f'Warning: Soil type {soil} is not compatible with driven pile anchors')
+            else:
+                raise Exception('Horizontal (H) and vertical (V) load entries needed in loads dictionary')
+                        
+        elif anchType == 'dandg_pile':  # drill and grout pile
+            # check for correct soil
+            if soil == 'rock' or 'weak_rock':
+                # check for correct loads
+                if 'H' in loads and 'V' in loads:
+                    # check for correct ground properties
+                    if 'UCS' in ground_conds and 'Em' in ground_conds and 'depth' in ground_conds:
+                        # call drill and grout pile function!!!
+                        pass
+                    else:
+                        raise Exception('Ground conditions dictionary need UCS, Em, and depth information for drill and grout pile')
+                else:
+                    raise Exception('Horizontal (H) and vertical (V) load entries needed in loads dictionary')
+            else:
+                print(f'Warning: soil type {soil} is not compatible with drill and grout pile')
+        else:
+            raise Exception(f'Anchor type {anchType} is not supported at this time')
+            
         
         return(capacity,info)
             
