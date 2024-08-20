@@ -16,13 +16,7 @@ class Anchor(Node):
             {
                 type:
                 design:
-                    d: # diameter
-                    L: # length
-                    A: # Area
-                    t: # Thickness
-                    h: # Embedment depth
-                    m: # Mass
-                    UHC: # Ultimate Holding Capacity
+                    # all geometric info from yaml file
                 soil_type:
                 angle: # seabed angle 
                 cost:
@@ -100,8 +94,35 @@ class Anchor(Node):
             self.mpAnchor.d = self.dd['design']['d']
         # set the point as an anchor entity
         self.mpAnchor.entity= {'type': 'anchor', 'anchor_type':self.dd['type']}
-
+        
         return(ms)
+    
+    def getAnchorCapacity(self,loads=None,fs=None,ground_conds=None,model_level=2):
+        '''
+        Calls anchor capacity functions developed by Felipe Moreno for the correct anchor type 
+
+        Parameters
+        ----------
+        loads : dict, optional
+            Dictionary of loads for the anchor type. The default is None.
+        fs : dict, optional
+            Dictionary of safety factors. The default is None.
+        ground_conds : dict, optional
+            Ground conditions ex: UCS,Em,phi,gamma,effective stress,etc. The default is None.
+        model_level : int, optional
+            Fidelity level of the anchor capacity model
+
+        Returns
+        -------
+        capacity : float
+            Capacity of the anchor
+        info : dict
+            Dictionary of other information on the anchor such as mass, cost, etc. May vary by type of anchor.
+
+        '''
+        anchType = self.dd['type']
+        
+        return(capacity,info)
             
     def getMPForces(self, lines_only=False, seabed=True, xyz=False):   
         '''Find forces on anchor using MoorPy Point.getForces method and stores in loads dictionary

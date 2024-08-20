@@ -532,7 +532,7 @@ class Project():
                     ad['soil_type'] = self.getSoilAtLocation(mc.rA[0], mc.rA[1])
                 else:
                     ad['soil_type'] = self.getSoilAtLocation(arrayAnchor[aNum-1]['x'],arrayAnchor[aNum-1]['y'])
-            ad['type'] = lineAnch[0:-1]
+            ad['type'] = self.anchorTypes[lineAnch]['type']
             ad['name'] = lineAnch
             
             return(ad)
