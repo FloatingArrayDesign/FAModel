@@ -122,6 +122,8 @@ class Anchor(Node):
 
         '''
         anchType = self.dd['type'] # geometric anchor information
+
+        ground_conds = self.dd['soil_properties']
         
         soil = self.dd['soil_type'] # soil type
         
