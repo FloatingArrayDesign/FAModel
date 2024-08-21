@@ -1,8 +1,9 @@
 type: draft/example of floating array ontology under construction
-name: 
-comments: 
+#name: 
+#comments: 
 # Site condition information
 site:
+    
     general:
         water_depth : 600        # [m]      uniform water depth
         rho_water   : 1025.0     # [kg/m^3] water density
@@ -29,15 +30,45 @@ site:
             -[x2, y2]
     
     bathymetry:
-        file:   #'../bathymetry200m_sample.txt'
+        #file:   #'../bathymetry200m_sample.txt'
+        x : [-1901, 0, 1900]
+        y : [-1900, 2, 1900]
+        depths: 
+          - [ 200.1, 199.7, 202]
+          - [ 200.4, 199, 201]
+          - [ 200.7, 198.9, 200.1]
     
     seabed:
-        keys: [x,  y, depth,  soil_type]
-        data:
-          - [ x1, y1, z1, "soft clay"]
-          - [ x2, y2, z1, "medium clay"]    
-          
-        file: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
+        
+        ### ORIGINAL INPUTS ###
+        #keys: [x,  y, depth,  soil_type]
+        #data:
+        #  - [ x1, y1, z1, "soft clay"]
+        #  - [ x2, y2, z1, "medium clay"]    
+        
+        ### NEW INPUTS ###
+        #file: '../soil_sample.txt'
+        #file: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification
+        #file: '../geography/Soil_Type.shp'  # gridded data of seabed depth and soil classification
+
+        x : [-1901,    0,    1900]
+        y : [-1900,     2,  1900 ]
+        
+        type_array:
+          - [mud_soft ,  mud_firm ,   mud_soft]  
+          - [mud_soft ,  rock     ,   mud_soft]  
+          - [mud_soft ,  mud_firm ,   mud_soft]  
+
+        soil_types:   # dictionary-based approach
+          mud_soft:
+            Su0 : 2.39  # [kPa]
+            k : 1.41    # [kPa/m]
+          mud_firm:
+            Su0 : 23.94 # [kPa]
+            k : 2.67    # [kPa/m]
+          rock:
+            UCS : 7     # [MPa]
+            Em  : 50    # [MPa]
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)

@@ -527,11 +527,11 @@ class Project():
             '''
             ad = {'design':{}, 'cost':{}} 
             ad['design'] = self.anchorTypes[lineAnch]
-            if self.soil_x: # get soil conditions at anchor location if soil info available
+            if self.soil_x is not None: # get soil conditions at anchor location if soil info available
                 if mc:
-                    ad['soil_type'] = self.getSoilAtLocation(mc.rA[0], mc.rA[1])
+                    ad['soil_type'], ad['soil_properties'] = self.getSoilAtLocation(mc.rA[0], mc.rA[1])
                 else:
-                    ad['soil_type'] = self.getSoilAtLocation(arrayAnchor[aNum-1]['x'],arrayAnchor[aNum-1]['y'])
+                    ad['soil_type'], ad['soil_properties'] = self.getSoilAtLocation(arrayAnchor[aNum-1]['x'],arrayAnchor[aNum-1]['y'])
             ad['type'] = self.anchorTypes[lineAnch]['type']
             ad['name'] = lineAnch
             
@@ -1023,22 +1023,14 @@ class Project():
         if 'bathymetry' in site:
             if 'file' in site['bathymetry'] and site['bathymetry']['file']: # make sure there was a file provided even if the key is there
                 self.loadBathymetry(site['bathymetry']['file'])
-            elif 'x_y_z' in site['bathymetry'] and site['bathymetry']['x_y_z']:
-                xyz = site['bathymetry']['x_y_z']
-                xs = np.unique( [point[0] for point in xyz] )
-                ys = np.unique( [point[1] for point in xyz] )
-                depths = np.zeros( [len(ys), len(xs)] )
-                for iy in range(len(depths)):
-                    for ix in range(len(depths[0])):
-                        x = xs[ix]; y = ys[iy]
-                        for point in xyz:
-                            if point[0]==x and point[1]==y:
-                                depths[iy,ix] = point[2]
-                depths = np.flipud(depths)      # flip upside down to equate to N-S on local coordinate system
+            elif 'x' in site['bathymetry'] and 'y' in site['bathymetry']:
+                xs = np.array(site['bathymetry']['x'])
+                ys = np.array(site['bathymetry']['y'])
+                depths = np.array(site['bathymetry']['depths'])
             else:
                 # assume a flat bathymetry
                 self.grid_depth  = np.array([[self.depth]])
-
+        '''
         # Load project boundary, if provided
         if 'boundaries' in site:
             if 'file' in site['boundaries'] and site['boundaries']['file']:  # load boundary data from file if filename provided
@@ -1049,6 +1041,12 @@ class Project():
                     for i in range(len(xy)):
                         self.boundary[i,0] = float(xy[i][0])
                         self.boundary[i,1] = float(xy[i][1])
+        '''
+        if 'seabed' in site:
+            if 'file' in site['seabed']:
+                self.loadSoil(site['seabed']['file'])
+            else:
+                self.loadSoil(None, yaml=site['seabed'])
 
         # and set the project boundary/grid based on the loaded information
         # TBD, may not be necessary in the short term. self.setGrid(xs, ys)
@@ -1179,7 +1177,7 @@ class Project():
 
     # METHODS TO USE WITH ANCHOR TOOLS
 
-    def loadSoil(self, filename):
+    def loadSoil(self, filename=None, yaml=None):
         '''
         Load geoetechnical information from an input file (format TBD), convert to
         a rectangular grid, and save the grid to the floating array object (TBD).
@@ -1205,12 +1203,42 @@ class Project():
             path/name of file containing soil data
         '''
         
-        # SIMPLE HACK FOR NOW
-        Xs, Ys, Rockys = sbt.readBathymetryFile(filename)  # read MoorDyn-style file
+        if filename is not None:
+            if filename[-3:]=='shp':
+                raise ValueError("Geography-related operations not directly supported in Project class")
+            
+            elif filename[-3:]=='txt' or filename[-3:]=='dat':
+
+                # load in the grid portion of the soil input file
+                xs, ys, soil_names = sbt.readBathymetryFile(filename, dtype=str)  # read MoorDyn-style file
+
+                self.soilProps = sbt.getSoilTypes(filename)
+
+        elif filename is None:
+            xs = yaml['x']
+            ys = yaml['y']
+            soil_names = yaml['type_array']
+
+            # make sure the soilProps dictionary has all the required information (should be updated later with exact properties based on anchor capacity functions)
+            soilProps = yaml['soil_types']
+            for key,props in soilProps.items():
+                props['gamma'] = getFromDict(props, 'gamma', shape=0, dtype=float, default=4.7 , index=None)
+                props['Su0']   = getFromDict(props, 'Su0'  , shape=0, dtype=float, default=2.39, index=None)
+                props['k']     = getFromDict(props, 'k'    , shape=0, dtype=float, default=1.41, index=None)
+                props['alpha'] = getFromDict(props, 'alpha', shape=0, dtype=float, default=0.7 , index=None)
+                props['phi']   = getFromDict(props, 'phi'  , shape=0, dtype=float, default=0.0 , index=None)
+                props['UCS']   = getFromDict(props, 'UCS'  , shape=0, dtype=float, default=7.0 , index=None)
+                props['Em']    = getFromDict(props, 'Em'   , shape=0, dtype=float, default=50.0, index=None)
+            
+            self.soilProps = soilProps
+
+        else:
+            raise ValueError("Something is wrong")
         
-        self.soil_x = np.array(Xs)
-        self.soil_y = np.array(Ys)
-        self.soil_rocky = np.array(Rockys)
+
+        self.soil_x = np.array(xs)
+        self.soil_y = np.array(ys)
+        self.soil_names = np.array(soil_names)
         
         
         # load data from file
@@ -1248,11 +1276,22 @@ class Project():
             Dictionary of standard MoorPy soil properties.
         '''
         
+        # NEW: finds the specific soil grid point that the xy point is closest to and assigns it that soil type
+        ix = np.argmin([abs(x-soil_x) for soil_x in self.soil_x])
+        iy = np.argmin([abs(y-soil_y) for soil_y in self.soil_y])
+
+        soil_name = self.soil_names[iy, ix]
+
+        soil_info = self.soilProps[soil_name]
+
+        return soil_name, soil_info
+        
+        '''
         # SIMPLE HACK FOR NOW        
         rocky, _,_,_,_ = sbt.interpFromGrid(x, y, self.soil_x, self.soil_y, self.soil_rocky)
         
         return rocky
-        
+        '''
         '''
         soilProps = {}
         
