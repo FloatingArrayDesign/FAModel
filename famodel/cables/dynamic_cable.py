@@ -237,7 +237,7 @@ class DynamicCable(Edge):
             Volumetric diameter of buoyant cable section
 
         '''
-        L = bs['N_modules'] * bs['spacing']  # length of section approximating buoyancy section
+        L = (bs['N_modules'] - 1) * bs['spacing']  # length of section approximating buoyancy section
         
         # compute what diameter of buoyancy module is needed to achieve this buoyancy per unit length
         d_inner = self.d0  # inner diameter for buoyancy module [m]
