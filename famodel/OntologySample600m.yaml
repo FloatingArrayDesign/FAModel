@@ -1342,16 +1342,16 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  rope_1,  45 ,    suction1,   0 ]
-          - [  rope_1,  135 ,    suction1,   0 ]
+          - [  rope_1,  45 ,    suction_pile1,   0 ]
+          - [  rope_1,  135 ,    suction_pile1,   0 ]
           #- [  semitaut-poly_1,  300 ,    suction1,   0 ]
     ms2:
         name: 2-line semitaut with a third shared line
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  rope_1,  45 ,    suction1,   0 ]
-          - [  rope_1,  135 ,    suction1,   0 ]
+          - [  rope_1,  45 ,    suction_pile1,   0 ]
+          - [  rope_1,  135 ,    suction_pile1,   0 ]
           #- [  semitaut-poly_1,  0 ,    suction1,   0 ]
     # ms3:
     #     name: 2 line semitaut with a third shared line
