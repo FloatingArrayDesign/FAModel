@@ -46,10 +46,7 @@ class Anchor(Node):
         
         # anchor index in array mooring list (only used for shared moorings/anchors)
         self.aNum = aNum
-        
-        # list of mooring lines connected to the anchor
-        self.mooringList = {}
-        
+               
         # MoorPy anchor object
         self.mpAnchor = None
         
@@ -98,16 +95,12 @@ class Anchor(Node):
         
         return(ms)
     
-    def getAnchorCapacity(self,loads=None,fs=None,ground_conds=None,model_level=2):
+    def getAnchorCapacity(self,ground_conds=None,model_level=2):
         '''
         Calls anchor capacity functions developed by Felipe Moreno for the correct anchor type 
 
         Parameters
         ----------
-        loads : dict, optional
-            Dictionary of loads for the anchor type. The default is None.
-        fs : dict, optional
-            Dictionary of safety factors. The default is None.
         ground_conds : dict, optional
             Ground conditions ex: UCS,Em,phi,gamma,effective stress,etc. The default is None.
         model_level : int, optional
@@ -123,23 +116,21 @@ class Anchor(Node):
         '''
         anchType = self.dd['type'] # geometric anchor information
 
-        ground_conds = self.dd['soil_properties']
+        if not ground_conds: 
+            ground_conds = self.dd['soil_properties']
         
         soil = self.dd['soil_type'] # soil type
         
         # logic to determine what functions to call based on anchor type and model type...
         if anchType == 'SEPLA':
             if soil == 'clay':
-                if 'Su0' and 'k' and 'gamma' and 'Los' in ground_conds:
-                    if 'Tm' and 'thetam' in loads:
-                        # get line type of connected mooring 
-                        for att in self.attached:
-                            if isinstance(att,Mooring):
-                                mtype = att.dd['sections'][0]['type']
-                                md = att.dd['sections'][0]['d_nom']
-                        # call SEPLA function!!
-                    else:
-                        raise Exception('Loads dictionary needs Tm, thetam information for SEPLA')
+                if 'Su0' in ground_conds and 'k' in ground_conds and 'gamma' in ground_conds and 'Los' in ground_conds:
+                    # get line type of connected mooring 
+                    for att in self.attached:
+                        if isinstance(att,Mooring):
+                            mtype = att.dd['sections'][0]['type']['material']
+                            md = att.dd['sections'][0]['type']['d_nom']
+                    # call SEPLA function!!
                 else:
                     raise Exception('Ground conditions dictionary needs Su0, k, gamma, Los information for clay SEPLA')
             else:
@@ -147,112 +138,95 @@ class Anchor(Node):
                                 
         elif anchType == 'DEA':
             if soil == 'clay':
-                if 'Su0' and 'k' and 'nhu' in ground_conds:
-                    if 'Tmax' and 'z0' and 'bm' and 'En' in loads:
-                        # call DEA function!!
-                        pass
-                    else:
-                        raise Exception('Loads dictionary needs Tmax, z0, bm, and En information for DEA')
+                if 'Su0' in ground_conds and 'k' in ground_conds and 'nhu' in ground_conds:
+                    # call DEA function!!
+                    pass
                 else:
                     raise Exception('Ground conditions dictionary needs Su0, k, and nhu information for clay DEA')
             else:
                 print(f'Warning: Soil type {soil} is not compatible with drag-embedment anchors')
         elif anchType == 'SCA':
-            if 'Tm' and 'thetam' in loads:
-                if soil == 'sand':
-                    if 'phi' and 'beta' in ground_conds:
-                        # call suction pile function!!!
-                        pass
-                    else:
-                        raise Exception('Ground conditions dictionary needs phi and beta information for sand suction pile anchor')
-                elif soil == 'clay':
-                    if 'Su0' and 'k' and 'alpha' in ground_conds:
-                        # call suction pile function!!!
-                        pass
-                    else:
-                        raise Exception('Ground conditions dictionary needs Su0, k, and alpha information for clay suction pile anchor')
+            if soil == 'sand':
+                if 'phi' and 'beta' in ground_conds:
+                    # call suction pile function!!!
+                    pass
                 else:
-                    print(f'Warning: Soil type {soil} is not compatible with suction pile anchor')
-            pass
+                    raise Exception('Ground conditions dictionary needs phi and beta information for sand suction pile anchor')
+            elif soil == 'clay':
+                if 'Su0' in ground_conds and 'k' in ground_conds and 'alpha' in ground_conds:
+                    # call suction pile function!!!
+                    pass
+                else:
+                    raise Exception('Ground conditions dictionary needs Su0, k, and alpha information for clay suction pile anchor')
+            else:
+                print(f'Warning: Soil type {soil} is not compatible with suction pile anchor')
         elif anchType == 'helical':
-            if 'H' and 'V' in loads:
-                if soil == 'sand':
-                    if 'phi' and 'gamma' and 'beta' in ground_conds:
-                        # call helical pile function!!
-                        pass
-                    else:
-                        raise Exception('Ground conditions dictionary needs phi, gamma and beta information for clay helical pile anchor')
-                elif soil == 'clay':
-                    if 'Su0' and 'k' and 'gamma' and 'alpha_star' in ground_conds:
-                        # call helical pile function!!
-                        pass 
-                    else:
-                        raise Exception('Ground conditions dictionary needs Su0, k, and gamma, and alpha_star information for clay helical pile anchor')
+            if soil == 'sand':
+                if 'phi' in ground_conds and 'gamma' in ground_conds and 'beta' in ground_conds:
+                    # call helical pile function!!
+                    pass
                 else:
-                    print(f'Warning: Soil type {soil} is not compatible with helical pile anchor')
+                    raise Exception('Ground conditions dictionary needs phi, gamma and beta information for clay helical pile anchor')
+            elif soil == 'clay':
+                if 'Su0' in ground_conds and 'k' in ground_conds and 'gamma' in ground_conds and 'alpha_star' in ground_conds:
+                    # call helical pile function!!
+                    pass 
+                else:
+                    raise Exception('Ground conditions dictionary needs Su0, k, and gamma, and alpha_star information for clay helical pile anchor')
+            else:
+                print(f'Warning: Soil type {soil} is not compatible with helical pile anchor')
         elif anchType == 'torpedo':
             if soil == 'clay':
-                if 'Su0' and 'k' and 'alpha' in ground_conds:
-                    if 'Tm' and 'thetam' in loads:
-                        # get line type of connected mooring 
-                        for att in self.attached:
-                            if isinstance(att,Mooring):
-                                mtype = att.dd['sections'][0]['type']
-                                md = att.dd['sections'][0]['d_nom']
-                        # call torpedo pile function!!
-                    else:
-                        raise Exception('Loads dictionary needs Tm and thetam information')
+                if 'Su0' in ground_conds and 'k' in ground_conds and 'alpha' in ground_conds:
+                    # get line type of connected mooring 
+                    for att in self.attached:
+                        if isinstance(att,Mooring):
+                            mtype = att.dd['sections'][0]['type']['material']
+                            md = att.dd['sections'][0]['type']['d_nom']
+                    # call torpedo pile function!!
                 else:
                     raise Exception('Ground conditions dictionary needs Su0, k, and alpha information')
             else:
                 print('Warning: Soil type {soil} is not compatible with torpedo pile anchor')
         elif anchType == 'driven': # driven pile anchor
-            # check loads
-            if 'H' and 'V' in loads:
-                # check soil
-                if soil == 'weak_rock':
-                    if 'UCS' in ground_conds and 'Em' in ground_conds and 'depth' in ground_conds:
-                        # call driven pil anchor function!!!
-                        pass
-                    else:
-                        raise Exception('Ground conditions dictionary needs UCS, Em, and depth information for weak rock driven pile anchor')
-                elif soil == 'sand':
-                    if 'phi' in ground_conds and 'gamma' in ground_conds and 'S_eff' in ground_conds and 'k' in ground_conds and 'depth' in ground_conds:
-                        # call driven pile function!!
-                        pass
-                    else:
-                        raise Exception('Ground conditions dictionary needs phi, gamma, S_eff, k, and depth information for sand driven pile anchor')
-                elif soil == 'clay':
-                    if 'Su' in ground_conds and 'gamma' in ground_conds and 'S_eff' in ground_conds and 'depth' in ground_conds:
-                        # call driven pile function!!
-                        pass
-                    else:
-                        raise Exception('Ground conditions dictionary needs Su, gamma,S_eff and depth information for clay driven pile anchor')
+            # check soil
+            if soil == 'weak_rock':
+                if 'UCS' in ground_conds and 'Em' in ground_conds and 'depth' in ground_conds:
+                    # call driven pil anchor function!!!
+                    pass
                 else:
-                    print(f'Warning: Soil type {soil} is not compatible with driven pile anchors')
+                    raise Exception('Ground conditions dictionary needs UCS, Em, and depth information for weak rock driven pile anchor')
+            elif soil == 'sand':
+                if 'phi' in ground_conds and 'gamma' in ground_conds and 'S_eff' in ground_conds and 'k' in ground_conds and 'depth' in ground_conds:
+                    # call driven pile function!!
+                    pass
+                else:
+                    raise Exception('Ground conditions dictionary needs phi, gamma, S_eff, k, and depth information for sand driven pile anchor')
+            elif soil == 'clay':
+                if 'Su' in ground_conds and 'gamma' in ground_conds and 'S_eff' in ground_conds and 'depth' in ground_conds:
+                    # call driven pile function!!
+                    pass
+                else:
+                    raise Exception('Ground conditions dictionary needs Su, gamma,S_eff and depth information for clay driven pile anchor')
             else:
-                raise Exception('Horizontal (H) and vertical (V) load entries needed in loads dictionary')
+                print(f'Warning: Soil type {soil} is not compatible with driven pile anchors')
                         
         elif anchType == 'dandg_pile':  # drill and grout pile
             # check for correct soil
             if soil == 'rock' or 'weak_rock':
-                # check for correct loads
-                if 'H' in loads and 'V' in loads:
-                    # check for correct ground properties
-                    if 'UCS' in ground_conds and 'Em' in ground_conds and 'depth' in ground_conds:
-                        # call drill and grout pile function!!!
-                        pass
-                    else:
-                        raise Exception('Ground conditions dictionary need UCS, Em, and depth information for drill and grout pile')
+                # check for correct ground properties
+                if 'UCS' in ground_conds and 'Em' in ground_conds and 'depth' in ground_conds:
+                    # call drill and grout pile function!!!
+                    pass
                 else:
-                    raise Exception('Horizontal (H) and vertical (V) load entries needed in loads dictionary')
+                    raise Exception('Ground conditions dictionary need UCS, Em, and depth information for drill and grout pile')
             else:
                 print(f'Warning: soil type {soil} is not compatible with drill and grout pile')
         else:
             raise Exception(f'Anchor type {anchType} is not supported at this time')
             
         
-        return(capacity,info)
+        # return(capacity,info)
             
     def getMPForces(self, lines_only=False, seabed=True, xyz=False):   
         '''Find forces on anchor using MoorPy Point.getForces method and stores in loads dictionary

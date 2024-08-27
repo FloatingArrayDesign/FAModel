@@ -846,11 +846,11 @@ class Project():
                     for i in range(0,len(cC['sections'])):
                         cCondd['buoyancy_sections'].append(BuoyProps(cC['sections'][i]))
                 
-                # check for routing / burial info (generally for static cable)
-                if 'routing_x_y_r' in cC:
-                    cCondd['routing_xyr'] = cC['routing_x_y_r']
-                if 'burial' in cC:
-                    cCondd['burial'] = cC['burial']
+                # # check for routing / burial info (generally for static cable)
+                # if 'routing_x_y_r' in cC:
+                #     cCondd['routing_xyr'] = cC['routing_x_y_r']
+                # if 'burial' in cC:
+                #     cCondd['burial'] = cC['burial']
                     
                 # add depth
                 cCondd['z_anch'] = -self.depth
@@ -861,15 +861,36 @@ class Project():
         # load in array cables
         if arrayCableInfo:
             cabLast = 0
+            routing = []
             for i,cab in enumerate(arrayCableInfo):
                 # create design dictionary for subsea cable
                 dd = {'cables':[],'joints':[]}
                 # get sections of the subsea cable 
                 cable = arrayCableInfo[i]['CableID']
+                # check if routing exists for this cable
+                if arrayCableInfo[i]['route'].upper() == 'NA' or arrayCableInfo[i]['route'].upper() == 'NONE':
+                    route = None
+                else:
+                    route = d['route_cables'][arrayCableInfo[i]['route']] #arrayCableInfo[i]['route']
                 if cable in cableInfo:
                     if len(cableInfo[cable]['sections'])>1:
                         for j in range(0,len(cableInfo[cable]['sections'])):
                             cabSection = cableInfo[cable]['sections'][j]
+                            # check for routing in this cable section
+                            if route:
+                                print('cabSEction: ',cabSection.values(),'route: ',route[0]['cable_configID'])
+                                if route[0]['cable_configID'] in cabSection.values():
+                                    # add routing
+                                    routing = []
+                                    # process any joints
+                                    for f in range(0,len(route[0]['routing'])):
+                                        if isinstance(route[0]['routing'][f],str):
+                                            pass
+                                        else:
+                                            routing.append(route[0]['routing'][f])
+                                else:
+                                    routing = None
+                                            
                             if cabLast: # last item was a cable, next should be a connector
                                 if 'type' in cabSection:
                                     # no joint connecting 2 cables - add an empty joint to list
@@ -884,6 +905,9 @@ class Project():
                                         # add heading for end B to this cable
                                         cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
                                     dd['cables'].append(cCondd)
+                                    if routing:
+                                        print(routing)
+                                        cCondd['routing'] = routing
                                 elif 'connectorType' in cabSection:
                                     dd['joints'].append(d['cable_joints'][cabSection['connectorType']])
                                     dd['joints'][-1]['type'] = cabSection['connectorType']
@@ -902,8 +926,11 @@ class Project():
                                     elif j == len(cableInfo[cable]['sections'])-1:
                                         # add heading for end B to this cable
                                         cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
-                                    dd['cables'].append(cCondd)
                                     cabLast = 1
+                                    dd['cables'].append(cCondd)
+                                    if routing:
+                                        print(routing)
+                                        cCondd['routing'] = routing
                                 elif 'connectorType' in cabSection:
                                     raise Exception('Cannot have two connectors in a row')
                                 else:
@@ -916,6 +943,10 @@ class Project():
                         cCondd = getCables(cabSection)
                         cCondd['headingA'] = np.radians(90-arrayCableInfo[i]['headingA'])
                         cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
+                        if route:
+                            if cabSection in route:
+                                # add routing (no joints to process)
+                                cCondd['routing'] = route[cabSection]
                         dd['cables'].append(cCondd)
                         
                 else:
@@ -1026,7 +1057,9 @@ class Project():
             elif 'x' in site['bathymetry'] and 'y' in site['bathymetry']:
                 xs = np.array(site['bathymetry']['x'])
                 ys = np.array(site['bathymetry']['y'])
-                depths = np.array(site['bathymetry']['depths'])
+                self.grid_depth = np.array(site['bathymetry']['depths'])
+                self.setGrid(xs,ys)
+                
             else:
                 # assume a flat bathymetry
                 self.grid_depth  = np.array([[self.depth]])
@@ -1202,7 +1235,9 @@ class Project():
         filename : path
             path/name of file containing soil data
         '''
-        
+        xs = None
+        ys = None
+        soil_names = None
         if filename is not None:
             if filename[-3:]=='shp':
                 raise ValueError("Geography-related operations not directly supported in Project class")
@@ -1215,30 +1250,32 @@ class Project():
                 self.soilProps = sbt.getSoilTypes(filename)
 
         elif filename is None:
-            xs = yaml['x']
-            ys = yaml['y']
-            soil_names = yaml['type_array']
+            if yaml:
+                xs = yaml['x']
+                ys = yaml['y']
+                soil_names = yaml['type_array']
+                soilProps = yaml['soil_types']              
 
-            # make sure the soilProps dictionary has all the required information (should be updated later with exact properties based on anchor capacity functions)
-            soilProps = yaml['soil_types']
-            for key,props in soilProps.items():
-                props['gamma'] = getFromDict(props, 'gamma', shape=0, dtype=float, default=4.7 , index=None)
-                props['Su0']   = getFromDict(props, 'Su0'  , shape=0, dtype=float, default=2.39, index=None)
-                props['k']     = getFromDict(props, 'k'    , shape=0, dtype=float, default=1.41, index=None)
-                props['alpha'] = getFromDict(props, 'alpha', shape=0, dtype=float, default=0.7 , index=None)
-                props['phi']   = getFromDict(props, 'phi'  , shape=0, dtype=float, default=0.0 , index=None)
-                props['UCS']   = getFromDict(props, 'UCS'  , shape=0, dtype=float, default=7.0 , index=None)
-                props['Em']    = getFromDict(props, 'Em'   , shape=0, dtype=float, default=50.0, index=None)
-            
-            self.soilProps = soilProps
+                # make sure the soilProps dictionary has all the required information (should be updated later with exact properties based on anchor capacity functions)
+                # soilProps = yaml['soil_types']
+                for key,props in soilProps.items():
+                    props['gamma'] = getFromDict(props, 'gamma', shape=0, dtype=float, default=4.7 , index=None)
+                    props['Su0']   = getFromDict(props, 'Su0'  , shape=0, dtype=float, default=2.39, index=None)
+                    props['k']     = getFromDict(props, 'k'    , shape=0, dtype=float, default=1.41, index=None)
+                    props['alpha'] = getFromDict(props, 'alpha', shape=0, dtype=float, default=0.7 , index=None)
+                    props['phi']   = getFromDict(props, 'phi'  , shape=0, dtype=float, default=0.0 , index=None)
+                    props['UCS']   = getFromDict(props, 'UCS'  , shape=0, dtype=float, default=7.0 , index=None)
+                    props['Em']    = getFromDict(props, 'Em'   , shape=0, dtype=float, default=50.0, index=None)
+                
+                self.soilProps = soilProps
 
         else:
             raise ValueError("Something is wrong")
         
-
-        self.soil_x = np.array(xs)
-        self.soil_y = np.array(ys)
-        self.soil_names = np.array(soil_names)
+        if xs is not None:
+            self.soil_x = np.array(xs)
+            self.soil_y = np.array(ys)
+            self.soil_names = np.array(soil_names)
         
         
         # load data from file
@@ -1666,6 +1703,20 @@ class Project():
             # simple line plot for now
             ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[0].rB[0]], 
                     [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]], 'r--', lw=0.5,label='Cable')
+            # add in routing if it exists
+            for sub in cable.subcomponents:
+                if isinstance(sub,StaticCable):
+                    if sub.coordinates:
+                        # has routing  - first plot rA to sub.coordinate[0] connection
+                        ax.plot([sub.rA[0],sub.coordinates[0][0]],
+                                [sub.rA[1],sub.coordinates[0][1]],'r:',lw=0.6,label='Buried Cable')
+                        # now plot route
+                        for i in range(1,len(sub.coordinates)):
+                            ax.plot([sub.coordinates[i-1][0],sub.coordinates[i][0]],
+                                    [sub.coordinates[i-1][1],sub.coordinates[i][1]],'r:',lw=0.6,label='Buried Cable')
+                        # finally plot sub.coordinates[-1] to rB connection
+                        ax.plot([sub.coordinates[-1][0],sub.rB[0]],
+                                [sub.coordinates[-1][1],sub.rB[1]],'r:',lw=0.6,label='Buried Cable')
             ax.plot([cable.subcomponents[-1].rA[0], cable.subcomponents[-1].rB[0]], 
                     [cable.subcomponents[-1].rA[1], cable.subcomponents[-1].rB[1]], 'r--', lw=0.5)
             
@@ -1686,7 +1737,7 @@ class Project():
             ax.axis('equal')
         handles, labels = plt.gca().get_legend_handles_labels()
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
-        ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.15), fancybox=True, ncol=3)
+        ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=5)
         if save:
             plt.savefig('2dfarm.png', dpi=300, bbox_inches='tight')  # Adjust the dpi as needed
             
@@ -2450,9 +2501,9 @@ class Project():
         r_no_off = np.zeros([len(self.platformList),2]) # xy location of each platform not considering offsets
         phi = np.zeros(len(self.platformList)) # rotation heading of each platform
         D = 0
-        for turb in self.turbineList.values():
+        for i,turb in enumerate(self.turbineList.values()):
             D += turb.D 
-            D = D/2
+        D = D/i/2
         # get a list of platform names for use later
         pfIDs = [None]*len(self.platformList)
         
@@ -2559,7 +2610,7 @@ class Project():
                 #breakpoint()
                 self.platformList[pfIDs[ct]].setPosition([x,y],heading=phi[ct],degrees=True)
                 self.platformList[pfIDs[ct]].rc = [i,j]
-                # update cable lengths as needed
+                # update cable lengths as needed (assumes the attachments are correct)
                 cabs = self.platformList[pfIDs[ct]].getCables()
                 for cab in cabs.values():
                     # determine what the cable is connected to
@@ -2712,6 +2763,6 @@ if __name__ == '__main__':
     for moor in project.mooringList.values():
         moor.getEnvelope()
 
-    project.plot2d()  # this should also plot the watch circles/envelopes!
+    project.plot2d(plot_boundary=False)  # this should also plot the watch circles/envelopes!
     
     plt.show()

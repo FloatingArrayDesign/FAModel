@@ -18,7 +18,7 @@ Array.getMoorPyArray(pristineLines=1,plt=1,cables=1)
 # Array.getMarineGrowth(mgDict)
 # x,y,vals = Array.platformList[('fowt2')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
 # Array.platformList[('fowt1')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
-# Array.plot2d()
+Array.plot2d(plot_boundary=False,plot_bathymetry=False)
 # settings = {}
 # settings["linelabels"] = True
 # settings["pointlabels"] = True     

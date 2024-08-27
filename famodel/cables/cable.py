@@ -35,7 +35,7 @@ class Cable(Edge):
         self.dd = {'joints':[],'cables':[]}  # save design dictionary
         self.n_sec = len(d['cables'])
         if 'upstream_turb_count' in d:
-            self.upstream_turb_count = d['upstream_turb_count']
+            self.upstream_turb_count = d['upstream_turb_count'] # number of upstream turbines from the cable
         
         # Turn what's in dd and turn it into Sections and Connectors (if there is more than one section)
         if len(d['cables'])>1:
@@ -49,12 +49,13 @@ class Cable(Edge):
             for i, sec in enumerate(d['cables']):
                 Cid = id+'_'+sec['cable_type']['name']+str(i)
                 if sec['type'] == 'static':
-                    if 'routing_xyr' in sec:
-                        d['cables'][i]['routing_xyr'] = sec['routing_xyr']
+                    if 'routing' in sec:
+                        print('adding route')
+                        d['cables'][i]['routing'] = sec['routing']
                     self.dd['cables'].append(StaticCable(Cid, dd=d['cables'][i], **d['cables'][i]))
                 else:
-                    if 'routing_xyr' in sec:
-                        d['cables'][i]['routing_xyr'] = sec['routing_xyr']
+                    if 'routing' in sec:
+                        d['cables'][i]['routing'] = sec['routing']
                     self.dd['cables'].append(DynamicCable(Cid, dd=d['cables'][i], **d['cables'][i]))
             
             # Connect them and store them in self(Edge).subcomponents!
@@ -75,8 +76,8 @@ class Cable(Edge):
             self.addSubcomponents([self.dd['cables'][0]])
         
         # add overall routing to design dictionary
-        if 'routing_xyr' in d:
-            self.dd['routing_xyr'] = d['routing_xyr']
+        if 'routing' in d:
+            self.dd['routing'] = d['routing']
 
         '''
         self.system = system
@@ -232,10 +233,10 @@ class Cable(Edge):
             # determine number of buoyancy sections
             nb = len(sub.dd['buoyancy_sections'])
             if sub.dd['buoyancy_sections'][0]['L_mid'] < sub.dd['buoyancy_sections'][0]['N_modules']*sub.dd['buoyancy_sections'][0]['spacing']/2:
-                # starts with a buoyancy section - # of regular sections = # of buoyancy sections
+                # starts with a buoyancy section -> # of regular sections = # of buoyancy sections
                 addS = 0
             else:
-                # starts with a regular section - # of reg sections = # of buoyancy sections + 1
+                # starts with a regular section -> # of reg sections = # of buoyancy sections + 1
                 addS = 1
             
             nrs = nb + addS

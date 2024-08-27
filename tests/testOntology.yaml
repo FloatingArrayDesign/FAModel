@@ -110,11 +110,21 @@ array_mooring:
 
 # Array cables (compact table format, without routing info)
 array_cables:   
-    keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, lengthAdjust]
+    keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, route, lengthAdjust]
     data:
-      - [ array_cable1, FOWT1, FOWT2,  270,       270, 0] 
-      - [ suspended_cable1, FOWT1, FOWT3,  180,       180, 0]
-      - [ suspended_cable1, FOWT3, substation1, 90, 270, 0] 
+      - [ array_cable1, FOWT1, FOWT2,  270,       270, route1, 0] 
+      - [ suspended_cable1, FOWT1, FOWT3,  180,       180, NA, 0]
+      - [ suspended_cable1, FOWT3, substation1, 90, 270, NA, 0] 
+      
+# Cable routing
+route_cables:
+    route1: 
+      - cable_configID: static_1
+        routing:
+          - joint 
+          - [700,150,10,50] # [x (m), y (m), embedment depth (m), radius (m)]
+          - [900,150,15,50]
+          - joint
 
 # ----- substations -------
 
