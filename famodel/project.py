@@ -878,7 +878,6 @@ class Project():
                             cabSection = cableInfo[cable]['sections'][j]
                             # check for routing in this cable section
                             if route:
-                                print('cabSEction: ',cabSection.values(),'route: ',route[0]['cable_configID'])
                                 if route[0]['cable_configID'] in cabSection.values():
                                     # add routing
                                     routing = []
@@ -906,7 +905,6 @@ class Project():
                                         cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
                                     dd['cables'].append(cCondd)
                                     if routing:
-                                        print(routing)
                                         cCondd['routing'] = routing
                                 elif 'connectorType' in cabSection:
                                     dd['joints'].append(d['cable_joints'][cabSection['connectorType']])
@@ -985,7 +983,6 @@ class Project():
                 for j,comp in enumerate(self.cableList[cable+str(i)].subcomponents):
                     if isinstance(comp,Joint):
                         if not 'r' in comp or comp['r'] is None:
-                            print('approximating r for joint')
                             jLocX,jLocY = self.cableList[cable+str(i)].estJointLoc(j)
                             depth = self.getDepthAtLocation(jLocX,jLocY)
                             comp['r']= [jLocX,jLocY,-depth]
@@ -1085,6 +1082,23 @@ class Project():
         # TBD, may not be necessary in the short term. self.setGrid(xs, ys)
         
         # load metocean portions
+        
+        # load marine growth info
+        if 'marine_growth' in site and site['marine_growth']['data']:
+            mg = site['marine_growth']['data']
+            mgDict = {'th':[]}
+            # adjust to match dictionary requirements for project.getMarineGrowth
+            for i in range(0,len(mg)):
+                if len(mg[i])>3:
+                    # pull out density
+                    if not 'density' in mgDict:
+                        mgDict['density'] = [mg[i][3]]
+                    else:
+                        mgDict['density'].append(mg[i][3])
+                mgDict['th'].append(mg[i][:3])
+                
+            self.marine_growth = mgDict
+                    
 
 
     def setGrid(self, xs, ys):
@@ -1254,18 +1268,37 @@ class Project():
                 xs = yaml['x']
                 ys = yaml['y']
                 soil_names = yaml['type_array']
-                soilProps = yaml['soil_types']              
+                soilProps = yaml['soil_types']          
+                
+                # check that correct soil properties are being provided for the different soil types
+                for soil in soilProps:
+                    if 'rock' in soil:
+                        if not 'UCS' in soilProps[soil] or not 'Em' in soilProps[soil]:
+                            raise ValueError('Rock soil type requires UCS and Em values')
+                    elif 'sand' in soil:
+                        if not 'phi' in soilProps[soil] or not 'gamma' in soilProps[soil]:
+                            raise ValueError('Sand soil type requires phi and gamma values')
+                    elif 'clay' in soil:
+                        if not 'Su0' in soilProps[soil] or not 'k' in soilProps[soil]:
+                            raise ValueError('Clay soil type requires Su0 and k values')
+                    elif 'mud' in soil:
+                        if not 'Su0' in soilProps[soil] or not 'k' in soilProps[soil]:
+                            raise ValueError('Mud soil type requires Su0 and k values')
+                    else:
+                        raise ValueError(f'Soil type {soil} not recognized. Soil type key must contain one of the following keywords: rock, sand, clay, mud')
+
+                
 
                 # make sure the soilProps dictionary has all the required information (should be updated later with exact properties based on anchor capacity functions)
                 # soilProps = yaml['soil_types']
                 for key,props in soilProps.items():
-                    props['gamma'] = getFromDict(props, 'gamma', shape=0, dtype=float, default=4.7 , index=None)
-                    props['Su0']   = getFromDict(props, 'Su0'  , shape=0, dtype=float, default=2.39, index=None)
-                    props['k']     = getFromDict(props, 'k'    , shape=0, dtype=float, default=1.41, index=None)
-                    props['alpha'] = getFromDict(props, 'alpha', shape=0, dtype=float, default=0.7 , index=None)
-                    props['phi']   = getFromDict(props, 'phi'  , shape=0, dtype=float, default=0.0 , index=None)
-                    props['UCS']   = getFromDict(props, 'UCS'  , shape=0, dtype=float, default=7.0 , index=None)
-                    props['Em']    = getFromDict(props, 'Em'   , shape=0, dtype=float, default=50.0, index=None)
+                    props['gamma'] = getFromDict(props, 'gamma', shape=-1, dtype=list, default=[4.7] , index=None)
+                    props['Su0']   = getFromDict(props, 'Su0'  , shape=-1, dtype=list, default=[2.39], index=None)
+                    props['k']     = getFromDict(props, 'k'    , shape=-1, dtype=list, default=[1.41], index=None)
+                    props['alpha'] = getFromDict(props, 'alpha', shape=-1, dtype=list, default=[0.7] , index=None)
+                    props['phi']   = getFromDict(props, 'phi'  , shape=-1, dtype=list, default=[0.0] , index=None)
+                    props['UCS']   = getFromDict(props, 'UCS'  , shape=-1, dtype=list, default=[7.0] , index=None)
+                    props['Em']    = getFromDict(props, 'Em'   , shape=-1, dtype=list, default=[50.0], index=None)
                 
                 self.soilProps = soilProps
 
@@ -2350,15 +2383,16 @@ class Project():
         else:
             raise Exception('Platform(s) must be specified in YAML file')
             
-    def getMarineGrowth(self,mgDict_start,lines='all',tol=2):
+    def getMarineGrowth(self,mgDict_start=None,lines='all',tol=2):
         '''Calls the addMarineGrowth mooring object method for the chosen mooring objects
            and applies the specified marine growth thicknesses at the specified depth ranges
            for the specified marine growth densities.
 
         Parameters
         ----------
-        mgDict_start : dictionary
+        mgDict_start : dictionary, optional
             Provides marine growth thicknesses and the associated depth ranges
+            Default is None, which triggers the use of the marine growth dictionary saved in the project class
             'rho' entry is optional. If no 'rho' entry is created in the dictionary, addMarineGrowth defaults to 1325 kg/m^3
             {
                 th : list with 3 values in each entry - thickness, range lower z-cutoff, range higher z-cutoff [m]
@@ -2380,6 +2414,9 @@ class Project():
         None.
 
         '''
+        # get marine growth dictionary
+        if not mgDict_start:
+            mgDict_start = self.marine_growth
         
         # get indices of lines to add marine growth
         if lines == 'all':

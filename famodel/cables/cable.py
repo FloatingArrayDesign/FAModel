@@ -50,7 +50,6 @@ class Cable(Edge):
                 Cid = id+'_'+sec['cable_type']['name']+str(i)
                 if sec['type'] == 'static':
                     if 'routing' in sec:
-                        print('adding route')
                         d['cables'][i]['routing'] = sec['routing']
                     self.dd['cables'].append(StaticCable(Cid, dd=d['cables'][i], **d['cables'][i]))
                 else:

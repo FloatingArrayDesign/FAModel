@@ -12,7 +12,8 @@ import numpy as np
 ###########No marine growth####################################
 Array = Project(file='../OntologySample600m.yaml',raft=0)
 
-Array.getMoorPyArray(pristineLines=1,plt=1,cables=1)
+Array.getMoorPyArray(pristineLines=1,cables=1)
+
 # mgDict = {'th':[[0,-600,-100],[.05,-100,-80],[.1,-80,0]],'rho':1325}
 # # Array.getMarineGrowth(mgDict)
 # Array.getMarineGrowth(mgDict)

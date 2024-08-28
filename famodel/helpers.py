@@ -58,3 +58,43 @@ def unitVector(r):
 
     return r/L
 
+def updateYAML_array(fname,outx,outy,turbID,pfID,moorID,hadjust,newFile):
+    '''
+    Write turbines and locations to yaml file. Recommend using a different file name for the output than 
+    the input yaml file, because the array table section will be written out in a manner that is not as readable
+    
+    Parameters
+    ----------
+    fname : str
+        filename of yaml to read from
+    outx : array
+        1D array of x coordinates for platform locations
+    outy : array
+        1D array of y coordinates for platform locations
+    turbID : array
+        1D array of ID number of turbine for each platform, referencing turbine listing in ontology yaml
+    pfID : array
+        1D array of ID number of platform type for each platform, referencing platform listing in ontology yaml
+    moorID : str or int
+        1D array of ID of mooring system for each platform, referencing mooring system in ontology yaml
+    hadjust : array
+        1D array of angle rotation for each platform 
+    newFile : str
+        New file to write yaml to
+    '''
+    import ruamel.yaml
+    yaml = ruamel.yaml.YAML()
+    
+    # read in yaml file 
+    with open(fname) as fp:
+        data = yaml.load(fp)
+        
+    # add rows for all platforms with general info
+    data['array']['data'] = [] # remove any existing rows in the array table
+    for i in range(0,len(outx)):
+        data['array']['data'].append(['fowt'+str(i),turbID[i],pfID[i],moorID[i],float(outx[i]),float(outy[i]),hadjust[i]])
+    
+    # write to yaml file
+    with open(newFile,'w') as f:    
+        yaml.dump(data,f)
+

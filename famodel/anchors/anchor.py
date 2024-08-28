@@ -1,4 +1,4 @@
-"""Anchor class for FAModel, containing information and key methods anchors of mooring lines
+"""Anchor class for FAModel, containing information and key methods for anchors of mooring lines
     Work in progress
 """
 import moorpy as mp
@@ -57,9 +57,11 @@ class Anchor(Node):
         self.loads = {}
         '''
         {
-           ff: # horizontal maximum anchor loads [N]
-           fz: # vertical maximum anchor loads [N]
-           method: # dynamic or static
+           ff:      # horizontal maximum anchor loads [N]
+           fz:      # vertical maximum anchor loads [N]
+           Tm:      # load at the mudline [N]
+           theta_m: # angle of load at the mudline [rad]
+           method:  # dynamic or static method of calculation
             }
         '''
         self.soilProps = {}
@@ -95,7 +97,7 @@ class Anchor(Node):
         
         return(ms)
     
-    def getAnchorCapacity(self,ground_conds=None,model_level=2):
+    def getAnchorCapacity(self,ground_conds=None,installAdj=1):
         '''
         Calls anchor capacity functions developed by Felipe Moreno for the correct anchor type 
 
@@ -103,8 +105,10 @@ class Anchor(Node):
         ----------
         ground_conds : dict, optional
             Ground conditions ex: UCS,Em,phi,gamma,effective stress,etc. The default is None.
-        model_level : int, optional
-            Fidelity level of the anchor capacity model
+            If no dict provided, the ground conds will be pulled from the dd['soil_properties']
+        installAdj : float, optional
+            Adjustment to the capacity based on installation (dummy variable for now, but future installation functions
+                                                              will dictate this value)
 
         Returns
         -------
@@ -123,7 +127,7 @@ class Anchor(Node):
         
         # logic to determine what functions to call based on anchor type and model type...
         if anchType == 'SEPLA':
-            if soil == 'clay':
+            if 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'gamma' in ground_conds and 'Los' in ground_conds:
                     # get line type of connected mooring 
                     for att in self.attached:
@@ -137,7 +141,7 @@ class Anchor(Node):
                 print(f'Warning: Soil type {soil} is not compatible with plate anchors (SEPLA)')
                                 
         elif anchType == 'DEA':
-            if soil == 'clay':
+            if 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'nhu' in ground_conds:
                     # call DEA function!!
                     pass
@@ -146,13 +150,13 @@ class Anchor(Node):
             else:
                 print(f'Warning: Soil type {soil} is not compatible with drag-embedment anchors')
         elif anchType == 'SCA':
-            if soil == 'sand':
-                if 'phi' and 'beta' in ground_conds:
+            if 'sand' in soil:
+                if 'phi' in ground_conds and 'beta' in ground_conds:
                     # call suction pile function!!!
                     pass
                 else:
                     raise Exception('Ground conditions dictionary needs phi and beta information for sand suction pile anchor')
-            elif soil == 'clay':
+            elif 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'alpha' in ground_conds:
                     # call suction pile function!!!
                     pass
@@ -161,13 +165,13 @@ class Anchor(Node):
             else:
                 print(f'Warning: Soil type {soil} is not compatible with suction pile anchor')
         elif anchType == 'helical':
-            if soil == 'sand':
+            if 'sand' in soil:
                 if 'phi' in ground_conds and 'gamma' in ground_conds and 'beta' in ground_conds:
                     # call helical pile function!!
                     pass
                 else:
                     raise Exception('Ground conditions dictionary needs phi, gamma and beta information for clay helical pile anchor')
-            elif soil == 'clay':
+            elif 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'gamma' in ground_conds and 'alpha_star' in ground_conds:
                     # call helical pile function!!
                     pass 
@@ -176,7 +180,7 @@ class Anchor(Node):
             else:
                 print(f'Warning: Soil type {soil} is not compatible with helical pile anchor')
         elif anchType == 'torpedo':
-            if soil == 'clay':
+            if 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'alpha' in ground_conds:
                     # get line type of connected mooring 
                     for att in self.attached:
@@ -190,19 +194,19 @@ class Anchor(Node):
                 print('Warning: Soil type {soil} is not compatible with torpedo pile anchor')
         elif anchType == 'driven': # driven pile anchor
             # check soil
-            if soil == 'weak_rock':
+            if 'weak_rock' in soil:
                 if 'UCS' in ground_conds and 'Em' in ground_conds and 'depth' in ground_conds:
                     # call driven pil anchor function!!!
                     pass
                 else:
                     raise Exception('Ground conditions dictionary needs UCS, Em, and depth information for weak rock driven pile anchor')
-            elif soil == 'sand':
+            elif 'sand' in soil:
                 if 'phi' in ground_conds and 'gamma' in ground_conds and 'S_eff' in ground_conds and 'k' in ground_conds and 'depth' in ground_conds:
                     # call driven pile function!!
                     pass
                 else:
                     raise Exception('Ground conditions dictionary needs phi, gamma, S_eff, k, and depth information for sand driven pile anchor')
-            elif soil == 'clay':
+            elif 'clay' in soil or 'mud' in soil:
                 if 'Su' in ground_conds and 'gamma' in ground_conds and 'S_eff' in ground_conds and 'depth' in ground_conds:
                     # call driven pile function!!
                     pass
@@ -213,7 +217,7 @@ class Anchor(Node):
                         
         elif anchType == 'dandg_pile':  # drill and grout pile
             # check for correct soil
-            if soil == 'rock' or 'weak_rock':
+            if 'rock' in soil:
                 # check for correct ground properties
                 if 'UCS' in ground_conds and 'Em' in ground_conds and 'depth' in ground_conds:
                     # call drill and grout pile function!!!
@@ -226,6 +230,7 @@ class Anchor(Node):
             raise Exception(f'Anchor type {anchType} is not supported at this time')
             
         
+        # capacity = cap*installAdj ??? OR is installAdj an input to the capacity functions?
         # return(capacity,info)
             
     def getMPForces(self, lines_only=False, seabed=True, xyz=False):   
@@ -235,17 +240,19 @@ class Anchor(Node):
         lines_only : boolean
             Calculate forces from just mooring lines (True) or not (False). Default is false
         seabed : boolean
-            Include effect of seabed pushing up the anchor (True) or not (False) Default is false
+            Include effect of seabed pushing up the anchor (True) or not (False). Default is true
         xyz : boolean
-            Return forces in x,y,z DOFs (True) or only the enabled DOFs (False)
+            Return forces in x,y,z DOFs (True) or only the enabled DOFs (False). Default is false
         '''
         # call getForces method from moorpy point object
         loads = self.mpAnchor.getForces(lines_only=lines_only, seabed=seabed, xyz=xyz)
         self.loads['ff'] = np.sqrt(loads[0]**2+loads[1]**2)
         self.loads['fz'] = loads[2]
-        # loads determined from moorpy are static (?)
+        self.loads['Tm'] = np.sqrt(loads[0]**2+loads[1]**2+loads[2]**2)
+        self.loads['theta_m'] = np.arctan(self.loads['fz']/self.loads['ff'])
+        # loads determined from moorpy are static
         self.loads['method'] = 'static'
-        
+               
     def getCost(self):
         '''find costs of anchor from MoorProps and store in design dictionary
 
