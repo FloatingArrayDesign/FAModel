@@ -207,7 +207,7 @@ class DynamicCable(Edge):
             if i == len(self.dd['buoyancy_sections'])-1:
                 # this is the last section - adjust cable length at the end
                 L_end = self.L - bs['L_mid'] - Ls/2
-                self.ss.lineList[iLine+1].setL(L_end)
+                self.ss.lineList[-1].setL(L_end)
                 #self.dd['sections'][-1]['length'] = L_end
                 currentL += L_end
             
