@@ -1,0 +1,28 @@
+# Torpedo pile dimensions
+# in m
+D1: 1.1
+D2: 0.9
+L1: 2.6
+L2: 14.6
+# Embedded depth
+# in m
+Hp: 16
+# Soil properties (in clay)
+# in MPa
+Su0: 0
+# in MPa per m
+k: 6.0
+# Adhesion factor (-)
+alpha: 0.5
+# Lateral bearing capacity f(lambda) (Randolph & Gourvenec)
+Np_free: 3.75
+# Bearing capacity factor (9 and 14) DNV-RP-E301 
+Nc: 12.5
+# Effective unit bearing area 2.5 - 2.6 times Chain Dia)
+Ab: 2.5
+# Friction coefficient between the mooring line and soil
+nhu: 3
+# Steel properties
+# in kN per m3
+rhows: 68.5
+

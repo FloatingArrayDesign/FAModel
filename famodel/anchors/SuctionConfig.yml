@@ -1,0 +1,24 @@
+# Suction pile dimensions
+# in m
+D: 5
+L: 21
+# Pile installation misaligments 
+# in deg - tilt angle
+thetalug: 5
+# in deg - twist angle
+psilug: 7.5
+# Soil type
+soil_type: 'clay'
+# Soil condition (in clay)
+# in MPa
+Su0: 2.39
+# in MPa per m
+k: 1.41 
+# -
+alpha: 0.7
+# - for sand-silty sand
+beta: 0.46
+# Steel properties
+# in tonnes per m3
+rhows: 6.85
+

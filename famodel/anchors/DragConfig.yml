@@ -1,0 +1,35 @@
+# DEA dimensions
+# in m and deg
+Af: 5
+Lf: 12
+Ls: 3
+Lca: 1.85
+Lj: 1
+thetafs: 45
+thetae0: 45
+x0_Lf: 7.5
+# Mooring line 
+# in m - factored tension @ mudline
+bm: 0.073
+En: 1
+nhu: 30.11
+# Soil condition (in clay)
+# in MPa
+Su0: 2.39
+# in MPa per m
+dSu: 1.41 
+# # Bearing capacity factor (9 and 14) DNV-RP-E301 
+Ne: 9
+Nn_max: 11.6
+Nt_max: 2.9
+Nm_max: 1.6
+m: 1.56
+n: 4.19
+p: 1.57
+q: 4.43
+# Initial embedded depth
+z0: 1
+# Steel properties
+# in tonnes per m3
+rhows: 6.85
+

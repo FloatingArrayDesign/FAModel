@@ -1,0 +1,19 @@
+# Plate dimensions
+# in m
+A: 5
+B_t: 40
+# Plate configuration 
+# in deg 
+H: 20
+# in m 
+beta: 80
+# Undrained shear strength lost fraction due to the keying process
+Los: 0.05
+# in MPa
+Su0: 2.39
+# in MPa per m
+dSu: 1.41 
+# in kN per m3
+gamma: 4.7
+
+

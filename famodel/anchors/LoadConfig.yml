@@ -1,0 +1,23 @@
+# Mooring line 
+# in kN - factored tension @ mudline
+Tm: 5000
+# in deg - angle @ mudline
+thetam: 45
+# in m - tilt angle
+zlug: 16
+# Soil type
+soil_type: 'clay'
+# Soil condition (in clay)
+# in MPa
+Su0: 0
+# in MPa per m
+k: 3.0 
+# Friction coefficient between the mooring line and soil
+nhu: 0.5
+# Bearing capacity factor (9 and 14) DNV-RP-E301 
+Nc: 14
+# Effective unit bearing area (2.5 - 2.6 times Chain Dia)
+Ab: 2.6
+
+
+
