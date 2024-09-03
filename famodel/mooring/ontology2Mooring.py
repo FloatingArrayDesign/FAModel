@@ -20,6 +20,7 @@ Array.getMoorPyArray(pristineLines=1,cables=1)
 # x,y,vals = Array.platformList[('fowt2')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
 # Array.platformList[('fowt1')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
 Array.plot2d(plot_boundary=False,plot_bathymetry=False)
+Array.plot3d(draw_boundary=False,boundary_on_bath=False)
 # settings = {}
 # settings["linelabels"] = True
 # settings["pointlabels"] = True     

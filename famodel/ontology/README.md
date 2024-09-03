@@ -25,6 +25,7 @@ better suit the scope and emphasis of floating wind arrays. The sections are as 
   * [Resource                        ](#resource)
   * [RAFT Cases                      ](#raft-cases)
   * [RAFT Settings                   ](#raft-settings)
+  * [Marine Growth                   ](#marine-growth)
 * [Array                             ](#array)
   * [Array Layout                    ](#array-layout)
   * [Array Mooring                   ](#array-mooring)
@@ -115,6 +116,9 @@ A sample for how to call different files is shown commented out in the script be
 A file with extensions .txt, .csv, and .shp that contains soil data may be specified.
 Alternatively, a type array may be used that lists the soils at different x-y locations. 
 Soil properties are listed in the soil_types section, which is necessary for anchor modeling.
+Each soil property is a list, although the list may be a length of 1 (homogeneous soil). Each entry 
+in the list is the soil property value at the corresponding depth. Currently, only homogeneous soils are 
+supported by the anchor capacity models, but the list structure is in place for future model enhancements.
 	
 ```yaml
         ### File-based approach ###
@@ -133,14 +137,17 @@ Soil properties are listed in the soil_types section, which is necessary for anc
 
         soil_types:   # dictionary-based approach
           mud_soft:
-            Su0 : 2.39  # [kPa]
-            k : 1.41    # [kPa/m]
+            Su0 : [2.39]  # [kPa]
+            k : [1.41]    # [kPa/m]
+			depth: [0]    # [m]
           mud_firm:
-            Su0 : 23.94 # [kPa]
-            k : 2.67    # [kPa/m]
+            Su0 : [23.94] # [kPa]
+            k : [2.67]    # [kPa/m]
+			depth [0]     # [m]
           rock:
-            UCS : 7     # [MPa]
-            Em  : 50    # [MPa]  
+            UCS : [7]     # [MPa]
+            Em  : [50]    # [MPa]
+            depth: [0]    # [m]			
 ```
 
 ### Metocean
@@ -223,6 +230,20 @@ RAFT_settings:
         XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
         nIter        :   4      # sets how many iterations to perform in Model.solveDynamics()
 ``` 
+
+### Marine Growth
+The marine growth section contains information on marine growth thicknesses and densities for mooring lines and cables at various depth ranges.
+Each entry in the data table contains the thickness, lower and upper end of the depth range, and optionally the density.
+If no density is listed, it is defaulted to 1325 kg/m^3.
+```yaml
+marine_growth:
+        keys: [thickness, lowerRange, upperRange, density]
+        data:   #  (m)       (m)          (m)     (kg/m^3)
+          - [  0.00,        -200,       -100,      1325]
+          - [  0.05,        -100,       -80,       1325]
+          - [  0.10,        -80,        -40,       1325]
+          - [  0.20,        -40,          0,       1325]
+```
 
 ## Array
 
@@ -443,9 +464,9 @@ a 150 m section of rope, a clump weight, a 1172 m section of rope (note the doub
           - mooringFamily: chain
             d_nom: 0.185 # m
             length: 850
-            adjustable: True
-			
-	semitaut-poly_1:  # mooring line configuration identifier
+            adjustable: True 
+
+    semitaut-poly_1:  # mooring line configuration identifier
     
         name: Semitaut polyester configuration 1  # descriptive name
         
@@ -462,8 +483,8 @@ a 150 m section of rope, a clump weight, a 1172 m section of rope (note the doub
 
     rope_shared:
         name: shared rope 
-		symmetric: True
-        
+        symmetric: True
+
         span: 1484
 
         

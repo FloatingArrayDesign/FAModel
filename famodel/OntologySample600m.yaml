@@ -110,7 +110,7 @@ site:
     marine_growth:
         keys: [thickness, lowerRange, upperRange, density]
         data:   #  (m)       (m)          (m)     (kg/m^3)
-        - [0.00,-200,-100, 1325]
+        - [0.00,-600,-100, 1325]
         - [0.05,-100,-80, 1325]
         - [0.10,-80,-40, 1325]
         - [0.20,-40,0, 1325]
@@ -1607,32 +1607,26 @@ anchor_types:
 
     drag-embedment1:
         type   :  DEA   # type of anchor
-        Af     :     # net area of anchor's fluke
-        Lf     :     # length of anchor's fluke
-        rhos   :     # steel dry density
+        A     :     # net area of anchor's fluke
+        Hs     :     # embedded depth
     d-g_pile1:
         type   :  dandg_pile
         L      :      # length of pile
         D      :      # diameter of pile
         t      :      # function of D
-        z0     :      # stick up length above seabed
-        rhos   :      # dry density of steel
+        E     :       # elastic modulus (Pa)
     driven_pile1:
         type   :  driven
         L      :      # pile length
         D      :      # pile diameter
-        t      :
-        zlug   :      
-        fy     :
-        z0     :      # stick up length above seabed
-        rhos   :      # dry density of steel
+        t      :      # wall thickness of pile
+        E      :      # Elastic modulus of pile material (Pa)   
     suction_pile1:
         type   :  SCA
         L      :     # length of pile
         D      :     # diameter of pile
         t      :     # function of D
-        zlug   :
-        rhos   :     # dry density of steel
+        rhows   :     # submerged density of steel
     torpedo_pile1:
         type   :  torpedo
         D1     :     # wing diameter
@@ -1640,20 +1634,16 @@ anchor_types:
         L1     :     # wing length
         L2     :     # shaft length
         Hp     :     # embedded depth
-        rhos   :     # density of steel
     Plate1:
         type   :  SEPLA
         A      :    # net area of the plate
-        B_t    :    # anchor width to thickness
-        beta   :    # angle of the plate after keying process
+        beta   :    # angle of the plate after keying process (optional)
         Hs     :    # embedded depth
-        rhos   :    # dry density of steel
     Helical1:
         type   :  helical
         D      :    # helix diameter
         L      :    # shaft length
         d      :    # shaft diameter
-        rhos   :    # density of steel
         
     
         

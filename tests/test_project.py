@@ -118,6 +118,34 @@ def test_headings_repositioning():
                     np.hstack(([-828.637,-828.637,-600],[40.5,0,-20])),rtol=0,atol=0.5)
     assert_allclose(np.hstack((project.cableList['array_cable10'].subcomponents[0].rB,project.cableList['suspended_cable11'].subcomponents[0].rB)),
                     np.hstack(([640.5,0,-600],[0,1615.5,-20])),rtol=0,atol=0.5)
+    
+def test_marine_growth():
+    project = Project(file='tests/testOntology.yaml',raft=0)
+    # check correct mg gets added to specified mooring lines and cables for ss_mod
+    project.getMarineGrowth(lines=['FOWT1a',['suspended_cable11',0]])
+    # pull out a mooring line and a cable to check
+    Moor = project.mooringList['FOWT1a'].ss.lineList[0].type['d_vol']
+    mgMoor = project.mooringList['FOWT1a'].ss_mod.lineList[1].type['d_vol']
+    
+    Cab = project.cableList['suspended_cable11'].subcomponents[0].ss.lineList[0].type['d_vol']
+    mgCab = project.cableList['suspended_cable11'].subcomponents[0].ss_mod.lineList[0].type['d_vol']
+    
+    assert_allclose(np.hstack((mgMoor,mgCab)),np.hstack((Moor+0.1156,Cab+0.4267756)),rtol=0,atol=0.05)
+    
+def test_seabed():
+    '''test seabed properties are properly loaded and included in anchor design dictionaries'''
+    # check soil at a location
+    project = Project(file='tests/testOntology.yaml',raft=0)
+    soilInfo = project.getSoilAtLocation(-828.637,-828.637)
+    assert soilInfo[0] == 'rock'
+    assert soilInfo[1]['UCS'] == 7
+    assert soilInfo[1]['Em'] == 50
+    anch = project.anchorList['FOWT1a']
+    assert anch.dd['soil_properties']['UCS'] == 7
+    assert anch.dd['soil_type'] == 'rock'
+    
+    
+    
 
     
 
