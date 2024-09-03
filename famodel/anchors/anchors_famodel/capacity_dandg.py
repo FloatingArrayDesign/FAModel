@@ -1,6 +1,5 @@
+
 import numpy as np
-#from matplotlib.pyplot import plot, draw, show
-#import matplotlib.backends
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy import linalg
@@ -10,9 +9,7 @@ import inspect
 #### Pile Geometry and Loading ####
 ###################################
 
-def getCapacityDandG(profile, L, D, t, E,  
-                    V, H, H_n, M, M_n, n=10, iterations=10,
-                    print_output='No', convergence_tracker='No', loc=2):
+def getCapacityDandG(profile, L, D, V, H):
     '''
     Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, 
@@ -32,20 +29,13 @@ def getCapacityDandG(profile, L, D, t, E,
 
     L           - Length of pile         (m)
     D           - Outer diameter of pile (m)
-    t           - Wall thickness of pile (m)
-    E           - Elastic modulus of pile material (Pa)
-    F           - Axial force at pile head (N), vertically downwards is postive.
-    V           - Force at pile head (N), shear causing clockwise rotation of pile is positive.
+    V           - Axial force at pile head (N), vertically downwards is postive.
+    H           - Force at pile head (N), shear causing clockwise rotation of pile is positive.
     M           - Moment at pile head (N*m), moments causing tension on left side of pile is positive.
     n           - Number of elements (50 by default)
     iterations  - Number of iterations to repeat calculation in order obtain convergence of 'y'
                   (A better approach is to iterate until a predefined tolerance is achieved but this requires additional
                   coding so, I will implement this later.)
-    py_model    - Select which p-y model to use, 'Matlock' or 'Jeanjean_2009', 'MM-1', or 'Jeajean_etal_2017'.
-
-    Optional:
-    convergence_tracker - Track how k_secant converges to actual p-y curve at a selected node
-    loc         - Node number at which k_secant to be tracked (2 to n+1)
 
     Output:
     ------
@@ -55,6 +45,7 @@ def getCapacityDandG(profile, L, D, t, E,
     
     # Extract optional keyword arguments
     # ls = 'x'
+    n = 10, iterations = 10
 
     # Resistance factor
     nhuc = 1; nhu = 0.3; gamma_f = 1.3
@@ -63,15 +54,17 @@ def getCapacityDandG(profile, L, D, t, E,
     # Convert L and D to floating point numbers to avoid rounding errors
     L = float(L)
     D = float(D)
-
+    t = (6.35 + D*20)/1e3        # Pile wall thickness (m), API RP2A-WSD
+    E = 200e9                    # Elastic modulus of pile material (Pa)
+    
     # Pile geometry
-    I = np.pi*(D**4 - (D - 2*t)**4)/64.0
+    I = (np.pi/64.0)*(D**4 - (D - 2*t)**4)
     EI = E*I
-    h = L/n           # Element size
-    N = (n + 1) + 4   # (n+1) Real + 4 Imaginary nodes
+    h = L/n                      # Element size
+    N = (n + 1) + 4              # (n+1) Real + 4 Imaginary nodes
 
     # Array for displacements at nodes, including imaginary nodes.
-    y = np.ones(N)*(0.01*D)   # An initial value of 0.01D was arbitrarily chosen
+    y = np.ones(N)*(0.01*D)      # An initial value of 0.01D was arbitrarily chosen
 
     # Initialize and assemble array/list of p-y curves at each real node
     z = np.zeros(N)
@@ -79,12 +72,12 @@ def getCapacityDandG(profile, L, D, t, E,
     k_secant = np.zeros(N)
     DQ = []
 
-    for i in [0,1]:           # Top two imaginary nodes
+    for i in [0,1]:              # Top two imaginary nodes
         z[i] = (i - 2)*h
         py_funs.append(0)
         k_secant[i] = 0.0
    
-    for i in range(2,n+3):  # Real nodes
+    for i in range(2,n+3):       # Real nodes
         z[i] = (i - 2)*h
         # Extract rock profile data
         f_UCS, f_Em = rock_profile(profile)
@@ -97,7 +90,7 @@ def getCapacityDandG(profile, L, D, t, E,
         Dq = np.pi*D*fs*z[i]
         DQ.append(Dq)
 
-    for i in [n+3,n+4]:      # Bottom two imaginary nodes
+    for i in [n+3, n+4]:         # Bottom two imaginary nodes
         z[i] = (i - 2)*h
         py_funs.append(0)
         k_secant[i] = 0.0
@@ -111,7 +104,7 @@ def getCapacityDandG(profile, L, D, t, E,
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
-        y = fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant)
+        y = fd_solver(n, N, h, EI, V, H, z_0, k_secant)
 
         if convergence_tracker == 'Yes':
             plt.plot(y[loc], k_secant[loc]*y[loc])
@@ -124,14 +117,15 @@ def getCapacityDandG(profile, L, D, t, E,
 
     resultsDandG = {}
     resultsDandG['Lateral displacement'] = y[2]
+    resultsDandG['Rotational displacement'] = y[2] - y[3])/h 
     
-    return y[2:-2], z[2:-2], DQ
+    return resultsDandG
 
 #################
 #### Solvers ####
 #################
 
-def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
+def fd_solver(n, N, h, EI, V, H, z_0, k_secant):
     '''
     Solves the finite difference equations from 'py_analysis_1'. This function should be run iteratively for
     non-linear p-y curves by updating 'k_secant' using 'y'. A single iteration is sufficient if the p-y curves
@@ -152,9 +146,8 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
     ------
     y_updated - Lateral displacement at each node
     '''
-
+    M = H*z_0
     
-
     # Initialize and assemble matrix
     X = np.zeros((N,N))
 
@@ -194,8 +187,6 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
     q = np.zeros(N)
 
     # Populate q with boundary conditions
-    q[-1] = 2*H_n*h**3    # Shear at pile tip
-    q[-2] = M_n*h**2      # Moment at pile tip
     q[-3] = 2*H*h**3      # Shear at pile head
     q[-4] = M*h**2        # Moment at pile head
 
@@ -207,7 +198,7 @@ def fd_solver(n, N, h, EI, V, H, H_n, M, M_n, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
+def py_Reese(z, D, z_0, UCS, Em, RQD):
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
 
@@ -217,9 +208,9 @@ def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
     -----
     z      - Depth relative to pile head (m)
     D      - Pile diameter (m)
+    z_0    - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
     UCS    - Undrained shear strength (Pa)
     Em     - Effectve vertical stress (Pa)
-    z_0    - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
     RQD    - Strain at half the strength as defined by Matlock (1970).
              Typically ranges from 0.005 (stiff clay) to 0.02 (soft clay).
 
@@ -233,6 +224,7 @@ def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
     #global var_Reese
     
     Dref = 0.305; nhu = 0.3; E = 200e9
+    t = (6.35 + D*20)/1e3        # Pile wall thickness (m), API RP2A-WSD
     I  = np.pi*(D**4 - (D - 2*t)**4)/64.0
     EI = E*I
     alpha = -0.00667*RQD + 1
@@ -288,7 +280,7 @@ def py_Reese(z, D, t, UCS, Em, z_0=0.0, RQD=69, print_curves='Yes'):
 #### Rock Profile #####
 #######################
 
-def rock_profile(profile, plot_profile='No'):
+def rock_profile(profile):
     '''
     Define the (weak) rock profile used by the p-y analyzer. Outputs 'interp1d' functions containing 
     UCS and Em profiles to be used by the p-y curve functions.
@@ -345,87 +337,3 @@ def rock_profile(profile, plot_profile='No'):
     #var_rock_profile = inspect.currentframe().f_locals
 
     return f_UCS, f_Em
-
-if __name__ == '__main__':
-
-    profile = np.array([[0.0,  7, 50, 'Name of p-y model'],
-                        [1e10,  7, 50, 'Name of p-y model']])
-    
-    L = 10
-    D = 1
-    t = 0.05
-    H = 3187638.5081103545
-    V = 2975548.3405682378
-    H = H
-    V = V
-    '''
-    y,z,DQ = py_analysis(profile, L=L, D=D, t=t, E=200e9, 
-                        V=V, H=H, H_n=0, M=0, M_n=0)
-    print(y[0])
-    '''
-    ys = []
-    ls = np.arange(2, 40, 1)
-    ds = np.arange(1,20,1)
-    for l in ls:
-    #for d in ds:
-        y,z,DQ = py_analysis(profile, L=l, D=D, t=t, E=200e9, 
-                        V=V, H=H, H_n=0, M=0, M_n=0)
-        ys.append(y[0])
-
-    fig, ax = plt.subplots(1,1)
-    ax.plot(ls, ys)
-    ax.set_xlabel('Pile Length [m]')
-    ax.set_ylabel('Deflection (y) [m]')
-    ax.text(ls[0], min(ys), f'D={D} m; t={t*1000} mm; H={H/1e6:.1f} MN; V={V/1e6:.1f} MN')
-    plt.show()
-    
-
-    
-    #                   depth  UCS   Em        p-y model    
-    profile = np.array([[0.0,  7.0, 150., 'Name of p-y model'],
-                        [10.0, 7.0, 150., 'Name of p-y model'],
-                        [18.0, 7.0, 150., 'Name of p-y model'],
-                        [50.0, 7.0, 150., 'Name of p-y model']])
-
-    #f_UCS, f_Em = rock_profile(profile,plot_profile='No')
-       
-    #Pile dimensions
-    L = 5                  # Pile length (m)
-    D = 1                  # Pile diameter (m)
-    t = (6.35 + D*20)/1e3  # Pile wall thickness (m), API RP2A-WSD
-    E = 200e9              # Elastic modulus of steel (Pa)
-    
-    #Pile head loads
-    z0 = L/10        # Depth of the rock elevation from pile head (m)
-    H = 4.4e6        # Horizontal load on pile head (N)
-    V = 3.0e6        # Vertical load on pile head (N)
-    M = H*z0         # Moment on pile head (N*m)
-    H_n = 0          # Horizontal load on pile tip (N)
-    M_n = H*z0       # Moment on pile tip (N*m)
-    
-    y,z,DQ = getCapacitydandg(profile, L=L, D=D, t=t, E=E, 
-                              V=V, H=H, H_n=H_n, M=M, M_n=M_n)
-    
-    Qz = np.sum(DQ)
-    
-    if y[0] < 0.1*D:
-        print('The lateral deflection at pile head is below the maximum allowable')
-    else:
-        print('PILE NOT COMPLIANT with lateral loading criteria (ASSESS D, L or t)')
-    
-    if V < Qz:
-        print('The vertical load of the pile is below the axial capacity')
-    else:
-        print('PILE NOT COMPLIANT with vertical capacity criteria (ASSESS D or L)')
-        
-    y0 = np.zeros(len(z))
-    #Plot deflection profile of pile
-    fig, ax = plt.subplots(figsize=(3,5))    
-    ax.plot(y0,z,'black')
-    ax.plot(y,z,'r')
-    ax.set_xlabel('Displacement [m]')
-    ax.set_ylabel('Depth below pile head [m]')
-    ax.set_ylim([L + 2,-2])
-    ax.set_xlim([-0.1*D, 0.1*D])
-    ax.grid(ls='--')
-    fig.show()

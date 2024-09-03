@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
 
-def getAnchorLoad(Tm, thetam, zlug, soil_type='sand',  d=0.15, Su0=30.0, k=0.0):
+def getAnchorLoad(Tm, thetam, zlug, d, soil_type, Su0, k):
     
     '''Calculate the inclined load capacity of a Suction Caisson Anchor in sand or clay.
     The calculation is based on the soil properties, anchor geometry, and the angle of inclined load.  
@@ -82,10 +82,10 @@ def getAnchorLoad(Tm, thetam, zlug, soil_type='sand',  d=0.15, Su0=30.0, k=0.0):
     
     return resultsLoad
 
-def getAnchorLoadDNV(Tm, thetam, zlug, line_type='chain', d=0.14, soil_type='clay', Su0=15.0, k=2.0, ):
+def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0, k):
     
-    '''Calculate the inclined load capacity of a Suction Caisson Anchor in sand or clay.
-    The calculation is based on the soil properties, anchor geometry, and the angle of inclined load.  
+    '''Calculate the transfer load from the mudline to the main padeye elevation using the DNV standards.
+    The calculation is based on the mooring line properties, anchor geometry and the load from MoorPy and RAFT.  
     
     Parameters
     ----------

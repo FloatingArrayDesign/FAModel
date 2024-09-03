@@ -1,9 +1,5 @@
-"""Torpedo anchor capacity calculation functions in 'level 2' model, 
-calculating inclined load capacity over the range of angles.
-Lead author: Felipe Moreno. 
-"""
 
-import yaml      # Allow access to config file for user inputs
+import yaml     
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
@@ -11,10 +7,10 @@ from matplotlib import cm
 from mpl_toolkits import mplot3d 
 from capacity_load import getAnchorLoad
    
-def getCapacityTorpedo(D1, D2, L1, L2, Hp, Su0, k, alpha):
+def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
     
-    '''Calculate the inclined load capacity of a Suction Caisson Anchor in sand or clay.
-    The calculation is based on the soil properties, anchor geometry, and the angle of inclined load.  
+    '''Calculate the inclined load capacity of a torpedo pile in clay following S. Kay methodology.
+    The calculation is based on the holding capacity of the suction pile as if it fully was embedded in soil.  
     
     Parameters
     ----------
@@ -26,26 +22,18 @@ def getCapacityTorpedo(D1, D2, L1, L2, Hp, Su0, k, alpha):
         Torpedo pile wing length. [m]
     L2 : float 
         Torpedo pile shaft length, excluding wing. [m]
-    Hp : float 
-        Torpedo pile embeded depth. [m]        
-    A_angle : float 
-        The angle of the tension force at the padeye, default is 60. [deg] 
-    F_angle : float 
-        The adjustment factor of the load angle at the padeye, default is 2. [deg] 
+    zlug : float 
+        Torpedo pile embedded depth at main padeye elevation. [m]        
     soil_type : string
-        Specify 'sand' or 'clay'. This affects what other soil parameters are used.
-    phi : float
-        The friction angle of the sand soil (sand only), default is 30. [deg] 
+        Select soil condition, 'clay' or 'sand' 
     gamma: float 
-        The effective unit weight of the sand soil, default is 9 for sand, 4.7 for clay. [kN/m3] 
-    J: float 
-        The API- Factor [---], default is 0.5. (sand only)
+        The effective unit weight of the soil. [kN/m3] 
     Su0 : float 
-        The Undrained shear strength at the mudline (clay only), default is 2.39. [kPa]
+        The Undrained shear strength at the mudline. [kPa]
     k : float 
-        The Undrained shear strength gradient (clay only), default is 1.41. [kPa/m]
+        The Undrained shear strength gradient. [kPa/m]
     alpha : float
-        The skin friction coefficient (clay only), default is 0.7. [-]   
+        The skin friction coefficient. [-]   
     
     Returns
     -------
@@ -53,18 +41,16 @@ def getCapacityTorpedo(D1, D2, L1, L2, Hp, Su0, k, alpha):
         Maximum horizontal capacity [kN]
     Vmax : float 
         Maximum vertical capacity [kN]
-    UC: float
-        Capacity unity check for given load [-]
     '''
 
     #m = -5;
     L = L1 + L2;
     Dstar = (D1*L1 + (D1 + 2*D2)*L2)/L              # Plane 1 (four fins)
     #Dstar = (D1*L1 + np.sqrt(2)*(D1/2 + D2)*L2)/L  # Plane 2 (four fins)    
-    #rlug = D2/2; zlug = Hp; 
+    #rlug = D2/2; zlug = zlug; 
     lambdap = L/Dstar; print('lambdap = ' +str(lambdap))
-    a = Hp; b = Hp + L1; c = Hp + L1 + L2;
-    Wp = 850     # kN
+    a = zlug; b = zlug + L1; c = zlug + L1 + L2;
+    Wp = 850                                        # Weight of the pile. [kN]
     
     # Dry and wet mass of the pile
     def PileSurface(Len1, Len2, Dia1, Dia2):
@@ -83,9 +69,9 @@ def getCapacityTorpedo(D1, D2, L1, L2, Hp, Su0, k, alpha):
     print('ez_Su = ' +str(ez_Su))
     Np_free = 3.45     # From Np vs L/D chart from CAISSON_VHM
                  
-    Hmax = L*Dstar*Np_free*(Su0 + k*(Hp + ez_Su))
+    Hmax = L*Dstar*Np_free*(Su0 + k*(zlug + ez_Su))
     print('Hmax = ' +str(Hmax))
-    Vmax = PileSurface(L1, L2, D1, D2)*alpha*(Su0 + k*(Hp + ez_Su)) + Wp
+    Vmax = PileSurface(L1, L2, D1, D2)*alpha*(Su0 + k*(zlug + ez_Su)) + Wp
     print('Vmax = ' +str(Vmax))
        
     #aVH = 0.5 + L/Dstar; bVH = 4.5 - L/(3*Dstar)
@@ -122,7 +108,7 @@ def getCapacityTorpedo(D1, D2, L1, L2, Hp, Su0, k, alpha):
     plt.ylabel('Vertical capacity, V [MN]')
     plt.suptitle('VH torpedo pile capacity envelope')
     #plt.axis([0,1.3*max(X[0],resultsLoad['H']),0,1.3*max(Y[-1],resultsLoad['V'])]) 
-    plt.ylim(-2,1.25*max(yC))
+    plt.ylim(-2, 1.25*max(yC))
     plt.grid(True)
     plt.ioff()
     plt.show()
@@ -131,93 +117,9 @@ def getCapacityTorpedo(D1, D2, L1, L2, Hp, Su0, k, alpha):
     fAr = [np.sqrt((x[0])**2 + (x[1])**2) for x in soilA]
     fBr = [np.sqrt((x[0])**2 + (x[1])**2) for x in soilB]
     fCr = [np.sqrt((x[0])**2 + (x[1])**2) for x in soilC]  
-    
-    # plt.figure()
-    # plt.plot(deg, f, color = 'g')
-    # plt.scatter(deg, fAr, s = 25, facecolors = 'none', edgecolors = 'r')
-    # plt.scatter(deg, fBr, s = 25, facecolors = 'none', edgecolors = 'b')
-    # plt.scatter(deg, fCr, s = 25, facecolors = 'none', edgecolors = 'g')
-    
-    # # Set labels and title
-    # plt.xlabel('Load inclination, β [deg]')
-    # plt.ylabel('Load capacity, Ta [MN]')
-    # plt.suptitle('Torpedo pile capacity curves')
-    # plt.xlim(-5, 95); plt.xticks(deg)
-    # plt.ylim(0, 1.25*max(fC))
-    # plt.grid(True)
-    # plt.show()
-     
-    # delta_phiMH = 2.5 - 0.25*(L/D)  # Formula in deg, depends on ez_su_L
-    # phiMH = -np.arctan(ez_Su_L) - np.deg2rad(delta_phiMH)
-    # aMH = Np_fixed/np.cos(phiMH); bMH = -Np_free*np.sin(phiMH)
        
-    # N = 50
-    # alpha = np.linspace(0, 2*np.pi, N)
-    # phi = np.linspace(0, np.pi/2, N)
-    # Alpha, Phi = np.meshgrid(alpha, phi)
-       
-    # x = (aMH*np.cos(phiMH)*np.cos(Alpha) - bMH*np.sin(phiMH)*np.sin(Alpha))*np.sin(Phi)
-    # y = (aMH*np.sin(phiMH)*np.cos(Alpha) + bMH*np.cos(phiMH)*np.sin(Alpha))*np.sin(Phi)
-    # z = ((1-np.abs(1/Vmax))**bVH)**(2/aVH)*np.cos(Phi)
-       
-    # First subplot
-    # fig = plt.figure(figsize=(15,20))
-    # ax = fig.add_subplot(3,1,1, projection='3d'); #ax.view_init(10,90)
-    # surf = ax.plot_surface(x, y, z, cmap=cm.coolwarm)
-    # load = ax.scatter(Hmax/(D*L*(Su0+k*L/3)), Mmax/(D*L*L*(Su0+k*L/3)), V/Vmax, color = 'r')
-       
-    # Set labels and title
-    # ax.set_xlabel('H* (H/(D*L*Su,av,L)) [-]')
-    # ax.set_ylabel('M* (M/(D*L^2*Su,av,L)) [-]')
-    # ax.set_zlabel('V [-]')
-    # ax.set_title('VHM Ellipsoid torpedo pile capacity')
-    # plt.show() 
-    
     resultsTorpedo = {}
     resultsTorpedo['Horizontal max.'] = Hmax #Hmax[0]    # Capacity at specified loading angle
     resultsTorpedo['Vertical max.'] = Vmax               # Capacity at specified loading angle
-    #resultsTorpedo['UC'] = UC                           # Unity check
    
-    return resultsTorpedo, X, Y, fC
-    
-if __name__ == '__main__':
-          
-    ''' 
-    Testing the function 
-    '''
-  
-    # Retrieves input data from a separate config file
-    with open('TorpedoConfig.yml', 'r') as f:
-        configTorpedo = yaml.full_load(f)
-    D1 = configTorpedo['D1']; D2 = configTorpedo['D2'];
-    L1 = configTorpedo['L1']; L2 = configTorpedo['L2']; 
-    Hp = configTorpedo['Hp']
-    Su0 = configTorpedo['Su0']; k = configTorpedo['k']; 
-    alpha = configTorpedo['alpha']; Np_free = configTorpedo['Np_free']
-    rhows = configTorpedo['rhows'] 
-    
-    # Retrieves input data from a separate config file
-    # with open('LoadConfig.yml', 'r') as f:
-    #     configLoad = yaml.full_load(f)
-    # Tm = configLoad['Tm']; thetam = configLoad['thetam']
-    # zlug = configLoad['zlug']; 
-    # Su0 = configLoad['Su0']; k = configLoad['k']
-    # nhu = configLoad['nhu']; 
-    # Nc = configLoad['Nc']; Ab = configLoad['Ab']  
-    
-    resultsTorpedo, X, Y, fC = getCapacityTorpedo(D1, D2, L1, L2, Hp, Su0, k, alpha, Np_free, rhows)
-
-    
-    print('******************  Torpedo Pile Result  *********************')
-
-    print('Horizontal max. capacity,            ' , resultsTorpedo['Horizontal max.'], '[kN]')
-    print('Vertical max. capacity,              ' , resultsTorpedo['Vertical max.'], '[kN]') 
-    #print('Unity check capacity,                ' , resultsTorpedo['UC'], '[-]') 
-
-    print('**************************************************************')   
-  
-
-
-    
-    
-   
+    return resultsTorpedo

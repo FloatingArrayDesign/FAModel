@@ -1,21 +1,14 @@
-# # -*- coding: utf-8 -*-
-# """
-# Created on Wed May 29 15:53:52 2024
 
-# @author: fmoreno
-# """
-
-import yaml      # Allow access to config file for user inputs
+import yaml      
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 #from famodel.anchors.capacity_load import getAnchorLoad
 from famodel.anchors.capacity_load import getAnchorLoadDNV
 
-
-def getCapacitySuction(D, L, soil_type='clay', gamma = 8.75, Su0=15.0, k=2.0, alpha=0.515, phi=30, beta=0.29, rhows=66.90):
+def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alpha=None, phi=None, beta=None):
     
-    '''Calculate the inclined load capacity of a suction pile in sand or clay.
+    '''Calculate the inclined load capacity of a suction pile in sand or clay following S. Kay methodology.
     The calculation is based on the soil properties, anchor geometry and inclined load.  
     
     Parameters
@@ -24,26 +17,22 @@ def getCapacitySuction(D, L, soil_type='clay', gamma = 8.75, Su0=15.0, k=2.0, al
         Suction pile diameter [m]
     L : float 
         Suction anchor length [m]
-    thetalug : float 
-        Angle of tilt misaligment, default is 5. [deg]
-    psilug : float 
-        Angle of twist misaligment, default is 7.5. [deg]
-    safety_factor: float
-        Specify 'yes' or 'no'. This affects load and resistance factors.
+    zlug: float
+        Embedded depth of the main padeye [m]
     soil_type : string
         Specify 'clay' or 'sand'. This affects what other soil parameters.               
+    gamma: float 
+        The effective unit weight of the soil. [kN/m3]
     Su0 : float 
         Undrained shear strength at the mudline (clay only) [kPa]
     k : float 
         Undrained shear strength gradient (clay only) [kPa/m]
     alpha : float 
-        Skin friction coefficient (outer and inner - clay only), default is 0.7 [-] 
+        Skin friction coefficient (outer and inner - clay only)[-] 
     phi : float
         Angle of internal friction (sand only) [deg]
     beta : float
-        Skin friction coefficient (sand only), default is 0.46 [-]
-    rhows : float
-        Submerged steel specific weight [kN/m3]
+        Skin friction coefficient (sand only) [-]       
     
     Returns
     -------
@@ -51,13 +40,14 @@ def getCapacitySuction(D, L, soil_type='clay', gamma = 8.75, Su0=15.0, k=2.0, al
         Maximum horizontal capacity [kN]
     Vmax : float 
         Maximum vertical capacity [kN]
-    UC: float
-        Capacity unity check for given load [-]
     '''  
             
     lambdap = L/D; m = -2/3;         # Suction pile slenderness ratio
     t = 10*D/1e3                     # Thickness of the pile
-    rlug = D/2          # Radial position of the lug
+    rlug = D/2                       # Radial position of the lug
+    thetalug = 5                     # Angle of tilt misaligment, default is 5. [deg]
+    psilug = 7.5                     # Angle of twist misaligment, default is 7.5. [deg]
+    rhows = 66.90                    # Submerged steel specific weight [kN/m3]
     
     # Outer and inner surface of the pile skirt
     def PileSurface(Len, Dia):
@@ -112,11 +102,11 @@ def getCapacitySuction(D, L, soil_type='clay', gamma = 8.75, Su0=15.0, k=2.0, al
         alphastar = alpha*(nhuVstar/nhuV)
         
         # "Plugged" (Reverse end bearing capacity - passive suction) 
-        Vmax1 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + Nc*Su_tip*(np.pi/4)*D**2)/FoSsoil
+        Vmax1 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + Nc*Su_tip*(np.pi/4)*D**2)
         # "Coring"        
-        Vmax2 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + PileSurface(L,(D - 2*t))*alphastar*Su_av_L)/FoSsoil
+        Vmax2 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + PileSurface(L,(D - 2*t))*alphastar*Su_av_L)
         # "Leaking"        
-        Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + SoilWeight(L, D, t, gamma))/FoSsoil                   
+        Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + SoilWeight(L, D, t, gamma))                  
         Vmax = min(Vmax1, Vmax2, Vmax3)
                
     elif soil_type == 'sand':
@@ -168,27 +158,27 @@ def getCapacitySuction(D, L, soil_type='clay', gamma = 8.75, Su0=15.0, k=2.0, al
     plt.xlabel('Horizontal capacity [kN]')
     plt.ylabel('Vertical capacity [kN]')
     plt.suptitle('VH suction pile capacity envelope')
-    plt.axis([0,1.3*max(X[0],resultsLoad['H']),0,1.3*max(Y[-1],resultsLoad['V'])]) 
+    plt.axis([0, 1.3*max(X[0], H), 0, 1.3*max(Y[-1], V)]) 
     plt.grid(True)
     plt.show()
     
     resultsSuction = {}
     if soil_type == 'clay':
-        resultsSuction['Horizontal max.'] = Hmax[0] # Capacity at specified loading angle in clay
+        resultsSuction['Horizontal max.'] = Hmax[0] # Maximum horizontal capacity in clay
     elif soil_type == 'sand':   
-        resultsSuction['Horizontal max.'] = Hmax    # Capacity at specified loading angle in sand
-    resultsSuction['Vertical max.'] = Vmax          # Capacity at specified loading angle
+        resultsSuction['Horizontal max.'] = Hmax    # Maximum horizontal capacity in sand 
+    resultsSuction['Vertical max.'] = Vmax          # Maximum vertical capacity 
     if soil_type == 'clay':
         resultsSuction['UC'] = UC[0]                # Unity check in clay
     elif soil_type == 'sand':
         resultsSuction['UC'] = UC                   # Unity check in sand
     resultsSuction['Weight Pile'] = Wp              # in kN
     resultsSuction['Weight Soil'] = Ws              # in kN
-    resultsSuction['t'] = t                         # in m
+    resultsSuction['t'] = t                         # Pile thikness in [m]
     
     return resultsSuction
         
-def getCapacitySuctionSimp(D, L, Su0=15.0, k=2.0, alpha=0.515, rhows=66.90):
+def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
 
     '''
     Parameters
@@ -203,14 +193,14 @@ def getCapacitySuctionSimp(D, L, Su0=15.0, k=2.0, alpha=0.515, rhows=66.90):
         Mooring line angle at mudlevel [deg]
     zlug : float 
         Embedded depth of the lug [m]
-    safety_factor: float
-        Specify 'yes' or 'no'. This affects load and resistance factors.    
+    gamma: float
+    
     Su0 : float 
-        Undrained shear strength at the mudline (clay only), default is 2.39. [kPa]
+        Undrained shear strength at the mudline (clay only)[kPa]
     k : float 
-        Undrained shear strength gradient (clay only), default is 1.41. [kPa/m]
+        Undrained shear strength gradient (clay only) [kPa/m]
     alpha : float 
-        Skin friction coefficient (outer and inner - clay only), default is 0.7 [-] 
+        Skin friction coefficient (outer and inner - clay only) [-] 
     rhows : float
         Submerged steel density [t/m3]
 
@@ -223,15 +213,14 @@ def getCapacitySuctionSimp(D, L, Su0=15.0, k=2.0, alpha=0.515, rhows=66.90):
     UC: float
         Capacity unity check for given load [-]
     ''' 
-   
-    gamma = 8.75                            # Effective unit weight of clay
+    
     lambdap = L/D;                       # Suction pile slenderness ratio   
     t = 10*D/1e3                         # Thickness of the pile
     Np_fixed = 10.25;                    # From Np vs L/D chart from CAISSON_VHM
+    rhows=66.90
+    
     Su_av_L = Su0 + k*zlug;              # Undrained shear strength values (average)
-    print(Su_av_L)
     Su_tip = Su0 + k*L;                  # Undrained shear strength values (tip)
-    print(Su_tip)
     Nc = min (6.2*(1 + 0.34*np.arctan(lambdap)),9)  # End-bearing capacity factor
     
     # Outer and inner surface of the pile skirt
@@ -249,11 +238,11 @@ def getCapacitySuctionSimp(D, L, Su0=15.0, k=2.0, alpha=0.515, rhows=66.90):
     
     Hmax = Np_fixed*L*D*Su_av_L/FoSh
     # "Plugged" (Reverse end bearing capacity - passive suction) 
-    Vmax1 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + Nc*Su_tip*(np.pi/4)*D**2)/FoSsoil
+    Vmax1 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + Nc*Su_tip*(np.pi/4)*D**2)
     # "Coring"        
-    Vmax2 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + PileSurface(L,(D - 2*t))*alpha*Su_av_L)/FoSsoil
+    Vmax2 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + PileSurface(L,(D - 2*t))*alpha*Su_av_L)
     # "Leaking"        
-    Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + SoilWeight(L, D, t, gamma))/FoSsoil 
+    Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + SoilWeight(L, D, t, gamma)) 
     print(Vmax1); print(Vmax2); print(Vmax3)                  
     Vmax = min(Vmax1,Vmax2,Vmax3)
     
@@ -289,7 +278,7 @@ def getCapacitySuctionSimp(D, L, Su0=15.0, k=2.0, alpha=0.515, rhows=66.90):
         plt.xlabel('Horizontal capacity [kN]')
         plt.ylabel('Vertical capacity [kN]')
         plt.suptitle('VH suction pile capacity envelope SIMP')
-        plt.axis([0,1.3*max(X[0],H),0,1.3*max(Y[-1],V)]) 
+        plt.axis([0,1.3*max(X[0], H), 0, 1.3*max(Y[-1], V)]) 
         plt.grid(True)
         plt.show()
     
@@ -303,72 +292,4 @@ def getCapacitySuctionSimp(D, L, Su0=15.0, k=2.0, alpha=0.515, rhows=66.90):
     resultsSuctionSimp['H_good'] = H_good
     resultsSuctionSimp['V_good'] = V_good
     
-    return resultsSuctionSimp
-
-
-
-if __name__ == '__main__':
-          
-
-    D = 5.45
-    L = 16.4
-    zlug = 9.32
-
-    Tm = 23000
-    thetam = 5
-    
-
-    resultsSuction = getCapacitySuction(D, L, Tm, thetam, zlug, safety_factor='no')
-
-    resultsSuctionSimp = getCapacitySuctionSimp(D, L, Tm, thetam, zlug, safety_factor='no')
-    
-    print('*************** Suction Pile Result Simp *********************')
-
-    print('Anchor thickness,                    ' , resultsSuctionSimp['t'], '[m]')
-    print('Anchor steel weight,                 ' , resultsSuctionSimp['Weight Pile'], '[kN]')
-    print('Soil plug weight,                    ' , resultsSuctionSimp['Weight Soil'], '[kN]')
-    print('Horizontal max. capacity,            ' , resultsSuctionSimp['Horizontal max.'], '[kN]')
-    print('Vertical max. capacity,              ' , resultsSuctionSimp['Vertical max.'], '[kN]') 
-    print('Unity check capacity,                ' , resultsSuctionSimp['UC'], '[-]') 
-
-    print('**************************************************************') 
-
-
-
-    ''' 
-    Testing the function 
-    
-    # Retrieves input data from a separate config file
-    with open('SuctionConfig.yml', 'r') as f:
-        configSuction = yaml.full_load(f)
-    D = configSuction['D']; L = configSuction['L'];  
-    thetalug = configSuction['thetalug']; psilug = configSuction['psilug'];
-    soil_type = configSuction['soil_type'];
-    Su0 = configSuction['Su0']; k = configSuction['k'];    
-    alpha = configSuction['alpha']; beta = configSuction['beta'];
-    rhows = configSuction['rhows'];
-   
-    # Retrieves input data from a separate config file
-    with open('LoadConfig_FMO.yml', 'r') as f:
-        configLoad_FMO = yaml.full_load(f)
-    Tm = configLoad_FMO ['Tm']; thetam = configLoad_FMO ['thetam']
-    zlug = configLoad_FMO ['zlug']; 
-    soil_type = configLoad_FMO ['soil_type'];
-    line_type = configLoad_FMO ['line_type'];
-    Su0 = configLoad_FMO ['Su0']; k = configLoad_FMO['k']
-    d = configLoad_FMO ['d']; 
-   
-   '''
-    
-    print('******************  Suction Pile Result  *********************')
-
-    print('Anchor thickness,                    ' , resultsSuction['t'], '[m]')
-    print('Anchor steel weight,                 ' , resultsSuction['Weight Pile'], '[kN]') 
-    print('Soil plug weight,                    ' , resultsSuction['Weight Soil'], '[kN]')
-    print('Horizontal max. capacity,            ' , resultsSuction['Horizontal max.'], '[kN]')
-    print('Vertical max. capacity,              ' , resultsSuction['Vertical max.'], '[kN]') 
-    print('Unity check capacity,                ' , resultsSuction['UC'], '[-]') 
-
-    print('**************************************************************') 
-          
-    
+    return resultsSuctionSimp    
