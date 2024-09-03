@@ -25,10 +25,12 @@ better suit the scope and emphasis of floating wind arrays. The sections are as 
   * [Resource                        ](#resource)
   * [RAFT Cases                      ](#raft-cases)
   * [RAFT Settings                   ](#raft-settings)
+  * [Marine Growth                   ](#marine-growth)
 * [Array                             ](#array)
   * [Array Layout                    ](#array-layout)
   * [Array Mooring                   ](#array-mooring)
   * [Array Cables                    ](#array-cables)
+  * [Cable Routing                   ](#cable-routing)
 * [Substation                        ](#substation)
 * [Turbine(s)                        ](#turbines)
 * [Platform(s)                       ](#platforms)
@@ -109,22 +111,43 @@ and we likely want to support other file formats as well. To be improved.
 
 
 ### Seabed
-The seabed section contains information on the depth and soil type throughout the array. 
-The user provides a list of x, y, z and "soil type" points to define the depth
-and soil type classification. Alternatively, a file can be specified containing fully
-gridded data about depth and soil properties on a rectangular grid, with the option
-for quantitative soil index properties.
-In between provided points, the depth is linearly interpolated. 
-For now, the soil type will be assumed to match that of the nearest point. 
+The seabed section contains information on the soil type throughout the array.
+A sample for how to call different files is shown commented out in the script below.
+A file with extensions .txt, .csv, and .shp that contains soil data may be specified.
+Alternatively, a type array may be used that lists the soils at different x-y locations. 
+Soil properties are listed in the soil_types section, which is necessary for anchor modeling.
+Each soil property is a list, although the list may be a length of 1 (homogeneous soil). Each entry 
+in the list is the soil property value at the corresponding depth. Currently, only homogeneous soils are 
+supported by the anchor capacity models, but the list structure is in place for future model enhancements.
 	
 ```yaml
-    seabed:
-        keys: [x,  y, depth,  soil_type]
-        data:
-          - [ x1, y1, z1, "soft clay"]
-          - [ x2, y2, z1, "medium clay"]    
-          
-        filename: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
+        ### File-based approach ###
+        #file: '../soil_sample.txt'
+        #file: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification
+        #file: '../geography/Soil_Type.shp'  # gridded data of seabed depth and soil classification
+
+        ### Manual approach ###
+        x : [-1901,    0,    1900]   # x locations for type_array below
+        y : [-1900,     2,  1900 ]   # y locations for type_array below
+        
+        type_array:
+          - [mud_soft ,  mud_firm ,   mud_soft]  
+          - [mud_soft ,  rock     ,   mud_soft]  
+          - [mud_soft ,  mud_firm ,   mud_soft]  
+
+        soil_types:   # dictionary-based approach
+          mud_soft:
+            Su0 : [2.39]  # [kPa]
+            k : [1.41]    # [kPa/m]
+			depth: [0]    # [m]
+          mud_firm:
+            Su0 : [23.94] # [kPa]
+            k : [2.67]    # [kPa/m]
+			depth [0]     # [m]
+          rock:
+            UCS : [7]     # [MPa]
+            Em  : [50]    # [MPa]
+            depth: [0]    # [m]			
 ```
 
 ### Metocean
@@ -208,6 +231,20 @@ RAFT_settings:
         nIter        :   4      # sets how many iterations to perform in Model.solveDynamics()
 ``` 
 
+### Marine Growth
+The marine growth section contains information on marine growth thicknesses and densities for mooring lines and cables at various depth ranges.
+Each entry in the data table contains the thickness, lower and upper end of the depth range, and optionally the density.
+If no density is listed, it is defaulted to 1325 kg/m^3.
+```yaml
+marine_growth:
+        keys: [thickness, lowerRange, upperRange, density]
+        data:   #  (m)       (m)          (m)     (kg/m^3)
+          - [  0.00,        -200,       -100,      1325]
+          - [  0.05,        -100,       -80,       1325]
+          - [  0.10,        -80,        -40,       1325]
+          - [  0.20,        -40,          0,       1325]
+```
+
 ## Array
 
 This part of the ontology includes a section for the tubine layout, as
@@ -266,19 +303,45 @@ array_mooring:
 This section provides a straightforward and compact way to define the power
 cables in the array. For each end (A and B) of the cable, it specifies the
 turbine (matching and ID in the array table) or substation (matching an ID in the substation section)
-attached to, the [Top Level Cables](#top-level-cables) 
-used, the heading of the cable at the attachment of each end, and length adjustment. A 0-degree heading aligns with 
-North and rotates clockwise.
-Additional detail related to subsections of the top level cable, joints, and any cable 
-routing are in the [Cables](#cables) section. 
+attached to, the [Top Level Cables](#top-level-cables) used, the heading 
+of the cable at the attachment of each end, any cable routing, and length adjustment. 
+A 0-degree heading aligns with North and rotates clockwise.
+The route refers to a route specified in the [Cable Routing](#cable-routing) section.
+If there is no routing for a given cable, 'NA' may be used in its place
 The CableID refers to an entry in the [Top Level Cables](#top-level-cables) section.
+Additional detail related to subsections of the top level cable, and joints 
+are in the [Cables](#cables) section. 
+
 
 ```yaml
 array_cables:   
-    keys:  [ CableID,       AttachA,   AttachB,      headingA, headingB, lengthAdjust]
+    keys:  [ CableID,       AttachA,   AttachB,      headingA, headingB, route, lengthAdjust]
     data:
-      - [ array_cable1,     fowt1,     f2,        270,      270,      0] 
-      - [ suspended_cable1, f2,     substation1,  90,        270,      0]  
+      - [ array_cable1,     fowt1,     f2,           270,      270,     route1,   0] 
+      - [ suspended_cable1, f2,     substation1,     90,        270,    NA,       0]  
+```
+
+### Cable Routing
+
+This section describes the route of a specific cable section. Coordinates of the routing (x and y) are required,
+while embedment depth and radius of curvature are optional. Joint locations are determined by the span and heading of the 
+cable, therefore joints are specified with the word 'joint' in the routing table rather than including the location. 
+All other routing vertices are listed with the coordinates and optional depth and curvature. The cable_configID refers 
+to a specific cable section of the array cable. Multiple cable sections may be listed for a specific route as long as they 
+are all part of the same array cable. 
+
+If a radius is specified but an embedment depth is not, NA will be used in the place of the embedment depth
+```yaml
+# Cable routing for each route called out in the array_cables table
+# consider making routing in a local reference frame (reference to the rA location?)   
+route_cables:
+    route1: 
+      - cable_configID: static_1
+        routing:
+          - joint 
+          - [2000,1500,10,50] # [x (m), y (m), embedment depth (m), radius (m)]
+          - [2100,1500,NA,15]
+          - joint
 ```
 
 ## Substation(s)
@@ -401,9 +464,9 @@ a 150 m section of rope, a clump weight, a 1172 m section of rope (note the doub
           - mooringFamily: chain
             d_nom: 0.185 # m
             length: 850
-            adjustable: True
-			
-	semitaut-poly_1:  # mooring line configuration identifier
+            adjustable: True 
+
+    semitaut-poly_1:  # mooring line configuration identifier
     
         name: Semitaut polyester configuration 1  # descriptive name
         
@@ -420,8 +483,8 @@ a 150 m section of rope, a clump weight, a 1172 m section of rope (note the doub
 
     rope_shared:
         name: shared rope 
-		symmetric: True
-        
+        symmetric: True
+
         span: 1484
 
         
@@ -498,20 +561,69 @@ can be specified to model the drag on the component.
 
 ## Anchor types
 
-The anchor types section lists dimensions and embedment depth for each anchor type. The anchor types section
-allows the user to input the diameter, length, area, thickness, and embedment depth. All parameters are optional,
-because the applicable information depends on the anchor type. 
+The anchor types section lists dimensions and sometimes embedment depth for each anchor type. The anchor types section
+allows the user to input various geometric properties. All parameters are optional,
+because the applicable information depends on the anchor type. The anchor types currently or in near future supported are:
+SCA (suction caisson anchor), DEA (drag-embedment anchor), dandg_pile (drill and grouted pile anchor), driven (driven pile anchor),
+torpedo (torpedo pile anchor), SEPLA (suction embedded plate anchor), DEPLA (dynamically embedded plate anchor), and helical (helical anchor).
+
+Required geometric inputs for each anchor type are shown in the yaml example below.
 The parameters align with the FAModel 
 [intermediate anchor model](https://github.com/FloatingArrayDesign/FAModel/tree/main/famodel/anchors#parameters-needed-for-level-2-anchor-capacity-models). 
 
 ```yaml        
+# Anchor type properties
 anchor_types:
-    suction1:
-        name   : standard suction pile
-        d      :    # [m] Diameter
-        L      :    # [m] Length
-        t      :    # [mm] Thickness
-        h      :    # [m] Embedment depth
+
+    drag-embedment1:
+        type   :  DEA   # type of anchor
+        Af     :      # net area of anchor's fluke
+        Lf     :      # length of anchor's fluke
+        rhos   :      # steel dry density
+    d-g_pile1:
+        type   :  dandg_pile
+        L      :      # length of pile
+        D      :      # diameter of pile
+        t      :      # wall thickness
+        z0     :      # stick up length above seabed
+        rhos   :      # dry density of steel
+    driven_pile1:
+        type   :  driven
+        L      :      # pile length
+        D      :      # pile diameter
+        t      :      # wall thickness
+        zlug   :      # lug radial depth below sea floor
+        fy     :      # compression force
+        z0     :      # stick up length above seabed
+        rhos   :      # dry density of steel
+    suction_pile1:
+        type   :  SCA
+        L      :      # length of pile
+        D      :      # diameter of pile
+        t      :      # thickness, function of D
+        zlug   :      # lug radial depth below sea floor
+        rhos   :      # dry density of steel
+    torpedo_pile1:
+        type   :  torpedo
+        D1     :      # wing diameter
+        D2     :      # shaft diameter
+        L1     :      # wing length
+        L2     :      # shaft length
+        Hp     :      # embedded depth
+        rhos   :      # density of steel
+    Plate1:
+        type   :  SEPLA
+        A      :      # net area of the plate
+        B_t    :      # anchor width to thickness
+        beta   :      # angle of the plate after keying process
+        Hs     :      # embedded depth
+        rhos   :      # dry density of steel
+    Helical1:
+        type   :  helical
+        D      :      # helix diameter
+        L      :      # shaft length
+        d      :      # shaft diameter
+        rhos   :      # density of steel
 ```
 
 

@@ -434,10 +434,11 @@ class Mooring(Edge):
         #     oldLine = project.mooringListPristine[idx]
         # else: # use current mooring object
         #     oldLine = self
-        oldLine = self.ss
+        
         # create a reference subsystem if it doesn't already exist
-        if not oldLine:
-            self.createSubsystem()          
+        if not self.ss:
+            self.createSubsystem()     
+        oldLine = self.ss
         # set up variables
         LTypes = [] # list of line types for new lines (types listed are from reference object)
         Lengths = [] # lengths of each section for new line

@@ -392,8 +392,70 @@ def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
 
 
 
+def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file):
+    """Note: can make the outer shapely shape have 'holes' of the inner shapely shapes"""
+    
+    # create a GeoDataFrame of the shapefile
+    soil_gdf = gpd.read_file(soil_file)
+
+    # list of soil names for each geometry in the GeoDataFrame
+    soil_names = [soil for soil in soil_gdf['V4_Lith1']]
+
+    # lists of the polygons in the shapefile, and the lat/long coordinates of each polygon
+    soil_shapes = [shape for shape in soil_gdf['geometry']]
+    soil_longs = [ [x for x,y in shape.exterior.coords] for shape in soil_shapes ]
+    soil_lats = [ [y for x,y in shape.exterior.coords] for shape in soil_shapes ]
+
+    # convert the lat/long coordinates to x/y coordinates
+    soil_xs = [ convertLatLong2Meters(soil_longs[i], soil_lats[i], centroid, latlong_crs, custom_crs, return_centroid=False)[0] for i in range(len(soil_shapes)) ]
+    soil_ys = [ convertLatLong2Meters(soil_longs[i], soil_lats[i], centroid, latlong_crs, custom_crs, return_centroid=False)[1] for i in range(len(soil_shapes)) ]
+
+    # store the length of each soil shape in a separate list (used for reorganization later)
+    shape_lengths = [len(soil_xs[i]) for i in range(len(soil_shapes))]
+    # sort the shape coordinate lengths from smallest to largest (to eventually loop through from smallest to largest)
+    sorted_indices = np.argsort(np.array(shape_lengths))
+    # make a new list of soil names based on the length of the shapes
+    soil_names = [soil_names[ix] for ix in sorted_indices]
+
+    # make new coordinates 
+    soil_coords  = [ [ [soil_xs[i][j], soil_ys[i][j]] for j in range(len(soil_xs[i])) ] for i in range(len(soil_xs)) ]
+
+    # organize coordinates by length of coordinates (so that the smaller shapes are first in the list) - independent of above sorting (but should be equivalent)
+    soil_coords.sort(key=len)
+
+    # make new shapely polygons based on the new x/y coordinates
+    soil_polygons = [ Polygon(soil_coords[i]) for i in range(len(soil_coords)) ]
+
+    # set up custom grid to store soil data
+    nrows = 100
+    ncols = 100
+    xs = np.linspace( np.min([np.min(soil_xs[i]) for i in range(len(soil_shapes))]),  np.max([np.max(soil_xs[i]) for i in range(len(soil_shapes))]),  ncols)
+    ys = np.linspace( np.min([np.min(soil_ys[i]) for i in range(len(soil_shapes))]),  np.max([np.max(soil_ys[i]) for i in range(len(soil_shapes))]),  nrows)
+    soil_grid = np.zeros([len(ys), len(xs)])
+
+    # for each manmade grid point, loop through all the polygons and determine whether that grid point is within the shape or not
+    soil_grid_list = []
+    for j in range(len(ys)):
+        rowlist = []
+        for i in range(len(xs)):
+            contains = False
+            for p,polygon in enumerate(soil_polygons):
+                if polygon.contains(Point(xs[i], ys[j])):
+                    rowlist.append(soil_names[p])
+                    #soil_grid[j, i] = soil_names[p]
+                    contains=True
+                    break
+            if not contains:
+                rowlist.append(0)
+                
+        soil_grid_list.append(rowlist)
+    soil_grid = np.array(soil_grid_list)        # saving to list and then changing to np.array because I couldn't figure out how else to do it with strings
+
+    return xs, ys, soil_grid
+
+
         
-def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath={}):
+def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath={}, xbounds=None, ybounds=None, zbounds=None):
     '''Plot aspects of the Project object in matplotlib in 3D'''
 
     # organize the bathymetry arguments
@@ -402,6 +464,13 @@ def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath
  
     fig = plt.figure(figsize=(6,4))
     ax = plt.axes(projection='3d')
+
+    if xbounds != None:
+        ax.set_xlim(xbounds[0], xbounds[1])
+    if ybounds != None:
+        ax.set_ylim(ybounds[0], ybounds[1])
+    if zbounds != None:
+        ax.set_zlim(zbounds[0], zbounds[1])
 
     # plot the lease area in a red color, if desired
     ax.plot(lease_xs, lease_ys, np.zeros(len(lease_xs)), color='r', zorder=100)
@@ -426,7 +495,7 @@ def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath
     # plot the projection of the lease area bounds on the seabed, if desired
     if area_on_bath:
         lease_zs = projectAlongSeabed(lease_xs, lease_ys, bathGrid_Xs, bathGrid_Ys, bathGrid)
-        ax.plot(lease_xs, lease_ys, -lease_zs, color='k', zorder=10, alpha=0.5)
+        ax.plot(lease_xs, lease_ys, -lease_zs, color='tab:blue', zorder=10, alpha=0.5)
 
 
     set_axes_equal(ax)

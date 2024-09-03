@@ -158,9 +158,9 @@ class DynamicCable(Edge):
         
         # make sure the number of buoyancy sections matches the subsystem
         if len(self.dd['buoyancy_sections'])*2 + 1 == self.ss.nLines:  
-            case = 1  # typical case where buoyancy sections are in middle of cable
+            cstart = 1  # typical case where buoyancy sections are in middle of cable
         elif len(self.dd['buoyancy_sections'])*2 == self.ss.nLines: 
-            case = 0  # case where buoyancy section starts right at end A
+            cstart = 0  # case where buoyancy section starts right at end A
         else:
             raise Exception("Number of buoyancy sections doesn't match subsystem")
         
@@ -178,7 +178,7 @@ class DynamicCable(Edge):
             
             
             # If this buoyancy section isn't at the very start of the cable
-            if case:  
+            if cstart:  
                 iLine +=1 
                 
                 # >>> note: this approach clashes/overlaps with the 'case' approach - should pick one <<<
@@ -190,12 +190,12 @@ class DynamicCable(Edge):
             
             
             # update properties of the corresponding Subsystem Line
-            self.ss.lineList[2*i+case].setL(Ls)
+            self.ss.lineList[2*i+cstart].setL(Ls)
             #self.dd['sections'][iLine]['length'] = Ls
             
-            self.ss.lineTypes[2*i+case]['m'] = m
-            self.ss.lineTypes[2*i+case]['w'] = w
-            self.ss.lineTypes[2*i+case]['d_vol'] = d_outer
+            self.ss.lineTypes[2*i+cstart]['m'] = m
+            self.ss.lineTypes[2*i+cstart]['w'] = w
+            self.ss.lineTypes[2*i+cstart]['d_vol'] = d_outer
             '''
             self.dd['sections'][iLine]['type']['m'] = m # likely redundant if linked to ss
             self.dd['sections'][iLine]['type']['w'] = w
@@ -207,7 +207,7 @@ class DynamicCable(Edge):
             if i == len(self.dd['buoyancy_sections'])-1:
                 # this is the last section - adjust cable length at the end
                 L_end = self.L - bs['L_mid'] - Ls/2
-                self.ss.lineList[iLine+1].setL(L_end)
+                self.ss.lineList[-1].setL(L_end)
                 #self.dd['sections'][-1]['length'] = L_end
                 currentL += L_end
             
@@ -237,7 +237,7 @@ class DynamicCable(Edge):
             Volumetric diameter of buoyant cable section
 
         '''
-        L = bs['N_modules'] * bs['spacing']  # length of section approximating buoyancy section
+        L = (bs['N_modules'] - 1) * bs['spacing']  # length of section approximating buoyancy section
         
         # compute what diameter of buoyancy module is needed to achieve this buoyancy per unit length
         d_inner = self.d0  # inner diameter for buoyancy module [m]
@@ -571,11 +571,11 @@ class DynamicCable(Edge):
             List of cutoff depths the changePoints should be located at
 
         '''
-        # set location of reference mooring object
-        oldLine = self.ss
         # create a reference subsystem if it doesn't already exist
-        if not oldLine:
-            self.createSubsystem(pristine=1)          
+        if not self.ss:
+            self.createSubsystem(pristine=1)
+        # set location of reference subsystem
+        oldLine = self.ss
         # set up variables
         LTypes = [] # list of line types for new lines (types listed are from reference object)
         Lengths = [] # lengths of each section for new line

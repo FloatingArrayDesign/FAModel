@@ -21,7 +21,7 @@ class StaticCable(Edge):
     def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81, span=2000, length=2000,A=0,conductorSize=None, 
-                 type='static',voltage=66,powerRating=None,cable_type=None,routing_xyr=None,
+                 type='static',voltage=66,powerRating=None,cable_type=None,routing=None,
                  burial=None,zAnchor=None):
         '''
         Parameters
@@ -51,15 +51,20 @@ class StaticCable(Edge):
         
         # Vectors of optional vertex points along the cable route. 
         # Nonzero radius wraps around the vertex at that radius.
-        self.coordinates = routing_xyr
-        if routing_xyr:
+        self.coordinates = routing
+        if routing:
             self.x = [coord[0] for coord in self.coordinates]#[]  # cable route vertex global x coordinate [m]
             self.y = [coord[1] for coord in self.coordinates]#[]  # cable route vertex global y coordinate [m]
             # Check if radius available
             if len(self.coordinates[0]) <= 2:
                 self.r = []  # cable route vertex corner radius [m]
-            else:
-                self.r = [coord[1] for coord in self.coordinates]  # cable route vertex corner radius [m]
+                self.burial = []
+            elif len(self.coordinates[0]) == 3:
+                self.burial = [coord[2] for coord in self.coordinates] # cable route depth at coordinates
+                self.r = []
+            elif len(self.coordinates[0]) == 4:
+                self.burial = [coord[2] for coord in self.coordinates] # cable route depth at coordinates
+                self.r = [coord[3] for coord in self.coordinates]  # cable route vertex corner radius [m]
         
         # Dictionaries for addition information
         self.loads = {}

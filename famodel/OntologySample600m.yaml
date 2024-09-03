@@ -1,8 +1,9 @@
 type: draft/example of floating array ontology under construction
-name: 
-comments: 
+#name: 
+#comments: 
 # Site condition information
 site:
+    
     general:
         water_depth : 600        # [m]      uniform water depth
         rho_water   : 1025.0     # [kg/m^3] water density
@@ -29,15 +30,48 @@ site:
             -[x2, y2]
     
     bathymetry:
-        file:   #'../bathymetry200m_sample.txt'
+        #file:   #'../bathymetry200m_sample.txt'
+        x : [-1901, 0, 1900]
+        y : [-1900, 2, 1900]
+        depths: 
+          - [ 600.1, 599.7, 602]
+          - [ 600.4, 599, 601]
+          - [ 600.7, 598.9, 600.1]
     
     seabed:
-        keys: [x,  y, depth,  soil_type]
-        data:
-          - [ x1, y1, z1, "soft clay"]
-          - [ x2, y2, z1, "medium clay"]    
-          
-        file: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification   
+        
+        ### ORIGINAL INPUTS ###
+        #keys: [x,  y, depth,  soil_type]
+        #data:
+        #  - [ x1, y1, z1, "soft clay"]
+        #  - [ x2, y2, z1, "medium clay"]    
+        
+        ### NEW INPUTS ###
+        #file: '../soil_sample.txt'
+        #file: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification
+        #file: '../geography/Soil_Type.shp'  # gridded data of seabed depth and soil classification
+
+        x : [-1901,    0,    1900]
+        y : [-1900,     2,  1900 ]
+        
+        type_array:
+          - [mud_soft ,  mud_firm ,   mud_soft]  
+          - [mud_soft ,  rock     ,   mud_soft]  
+          - [mud_soft ,  mud_firm ,   mud_soft]  
+
+        soil_types:   # dictionary-based approach
+          mud_soft:
+            Su0 : [2.39]  # [kPa]
+            k : [1.41]    # [kPa/m]
+            depth: [0]    # [m]
+          mud_firm:
+            Su0 : [23.94] # [kPa]
+            k : [2.67]    # [kPa/m]
+            depth: [0]    # [m]
+          rock:
+            UCS : [7]     # [MPa]
+            Em  : [50]    # [MPa]
+            depth: [0]    # [m]
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)
@@ -76,7 +110,7 @@ site:
     marine_growth:
         keys: [thickness, lowerRange, upperRange, density]
         data:   #  (m)       (m)          (m)     (kg/m^3)
-        - [0.00,-200,-100, 1325]
+        - [0.00,-600,-100, 1325]
         - [0.05,-100,-80, 1325]
         - [0.10,-80,-40, 1325]
         - [0.20,-40,0, 1325]
@@ -121,17 +155,17 @@ array_cables:
     keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, route, lengthAdjust]
     data:
       - [ array_cable1, fowt1, fowt2,  270,       270, route1, 0] 
-      - [ suspended_cable1, fowt2, substation1,  90,  270, route2, 0] 
+      - [ suspended_cable1, fowt2, substation1,  90,  270, NA, 0] 
 
 # Cable routing for each route called out in the array_cables table
-# consider making routing in a local reference frame (refernce to the AttachA object's location?)   
+# consider making routing in a local reference frame (reference to the rA location?)   
 route_cables:
     route1: 
       - cable_configID: static_1
         routing:
           - joint 
-          - [2000,1500,10,50] # [x (m), y (m), embedment depth (m), radius (m)]
-          - [2100,1500,15,50]
+          - [700,150,10,50] # [x (m), y (m), embedment depth (m), radius (m)]
+          - [900,150,NA,50]
           - joint
 
 
@@ -1311,16 +1345,16 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  rope_1,  45 ,    suction1,   0 ]
-          - [  rope_1,  135 ,    suction1,   0 ]
+          - [  rope_1,  45 ,    suction_pile1,   0 ]
+          - [  rope_1,  135 ,    suction_pile1,   0 ]
           #- [  semitaut-poly_1,  300 ,    suction1,   0 ]
     ms2:
         name: 2-line semitaut with a third shared line
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  rope_1,  45 ,    suction1,   0 ]
-          - [  rope_1,  135 ,    suction1,   0 ]
+          - [  rope_1,  45 ,    suction_pile1,   0 ]
+          - [  rope_1,  135 ,    suction_pile1,   0 ]
           #- [  semitaut-poly_1,  0 ,    suction1,   0 ]
     # ms3:
     #     name: 2 line semitaut with a third shared line
@@ -1355,9 +1389,9 @@ mooring_systems:
         
     #     keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
     #     data:
-    #       - [  taut-poly_1,   60 ,    suction1,   0 ]
-    #       - [  taut-poly_1,  180 ,    suction1,   0 ]
-    #       - [  taut-poly_1,  300 ,    suction1,   0 ]
+    #       - [  taut-poly_1,   60 ,    suction_pile1,   0 ]
+    #       - [  taut-poly_1,  180 ,    suction_pile1,   0 ]
+    #       - [  taut-poly_1,  300 ,    suction_pile1,   0 ]
 
     # ms7:
     #     name: 3-line taut polyester mooring system
@@ -1573,45 +1607,38 @@ anchor_types:
 
     drag-embedment1:
         type   :  DEA   # type of anchor
-        Af     :     # net area of anchor's fluke
-        Lf     :     # length of anchor's fluke
-        rhos   :  
+        A     :     # net area of anchor's fluke
+        Hs     :     # embedded depth
     d-g_pile1:
         type   :  dandg_pile
-        L      :
-        D      :
+        L      :      # length of pile
+        D      :      # diameter of pile
         t      :      # function of D
-        fy     :
-        z0     :      # stick up length above seabed
-        rhos   :
+        E     :       # elastic modulus (Pa)
     driven_pile1:
         type   :  driven
-        L      :
-        D      :
-        t      :
-        fy     :
-        z0     :      # stick up length above seabed
-        rhos   :
+        L      :      # pile length
+        D      :      # pile diameter
+        t      :      # wall thickness of pile
+        E      :      # Elastic modulus of pile material (Pa)   
     suction_pile1:
         type   :  SCA
-        L      :
-        D      :
-        zlug   :
-        rhows  :
+        L      :     # length of pile
+        D      :     # diameter of pile
+        t      :     # function of D
+        rhows   :     # submerged density of steel
     torpedo_pile1:
         type   :  torpedo
-        D1     :
-        D2     :
-        L1     :
-        L2     :
-        Hp     :    # embedded depth
+        D1     :     # wing diameter
+        D2     :     # shaft diameter
+        L1     :     # wing length
+        L2     :     # shaft length
+        Hp     :     # embedded depth
     Plate1:
         type   :  SEPLA
         A      :    # net area of the plate
-        B_t    :    # anchor width to thickness
-        beta   :    # angle of the plate after keying process
+        beta   :    # angle of the plate after keying process (optional)
         Hs     :    # embedded depth
-        rhos   :    
     Helical1:
         type   :  helical
         D      :    # helix diameter
@@ -1709,7 +1736,7 @@ cable_configs:
         type: static
         
         typeID: static_cable_36
-        length: 2200
+        length: 350
             
         # unsure how the vertex points work (was already here), but I suspect this would be where Michael's routing info fits in  
         # routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
