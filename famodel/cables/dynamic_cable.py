@@ -835,7 +835,85 @@ class DynamicCable(Edge):
             
         return(changeDepths,changePoints)
     
-    def symmetricalMirror(self):
+    def symmetricalMirror(self,create_ss=False):
+        '''
+        Mirror a symmetrical cable design dictionary, allow to overwrite ss
+        
+        Parameters
+        ----------
+        create_ss : bool, optional
+            Controls whether or not to call createSubsystem() function to make a new subsystem after updating dd
+
+        Returns
+        -------
+        None.
+
+        '''
+        from copy import deepcopy
+        oldbs = self.dd['buoyancy_sections']
+        # get half length
+        halfL = self.dd['length']
+        # ge tnew length
+        span = self.span*2
+        # double dd['length']
+        self.dd['length'] = halfL*2 
+        
+        if oldbs[0]['L_mid'] == 0:
+            # ends on a buoyancy section
+            endB = 1 
+        else:
+            # ends on a bare cable section
+            endB = 0
+        
+        
+        bs = []
+        if endB:
+            # update buoyancy sections
+            # add in all pre-mirrored buoyancy sections (start from end instead of middle)
+            for k in range(len(oldbs)-1,-1,-1):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
+                if k == 0:
+                    N0 = bs[-1]['N_modules']
+                    # double middle buoyancy section length while keeping buoyancy the same - spacing needs to be changed by
+                    # (2N0-2)/(2N0-1)*sp0 where sp0 is old spacing, N0 is old # of buoyancy sections 
+                    bs[-1]['spacing'] = bs[-1]['spacing']*(2*N0-2)/(2*N0-1)
+                    # double number of modules to double the buoyancy
+                    bs[-1]['N_modules'] = N0*2
+                    
+            # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
+            for k in range(1,len(oldbs)):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
+        else:     
+            # update buoyancy sections
+            # add in all pre-mirrored buoyancy sections (start from end instead of middle)
+            for k in range(len(oldbs)-1,-1,-1):     
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
+            # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
+            for k in range(0,len(oldbs)):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A, and push L_mid up by bsEnd (length of bare cable middle section pre-mirroring)
+                bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
+            
+                
+            
+        self.dd['buoyancy_sections'] = bs
+        # reset span, rad_anch, and length
+        self.span = span
+        self.rad_anch = span
+        self.L = self.L*2
+        # reset rA to -span
+        self.rA = [-span,0,self.rA[2]]
+        # call createSubsystem function if asked to
+        if create_ss:
+            self.createSubsystem(case=1,pristine=1)
+        
+        '''
         # determine if given sections ends on a buoyancy section or a regular section
         Ls = []
         bEnd = 0
@@ -899,6 +977,8 @@ class DynamicCable(Edge):
         else:
             # no buoyancy sections
             pass
+        
+        '''
         
             
             

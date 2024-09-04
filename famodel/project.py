@@ -1896,7 +1896,7 @@ class Project():
                     # add static cable routing if it exists
                     if sub.x:
                         # first plot from joint to start of cable route
-                        ax.plot(sub[])
+                        #ax.plot(sub.dd[])
                         soil_z = self.projectAlongSeabed(sub.x,sub.y)
                         burial = sub.burial
                         if 'NA' in burial:
