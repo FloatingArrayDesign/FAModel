@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 #### Pile Geometry and Loading ####
 ###################################
 
-def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
+def getCapacityDrivenSoil(profile, soil_type, L, D, z_0, V, H):
     
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, EI*d4y/dz4
@@ -70,18 +70,18 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
 
     # Extract soil profile data
     if soil_type == 'clay':
-        zlug, f_Su, f_sigma_v_eff, f_gamma_sub = clay_profile(profile)
+        z_0, f_Su, f_sigma_v_eff, f_gamma_sub = clay_profile(profile)
     elif soil_type == 'sand':
-        zlug, f_phi, f_sigma_v_eff = sand_profile(profile)
+        z_0, f_phi, f_sigma_v_eff = sand_profile(profile)
 
     for i in range(2, n+3):     # Real nodes
         z[i] = (i - 2)*h      
         if soil_type == 'clay':
-            Su, Su0, sigma_v_eff, gamma_sub = f_Su(z[i]), f_Su(zlug + 0.01), f_sigma_v_eff(z[i]), f_gamma_sub(z[i])
-            py_funs.append(py_Matlock(z[i], D, Su, sigma_v_eff, gamma_sub, zlug=zlug, epsilon_50=epsilon_50))
+            Su, Su0, sigma_v_eff, gamma_sub = f_Su(z[i]), f_Su(z_0 + 0.01), f_sigma_v_eff(z[i]), f_gamma_sub(z[i])
+            py_funs.append(py_Matlock(z[i], D, Su, sigma_v_eff, gamma_sub, z_0=z_0, epsilon_50=epsilon_50))
         elif soil_type == 'sand':
             phi, sigma_v_eff = f_phi(z[i]), f_sigma_v_eff(z[i])
-            py_funs.append(py_API(z[i], D, phi, sigma_v_eff, zlug=zlug))
+            py_funs.append(py_API(z[i], D, phi, sigma_v_eff, z_0=z_0))
         
         k_secant[i] = py_funs[i](y[i])/y[i]
 
@@ -99,7 +99,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
-        y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
+        y = fd_solver(n, N, h, EI, V, H, z_0, k_secant)
 
         if convergence_tracker == 'Yes':
             plt.plot(y[loc], k_secant[loc]*y[loc], ls)
@@ -120,7 +120,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
 #### Solvers ####
 #################
 
-def fd_solver(n, N, h, EI, getV, H, zlug, k_secant):
+def fd_solver(n, N, h, EI, V, H, z_0, k_secant):
     '''Solves the finite difference equations from 'py_analysis_1'. This function should be run iteratively for
     non-linear p-y curves by updating 'k_secant' using 'y'. A single iteration is sufficient if the p-y curves
     are linear.
@@ -143,7 +143,7 @@ def fd_solver(n, N, h, EI, getV, H, zlug, k_secant):
 
     from scipy import linalg
     
-    M = H*zlug
+    M = H*z_0
 
     # Initialize and assemble matrix
     X = np.zeros((N,N))
@@ -195,7 +195,7 @@ def fd_solver(n, N, h, EI, getV, H, zlug, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Matlock(z, D, zlug, Su, sigma_v_eff, gamma_sub):
+def py_Matlock(z, D, z_0, Su, sigma_v_eff, gamma_sub):
     
     '''Returns an interp1d interpolation function which represents the Matlock (1970) p-y curve at the depth of interest.
     Important: Make sure to import the interp1 function by running 'from scipy.interpolate import interp1d' in the main program.
@@ -204,7 +204,7 @@ def py_Matlock(z, D, zlug, Su, sigma_v_eff, gamma_sub):
     -----
     z            - Depth relative to pile head (m)
     D            - Pile diameter (m)
-    zlug          - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
+    z_0          - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
     Su           - Undrained shear strength (Pa)
     sigma_v_eff  - Effective vertical stress (Pa)
     gamma_sub    - Effective unit weight of the soil (kN/m3)
@@ -221,14 +221,14 @@ def py_Matlock(z, D, zlug, Su, sigma_v_eff, gamma_sub):
     # p-y curve properties
     J = 0.5
 
-    if (z - zlug) < 0:
+    if (z - z_0) < 0:
         # p-y curves for the virtual soil layer between the pile head and the mudline should have p=0
         Nc = 0.0
         z_cr = 1.0 # Dummy value to keep program from crashing
 
     else:
         try:
-            Nc = 3.0 + sigma_v_eff/Su + J*(z - zlug)/D
+            Nc = 3.0 + sigma_v_eff/Su + J*(z - z_0)/D
             if Nc > 9.0: Nc = 9.0
             z_cr = 6.0*D /(gamma_sub*D/Su + J)  
         except ZeroDivisionError:
@@ -264,7 +264,7 @@ def py_Matlock(z, D, zlug, Su, sigma_v_eff, gamma_sub):
 
     return f   # This is f (linear interpolation of y-p)
        
-def py_API(z, D, zlug, phi, sigma_v_eff):
+def py_API(z, D, z_0, phi, sigma_v_eff):
     
     '''Returns an interp1d interpolation function which represents the Matlock (1970) p-y curve at the depth of interest.
 
@@ -274,7 +274,7 @@ def py_API(z, D, zlug, phi, sigma_v_eff):
     -----
     z            - Depth relative to pile head (m)
     D            - Pile diameter (m)
-    zlug          - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
+    z_0          - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
     phi          - Internal friction angle (deg)
     sigma_v_eff  - Effectve vertical stress (Pa)
     epsilon_50   - Strain at half the strength as defined by Matlock (1970).
@@ -303,7 +303,7 @@ def py_API(z, D, zlug, phi, sigma_v_eff):
     C2 = np.interp(phi, phi_ref, C2_ref)
     C3 = np.interp(phi, phi_ref, C3_ref)
     
-    if (z - zlug) < 0:
+    if (z - z_0) < 0:
         # p-y curves for the virtual soil layer between the pile head and the mudline should have p=0
         p_ult = 0.0
     else:
