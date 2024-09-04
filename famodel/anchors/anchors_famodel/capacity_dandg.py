@@ -9,7 +9,7 @@ import inspect
 #### Pile Geometry and Loading ####
 ###################################
 
-def getCapacityDandG(profile, L, D, zlug, V, H):
+def getCapacityDandG(profile, L, D, V, H):
     '''
     Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, 
@@ -104,7 +104,7 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
-        y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
+        y = fd_solver(n, N, h, EI, V, H, z_0, k_secant)
 
         if convergence_tracker == 'Yes':
             plt.plot(y[loc], k_secant[loc]*y[loc])
@@ -117,7 +117,7 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
 
     resultsDandG = {}
     resultsDandG['Lateral displacement'] = y[2]
-    resultsDandG['Rotational displacement'] = (y[2] - y[3])/h 
+    resultsDandG['Rotational displacement'] = y[2] - y[3])/h 
     
     return resultsDandG
 
@@ -125,7 +125,7 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
 #### Solvers ####
 #################
 
-def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
+def fd_solver(n, N, h, EI, V, H, z_0, k_secant):
     '''
     Solves the finite difference equations from 'py_analysis_1'. This function should be run iteratively for
     non-linear p-y curves by updating 'k_secant' using 'y'. A single iteration is sufficient if the p-y curves
@@ -146,7 +146,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
     ------
     y_updated - Lateral displacement at each node
     '''
-    M = H*zlug
+    M = H*z_0
     
     # Initialize and assemble matrix
     X = np.zeros((N,N))
@@ -198,7 +198,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Reese(z, D, zlug, UCS, Em, RQD):
+def py_Reese(z, D, z_0, UCS, Em, RQD):
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
 
@@ -208,7 +208,7 @@ def py_Reese(z, D, zlug, UCS, Em, RQD):
     -----
     z      - Depth relative to pile head (m)
     D      - Pile diameter (m)
-    zlug    - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
+    z_0    - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
     UCS    - Undrained shear strength (Pa)
     Em     - Effectve vertical stress (Pa)
     RQD    - Strain at half the strength as defined by Matlock (1970).
@@ -305,14 +305,17 @@ def rock_profile(profile):
     f_Em     - 'interp1d' function containing effective vertical stress profile (Pa)
     '''
 
+    
+    #global var_rock_profile
+
     # Depth of mudline relative to pile head
     z0 = profile[0,0].astype(float)
 
     # Extract data from soil_profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([z0]),profile[:,0].astype(float)])  # m
-    UCS   = np.concatenate([np.array([0]),profile[:,1].astype(float)])   # MPa
-    Em    = np.concatenate([np.array([0]),profile[:,2].astype(float)])   # MPa
+    depth = np.concatenate([np.array([z0]),profile[:,0].astype(float)]) # m
+    UCS = np.concatenate([np.array([0]),profile[:,1].astype(float)])    # MPa
+    Em = np.concatenate([np.array([0]),profile[:,2].astype(float)])     # MPa
 
     if plot_profile == 'Yes':
         # Plot UCS vs z profile for confirmation
@@ -329,7 +332,7 @@ def rock_profile(profile):
 
     # Define interpolation functions
     f_UCS = interp1d(depth, UCS*1e6, kind='linear') # Pa
-    f_Em  = interp1d(depth, Em*1e6, kind='linear')   # Pa
+    f_Em = interp1d(depth, Em*1e6, kind='linear')   # Pa
     
     #var_rock_profile = inspect.currentframe().f_locals
 
