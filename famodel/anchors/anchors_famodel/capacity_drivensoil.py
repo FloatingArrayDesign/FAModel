@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 #### Pile Geometry and Loading ####
 ###################################
 
-def getCapacityDrivenSoil(soil_profile, L, D, V, H, soil_type):
+def getCapacityDrivenSoil(profile, soil_type, L, D, z_0, V, H):
     
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, EI*d4y/dz4
@@ -17,11 +17,12 @@ def getCapacityDrivenSoil(soil_profile, L, D, V, H, soil_type):
 
     Input:
     -----
-    Su_profile  - A 2D array of depths (m) and corresponding undrained shear strength(Pa)
+    profile     - A 2D array of depths (m) and corresponding undrained shear strength(Pa)
                   Eg: array([[z1,Su1],[z2,Su2],[z3,Su3]...])
                   Use small values for Su (eg: 0.001) instead of zeros to avoid divisions by zero but always start z at 0.0
                   Example of a valid data point at the mudline is [0.0, 0.001]
-
+    soil_type   - Select soil condition, 'clay' or 'sand'
+                - Select which p-y model to use, 'Matlock' or 'API'.
     L           - Length of pile         (m)
     D           - Outer diameter of pile (m)
     V           - Axial force at pile head (N), vertically downwards is postive.
@@ -31,8 +32,6 @@ def getCapacityDrivenSoil(soil_profile, L, D, V, H, soil_type):
     iterations  - Number of iterations to repeat calculation in order obtain convergence of 'y'
                   (A better approach is to iterate until a predefined tolerance is achieved but this requires additional
                   coding so, I will implement this later.)
-    soil_type   - Select soil condition, 'clay' or 'sand'
-                - Select which p-y model to use, 'Matlock' or 'API'.
 
     Output:
     ------
@@ -75,7 +74,7 @@ def getCapacityDrivenSoil(soil_profile, L, D, V, H, soil_type):
     elif soil_type == 'sand':
         z_0, f_phi, f_sigma_v_eff = sand_profile(profile)
 
-    for i in range(2, n+3):  # Real nodes
+    for i in range(2, n+3):     # Real nodes
         z[i] = (i - 2)*h      
         if soil_type == 'clay':
             Su, Su0, sigma_v_eff, gamma_sub = f_Su(z[i]), f_Su(z_0 + 0.01), f_sigma_v_eff(z[i]), f_gamma_sub(z[i])
@@ -121,20 +120,20 @@ def getCapacityDrivenSoil(soil_profile, L, D, V, H, soil_type):
 #### Solvers ####
 #################
 
-def fd_solver(n, N, h, EI,F, V, H, z_0, k_secant):
+def fd_solver(n, N, h, EI, V, H, z_0, k_secant):
     '''Solves the finite difference equations from 'py_analysis_1'. This function should be run iteratively for
     non-linear p-y curves by updating 'k_secant' using 'y'. A single iteration is sufficient if the p-y curves
     are linear.
 
     Input:
     -----
-    n - Number of elements
-    N - Total number of nodes
-    h - Element size
-    EI - Flexural rigidity of pile
-    F  - Axial force at pile head
-    V_0, V_n - Shear at pile head/tip
-    M_0, M_n - Moment at pile head/tip
+    n        - Number of elements
+    N        - Total number of nodes
+    h        - Element size
+    EI       - Flexural rigidity of pile
+    V        - Axial force at pile head
+    H        - Shear at pile head
+    M        - Moment at pile head
     k_secant - Secant stiffness from p-y curves
 
     Output:
@@ -398,9 +397,9 @@ def clay_profile(profile):
         sigma_v_eff[i] = sigma_v_eff[i-1] + gamma_sub[i-1]*(depth[i] - depth[i-1])
 
     # Define interpolation functions
-    f_Su = interp1d(depth, Su*1000, kind='linear')                   # Pa
+    f_Su          = interp1d(depth, Su*1000, kind='linear')          # Pa
     f_sigma_v_eff = interp1d(depth, sigma_v_eff*1000, kind='linear') # Pa
-    f_gamma_sub = interp1d(depth, gamma_sub,kind='linear')           # kN/m3
+    f_gamma_sub   = interp1d(depth, gamma_sub,kind='linear')         # kN/m3
 
     return z0, f_Su, f_sigma_v_eff, f_gamma_sub
 
