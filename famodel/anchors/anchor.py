@@ -59,7 +59,6 @@ class Anchor(Node):
         {
            Hm:      # horizontal maximum anchor loads at mudline [N]
            Vm:      # vertical maximum anchor loads at mudline [N]
-           Tm:      # tension at the mudline [N]
            thetam: # angle of load at the mudline [rad]
            Ha:      # horizontal maximum loads at lug
            Va:      # vertical maximum loads at lug
@@ -317,30 +316,31 @@ class Anchor(Node):
         loads = self.mpAnchor.getForces(lines_only=lines_only, seabed=seabed, xyz=xyz)
         self.loads['Hm'] = np.sqrt(loads[0]**2+loads[1]**2) # mudline forces
         self.loads['Vm'] = loads[2]
-        self.loads['thetam'] = np.arctan(self.loads['Hm']/self.loads['Vm'])
+        self.loads['thetam'] = np.degrees(np.arctan(self.loads['Vm']/self.loads['Hm']))
         Tm =  np.sqrt(loads[0]**2+loads[1]**2+loads[2]**2)
     
         if capacity_loads:
             from .anchors_famodel.capacity_load import getTransferLoad
             if 'zlug' in self.dd['design']:
-                if self.dd['design']['zlug'] < 0:
+                if self.dd['design']['zlug'] > 0:
                     # get line type
                     for att in self.attachments.values():
                         print(att)
                         if isinstance(att['obj'],Mooring):
                             mtype = att['obj'].dd['sections'][0]['type']['material']
                             md = att['obj'].dd['sections'][0]['type']['d_nom']
+                            mw = att['obj'].dd['sections'][0]['type']['w']
                     soil = self.dd['soil_type']
                     ground_conds = self.dd['soil_properties']
                     if 'clay' in soil or 'mud' in soil:
                         loadresults = getTransferLoad(Tm,self.loads['theta_m'],self.dd['design']['zlug'],line_type=mtype,
-                                                       soil_type='clay',Su0=ground_conds['Su0'],k=ground_conds['k'],d=md) # output Ha and Va       
+                                                       soil_type='clay',Su0=ground_conds['Su0'],k=ground_conds['k'],d=md,w=mw) # output Ha and Va       
                     elif 'sand' in soil:
                             soil = 'sand'
                             loadresults = getTransferLoad(Tm,self.loads['theta_m'],self.dd['design']['zlug'],line_type=mtype,
-                                                           soil_type=soil,d=md) # output Ha and Va  
+                                                           soil_type=soil,d=md,w=mw) # output Ha and Va  
                     if 'rock' in soil:
-                        raise ValueError('zlug should be >= 0 for rock.')
+                        raise ValueError('zlug should be <= 0 for rock.')
                     else:
                         self.loads['Ha'] = loadresults['H']
                         self.loads['Va'] = loadresults['V']

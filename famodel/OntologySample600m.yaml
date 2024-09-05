@@ -1615,7 +1615,7 @@ anchor_types:
         D      :     3 # diameter of pile [m]
         zlug   :     0 # embedded depth [m]
     driven_pile1:
-        type   :  driven
+        type   :  driven_pile
         L      :      # pile length [m]
         D      :      # pile diameter [m]
         zlug   :      # embedded depth [m]
@@ -1625,7 +1625,7 @@ anchor_types:
         D      :     # diameter of pile [m]
         zlug   :     # embedded depth of padeye [m]
     torpedo_pile1:
-        type   :  torpedo
+        type   :  torpedo_pile
         D1     :     # wing diameter [m]
         D2     :     # shaft diameter [m]
         L1     :     # wing length [m]
@@ -1637,7 +1637,7 @@ anchor_types:
         beta   :    # angle of the plate after keying process (optional) [deg]
         zlug   :    # embedded depth of bridle or padeye [m]
     Helical1:
-        type   :  helical
+        type   :  helical_pile
         D      :    # helix diameter [m]
         L      :    # shaft length [m]
         d      :    # shaft diameter [m]

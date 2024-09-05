@@ -117,8 +117,9 @@ A file with extensions .txt, .csv, and .shp that contains soil data may be speci
 Alternatively, a type array may be used that lists the soils at different x-y locations. 
 Soil properties are listed in the soil_types section, which is necessary for anchor modeling.
 Each soil property is a list, although the list may be a length of 1 (homogeneous soil). Each entry 
-in the list is the soil property value at the corresponding depth. Currently, only homogeneous soils are 
-supported by the anchor capacity models, but the list structure is in place for future model enhancements.
+in the list is the soil property value at the corresponding depth. 
+
+Currently, only homogeneous soils are supported by the anchor capacity models, but the list structure is in place for future model enhancements.
 	
 ```yaml
         ### File-based approach ###
@@ -564,8 +565,11 @@ can be specified to model the drag on the component.
 The anchor types section lists dimensions and sometimes embedment depth for each anchor type. The anchor types section
 allows the user to input various geometric properties. All parameters are optional,
 because the applicable information depends on the anchor type. The anchor types currently or in near future supported are:
-SCA (suction caisson anchor), DEA (drag-embedment anchor), dandg_pile (drill and grouted pile anchor), driven (driven pile anchor),
-torpedo (torpedo pile anchor), SEPLA (suction embedded plate anchor), DEPLA (dynamically embedded plate anchor), and helical (helical anchor).
+suction_pile (suction caisson/ suction pile anchor), DEA (drag-embedment anchor), dandg_pile (drill and grouted pile anchor), driven_pile (driven pile anchor),
+torpedo_pile (torpedo pile anchor), SEPLA (suction embedded plate anchor), DEPLA (dynamically embedded plate anchor), VLA (vertically loaded anchor) and helical_pile (helical anchor).
+
+Note that zlug refers to the location of the connection point with the mooring line. A positive zlug is below the mudline, while a negative zlug
+is above the mudline.
 
 Required geometric inputs for each anchor type are shown in the yaml example below.
 The parameters align with the FAModel 
@@ -577,53 +581,40 @@ anchor_types:
 
     drag-embedment1:
         type   :  DEA   # type of anchor
-        Af     :      # net area of anchor's fluke
-        Lf     :      # length of anchor's fluke
-        rhos   :      # steel dry density
+        A      :      # net area of anchor's fluke
+        zlug   :      # embedded depth of padeye [m]
     d-g_pile1:
         type   :  dandg_pile
-        L      :      # length of pile
-        D      :      # diameter of pile
-        t      :      # wall thickness
-        z0     :      # stick up length above seabed
-        rhos   :      # dry density of steel
+        L      :      # length of pile [m]
+        D      :      # diameter of pile [m]
+        zlug   :      # embedded depth [m]
     driven_pile1:
-        type   :  driven
-        L      :      # pile length
-        D      :      # pile diameter
-        t      :      # wall thickness
-        zlug   :      # lug radial depth below sea floor
-        fy     :      # compression force
-        z0     :      # stick up length above seabed
-        rhos   :      # dry density of steel
+        type   :  driven_pile
+        L      :      # pile length [m]
+        D      :      # pile diameter [m]
+        zlug   :      # embedded depth [m]
     suction_pile1:
-        type   :  SCA
-        L      :      # length of pile
-        D      :      # diameter of pile
-        t      :      # thickness, function of D
-        zlug   :      # lug radial depth below sea floor
-        rhos   :      # dry density of steel
+        type   :  suction_pile
+        L      :     # length of pile [m]
+        D      :     # diameter of pile [m]
+        zlug   :     # embedded depth of padeye [m]
     torpedo_pile1:
-        type   :  torpedo
-        D1     :      # wing diameter
-        D2     :      # shaft diameter
-        L1     :      # wing length
-        L2     :      # shaft length
-        Hp     :      # embedded depth
-        rhos   :      # density of steel
+        type   :  torpedo_pile
+        D1     :     # wing diameter [m]
+        D2     :     # shaft diameter [m]
+        L1     :     # wing length [m]
+        L2     :     # shaft length [m]
+        zlug   :     # embedded depth [m]
     Plate1:
         type   :  SEPLA
-        A      :      # net area of the plate
-        B_t    :      # anchor width to thickness
-        beta   :      # angle of the plate after keying process
-        Hs     :      # embedded depth
-        rhos   :      # dry density of steel
+        A      :    # net area of the plate [m^2]
+        beta   :    # angle of the plate after keying process (optional) [deg]
+        zlug   :    # embedded depth of bridle or padeye [m]
     Helical1:
-        type   :  helical
+        type   :  helical_pile
         D      :      # helix diameter
         L      :      # shaft length
         d      :      # shaft diameter
-        rhos   :      # density of steel
 ```
 
 
