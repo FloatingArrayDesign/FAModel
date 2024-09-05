@@ -1799,7 +1799,7 @@ class Project():
         
         
 
-    def plot3d(self, ax=None, figsize=(10,8), fowt=None, save=False,
+    def plot3d(self, ax=None, figsize=(10,8), fowt=False, save=False,
                draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
@@ -1826,8 +1826,8 @@ class Project():
             fig = ax.get_figure()
 
         # try icnraesing grid density
-        xs = np.arange(1000,3600,50)
-        ys = np.arange(-900,1500,50)
+        xs = np.arange(min(self.grid_x),max(self.grid_x),50)
+        ys = np.arange(min(self.grid_y),max(self.grid_y),50)
         self.setGrid(xs, ys)
 
         # plot the bathymetry in matplotlib using a plot_surface
@@ -1852,8 +1852,8 @@ class Project():
         bath = ax.plot_surface(X, Y, -self.grid_depth, facecolors=rc, **args_bath)
         '''
         #################
-        from matplotlib import cm
-        args_bath = {'cmap':cm.GnBu_r}
+        # from matplotlib import cm
+        # args_bath = {'cmap':cm.GnBu_r}
         ####################
         bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
         
@@ -1878,12 +1878,6 @@ class Project():
         for mooring in self.mooringList.values():
             #mooring.subsystem.plot(ax = ax, draw_seabed=False)
             if mooring.ss:
-                # if any(x==ct for x in [2,3,4,5,8,11]):
-                #     color='r'
-                # else:
-                #     color='k'
-                # mooring.subsystem.drawLine(0, ax,color=color)
-                # ct = ct + 1
                 mooring.ss.drawLine(0,ax)
                 
         for cable in self.cableList.values():
@@ -1895,15 +1889,20 @@ class Project():
                 elif isinstance(sub,StaticCable):
                     # add static cable routing if it exists
                     if sub.x:
-                        # first plot from joint to start of cable route
-                        #ax.plot(sub.dd[])
-                        soil_z = self.projectAlongSeabed(sub.x,sub.y)
                         burial = sub.burial
                         if 'NA' in burial:
                             # replace any NA with 0
                             for i,b in enumerate(burial):
                                 if b == 'NA':
                                    burial[i] = 0 
+                        # first plot from joint to start of cable route
+                        jointA = cable.subcomponents[j-1].r
+                        jointB = cable.subcomponents[j+1].r
+                        soil_z = self.projectAlongSeabed(sub.x,sub.y)
+                        ax.plot([jointA[0],sub.x[0]],[jointA[1],sub.y[0]],[-soil_z[0],-soil_z[0]-burial[0]],'k:',zorder=5,lw=1,alpha=0.7)
+                        ax.plot([jointB[0],sub.x[-1]],[jointB[1],sub.y[-1]],[-soil_z[-1],-soil_z[-1]-burial[-1]],'k:',zorder=5,lw=1,alpha=0.7)
+                        
+                        
                         # plot in 3d along soil_z
                         ax.plot(sub.x,sub.y,-soil_z-burial,'k:',zorder=5,lw=1,alpha=0.7)
                                 

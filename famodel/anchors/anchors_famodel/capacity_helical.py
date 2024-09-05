@@ -1,7 +1,7 @@
 
 import numpy as np
 
-def getCapacityHelical(D, L, d, soil_type, gamma, Su0, k, phi, alpha_star):
+def getCapacityHelical(D, L, d, soil_type, gamma, alpha_star, Su0=None, k=None, phi=None):
     
     '''Calculate the inclined vertical load capacity of a helical pile in clay.
     The calculation is based on the soil properties and anchor geometry.  

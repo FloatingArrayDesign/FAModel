@@ -44,7 +44,8 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     
     # Extract optional keyword arguments
     # ls = 'x'
-    n = 10, iterations = 10
+    n = 10
+    iterations = 10
 
     # Resistance factor
     nhuc = 1; nhu = 0.3; gamma_f = 1.3
@@ -95,24 +96,24 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
         k_secant[i] = 0.0
 
     # Track k_secant and current displacements
-    if convergence_tracker == 'Yes':
-        y1 = np.linspace(-2.*D, 2.*D, 500)
-        plt.plot(y1, py_funs[loc](y1))
-        plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
-        plt.grid(True)
+    # if convergence_tracker == 'Yes':
+    #     y1 = np.linspace(-2.*D, 2.*D, 500)
+    #     plt.plot(y1, py_funs[loc](y1))
+    #     plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
+    #     plt.grid(True)
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
         y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
 
-        if convergence_tracker == 'Yes':
-            plt.plot(y[loc], k_secant[loc]*y[loc])
+        # if convergence_tracker == 'Yes':
+        #     plt.plot(y[loc], k_secant[loc]*y[loc])
 
         for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]
 
-    if print_output == 'Yes':
-        print(f'y_0 = {y[2]:.3f} m')
+    # if print_output == 'Yes':
+    #     print(f'y_0 = {y[2]:.3f} m')
 
     resultsDandG = {}
     resultsDandG['Lateral displacement'] = y[2]
@@ -197,7 +198,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Reese(z, D, zlug, UCS, Em, RQD):
+def py_Reese(z, D, zlug, UCS, Em, RQD,print_curves='No'):
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
 
@@ -279,7 +280,7 @@ def py_Reese(z, D, zlug, UCS, Em, RQD):
 #### Rock Profile #####
 #######################
 
-def rock_profile(profile):
+def rock_profile(profile,plot_profile='No'):
     '''
     Define the (weak) rock profile used by the p-y analyzer. Outputs 'interp1d' functions containing 
     UCS and Em profiles to be used by the p-y curve functions.
@@ -303,13 +304,13 @@ def rock_profile(profile):
     '''
 
     # Depth of mudline relative to pile head
-    z0 = profile[0,0].astype(float)
+    z0 = float(profile[0][0])
 
     # Extract data from soil_profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([z0]),profile[:,0].astype(float)])  # m
-    UCS   = np.concatenate([np.array([0]),profile[:,1].astype(float)])   # MPa
-    Em    = np.concatenate([np.array([0]),profile[:,2].astype(float)])   # MPa
+    depth = np.concatenate([np.array([z0]),np.array([row[0] for row in profile],dtype=float)])  # m  profile[:][0]
+    UCS   = np.concatenate([np.array([0]),np.array([row[1] for row in profile],dtype=float)])   # MPa
+    Em    = np.concatenate([np.array([0]),np.array([row[2] for row in profile],dtype=float)])   # MPa
 
     if plot_profile == 'Yes':
         # Plot UCS vs z profile for confirmation

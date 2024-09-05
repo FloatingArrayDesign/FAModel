@@ -82,7 +82,7 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, Su0, k):
     
     return resultsLoad
 
-def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0, k):
+def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None):
     
     '''Calculate the transfer load from the mudline to the main padeye elevation using the DNV standards.
     The calculation is based on the mooring line properties, anchor geometry and the load from MoorPy and RAFT.  
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     thetam = 5
     
     #resultsLoad = getAnchorLoad(Tm, thetam, zlug)
-    resultsLoadDNV = getAnchorLoadDNV(Tm, thetam, zlug)
+    resultsLoadDNV = getTransferLoad(Tm, thetam, zlug)
     
     # print('******************* Load Transfer Resuls *********************')
 

@@ -41,7 +41,8 @@ def getCapacityDrivenSoil(soil_profile, L, D, zlug, V, H, soil_type):
 
     # Extract optional keyword arguments
     # ls = 'x'
-    n = 10, iterations = 10
+    n = 10
+    iterations = 10
     
     # Convert L and D to floating point numbers to avoid rounding errors
     L = float(L)

@@ -31,8 +31,8 @@ site:
     
     bathymetry:
         #file:   #'../bathymetry200m_sample.txt'
-        x : [-1901, 0, 1900]
-        y : [-1900, 2, 1900]
+        x : [-1901, 0, 3000]
+        y : [-1900, 0, 3000]
         depths: 
           - [ 600.1, 599.7, 602]
           - [ 600.4, 599, 601]
@@ -51,8 +51,8 @@ site:
         #file: 'seabed_grid.csv'  # gridded data of seabed depth and soil classification
         #file: '../geography/Soil_Type.shp'  # gridded data of seabed depth and soil classification
 
-        x : [-1901,    0,    1900]
-        y : [-1900,     2,  1900 ]
+        x : [-1901,    0,    3000]
+        y : [-1900,     0,  3000 ]
         
         type_array:
           - [mud_soft ,  mud_firm ,   mud_soft]  
@@ -120,8 +120,8 @@ site:
 array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [fowt1,     1,         1,         ms1,          0,         0,          180   ]    
-        -  [fowt2,     1,         1,         ms2,          1600,           0,            0   ] 
+        -  [fowt1,     1,         1,         ms2,          0,         0,          180   ]    
+        -  [fowt2,     1,         1,         ms1,          1600,           0,            0   ] 
         # -  [3,     1,         1,         ms3,          1200,           -1200,            0   ]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
@@ -1353,8 +1353,8 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  rope_1,  45 ,    suction_pile1,   0 ]
-          - [  rope_1,  135 ,    suction_pile1,   0 ]
+          - [  rope_1,  45 ,    d-g_pile1,   0 ]
+          - [  rope_1,  135 ,    d-g_pile1,   0 ]
           #- [  semitaut-poly_1,  0 ,    suction1,   0 ]
     # ms3:
     #     name: 2 line semitaut with a third shared line
@@ -1607,43 +1607,40 @@ anchor_types:
 
     drag-embedment1:
         type   :  DEA   # type of anchor
-        A     :     # net area of anchor's fluke
-        Hs     :     # embedded depth
+        A      :    20 # net area of anchor's fluke [m^2]
+        zlug   :    30 # embedded depth of padeye [m]
     d-g_pile1:
         type   :  dandg_pile
-        L      :      # length of pile
-        D      :      # diameter of pile
-        t      :      # function of D
-        E     :       # elastic modulus (Pa)
+        L      :     50 # length of pile [m]
+        D      :     3 # diameter of pile [m]
+        zlug   :     0 # embedded depth [m]
     driven_pile1:
         type   :  driven
-        L      :      # pile length
-        D      :      # pile diameter
-        t      :      # wall thickness of pile
-        E      :      # Elastic modulus of pile material (Pa)   
+        L      :      # pile length [m]
+        D      :      # pile diameter [m]
+        zlug   :      # embedded depth [m]
     suction_pile1:
         type   :  SCA
-        L      :     # length of pile
-        D      :     # diameter of pile
-        t      :     # function of D
-        rhows   :     # submerged density of steel
+        L      :     # length of pile [m]
+        D      :     # diameter of pile [m]
+        zlug   :     # embedded depth of padeye [m]
     torpedo_pile1:
         type   :  torpedo
-        D1     :     # wing diameter
-        D2     :     # shaft diameter
-        L1     :     # wing length
-        L2     :     # shaft length
-        Hp     :     # embedded depth
+        D1     :     # wing diameter [m]
+        D2     :     # shaft diameter [m]
+        L1     :     # wing length [m]
+        L2     :     # shaft length [m]
+        zlug   :     # embedded depth [m]
     Plate1:
         type   :  SEPLA
-        A      :    # net area of the plate
-        beta   :    # angle of the plate after keying process (optional)
-        Hs     :    # embedded depth
+        A      :    # net area of the plate [m^2]
+        beta   :    # angle of the plate after keying process (optional) [deg]
+        zlug   :    # embedded depth of bridle or padeye [m]
     Helical1:
         type   :  helical
-        D      :    # helix diameter
-        L      :    # shaft length
-        d      :    # shaft diameter
+        D      :    # helix diameter [m]
+        L      :    # shaft length [m]
+        d      :    # shaft diameter [m]
         
     
         
