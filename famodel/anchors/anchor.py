@@ -290,13 +290,13 @@ class Anchor(Node):
         
         # capacity = cap*installAdj ??? OR is installAdj an input to the capacity functions?
         # save capacity 
-        if anchType == 'dandg_pile' or anchType == 'driven':
+        if 'dandg' in anchType or 'driven' in anchType: # will take in dandg, dandg_pile, driven, driven_pile
             self.anchorCapacity['Lat_max'] = results['Lateral displacement']
             self.anchorCapacity['Rot_max'] = results['Rotational displacement']
         else:
             if 'Horizontal max.' in results:
-                self.anchorCapacity['Hmax'] = results['Horizontal max.'] # [kN]
-            self.anchorCapacity['Vmax'] = results['Vertical max.'] # [kN]
+                self.anchorCapacity['Ha_max'] = results['Horizontal max.'] # [kN]
+            self.anchorCapacity['Va_max'] = results['Vertical max.'] # [kN]
         return(results)
             
     def getMPForces(self, lines_only=False, seabed=True, xyz=False,capacity_loads=False):   
@@ -325,7 +325,6 @@ class Anchor(Node):
                 if self.dd['design']['zlug'] > 0:
                     # get line type
                     for att in self.attachments.values():
-                        print(att)
                         if isinstance(att['obj'],Mooring):
                             mtype = att['obj'].dd['sections'][0]['type']['material']
                             md = att['obj'].dd['sections'][0]['type']['d_nom']
@@ -333,11 +332,11 @@ class Anchor(Node):
                     soil = self.dd['soil_type']
                     ground_conds = self.dd['soil_properties']
                     if 'clay' in soil or 'mud' in soil:
-                        loadresults = getTransferLoad(Tm,self.loads['theta_m'],self.dd['design']['zlug'],line_type=mtype,
+                        loadresults = getTransferLoad(Tm,self.loads['thetam'],self.dd['design']['zlug'],line_type=mtype,
                                                        soil_type='clay',Su0=ground_conds['Su0'],k=ground_conds['k'],d=md,w=mw) # output Ha and Va       
                     elif 'sand' in soil:
                             soil = 'sand'
-                            loadresults = getTransferLoad(Tm,self.loads['theta_m'],self.dd['design']['zlug'],line_type=mtype,
+                            loadresults = getTransferLoad(Tm,self.loads['thetam'],self.dd['design']['zlug'],line_type=mtype,
                                                            soil_type=soil,d=md,w=mw) # output Ha and Va  
                     if 'rock' in soil:
                         raise ValueError('zlug should be <= 0 for rock.')
@@ -345,16 +344,46 @@ class Anchor(Node):
                         self.loads['Ha'] = loadresults['H']
                         self.loads['Va'] = loadresults['V']
                         self.loads['thetaa'] = loadresults['angle'] # [deg]
-                else:
+                elif 'zlug' == 0:
                     # Ha = Hm because zlug is at mudline
                     self.loads['Ha'] = self.loads['Hm']
                     self.loads['Va'] = self.loads['Vm']
                     self.loads['thetaa'] = self.loads['thetam'] 
+                else:
+                    pass
+
         
         # loads determined from moorpy are static
         self.loads['method'] = 'static'
         
         return(self.loads)
+    
+    def getFS(self):
+        '''
+        Compute safety factor for loads on the anchor
+
+        Returns
+        -------
+        FS : dict
+            Dictionary of safety factors (often horizontal and vertical load SFs, but could be displacement SFs (drilled and grouted/driven piles))
+
+        '''
+        if not self.loads:
+            self.getMPForces(capacity_loads=True)
+        if not self.capacity:
+            self.getAnchorCapacity()
+         
+        # look for load dictionary key in capacity dictionary
+        FS = {}
+        for Lkey,Lval in self.loads.items():
+            for Ckey,Cval in self.capacity.items():
+                if Lkey in Ckey:
+                    FS[Lkey] = Cval/Lval
+                    
+                    
+        return(FS)
+            
+        
                
     def getCost(self):
         '''find costs of anchor from MoorProps and store in design dictionary

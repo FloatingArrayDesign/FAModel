@@ -601,7 +601,9 @@ class DynamicCable(Edge):
                 # look up what thickness this line section starts at (if lowest point is not on the sea floor, first segment will have a thickness other than the sea floor thickness)
                 rAth = 0 # exit while loop when we find thickness at low
                 count1 = 0 # counter
-                while rAth==0 and count1 <= len(th):
+                while rAth==0: # and count1 < len(th):
+                    if count1 == len(th):
+                        breakpoint()
                     if flip:
                         if high[2] <= th[count1][2]:
                             LThick.append(th[count1][0])
@@ -706,11 +708,15 @@ class DynamicCable(Edge):
                 else: # density given for each thickness of marine growth
                     for i in range(0,len(rho_mg)):
                         # look up what thickness number this rho is related to
-                        for j in range(0,len(th)):
-                            # compare thickness to th list
-                            if LThick == th[j][0]:
-                                # assign rho_mg based on the rho_mg of the thickness
-                                rho_mg[i] = mgDict['rho'][j]                   
+                        for j in range(0,len(LThick)):
+                            thind = np.where(th[:][0]==LThick[j])
+                            # assign rho_mg based on the rho_mg of the thickness
+                            rho_mg[i] = mgDict['rho'][thind]
+                        # for j in range(0,len(th)):
+                        #     # compare thickness to th list
+                        #     if LThick == th[j][0]:
+                        #         # assign rho_mg based on the rho_mg of the thickness
+                        #         rho_mg[i] = mgDict['rho'][j]                   
                     
         
             nd = [] # list of dictionaries for new design dictionary sections part
@@ -743,7 +749,6 @@ class DynamicCable(Edge):
                     cdAx.append(st[linekey]['CdAx'])
                 else:
                     cdAx.append(0.5)
-                
                 if LThick[j] == 0:
                     nd[j]['type'] = deepcopy(st[linekey])
                     nd[j]['type']['name'] = j
