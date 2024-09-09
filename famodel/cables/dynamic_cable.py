@@ -778,6 +778,8 @@ class DynamicCable(Edge):
                     ndt['name'] = str(j)
                     if 'MBL' in oldLine.lineTypes[linekey]:
                         ndt['MBL'] = oldLine.lineTypes[linekey]['MBL']
+                    if 'MBR' in oldLine.lineTypes[linekey]:
+                        ndt['MBR'] = oldLine.lineTypes[linekey]['MBR']
                     if 'cost' in oldLine.lineTypes[linekey]:
                         ndt['cost'] = oldLine.lineTypes[linekey]['cost']
                     ndt['EA'] = EA[j]

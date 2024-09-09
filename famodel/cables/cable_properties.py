@@ -256,7 +256,7 @@ def getBuoyProps(V, buoy_type, buoyProps=None, source=None, name="", rho=1025.0,
     #                 MBL=MBL, MBR=MBR, A=A, power=power, resistance=resistance,
     #                 cost=cost, notes=notes)
     buoyType = dict(name=typestring, d=d, m=mass, w=w,
-                    cost=cost, density=ctd['density'], volume=V, notes=notes)
+                    cost=cost, density=ctd['density'], volume=V, l=l, notes=notes)
     
     buoyType.update(kwargs)   # add any custom arguments provided in the call to the buoyType's dictionary
           
