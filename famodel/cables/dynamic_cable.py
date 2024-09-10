@@ -732,8 +732,8 @@ class DynamicCable(Edge):
                 m.append(st[linekey]['m'])
                 d_ve_old.append(st[linekey]['d_vol'])
                 if not 'd_nom' in st[linekey]:
-                    # calculate d_nom assume 0.8 d_vol_d_nom_adjust
-                    d_nom_old.append(st[linekey]['d_vol']/0.8)
+                    # calculate d_nom ***assume d_vol = d_nom
+                    d_nom_old.append(st[linekey]['d_vol'])
                 else:               
                     d_nom_old.append(st[linekey]['d_nom'])
                 ve_nom_adjust.append(d_ve_old[-1]/d_nom_old[-1])
@@ -780,7 +780,7 @@ class DynamicCable(Edge):
                     
                     # add line details to dictionary
                     # ndt['material'] = Mats[j]
-                    ndt['name'] = str(j)
+                    ndt['name'] = oldLine.lineTypes[linekey]['name']
                     if 'MBL' in oldLine.lineTypes[linekey]:
                         ndt['MBL'] = oldLine.lineTypes[linekey]['MBL']
                     if 'MBR' in oldLine.lineTypes[linekey]:
