@@ -475,14 +475,14 @@ class DynamicCable(Edge):
                         dd['sections'][-1]['length'] = self.L - bs['L_mid'] - Ls/2
                         currentL += self.L - bs['L_mid'] - Ls/2
         '''        
-        # check if a subsystem already exists
-        if pristine:
-            if self.ss:
-                print('A subsystem for this Dynamic cable class instance already exists, this will be overwritten.')
-        else:
-            #breakpoint()
-            if self.ss_mod:
-                print('A modified subsystem for this Dynamic cable class instance already exists, this will be overwritten.')
+        # # check if a subsystem already exists
+        # if pristine:
+        #     if self.ss:
+        #         print('A subsystem for this Dynamic cable class instance already exists, this will be overwritten.')
+        # else:
+        #     #breakpoint()
+        #     if self.ss_mod:
+                # print('A modified subsystem for this Dynamic cable class instance already exists, this will be overwritten.')
         ss=Subsystem(depth=self.depth, rho=self.rho, g=self.g, 
                           span=self.span, rad_fair=self.rad_fair,
                           z_fair=self.z_fair)
@@ -805,11 +805,11 @@ class DynamicCable(Edge):
                         w_bare_mg = float(rho_mg[j]-self.rho)*self.g*v_bare_mg
                         # step 4: calc total weight of segment, including mg, buoy weight, and cable weight (buoy weight + cable weight combined in listed weight for the line section)
                         w_seg = w_bmg + w_bare_mg + st[linekey]['w']*Ls
-                        # step 5: calc total weight of section (actual section length, not just one buoy to buoy segment)
-                        ndt['w'] = (bs['N_modules'] - 1)*w_seg
+                        # step 5: calc total weight of section/m
+                        ndt['w'] = float(w_seg/Ls)
                         # get section mass in case it's needed
                         m_seg = v_bmg*rho_mg[j] + v_bare_mg*rho_mg[j] + st[linekey]['m']*Ls
-                        ndt['m'] = (bs['N_modules'] - 1)*m_seg
+                        ndt['m'] = float(m_seg/Ls)
                         
                     else:                  
                         mu_mg[j] = 1
@@ -822,7 +822,7 @@ class DynamicCable(Edge):
                         ndt['w'] = float(growthMass*(1-self.rho/rho_mg[j])*self.g + (m[j]-np.pi/4*d_ve_old[j]**2*self.rho)*self.g) # N/m
                         
                     # calculate new volume-equivalent diameter (cannot use regular chain/polyester conversion because of added marine growth)
-                    ndt['d_vol'] = np.sqrt(4*((ndt['m']*self.g-ndt['w'])/self.rho/self.g)/np.pi)
+                    ndt['d_vol'] = float(np.sqrt(4*((ndt['m']*self.g-ndt['w'])/self.rho/self.g)/np.pi))
                     
                     # calculate new increased drag coefficient from marine growth
                     # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
