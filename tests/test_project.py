@@ -130,7 +130,7 @@ def test_marine_growth():
     Cab = project.cableList['suspended_cable11'].subcomponents[0].ss.lineList[0].type['d_vol']
     mgCab = project.cableList['suspended_cable11'].subcomponents[0].ss_mod.lineList[0].type['d_vol']
     
-    assert_allclose(np.hstack((mgMoor,mgCab)),np.hstack((Moor+0.1156,Cab+0.4267756)),rtol=0,atol=0.05)
+    assert_allclose(np.hstack((mgMoor,mgCab)),np.hstack((Moor+0.1156,Cab+0.4)),rtol=0,atol=0.05)
     
 def test_seabed():
     '''test seabed properties are properly loaded and included in anchor design dictionaries'''

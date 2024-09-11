@@ -548,6 +548,11 @@ class DynamicCable(Edge):
                                                 - [0.05,-100,-80]
                                                 - [0.10,-80,-40]
                                                 - [0.20,-40,0]
+                buoy_th : list of thicknesses associated with buoyancy sections. This is used to simplify the marine growth modeling on buoys.
+                        * In order of sections from end A to end B (also the order of sections listed in buoyancy_sections list in the dd)
+                        example, if 3 buoyancy sections: - 0.1
+                                                         - 0.05
+                                                         - 0.1
                 rho : list of densities for each thickness, or one density for all thicknesses, [kg/m^3] (optional - default is 1325 kg/m^3)
                 }
         Returns
@@ -576,98 +581,121 @@ class DynamicCable(Edge):
             changeDepths = [] # index of list that has the corresponding changeDepth
             
             sCount = 0
+            buoyCount = -1
             # go through each line section
             for i in range(0,len(oldLine.lineList)):
+                
                 slthick = [] # mg thicknesses for the section (if rA is above rB, needs to be flipped before being added to full subsystem list LThick)
                 slength = [] # line lengths for the section (if rA is above rB, needs to be flipped before being added to full subsystem list)
                 schangeDepth = [] # changeDepths for the section (if rA is above rB, needs to be flipped before being added to full subsystem list)
                 # set reference subsystem line section location
                 ssLine = oldLine.lineList[i]
+                
+                # determine if it's a buoy section
+                if ssLine.type['w'] < 0:
+                    calcCDs = 0 # don't go through loop to find change depths of this section
+                    # add to buoyCounter
+                    buoyCount += 1
+                else:
+                    calcCDs = 1
+                
+                
                 # add line material, type to list
                 # Mats.append(ssLine.type['material'])
                 LTypes.append(ssLine.type['name'])
+                
+                if calcCDs:
                            
-                # check whether rA is above rB (can happen for sections of shared lines)
-                if ssLine.rA[2]>ssLine.rB[2]: # set low and high point locations accordingly
-                    low = ssLine.rB
-                    high = ssLine.rA
-                    flip = 1
-                else:
-                    low = ssLine.rA
-                    high = ssLine.rB
-                    flip = 0
-    
-                th = mgDict['th'] # set location for ease of coding
-                # look up what thickness this line section starts at (if lowest point is not on the sea floor, first segment will have a thickness other than the sea floor thickness)
-                rAth = 0 # exit while loop when we find thickness at low
-                count1 = 0 # counter
-                while rAth==0: # and count1 < len(th):
-                    if count1 == len(th):
-                        breakpoint()
-                    if flip:
-                        if high[2] <= th[count1][2]:
-                            LThick.append(th[count1][0])
-                            rAth = 1 # exit while loop
+                    # check whether rA is above rB (can happen for sections of shared lines)
+                    if ssLine.rA[2]>ssLine.rB[2]: # set low and high point locations accordingly
+                        low = ssLine.rB
+                        high = ssLine.rA
+                        flip = 1
                     else:
-                        if low[2] <= th[count1][2]:
-                            LThick.append(th[count1][0])
-                            rAth = 1 # exit while loop
-                    count1 = count1 + 1 # iterate counter
-                    
-                # determine if this line section will be split
-                for j in range(0,len(th)): # go through all changeDepths
-                    if flip:
-                        rs = 2
-                    else:
-                        rs = 1
-                    if th[j][rs]>low[2] and th[j][rs]<high[2]:
-                        # line section will be split - add line type, mg thickness, and material to list
-                        LTypes.append(ssLine.type['name'])
-                        slthick.append(th[j][0])
-                        # Mats.append(ssLine.type['material'])
-                        # add an empty connector object to list for split location
-                        sCount += 1
-                        changePoints.append(sCount)
-                        schangeDepth.append([j,rs])
-                        
-                        # get length of line between each node
-                        lenseg = ssLine.L/ssLine.nNodes
-                        
-                        old_line = ssLine.getLineCoords(Time=0) # get the coordinates of the line
-                        #find length of each new section by finding node at changeDepth
-                        for k in range(0, ssLine.nNodes-1): # go through each node in the line
-                            if flip: # need to check the node ahead is <= the changeDepth to see which node is split
-                                if old_line[2][k+1]<=th[j][rs] and old_line[2][k]>th[j][rs]:
-                                    nodeD = k+1 # nodeD is closest node below changeDepth
-                                    xp = old_line[2][::-1] # flip because np.interp doesn't take
-                                    yp = old_line[1][::-1]
-                                    fp = old_line[0][::-1]
-                                    #print('\n\n',old_line,'\n\n')
-                            else:
-                                if old_line[2][k]<=th[j][rs] and old_line[2][k+1]>th[j][rs]:
-                                    nodeD = k # the node right below changeDepth depth
-                                    xp = old_line[2][:]
-                                    yp = old_line[1][:]
-                                    fp = old_line[0][:]
-                        
-                        # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
-                        xChange = float(np.interp(th[j][rs], xp, fp))
-                        yChange = float(np.interp(th[j][rs], xp, yp))
-                        
-                        # get the "raw length" of the new lower line (from lower end of section to split point) - if there is multiple splits in one line section this raw length may not be the actual length of the new line
-                        if flip: # node numbers start at end A (top) so need to subtract from total line length
-                            # raw length = total line length - nodeD*(segment length) + 3d pythagorean theorem (to find length from nodeD to actual cutoff location)
-                            ln_raw.append(ssLine.L - lenseg*nodeD + np.sqrt((xChange-old_line[0][nodeD])**2 + (yChange-old_line[1][nodeD])**2 + (th[j][rs]-old_line[2][nodeD])**2))
+                        low = ssLine.rA
+                        high = ssLine.rB
+                        flip = 0
+        
+                    th = mgDict['th'] # set location for ease of coding
+                    # look up what thickness this line section starts at (if lowest point is not on the sea floor, first segment will have a thickness other than the sea floor thickness)
+                    rAth = 0 # exit while loop when we find thickness at low
+                    count1 = 0 # counter
+                    while rAth==0: # and count1 < len(th):
+                        if count1 == len(th):
+                            breakpoint()
+                        if flip:
+                            if high[2] <= th[count1][2]:
+                                LThick.append(th[count1][0])
+                                rAth = 1 # exit while loop
                         else:
-                            # raw length = nodeD*(segment length) + 3d pythagorean theorem 
-                            ln_raw.append(lenseg*nodeD + np.sqrt((xChange-old_line[0][nodeD])**2 + (yChange-old_line[1][nodeD])**2 + (th[j][rs]-old_line[2][nodeD])**2))
+                            if low[2] <= th[count1][2]:
+                                LThick.append(th[count1][0])
+                                rAth = 1 # exit while loop
+                        count1 = count1 + 1 # iterate counter
                         
-                        
-                        if len(slthick)>1: # line has multiple cuts (upper cut sections have to count the length only from previous nodeD)
-                            slength.append(float(ln_raw[-1]-ln_raw[-2]))
+                    # determine if this line section will be split
+                    for j in range(0,len(th)): # go through all changeDepths
+                        if flip:
+                            rs = 2
+                        else:
+                            rs = 1
+                        if th[j][rs]>low[2] and th[j][rs]<high[2]:
+                            # line section will be split - add line type, mg thickness, and material to list
+                            LTypes.append(ssLine.type['name'])
+                            slthick.append(th[j][0])
+                            # Mats.append(ssLine.type['material'])
+                            # add an empty connector object to list for split location
+                            sCount += 1
+                            changePoints.append(sCount)
+                            schangeDepth.append([j,rs])
                             
-                        else: # first split (raw length is actual length)
-                            slength.append(float(ln_raw[-1]))
+                            # get length of line between each node
+                            lenseg = ssLine.L/ssLine.nNodes
+                            
+                            old_line = ssLine.getLineCoords(Time=0) # get the coordinates of the line
+                            #find length of each new section by finding node at changeDepth
+                            for k in range(0, ssLine.nNodes-1): # go through each node in the line
+                                if flip: # need to check the node ahead is <= the changeDepth to see which node is split
+                                    if old_line[2][k+1]<=th[j][rs] and old_line[2][k]>th[j][rs]:
+                                        nodeD = k+1 # nodeD is closest node below changeDepth
+                                        xp = old_line[2][::-1] # flip because np.interp doesn't take
+                                        yp = old_line[1][::-1]
+                                        fp = old_line[0][::-1]
+                                        #print('\n\n',old_line,'\n\n')
+                                else:
+                                    if old_line[2][k]<=th[j][rs] and old_line[2][k+1]>th[j][rs]:
+                                        nodeD = k # the node right below changeDepth depth
+                                        xp = old_line[2][:]
+                                        yp = old_line[1][:]
+                                        fp = old_line[0][:]
+                            
+                            # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
+                            xChange = float(np.interp(th[j][rs], xp, fp))
+                            yChange = float(np.interp(th[j][rs], xp, yp))
+                            
+                            # get the "raw length" of the new lower line (from lower end of section to split point) - if there is multiple splits in one line section this raw length may not be the actual length of the new line
+                            if flip: # node numbers start at end A (top) so need to subtract from total line length
+                                # raw length = total line length - nodeD*(segment length) + 3d pythagorean theorem (to find length from nodeD to actual cutoff location)
+                                ln_raw.append(ssLine.L - lenseg*nodeD + np.sqrt((xChange-old_line[0][nodeD])**2 + (yChange-old_line[1][nodeD])**2 + (th[j][rs]-old_line[2][nodeD])**2))
+                            else:
+                                # raw length = nodeD*(segment length) + 3d pythagorean theorem 
+                                ln_raw.append(lenseg*nodeD + np.sqrt((xChange-old_line[0][nodeD])**2 + (yChange-old_line[1][nodeD])**2 + (th[j][rs]-old_line[2][nodeD])**2))
+                            
+                            
+                            if len(slthick)>1: # line has multiple cuts (upper cut sections have to count the length only from previous nodeD)
+                                slength.append(float(ln_raw[-1]-ln_raw[-2]))
+                                
+                            else: # first split (raw length is actual length)
+                                slength.append(float(ln_raw[-1]))
+                                
+                else:
+                    # this is a buoy section, add the prescribed buoy marine growth thickness
+                    if isinstance(mgDict['buoy_th'],list):
+                        # add the buoy thickness for this specific buoyancy section
+                        LThick.append(mgDict['buoy_th'][buoyCount])
+                    else:
+                        # add the single buoy thickness
+                        LThick.append(mgDict['buoy_th'])
                     
                 if slthick: # add the length of the top line (from last split to upper end of section) if there was a split in the line
                     slength.append(float(ssLine.L-ln_raw[-1]))
@@ -711,12 +739,7 @@ class DynamicCable(Edge):
                         for j in range(0,len(LThick)):
                             thind = np.where(th[:][0]==LThick[j])
                             # assign rho_mg based on the rho_mg of the thickness
-                            rho_mg[i] = mgDict['rho'][thind]
-                        # for j in range(0,len(th)):
-                        #     # compare thickness to th list
-                        #     if LThick == th[j][0]:
-                        #         # assign rho_mg based on the rho_mg of the thickness
-                        #         rho_mg[i] = mgDict['rho'][j]                   
+                            rho_mg[i] = mgDict['rho'][thind]             
                     
         
             nd = [] # list of dictionaries for new design dictionary sections part
@@ -753,23 +776,51 @@ class DynamicCable(Edge):
                     nd[j]['type'] = deepcopy(st[linekey])
                     nd[j]['type']['name'] = j
                 else:
-                    mu_mg[j] = 1
-                    
-                    # re-form dictionaries with marine growth values            
                     # calculate nominal diameter
                     d_nom_old[j] = d_ve_old[j]/ve_nom_adjust[j] # m
                     
+                    # re-form dictionaries with marine growth values
+                    
                     # calculate new line diameter that includes marine growth
                     ndt['d_nom'] = float(d_nom_old[j]+2*LThick[j]) #m
-                    print('\n d_nom_old: ',d_nom_old[j],' d_npm: ',ndt['d_nom'])
                     
-                    # calculate the new mass per meter including marine growth
-                    growthMass = np.pi/4*(ndt['d_nom']**2-d_nom_old[j]**2)*rho_mg[j]*mu_mg[j] # marine growth mass
-                    ndt['m'] =  float(growthMass + m[j]) # kg/m (total mass)
                     
-                    # calculate the submerged weight per meter including marine growth
-                    ndt['w'] = float(growthMass*(1-self.rho/rho_mg[j])*self.g + (m[j]-np.pi/4*d_ve_old[j]**2*self.rho)*self.g) # N/m
-                    
+                    # check if this is a buoyant section or regular section
+                    if st[linekey]['w'] < 0:
+                        # this is a buoyant section - add marine growth on modules
+                        
+                        # step 1: get module info from design dictionary
+                        bs = self.dd['buoyancy_sections'][buoyCount]
+                        Ls = bs['spacing'] # get length of segment between centers of 2 modules
+                        d_b = bs['module_props']['d']
+                        v_b = bs['module_props']['volume']
+                        l_b = bs['module_props']['l']
+                        m_b = bs['module_props']['m'] # total mass of buoy (not mass/m)
+                        w_b = bs['module_props']['w']
+                        # step 2: calc volume & weight of marine growth on one buoy (assume cylindrical buoy)
+                        v_bmg = np.pi/4*((d_b+2*LThick[j])**2-d_b**2)*l_b + np.pi/2*((d_b+2*LThick[j])**2-d_nom_old[j]**2)*LThick[j] # around cylinder + sides of cylinder
+                        w_bmg = float(rho_mg[j]-self.rho)*self.g*v_bmg
+                        # step 3: calc volume & weight of marine growth on bare cable segment between 2 buoys (segment length - buoy length - 2*mg thickness from side wall marine growth of buoy)
+                        v_bare_mg = np.pi/4*((d_nom_old[j]+2*LThick[j])**2-d_nom_old[j]**2)*(Ls-l_b-2*LThick[j])
+                        w_bare_mg = float(rho_mg[j]-self.rho)*self.g*v_bare_mg
+                        # step 4: calc total weight of segment, including mg, buoy weight, and cable weight (buoy weight + cable weight combined in listed weight for the line section)
+                        w_seg = w_bmg + w_bare_mg + st[linekey]['w']*Ls
+                        # step 5: calc total weight of section (actual section length, not just one buoy to buoy segment)
+                        ndt['w'] = (bs['N_modules'] - 1)*w_seg
+                        # get section mass in case it's needed
+                        m_seg = v_bmg*rho_mg[j] + v_bare_mg*rho_mg[j] + st[linekey]['m']*Ls
+                        ndt['m'] = (bs['N_modules'] - 1)*m_seg
+                        
+                    else:                  
+                        mu_mg[j] = 1
+     
+                        # calculate the new mass per meter including marine growth
+                        growthMass = np.pi/4*(ndt['d_nom']**2-d_nom_old[j]**2)*rho_mg[j]*mu_mg[j] # marine growth mass
+                        ndt['m'] =  float(growthMass + m[j]) # kg/m (total mass)
+                        
+                        # calculate the submerged weight per meter including marine growth
+                        ndt['w'] = float(growthMass*(1-self.rho/rho_mg[j])*self.g + (m[j]-np.pi/4*d_ve_old[j]**2*self.rho)*self.g) # N/m
+                        
                     # calculate new volume-equivalent diameter (cannot use regular chain/polyester conversion because of added marine growth)
                     ndt['d_vol'] = np.sqrt(4*((ndt['m']*self.g-ndt['w'])/self.rho/self.g)/np.pi)
                     
@@ -779,7 +830,6 @@ class DynamicCable(Edge):
                     ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
                     
                     # add line details to dictionary
-                    # ndt['material'] = Mats[j]
                     ndt['name'] = oldLine.lineTypes[linekey]['name']
                     if 'MBL' in oldLine.lineTypes[linekey]:
                         ndt['MBL'] = oldLine.lineTypes[linekey]['MBL']
@@ -796,6 +846,8 @@ class DynamicCable(Edge):
             # fill out rest of new design dictionary
             nd1 = deepcopy(self.dd)
             nd1['sections'] = nd
+            
+            #breakpoint()
             
             # call createSubsystem() to make moorpy subsystem with marine growth
             if self.shared>0:

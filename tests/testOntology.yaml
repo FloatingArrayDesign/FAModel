@@ -94,6 +94,7 @@ site:
           - [0.05,-200,-80, 1325]
           - [0.10,-80,-40, 1325]
           - [0.20,-40,0, 1325]
+        buoys: [0.1,0.1]
 # ----- Array-level inputs -----
 
 # Wind turbine array layout

@@ -1095,6 +1095,7 @@ class Project():
                     else:
                         mgDict['density'].append(mg[i][3])
                 mgDict['th'].append(mg[i][:3])
+            mgDict['buoy_th'] = site['marine_growth']['buoys']
                 
             self.marine_growth = mgDict
                     
