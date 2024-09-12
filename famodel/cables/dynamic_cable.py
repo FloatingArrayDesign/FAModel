@@ -791,25 +791,29 @@ class DynamicCable(Edge):
                         
                         # step 1: get module info from design dictionary
                         bs = self.dd['buoyancy_sections'][buoyCount]
-                        Ls = bs['spacing'] # get length of segment between centers of 2 modules
+                        ls = bs['spacing'] # get length of segment between centers of 2 modules
+                        Ls = bs['spacing']*(bs['N_modules']-1) # length of buoyancy segment
+                        N_b = bs['N_modules']
                         d_b = bs['module_props']['d']
                         v_b = bs['module_props']['volume']
                         l_b = bs['module_props']['l']
                         m_b = bs['module_props']['m'] # total mass of buoy (not mass/m)
                         w_b = bs['module_props']['w']
                         # step 2: calc volume & weight of marine growth on one buoy (assume cylindrical buoy)
-                        v_bmg = np.pi/4*((d_b+2*LThick[j])**2-d_b**2)*l_b + np.pi/2*((d_b+2*LThick[j])**2-d_nom_old[j]**2)*LThick[j] # around cylinder + sides of cylinder
-                        w_bmg = float(rho_mg[j]-self.rho)*self.g*v_bmg
+                        v_bmg = np.pi/4*((d_b+2*LThick[j])**2-d_b**2)*l_b 
+                        v_bmgs = v_bmg + np.pi/2*((d_b+2*LThick[j])**2-self.d0**2)*LThick[j] # around cylinder + sides of cylinder
+                        w_bmg = float(rho_mg[j]-self.rho)*self.g*v_bmgs
                         # step 3: calc volume & weight of marine growth on bare cable segment between 2 buoys (segment length - buoy length - 2*mg thickness from side wall marine growth of buoy)
-                        v_bare_mg = np.pi/4*((d_nom_old[j]+2*LThick[j])**2-d_nom_old[j]**2)*(Ls-l_b-2*LThick[j])
+                        v_bare_mg = np.pi/4*((self.d0+2*LThick[j])**2-self.d0**2)*(ls-l_b-2*LThick[j])*(N_b-1)
                         w_bare_mg = float(rho_mg[j]-self.rho)*self.g*v_bare_mg
                         # step 4: calc total weight of segment, including mg, buoy weight, and cable weight (buoy weight + cable weight combined in listed weight for the line section)
-                        w_seg = w_bmg + w_bare_mg + st[linekey]['w']*Ls
+                        w_seg = w_bmg*N_b + w_bare_mg + st[linekey]['w']*Ls
                         # step 5: calc total weight of section/m
                         ndt['w'] = float(w_seg/Ls)
                         # get section mass in case it's needed
-                        m_seg = v_bmg*rho_mg[j] + v_bare_mg*rho_mg[j] + st[linekey]['m']*Ls
+                        m_seg = v_bmg*rho_mg[j]*N_b + v_bare_mg*rho_mg[j] + st[linekey]['m']*Ls
                         ndt['m'] = float(m_seg/Ls)
+                        
                         
                     else:                  
                         mu_mg[j] = 1

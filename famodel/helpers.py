@@ -98,6 +98,59 @@ def updateYAML_array(fname,outx,outy,turbID,pfID,moorID,hadjust,newFile):
     with open(newFile,'w') as f:    
         yaml.dump(data,f)
 
+def updateYAML_MooringConfig(fname,ms,newfile):
+    '''
+    Update a yaml file with mooring configuration and mooring line type info from a moorpy system
+
+    Parameters
+    ----------
+    fname : str
+        YAML file to read in
+    ms : object
+        MoorPy system
+    newfile : str
+        YAML file to write to
+
+    Returns
+    -------
+    None.
+
+    '''
+    import ruamel.yaml 
+    yaml = ruamel.yaml.YAML()
+    from moorpy.subsystem import Subsystem
+    from moorpy.helpers import lines2ss
+    
+    # read in yaml file
+    with open(fname) as fp:
+        data = yaml.load(fp)
+        
+    # fill in mooring line types info
+    for mtype in ms.lineTypes:
+        data['mooring_line_types'][mtype] = ms.lineTypes[mtype]
+    
+    for i,line in enumerate(ms.lineList):
+        if not isinstance(line,Subsystem):
+            # convert to subsystem
+            lines2ss(ms)
+        types = []
+        lengths = []
+        connType = []
+        for seg in line:
+            types.append(seg.type['name'])
+            lengths.append(seg.L)
+        for j,conn in enumerate(line.pointList):
+            connType.append({})
+            if conn.m != 0:
+                connType.append({'m':conn.m})
+                connType[-1]['v'] = conn.v 
+                connType[-1]['Cd'] = conn.cd
+        
+        # 
+
+            
+            
+    
 
 def updateYAML_mooring(fname,ms,newfile):
     '''

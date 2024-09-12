@@ -707,10 +707,10 @@ class Project():
                     mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
 
                     # check if anchor instance already exists
-                    if any(tt == ('shared', arrayMooring[j]['end A']) for tt in self.anchorList): # anchor name exists already in list
+                    if any(tt == 'shared_'+ arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
                         # find anchor class instance
                         for anch in self.anchorList:#range(0,len(self.anchorList)):
-                            if anch == ('shared', arrayMooring[j]['end A']):
+                            if anch == 'shared_'+arrayMooring[j]['end A']:
                                 mc.attachTo(self.anchorList[anch],end='A')
 
                     else:
@@ -729,9 +729,9 @@ class Project():
                         mc.dd['zAnchor'] = -zAnew
                         mc.z_anch = -zAnew
                         # create anchor object
-                        self.anchorList[('shared',arrayAnchor[k]['ID'])] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1],id=('shared',arrayAnchor[k]['ID']))
+                        self.anchorList['shared_'+arrayAnchor[k]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1],id='shared_'+arrayAnchor[k]['ID'])
                         # attach mooring object to anchor
-                        mc.attachTo(self.anchorList[('shared',arrayAnchor[k]['ID'])],end='A')
+                        mc.attachTo(self.anchorList[('shared_',arrayAnchor[k]['ID'])],end='A')
                   
                     # add mooring object to project mooring list
                     self.mooringList[str(PFNum[0])+alph[ind]] = mc
