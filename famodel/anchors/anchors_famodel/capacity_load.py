@@ -24,21 +24,15 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, Su0, k):
         Mooring line angle at mudlevel [deg]
     zlug : float 
         Embedded depth of the lug [m]
-    safety_factor: float
-        Specify 'yes' or 'no'. This affects load and resistance factors.
+    soil_type: string
+        Select soil condition, 'clay' or 'sand'
+    d : float
+        Chain diameter [m]
     Su0 : float 
         Undrained shear strength at the mudline (clay) [kPa]
     k : float 
         Undrained shear strength gradient (clay) [kPa/m]
-    nhu : float 
-        Friction coefficient between the mooring line and soil
-    Ab : float
-        Effective unit bearing area (2.5 - 2.6 times Chain Dia)
-    Nc : float
-        Bearing capacity factor (9 and 14) DNV-RP-E301 
-    d : float
-        Chain diameter [m]
-    
+  
     Returns
     -------
     Ta : float 
@@ -49,9 +43,9 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, Su0, k):
     
     # Setting bearing capacity values per soil type
     if soil_type == 'clay':
-        Nc = 8.5; Ab=2.5; nhu=0.40
-    elif soil_type == 'sand':
-        Nc = 9; Ab=2.5; nhu=0.40
+        Nc = 8.5; Ab=2.5; nhu=0.40   # Nc    - Bearing capacity factor (9 and 14) DNV-RP-E301 
+    elif soil_type == 'sand':        # Ab    - Effective unit bearing area (2.5 - 2.6 times chain dia)
+        Nc = 9; Ab=2.5; nhu=0.40     # nhu   - Friction coefficient between the mooring line and soil
         
     thetam =  np.radians(thetam)
     print(thetam)
@@ -82,7 +76,8 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, Su0, k):
     
     return resultsLoad
 
-def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None):
+def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, w=None):
+
     
     '''Calculate the transfer load from the mudline to the main padeye elevation using the DNV standards.
     The calculation is based on the mooring line properties, anchor geometry and the load from MoorPy and RAFT.  
@@ -95,16 +90,16 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None)
         Mooring line angle at mudlevel [deg]
     zlug : float 
         Embedded depth of the lug [m]
-    safety_factor: float
-        Specify 'yes' or 'no'. This affects load and resistance factors.
-    Su0 : float 
-        Undrained shear strength at the mudline (clay only), default is 2.39. [kPa]
-    k : float 
-        Undrained shear strength gradient (clay only), default is 1.41. [kPa/m]
-    Nc : float
-        Bearing capacity factor (clay and sand)
+    soil_type = string
+        Select soil condition, 'clay' or 'sand'
     d : float
-        Chain diameter [m]        
+        Chain diameter [m]    
+    Su0 : float 
+        Undrained shear strength at the mudline (clay only) [kPa]
+    k : float 
+        Undrained shear strength gradient (clay only) [kPa/m]
+    w : float
+        Mooring line unit weight [kg/m]
     
     Returns
     -------
@@ -114,7 +109,8 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None)
         Inclined load angle at the anchor lug [deg]
     '''
     
-       
+    deltas = 0.2
+    
     # Setting bearing capacity values per soil type
     if soil_type == 'clay':
         Nc = 8.5
@@ -123,15 +119,13 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None)
     
     # Include element weight in terms of d and match it with deltas
     if line_type == 'chain':   
-        AS = 11.3*d; AB = 2.5*d; alpha = 0.5; W = 15; 
+        AS = 11.3*d; AB = 2.5*d; alpha = 0.5; W = w*deltas; 
     elif line_type == 'wire':
-        AS = np.pi*d; AB = d; alpha = 0.3; W = 80;
+        AS = np.pi*d; AB = d; alpha = 0.3; W = w*deltas;
     
     T = Tm; theta = np.deg2rad(thetam);
     Su = Su0; drag = 0; depth = 0
-     
-    deltas = 0.2
-    
+         
     T_values = []; Su_values = [];
     drag_values = []; depth_values = []; 
     
@@ -151,12 +145,12 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None)
     H = FoSh*Ta*np.cos(thetaa); V = FoSv*Ta*np.sin(thetaa) 
     length_values = deltas*len(drag_values)
      
-    resultsLoadDNV = {}
-    resultsLoadDNV['load'] = Ta                   # Load magnitude @ lug
-    resultsLoadDNV['angle'] = np.rad2deg(thetaa)  # Load angle @ lug
-    resultsLoadDNV['H'] = H                       # Horizontal component @ lug
-    resultsLoadDNV['V'] = V                       # Vertical component @ lug
-    resultsLoadDNV['length'] = length_values      # Length of the embedded line
+    resultsLoad = {}
+    resultsLoad['load'] = Ta                   # Load magnitude @ lug
+    resultsLoad['angle'] = np.rad2deg(thetaa)  # Load angle @ lug
+    resultsLoad['H'] = H                       # Horizontal component @ lug
+    resultsLoad['V'] = V                       # Vertical component @ lug
+    resultsLoad['length'] = length_values      # Length of the embedded line
     
     # Plot of the line and extreme line tension
     drag_values = [-1*i for i in drag_values]
@@ -176,64 +170,7 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None)
     plt.suptitle('Inverse catenary profile in soil DNV')
     #plt.axis([0,1.3*max(X[0],H),0,1.3*max(Y[-1],V)]) 
     plt.grid(True)
-    plt.show()
-    
-    return resultsLoadDNV
-    
-if __name__ == '__main__':
-          
-    ''' 
-    Testing the function in one case
-    '''
-    '''
-    # retrieves input data from a separate config file
-    with open('LoadConfig.yml', 'r') as f:
-        config = yaml.full_load(f)
-    Tm = config['Tm']; thetam = config['thetam']
-    zlug = config['zlug']; 
-    Su0 = config['Su0']; dSu = config['dSu']
-    nhu = config['nhu']; 
-    Nc = config['Nc'];  Ab = config['Ab']  
-    '''
-    
-    zlug = 14.31
-    Tm = 21000
-    thetam = 5
-    
-    #resultsLoad = getAnchorLoad(Tm, thetam, zlug)
-    resultsLoadDNV = getTransferLoad(Tm, thetam, zlug)
-    
-    # print('******************* Load Transfer Resuls *********************')
+    plt.show()   
 
-    # print('Anchor load,                          ' , resultsLoad['load'], '[kN]') 
-    # print('Anchor angle,                         ' , resultsLoad['angle'], '[deg]')
-    # print('Horizontal load @ lug depth,          ' , resultsLoad['H'], '[kN]') 
-    # print('Vertical load @ lug depth,            ' , resultsLoad['V'], '[kN]')
-
-    # print('**************************************************************') 
-     
-
-          
-    ''' 
-    Testing the function in one case
-
-    # retrieves input data from a separate config file
-    with open('LoadConfig.yml', 'r') as f:
-        config = yaml.full_load(f)
-    Tm = config['Tm']; thetam = config['thetam']
-    zlug = config['zlug']; 
-    Su0 = config['Su0']; k = config['k']
-    nhu = config['nhu']; 
-    Nc = config['Nc']; Ab = config['Ab']  
-    '''
-    
-    
-    print('***************** Load Transfer Results DNV *******************')
-
-    print('Anchor load,                          ' , resultsLoadDNV['load'], '[kN]') 
-    print('Anchor angle,                         ' , resultsLoadDNV['angle'], '[deg]')
-    print('Horizontal load @ lug depth,          ' , resultsLoadDNV['H'], '[kN]') 
-    print('Vertical load @ lug depth,            ' , resultsLoadDNV['V'], '[kN]')
-
-    print('**************************************************************') 
+    return resultsLoad
 
