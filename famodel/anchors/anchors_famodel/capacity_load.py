@@ -43,9 +43,9 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, Su0, k):
     
     # Setting bearing capacity values per soil type
     if soil_type == 'clay':
-        Nc = 8.5; Ab=2.5; nhu=0.40   # Nc    - Bearing capacity factor (9 and 14) DNV-RP-E301 
+        Nc = 8.5; AB=2.5; nhu=0.40   # Nc    - Bearing capacity factor (9 and 14) DNV-RP-E301 
     elif soil_type == 'sand':        # Ab    - Effective unit bearing area (2.5 - 2.6 times chain dia)
-        Nc = 9; Ab=2.5; nhu=0.40     # nhu   - Friction coefficient between the mooring line and soil
+        Nc = 9; AB=2.5; nhu=0.40     # nhu   - Friction coefficient between the mooring line and soil
         
     thetam =  np.radians(thetam)
     print(thetam)
@@ -142,7 +142,7 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
         drag_values.append(drag); depth_values.append(depth); 
                
     Ta = T; thetaa = theta 
-    H = FoSh*Ta*np.cos(thetaa); V = FoSv*Ta*np.sin(thetaa) 
+    H = Ta*np.cos(thetaa); V = Ta*np.sin(thetaa) 
     length_values = deltas*len(drag_values)
      
     resultsLoad = {}

@@ -83,7 +83,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         Mmax = Np_fixed*L*L*D*Su_av_L; 
         
         # M modifies the Hmax capacity
-        M = - resultsLoad['V']*rlugTilt(rlug,zlug,thetalug) - resultsLoad['H']*(zlugTilt(rlug,zlug,thetalug) - ez)
+        M = - V*rlugTilt(rlug,zlug,thetalug) - H*(zlugTilt(rlug,zlug,thetalug) - ez)
         def f(Hmax):
              return m*(Hmax/(L*D*(Su0 + k*zlug)) - Np_fixed) + M*(Hmax/(L*D*(Su0 + k*zlug))/(Hmax*L))
         Hmax = fsolve(f,5);
@@ -96,8 +96,8 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         Tmax = min(Ti + To, To + Tbase) 
         
         # Introduce twist effects due to installation misaligment
-        T = resultsLoad['H']*rlug*np.sin(np.deg2rad(psilug))
-        nhuT = T/Tmax; nhuV = resultsLoad['H']/Fo;
+        T = H*rlug*np.sin(np.deg2rad(psilug))
+        nhuT = T/Tmax; nhuV = H/Fo;
         nhuVstar = np.sqrt(nhuV**2 - nhuT**2)
         alphastar = alpha*(nhuVstar/nhuV)
         
@@ -117,7 +117,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         sigma_av_L = gamma*2*L/3                             # Effective stress (average)
         Hmax = 0.5*D*Nq*gamma*L**2
 
-        M = - resultsLoad['V']*rlugTilt(rlug,zlug,thetalug) - resultsLoad['H']*(zlugTilt(rlug,zlug,thetalug) - zlug)
+        M = - V*rlugTilt(rlug,zlug,thetalug) - H*(zlugTilt(rlug,zlug,thetalug) - zlug)
         
         # Torsion capacity
         Fo = PileSurface(L, D)*beta*sigma_av_L
@@ -126,8 +126,8 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         Tmax = Ti + To
         
         # Introduce twist effects due to installation misaligment
-        T = resultsLoad['H']*rlug*np.sin(np.deg2rad(psilug))
-        nhuT = T/Tmax; nhuV = resultsLoad['H']/Fo;
+        T = H*rlug*np.sin(np.deg2rad(psilug))
+        nhuT = T/Tmax; nhuV = H/Fo;
         nhuVstar = np.sqrt(nhuV**2 - nhuT**2)
         alphastar = alpha*(nhuVstar/nhuV)
     
@@ -147,12 +147,12 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
     # Capacity envelope
     aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
     print('Env. exp = ' +str(aVH)+'   '+str(bVH))
-    UC = (resultsLoad['H']/Hmax)**aVH + (resultsLoad['V']/Vmax)**bVH      
+    UC = (H/Hmax)**aVH + (V/Vmax)**bVH      
     x = np.cos(np.linspace (0, np.pi/2, 100))
     y = (1 - x**bVH)**(1/aVH)
     X = Hmax*x; Y = Vmax*y
     plt.plot(X, Y, color = 'b')
-    plt.scatter(resultsLoad['H'], resultsLoad['V'], color = 'r')
+    plt.scatter(H, V, color = 'r')
         
     # Set labels and title
     plt.xlabel('Horizontal capacity [kN]')
@@ -236,7 +236,7 @@ def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
         Wsoil =(np.pi/4)*(Dia - 2*tw)**2*Len*gamma_soil
         return Wsoil
     
-    Hmax = Np_fixed*L*D*Su_av_L/FoSh
+    Hmax = Np_fixed*L*D*Su_av_L
     # "Plugged" (Reverse end bearing capacity - passive suction) 
     Vmax1 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + Nc*Su_tip*(np.pi/4)*D**2)
     # "Coring"        
@@ -251,7 +251,7 @@ def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
     # Submerged weight of the soil plug
     Ws = SoilWeight(L, D, t, gamma) 
     
-    H = Tm*np.cos(np.deg2rad(thetam)); V = Tm*np.sin(np.deg2rad(thetam))
+    # H = Tm*np.cos(np.deg2rad(thetam)); V = Tm*np.sin(np.deg2rad(thetam))
     
     # Capacity envelope
     aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
@@ -262,26 +262,9 @@ def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
     y = (1 - x**bVH)**(1/aVH)
     X = Hmax*x; Y = Vmax*y
 
-    iload = np.argwhere(np.diff(np.sign(np.degrees(np.arctan(Y/X)) - thetam))).flatten()[0]
-    #iload = np.argwhere(np.diff(np.sign(np.degrees(np.arctan(Y/X)) - thetam_sf))).flatten()[0]
-    H_good = X[iload]
-    V_good = Y[iload]
-
     #H_good = Hmax*np.exp(np.log(0.5)/aVH)
     #V_good = Vmax*np.exp(np.log(0.5)/bVH)
-
-    if plot:
-        plt.plot(X,Y,color = 'c')
-        plt.scatter(H,V,color = 'y')
-        plt.scatter(H_good, V_good, color='g')
-        # Set labels and title
-        plt.xlabel('Horizontal capacity [kN]')
-        plt.ylabel('Vertical capacity [kN]')
-        plt.suptitle('VH suction pile capacity envelope SIMP')
-        plt.axis([0,1.3*max(X[0], H), 0, 1.3*max(Y[-1], V)]) 
-        plt.grid(True)
-        plt.show()
-    
+   
     resultsSuctionSimp = {}
     resultsSuctionSimp['Horizontal max.'] = Hmax    # Capacity at specified loading angle
     resultsSuctionSimp['Vertical max.'] = Vmax      # Capacity at specified loading angle
@@ -289,7 +272,5 @@ def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
     resultsSuctionSimp['Weight Pile'] = Wp          # in kN
     resultsSuctionSimp['Weight Soil'] = Ws          # in kN
     resultsSuctionSimp['t'] = t
-    resultsSuctionSimp['H_good'] = H_good
-    resultsSuctionSimp['V_good'] = V_good
     
     return resultsSuctionSimp    

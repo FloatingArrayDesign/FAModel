@@ -21,16 +21,16 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
 
     Input:
     -----
-    Su_profile  - A 2D array of depths (m) and corresponding undrained shear strength(Pa)
-                  Eg: array([[z1,Su1],[z2,Su2],[z3,Su3]...])
+    profile     - A 2D array of depths (m) and corresponding undrained shear strength(Pa)
+                  Eg: array([[z1,UCS1],[z2,UCS2],[z3,UCS3]...])
                   Use small values for Su (eg: 0.001) instead of zeros to avoid divisions 
                   by zero but always start z at 0.0
                   Example of a valid data point at the mudline is [0.0, 0.001]
-    L           - Length of pile         (m)
+    L           - Length of pile (m)
     D           - Outer diameter of pile (m)
-    V           - Axial force at pile head (N), vertically downwards is postive.
-    H           - Force at pile head (N), shear causing clockwise rotation of pile is positive.
-    M           - Moment at pile head (N*m), moments causing tension on left side of pile is positive.
+    V           - Axial force at pile head (N)
+    H           - Force at pile head (N)
+    M           - Moment at pile head (N*m)
     n           - Number of elements (50 by default)
     iterations  - Number of iterations to repeat calculation in order obtain convergence of 'y'
                   (A better approach is to iterate until a predefined tolerance is achieved but this requires additional
@@ -44,12 +44,13 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     
     # Extract optional keyword arguments
     # ls = 'x'
-    n = 10
-    iterations = 10
+
+    n = 50; iterations = 10; loc =2
+
 
     # Resistance factor
-    nhuc = 1; nhu = 0.3; gamma_f = 1.3
-    delta_r = 0.08  # Mean roughness height [m]
+    nhuc = 1; nhu = 0.3; gamma_f = 1
+    delta_r = 0.08               # Mean roughness height [m]
     
     # Convert L and D to floating point numbers to avoid rounding errors
     L = float(L)
@@ -96,28 +97,27 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
         k_secant[i] = 0.0
 
     # Track k_secant and current displacements
-    # if convergence_tracker == 'Yes':
-    #     y1 = np.linspace(-2.*D, 2.*D, 500)
-    #     plt.plot(y1, py_funs[loc](y1))
-    #     plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
-    #     plt.grid(True)
+
+    y1 = np.linspace(-2.*D, 2.*D, 500)
+    plt.plot(y1, py_funs[loc](y1))
+    plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
+    plt.grid(True)
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
         y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
 
-        # if convergence_tracker == 'Yes':
-        #     plt.plot(y[loc], k_secant[loc]*y[loc])
+       
+        plt.plot(y[loc], k_secant[loc]*y[loc])
 
         for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]
 
-    # if print_output == 'Yes':
-    #     print(f'y_0 = {y[2]:.3f} m')
+    print(f'y_max = {max(y):.3f} m')
 
     resultsDandG = {}
     resultsDandG['Lateral displacement'] = y[2]
-    resultsDandG['Rotational displacement'] = (y[2] - y[3])/h 
+    resultsDandG['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h) 
     
     return resultsDandG
 
@@ -198,7 +198,9 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Reese(z, D, zlug, UCS, Em, RQD,print_curves='No'):
+
+def py_Reese(z, D, zlug, UCS, Em):
+
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
 
@@ -208,11 +210,11 @@ def py_Reese(z, D, zlug, UCS, Em, RQD,print_curves='No'):
     -----
     z      - Depth relative to pile head (m)
     D      - Pile diameter (m)
-    zlug    - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
+    zlug   - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
     UCS    - Undrained shear strength (Pa)
     Em     - Effectve vertical stress (Pa)
-    RQD    - Strain at half the strength as defined by Matlock (1970).
-             Typically ranges from 0.005 (stiff clay) to 0.02 (soft clay).
+    RQD    - Rock quality designation, measures the quality of the rock core taken from a borehole.
+             Typically ranges from 25% (very weathered rock) to 100% (fresh rock).
 
     Output:
     ------
@@ -223,6 +225,7 @@ def py_Reese(z, D, zlug, UCS, Em, RQD,print_curves='No'):
     #from scipy.interpolate import interp1d
     #global var_Reese
     
+    RQD = 69                     # Assumed good rock quality (hard rock)  
     Dref = 0.305; nhu = 0.3; E = 200e9
     t = (6.35 + D*20)/1e3        # Pile wall thickness (m), API RP2A-WSD
     I  = np.pi*(D**4 - (D - 2*t)**4)/64.0
@@ -264,15 +267,14 @@ def py_Reese(z, D, zlug, UCS, Em, RQD,print_curves='No'):
     #var_Reese = inspect.currentframe().f_locals          
     
     f = interp1d(y, p)   # Interpolation function for p-y curve
-    
-    if print_curves == 'Yes':           
-        plt.plot(y, p) 
-        plt.xlabel('y (m)') 
-        plt.ylabel('p (kN/m)'),
-        plt.title('PY Curves - Reese (1997)')
-        plt.grid(True)
-        plt.xlim([-0.03*D, 0.03*D])
-        plt.ylim([min(p),max(p)])     
+        
+    plt.plot(y, p) 
+    plt.xlabel('y (m)') 
+    plt.ylabel('p (kN/m)'),
+    plt.title('PY Curves - Reese (1997)')
+    plt.grid(True)
+    plt.xlim([-0.03*D, 0.03*D])
+    plt.ylim([min(p), max(p)])     
         
     return f      # This is f (linear interpolation of y-p)
    
@@ -312,18 +314,17 @@ def rock_profile(profile,plot_profile='No'):
     UCS   = np.concatenate([np.array([0]),np.array([row[1] for row in profile],dtype=float)])   # MPa
     Em    = np.concatenate([np.array([0]),np.array([row[2] for row in profile],dtype=float)])   # MPa
 
-    if plot_profile == 'Yes':
-        # Plot UCS vs z profile for confirmation
-        #fig2, ax2 = plt.subplots(1,1)
-        plt.plot(UCS,depth,'-',label=r'$S_u$',color='blue')
-        plt.legend(loc='lower left')
-        plt.xlabel('Uncompressed confined strength (MPa)'), 
-        plt.ylabel('Depth below the pile head (m)'), plt.grid(True)
-        # Plot mudline/ground surface
-        plt.plot([-0.5*max(UCS),max(UCS)],[z0,z0],'--',color='red')
-        plt.text(-0.5*max(UCS),0.95*z0,'Mudline',color='red')
-        ax = plt.gca(); ax.invert_yaxis(),
-        ax.xaxis.tick_top(), ax.xaxis.set_label_position('top')
+    # Plot UCS vs z profile for confirmation
+    #fig2, ax2 = plt.subplots(1,1)
+    plt.plot(UCS,depth,'-',label=r'$S_u$',color='blue')
+    plt.legend(loc='lower left')
+    plt.xlabel('Uncompressed confined strength (MPa)'), 
+    plt.ylabel('Depth below the pile head (m)'), plt.grid(True)
+    # Plot mudline/ground surface
+    plt.plot([-0.5*max(UCS),max(UCS)],[z0,z0],'--',color='red')
+    plt.text(-0.5*max(UCS),0.95*z0,'Mudline',color='red')
+    ax = plt.gca(); ax.invert_yaxis(),
+    ax.xaxis.tick_top(), ax.xaxis.set_label_position('top')
 
     # Define interpolation functions
     f_UCS = interp1d(depth, UCS*1e6, kind='linear')  # Pa

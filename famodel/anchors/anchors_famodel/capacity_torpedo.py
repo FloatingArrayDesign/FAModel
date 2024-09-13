@@ -83,40 +83,6 @@ def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
     x = np.cos(np.deg2rad(deg))
     y = (1 - x**bVH)**(1/aVH)
     X = Hmax*x/1e3; Y = Vmax*y/1e3  # in MN
-    # Xa = [5.82, 5.62, 5.04, 4.1, 2.91, 1.51, 0.00]
-    # Ya = [0, 3.91846, 4.64614, 5.08714, 5.3706,	5.53709, 5.59723]
-    # Xb = [11.6382, 11.2416,	10.0789, 8.22942, 5.81908, 3.01218, 7.12631E-16]
-    # Yb = [0, 5.29435, 6.27754, 6.87338, 7.25637, 7.48133, 7.56259]
-    
-    fig, ax = plt.subplots()
-    # ax.plot(Xa, Ya, color = 'r')
-    # ax.plot(Xb, Yb, color = 'b')
-    ax.plot(X, Y, color = 'g')
-    ax.legend(['VHcapacity_soilA', 'VHcapacity_soilB', 'VHcapacity_soilC'])
-    soilA = [(5.9,0.0),(5.9,1.6),(5.6,3.2),(4.7,4.7),(3.0,5.2),(1.4,5.1),(0.0,5.2)]
-    soilB = [(11.7,0.0),(11.5,3.1),(10.6,6.1),(7.4,7.4),(4.5,7.7),(2.1,7.7),(0.0,7.8)]
-    soilC = [(21.0,0.0),(20.9,5.6),(17.7,10.2),(11.11,11.11),(6.5,11.2),(3.1,11.4),(0.0,11.5)]
-    xA = [x[0] for x in soilA]; yA = [x[1] for x in soilA]
-    xB = [x[0] for x in soilB]; yB = [x[1] for x in soilB]
-    xC = [x[0] for x in soilC]; yC = [x[1] for x in soilC]
-    ax.scatter(xA, yA, s = 25, facecolors = 'none', edgecolors = 'r') # Soil A, ANSYS [Sousa, 2011]
-    ax.scatter(xB, yB, s = 25, facecolors = 'none', edgecolors = 'b') # Soil B, ANSYS [Sousa, 2011]
-    ax.scatter(xC, yC, s = 25, facecolors = 'none', edgecolors = 'g') # Soil C, ANSYS [Sousa, 2011]
-       
-    # Set labels and title
-    plt.xlabel('Horizontal capacity, H [MN]')
-    plt.ylabel('Vertical capacity, V [MN]')
-    plt.suptitle('VH torpedo pile capacity envelope')
-    #plt.axis([0,1.3*max(X[0],resultsLoad['H']),0,1.3*max(Y[-1],resultsLoad['V'])]) 
-    plt.ylim(-2, 1.25*max(yC))
-    plt.grid(True)
-    plt.ioff()
-    plt.show()
-
-    fC = np.sqrt(X**2 + Y**2)     
-    fAr = [np.sqrt((x[0])**2 + (x[1])**2) for x in soilA]
-    fBr = [np.sqrt((x[0])**2 + (x[1])**2) for x in soilB]
-    fCr = [np.sqrt((x[0])**2 + (x[1])**2) for x in soilC]  
        
     resultsTorpedo = {}
     resultsTorpedo['Horizontal max.'] = Hmax #Hmax[0]    # Capacity at specified loading angle

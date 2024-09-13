@@ -23,15 +23,15 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
     Input:
     -----
     profile     - A 2D array of depths (m) and corresponding undrained shear strength(Pa)
-                  Eg: array([[z1,Su1],[z2,Su2],[z3,Su3]...])
+                  Eg: array([[z1,UCS1],[z2,UCS2],[z3,UCS3]...])
                   Use small values for Su (eg: 0.001) instead of zeros to avoid divisions 
                   by zero but always start z at 0.0
                   Example of a valid data point at the mudline is [0.0, 0.001]
-    L           - Length of pile         (m)
+    L           - Length of pile (m)
     D           - Outer diameter of pile (m)
-    V           - Axial force at pile head (N), vertically downwards is postive.
-    H           - Force at pile head (N), shear causing clockwise rotation of pile is positive.
-    M           - Moment at pile head (N*m), moments causing tension on left side of pile is positive.
+    V           - Axial force at pile head (N)
+    H           - Force at pile head (N)
+    M           - Moment at pile head (N*m)
     n           - Number of elements (50 by default)
     iterations  - Number of iterations to repeat calculation in order obtain convergence of 'y'
                   (A better approach is to iterate until a predefined tolerance is achieved but this requires additional
@@ -45,11 +45,11 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
     
     # Extract optional keyword arguments
     # ls = 'x'
-    n = 10, iterations = 10
+    n = 50, iterations = 10
 
     # Resistance factor
-    nhuc = 1; nhu = 0.3; gamma_f = 1.3
-    delta_r = 0.08  # Mean roughness height [m]
+    nhuc = 1; nhu = 0.3; gamma_f = 1
+    delta_r = 0.08               # Mean roughness height [m]
     
     # Convert L and D to floating point numbers to avoid rounding errors
     L = float(L)
@@ -198,7 +198,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Reese(z, D, zlug, UCS, Em, RQD):
+def py_Reese(z, D, zlug, UCS, Em):
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
 
@@ -211,8 +211,8 @@ def py_Reese(z, D, zlug, UCS, Em, RQD):
     zlug   - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
     UCS    - Undrained shear strength (Pa)
     Em     - Effectve vertical stress (Pa)
-    RQD    - Strain at half the strength as defined by Matlock (1970).
-             Typically ranges from 0.005 (stiff clay) to 0.02 (soft clay).
+    RQD    - Rock quality designation, measures the quality of the rock core taken from a borehole.
+             Typically ranges from 25% (very weathered rock) to 100% (fresh rock).
 
     Output:
     ------
@@ -223,6 +223,7 @@ def py_Reese(z, D, zlug, UCS, Em, RQD):
     #from scipy.interpolate import interp1d
     #global var_Reese
     
+    RQD = 52                     # Assumed fair rock quality (moderately weathered rocks) 
     Dref = 0.305; nhu = 0.3; E = 200e9
     t = (6.35 + D*20)/1e3        # Pile wall thickness (m), API RP2A-WSD
     I  = np.pi*(D**4 - (D - 2*t)**4)/64.0
