@@ -33,22 +33,22 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     M           - Moment at pile head (N*m)
     n           - Number of elements (50 by default)
     iterations  - Number of iterations to repeat calculation in order obtain convergence of 'y'
-                  (A better approach is to iterate until a predefined tolerance is achieved but this requires additional
-                  coding so, I will implement this later.)
+                  (A better approach is to iterate until a predefined tolerance is achieved)
 
     Output:
     ------
     y           - Lateral displacement at each node, length = n + 5, (n+1) real nodes and 4 imaginary nodes
     z           - Vector of node locations along pile
+    resultsDandG- Dictionary with results
     '''
     
     # Extract optional keyword arguments
     # ls = 'x'
 
-    n = 50; iterations = 10; loc =2
+    n = 50; iterations = 10; loc = 2
 
     # Resistance factor
-    nhuc = 1; nhu = 0.3; gamma_f = 1
+    nhuc = 1; nhu = 0.3
     delta_r = 0.08               # Mean roughness height [m]
     
     # Convert L and D to floating point numbers to avoid rounding errors

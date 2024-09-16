@@ -1,6 +1,5 @@
+
 import numpy as np
-#from matplotlib.pyplot import plot, draw, show
-#import matplotlib.backends
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy import linalg
@@ -34,21 +33,21 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
     M           - Moment at pile head (N*m)
     n           - Number of elements (50 by default)
     iterations  - Number of iterations to repeat calculation in order obtain convergence of 'y'
-                  (A better approach is to iterate until a predefined tolerance is achieved but this requires additional
-                  coding so, I will implement this later.)
+                  (A better approach is to iterate until a predefined tolerance is achieved)
 
     Output:
     ------
     y           - Lateral displacement at each node, length = n + 5, (n+1) real nodes and 4 imaginary nodes
     z           - Vector of node locations along pile
+    resultsDrivenRock - Dictionary with results
     '''
     
     # Extract optional keyword arguments
     # ls = 'x'
-    n = 50, iterations = 10
+    n = 50, iterations = 10; loc = 2
 
     # Resistance factor
-    nhuc = 1; nhu = 0.3; gamma_f = 1
+    nhuc = 1; nhu = 0.3 
     delta_r = 0.08               # Mean roughness height [m]
     
     # Convert L and D to floating point numbers to avoid rounding errors
@@ -80,9 +79,9 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
     for i in range(2,n+3):       # Real nodes
         z[i] = (i - 2)*h
         # Extract rock profile data
-        f_UCS, f_Em = rock_profile(profile)
-        UCS, Em = f_UCS(z[i])/gamma_f, f_Em(z[i])/gamma_f
-        py_funs.append(py_Reese(z[i], D, t, UCS, Em))
+        zlug, f_UCS, f_Em = rock_profile(profile)
+        UCS, Em = f_UCS(z[i]), f_Em(z[i])
+        py_funs.append(py_Reese(z[i], D, zlug, UCS, Em))
         k_secant[i] = py_funs[i](y[i])/y[i]
         SCR = nhuc*Em/(UCS*(1 + nhu))*delta_r/D
         alpha = 0.36*SCR - 0.0005
@@ -96,11 +95,11 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
         k_secant[i] = 0.0
 
     # Track k_secant and current displacements
-    if convergence_tracker == 'Yes':
-        y1 = np.linspace(-2.*D, 2.*D, 500)
-        plt.plot(y1, py_funs[loc](y1))
-        plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
-        plt.grid(True)
+
+    y1 = np.linspace(-2.*D, 2.*D, 500)
+    plt.plot(y1, py_funs[loc](y1))
+    plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
+    plt.grid(True)
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
@@ -117,9 +116,9 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
 
     resultsDrivenRock = {}
     resultsDrivenRock['Lateral displacement'] = y[2]
-    resultsDrivenRock['Rotational displacement'] = y[2] - y[3])/h 
+    resultsDrivenRock['Rotational displacement'] = np.rad2deg(y[2] - y[3])/h 
     
-    return y[2:-2], z[2:-2], DQ
+    return y[2:-2], z[2:-2], resultsDrivenRock
 
 #################
 #### Solvers ####
@@ -219,7 +218,8 @@ def py_Reese(z, D, zlug, UCS, Em):
     Returns an interp1d interpolation function which represents the p-y curve at the depth of interest.
     'p' (N/m) and 'y' (m).
     '''
-
+    z0 = 0
+    
     #from scipy.interpolate import interp1d
     #global var_Reese
     
@@ -230,13 +230,16 @@ def py_Reese(z, D, zlug, UCS, Em):
     EI = E*I
     alpha = -0.00667*RQD + 1
     krm = 0.0005
-    
-    if z < 3*D:
-        p_ur = alpha*UCS*D*(1 + 1.4*z/D)
-        #kir = (100 +400*z/(3*D))
-    else:
-        p_ur = 5.2*alpha*UCS*D
-        #kir = 500
+
+    if (z - z0) < 0:
+        p_ur = 0
+    else:    
+        if z < 3*D:
+            p_ur = alpha*UCS*D*(1 + 1.4*z/D)
+            #kir = (100 +400*z/(3*D))
+        else:
+            p_ur = 5.2*alpha*UCS*D
+            #kir = 500
         
     kir = (D/Dref)*2**(-2*nhu)*(EI/(Em*D**4))**0.284
     Kir = kir*Em     
@@ -265,15 +268,14 @@ def py_Reese(z, D, zlug, UCS, Em):
     #var_Reese = inspect.currentframe().f_locals          
     
     f = interp1d(y, p)   # Interpolation function for p-y curve
-    
-    if print_curves == 'Yes':           
-        plt.plot(y, p) 
-        plt.xlabel('y (m)') 
-        plt.ylabel('p (kN/m)'),
-        plt.title('PY Curves - Reese (1997)')
-        plt.grid(True)
-        plt.xlim([-0.03*D,0.03*D])
-        plt.ylim([min(p),max(p)])     
+         
+    plt.plot(y, p) 
+    plt.xlabel('y (m)') 
+    plt.ylabel('p (kN/m)'),
+    plt.title('PY Curves - Reese (1997)')
+    plt.grid(True)
+    plt.xlim([-0.03*D, 0.03*D])
+    plt.ylim([min(p), max(p)])     
         
     return f      # This is f (linear interpolation of y-p)
    
@@ -314,22 +316,9 @@ def rock_profile(profile):
 
     # Extract data from soil_profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([z0]),profile[:,0].astype(float)]) # m
-    UCS   = np.concatenate([np.array([0]),profile[:,1].astype(float)])    # MPa
-    Em    = np.concatenate([np.array([0]),profile[:,2].astype(float)])     # MPa
-
-    if plot_profile == 'Yes':
-        # Plot UCS vs z profile for confirmation
-        #fig2, ax2 = plt.subplots(1,1)
-        plt.plot(UCS,depth,'-',label=r'$S_u$',color='blue')
-        plt.legend(loc='lower left')
-        plt.xlabel('Uncompressed confined strength (MPa)'), 
-        plt.ylabel('Depth below the pile head (m)'), plt.grid(True)
-        # Plot mudline/ground surface
-        plt.plot([-0.5*max(UCS),max(UCS)],[z0,z0],'--',color='red')
-        plt.text(-0.5*max(UCS),0.95*z0,'Mudline',color='red')
-        ax = plt.gca(); ax.invert_yaxis(),
-        ax.xaxis.tick_top(), ax.xaxis.set_label_position('top')
+    depth = np.concatenate([np.array([z0]),profile[:,0].astype(float)])  # m
+    UCS   = np.concatenate([np.array([0]),profile[:,1].astype(float)])   # MPa
+    Em    = np.concatenate([np.array([0]),profile[:,2].astype(float)])   # MPa
 
     # Define interpolation functions
     f_UCS = interp1d(depth, UCS*1e6, kind='linear') # Pa
@@ -337,4 +326,4 @@ def rock_profile(profile):
     
     #var_rock_profile = inspect.currentframe().f_locals
 
-    return f_UCS, f_Em
+    return z0, f_UCS, f_Em
