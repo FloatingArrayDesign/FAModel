@@ -111,9 +111,11 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H, t, fy):
     
     resultsDrivenSoil = {}
     resultsDrivenSoil['Lateral displacement'] = y[2]
-    resultsDrivenSoil['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h) 
+    resultsDrivenSoil['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
+    resultsDrivenSoil['Plastic hinge'] = hinge_formed
+    resultsDrivenSoil['hinge_location'] = hinge_location
     
-    return y[2:-2], z[2:-2], hinge_formed, hinge_location
+    return y[2:-2], z[2:-2], resultsDrivenSoil
 
 #################
 #### Solvers ####
@@ -332,7 +334,7 @@ def py_API(z, D, zlug, phi, sigma_v_eff):
             print("Division by zero! phi = 0.0 so z_cr cannot be calculated.")
     
     Dr = 0.75     # Relative density of the soil (assumed)
-    k = 54.6*Dr**2 + 0.8*Dr + 1.8
+    k = (54.6*Dr**2 + 0.8*Dr + 1.8)*1e6
     
     # Normalized lateral displacement
     N = 20
@@ -495,42 +497,3 @@ def sand_profile(profile):
     f_sigma_v_eff = interp1d(depth, sigma_v_eff*1000, kind='linear') # Pa
     
     return z0, f_phi, f_sigma_v_eff
-
-if __name__ == '__main__':
-    
-    #                   Depth   Su  γ_sub    p-y model   p-y parameters
-    profile = np.array([[0.0,  250.0, 20., 'Name of p-y model', 0.02],
-                        [75.0, 250.0, 20., 'Name of p-y model', 0.02]])
-
-    z0, f_Su, f_σ_v_eff, f_gamma_sub = clay_profile(profile)
-    
-    # #                 Depth  phi  γ_sub    p-y model   p-y parameters
-    #profile = np.array([[0.0,  38.0, 20., 'Name of p-y model', 0.02],
-    #                    [75.0, 40.0, 22., 'Name of p-y model', 0.02]])
-
-    #zlug, f_phi, f_σ_v_eff = sand_profile(profile)
-    
-    #Pile dimensions
-    L = 25                      # Pile length (m)
-    D = 1.5                     # Pile diameter (m)
-    t = (6.35 + D*20)/1e3       # Pile wall thickness (m), API RP2A-WSD
-    fy = 355e6
-    zlug = 6*D                  # Lug depth (m)
-
-    
-    #Pile head loads
-    H = 280e4    # Horizontal load on pile head (N)
-    V = 0       # Vertical load on pile head (N)
-    
-    y, z, hinge_formed, hinge_location = getCapacityDrivenSoil(profile, soil_type='clay', L=L, D=D, zlug=zlug, V=V, H=H, t=t, fy=fy)
-    
-    y0 = np.zeros(len(z))
-    #Plot deflection profile of pile
-    fig, ax = plt.subplots(figsize=(3,5))    
-    ax.plot(y0,z,'black')
-    ax.plot(y,z,'r')
-    ax.set_xlabel('Displacement [m]')
-    ax.set_ylabel('Depth below pile head [m]')
-    ax.set_ylim([L + 2,-2])
-    ax.set_xlim([-0.1*D, 0.1*D])
-    ax.grid(ls='--')
