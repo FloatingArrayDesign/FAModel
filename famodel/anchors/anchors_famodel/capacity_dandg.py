@@ -47,7 +47,6 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
 
     n = 50; iterations = 10; loc =2
 
-
     # Resistance factor
     nhuc = 1; nhu = 0.3; gamma_f = 1
     delta_r = 0.08               # Mean roughness height [m]
@@ -81,9 +80,9 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     for i in range(2,n+3):       # Real nodes
         z[i] = (i - 2)*h
         # Extract rock profile data
-        f_UCS, f_Em = rock_profile(profile)
-        UCS, Em = f_UCS(z[i])/gamma_f, f_Em(z[i])/gamma_f
-        py_funs.append(py_Reese(z[i], D, t, UCS, Em))
+        zlug, f_UCS, f_Em = rock_profile(profile)
+        UCS, Em = f_UCS(z[i]), f_Em(z[i])
+        py_funs.append(py_Reese(z[i], D, zlug, UCS, Em))
         k_secant[i] = py_funs[i](y[i])/y[i]
         SCR = nhuc*Em/(UCS*(1 + nhu))*delta_r/D
         alpha = 0.36*SCR - 0.0005
@@ -106,8 +105,7 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
         y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
-
-       
+      
         plt.plot(y[loc], k_secant[loc]*y[loc])
 
         for i in range(2, n+3):
@@ -119,7 +117,7 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     resultsDandG['Lateral displacement'] = y[2]
     resultsDandG['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h) 
     
-    return resultsDandG
+    return y[2:-2], z[2:-2], resultsDandG
 
 #################
 #### Solvers ####
@@ -144,7 +142,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 
     Output:
     ------
-    y_updated - Lateral displacement at each node
+    y        - Lateral displacement at each node
     '''
     M = H*zlug
     
@@ -221,7 +219,8 @@ def py_Reese(z, D, zlug, UCS, Em):
     Returns an interp1d interpolation function which represents the p-y curve at the depth of interest.
     'p' (N/m) and 'y' (m).
     '''
-
+    z0 = 0
+    
     #from scipy.interpolate import interp1d
     #global var_Reese
     
@@ -233,12 +232,15 @@ def py_Reese(z, D, zlug, UCS, Em):
     alpha = -0.00667*RQD + 1
     krm = 0.0005
     
-    if z < 3*D:
-        p_ur = alpha*UCS*D*(1 + 1.4*z/D)
-        #kir = (100 +400*z/(3*D))
+    if (z - z0) < 0:
+        p_ur = 0
     else:
-        p_ur = 5.2*alpha*UCS*D
-        #kir = 500
+        if z < 3*D:
+            p_ur = alpha*UCS*D*(1 + 1.4*z/D)
+            #kir = (100 +400*z/(3*D))
+        else:
+            p_ur = 5.2*alpha*UCS*D
+            #kir = 500
         
     kir = (D/Dref)*2**(-2*nhu)*(EI/(Em*D**4))**0.284
     Kir = kir*Em     
@@ -282,7 +284,7 @@ def py_Reese(z, D, zlug, UCS, Em):
 #### Rock Profile #####
 #######################
 
-def rock_profile(profile,plot_profile='No'):
+def rock_profile(profile):
     '''
     Define the (weak) rock profile used by the p-y analyzer. Outputs 'interp1d' functions containing 
     UCS and Em profiles to be used by the p-y curve functions.
@@ -314,22 +316,11 @@ def rock_profile(profile,plot_profile='No'):
     UCS   = np.concatenate([np.array([0]),np.array([row[1] for row in profile],dtype=float)])   # MPa
     Em    = np.concatenate([np.array([0]),np.array([row[2] for row in profile],dtype=float)])   # MPa
 
-    # Plot UCS vs z profile for confirmation
-    #fig2, ax2 = plt.subplots(1,1)
-    plt.plot(UCS,depth,'-',label=r'$S_u$',color='blue')
-    plt.legend(loc='lower left')
-    plt.xlabel('Uncompressed confined strength (MPa)'), 
-    plt.ylabel('Depth below the pile head (m)'), plt.grid(True)
-    # Plot mudline/ground surface
-    plt.plot([-0.5*max(UCS),max(UCS)],[z0,z0],'--',color='red')
-    plt.text(-0.5*max(UCS),0.95*z0,'Mudline',color='red')
-    ax = plt.gca(); ax.invert_yaxis(),
-    ax.xaxis.tick_top(), ax.xaxis.set_label_position('top')
-
     # Define interpolation functions
     f_UCS = interp1d(depth, UCS*1e6, kind='linear')  # Pa
     f_Em  = interp1d(depth, Em*1e6, kind='linear')   # Pa
     
     #var_rock_profile = inspect.currentframe().f_locals
 
-    return f_UCS, f_Em
+    return z0, f_UCS, f_Em
+
