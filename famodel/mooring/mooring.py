@@ -616,14 +616,14 @@ class Mooring(Edge):
             if Mats[j] in opt and not 'Cd' in st[ltyp]:
                 cd.append(opt[Mats[j]]['Cd'])
             elif 'Cd' in st[ltyp]:
-                cd.append(st[LTypes[j]]['Cd'])
+                cd.append(st[ltyp]['Cd'])
             else:
                 #print('No Cd given in line type and material not found in MoorProps yaml. Default Cd of 1 will be used.')
                 cd.append(2)
             if Mats[j] in opt and not 'CdAx' in st[ltyp]:
                 cdAx.append(opt[Mats[j]]['CdAx'])
             elif 'CdAx' in st[ltyp]:
-                cdAx.append(st[LTypes[j]]['CdAx'])
+                cdAx.append(st[ltyp]['CdAx'])
             else:
                 #print('No CdAx given in line type and material not found in MoorProps yaml. Default CdAx of 0.5 will be used.')
                 cdAx.append(0.5)

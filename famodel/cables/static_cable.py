@@ -9,8 +9,7 @@ from famodel.famodel_base import Edge
 
 class StaticCable(Edge):
     '''
-    Class for a static power cable. It inherits from Cable(Edge, dict)
-    which describes the bare uniform cable before accessories are added.
+    Class for a static power cable. It inherits from Edge.
     A StaticCable object will likely be within a SubseaCable object, which could
     also include a DynamicCable.
     Both ends will be attached to subsea joints.

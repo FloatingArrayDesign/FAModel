@@ -883,10 +883,8 @@ class DynamicCable(Edge):
                 nd[j]['length'] = Lengths[j]
             
             # fill out rest of new design dictionary
-            nd1 = deepcopy(self.dd)
+            nd1 = self.dd
             nd1['sections'] = nd
-            
-            #breakpoint()
             
             # call createSubsystem() to make moorpy subsystem with marine growth
             if self.shared>0:
@@ -913,9 +911,9 @@ class DynamicCable(Edge):
                     mgDict1['th'][0][2] = mgDict1['th'][0][2] + cEq
                     for j in range(1,len(mgDict['th'])):
                         for k in range(1,3):
-                            if ct < 4:
+                            if ct < 4 and abs(cEq)<12:
                                 mgDict1['th'][j][k] = mgDict1['th'][j][k] + cEq
-                            elif ct >= 4 and ct < 9:
+                            elif (ct >= 4 and ct < 9) or abs(cEq)>=12:
                                 # could be ping-ponging between two different things, try adding half
                                 mgDict1['th'][j][k] = mgDict1['th'][j][k] + 0.5*cEq
                 print('average difference between expected and actual change depth is: ',cEq)
@@ -945,57 +943,65 @@ class DynamicCable(Edge):
 
         '''
         from copy import deepcopy
-        oldbs = self.dd['buoyancy_sections']
-        # get half length
-        halfL = self.dd['length']
-        # double dd['length']
-        self.dd['length'] = halfL*2 
-        
-        if oldbs[0]['L_mid'] == 0:
-            # ends on a buoyancy section
-            endB = 1 
+        if 'sections' in self.dd:
+            sections1 = deepcopy(self.dd['sections'])
+            sections1.reverse()
+            newsections = []
+            newsections.extend(deepcopy(self.dd['sections']))
+            newsections.extend(sections1)
+            self.dd['sections'] = newsections
         else:
-            # ends on a bare cable section
-            endB = 0
-        
-        
-        bs = []
-        if endB:
-            # update buoyancy sections
-            # add in all pre-mirrored buoyancy sections (start from end instead of middle)
-            for k in range(len(oldbs)-1,-1,-1):
-                bs.append(deepcopy(oldbs[k]))
-                # update L_mid - change coordinates to x starting from end A
-                bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
-                if k == 0:
-                    N0 = bs[-1]['N_modules']
-                    # double middle buoyancy section length while keeping buoyancy the same - spacing needs to be changed by
-                    # (2N0-2)/(2N0-1)*sp0 where sp0 is old spacing, N0 is old # of buoyancy sections 
-                    bs[-1]['spacing'] = bs[-1]['spacing']*(2*N0-2)/(2*N0-1)
-                    # double number of modules to double the buoyancy
-                    bs[-1]['N_modules'] = N0*2
-                    
-            # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
-            for k in range(1,len(oldbs)):
-                bs.append(deepcopy(oldbs[k]))
-                # update L_mid - change coordinates to x starting from end A
-                bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
-        else:     
-            # update buoyancy sections
-            # add in all pre-mirrored buoyancy sections (start from end instead of middle)
-            for k in range(len(oldbs)-1,-1,-1):     
-                bs.append(deepcopy(oldbs[k]))
-                # update L_mid - change coordinates to x starting from end A
-                bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
-            # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
-            for k in range(0,len(oldbs)):
-                bs.append(deepcopy(oldbs[k]))
-                # update L_mid - change coordinates to x starting from end A, and push L_mid up by bsEnd (length of bare cable middle section pre-mirroring)
-                bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
+            oldbs = self.dd['buoyancy_sections']
+            # get half length
+            halfL = self.dd['length']
+            # double dd['length']
+            self.dd['length'] = halfL*2 
             
+            if oldbs[0]['L_mid'] == 0:
+                # ends on a buoyancy section
+                endB = 1 
+            else:
+                # ends on a bare cable section
+                endB = 0
+            
+            
+            bs = []
+            if endB:
+                # update buoyancy sections
+                # add in all pre-mirrored buoyancy sections (start from end instead of middle)
+                for k in range(len(oldbs)-1,-1,-1):
+                    bs.append(deepcopy(oldbs[k]))
+                    # update L_mid - change coordinates to x starting from end A
+                    bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
+                    if k == 0:
+                        N0 = bs[-1]['N_modules']
+                        # double middle buoyancy section length while keeping buoyancy the same - spacing needs to be changed by
+                        # (2N0-2)/(2N0-1)*sp0 where sp0 is old spacing, N0 is old # of buoyancy sections 
+                        bs[-1]['spacing'] = bs[-1]['spacing']*(2*N0-2)/(2*N0-1)
+                        # double number of modules to double the buoyancy
+                        bs[-1]['N_modules'] = N0*2
+                        
+                # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
+                for k in range(1,len(oldbs)):
+                    bs.append(deepcopy(oldbs[k]))
+                    # update L_mid - change coordinates to x starting from end A
+                    bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
+            else:     
+                # update buoyancy sections
+                # add in all pre-mirrored buoyancy sections (start from end instead of middle)
+                for k in range(len(oldbs)-1,-1,-1):     
+                    bs.append(deepcopy(oldbs[k]))
+                    # update L_mid - change coordinates to x starting from end A
+                    bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
+                # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
+                for k in range(0,len(oldbs)):
+                    bs.append(deepcopy(oldbs[k]))
+                    # update L_mid - change coordinates to x starting from end A, and push L_mid up by bsEnd (length of bare cable middle section pre-mirroring)
+                    bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
                 
-            
-        self.dd['buoyancy_sections'] = bs
+                    
+                
+            self.dd['buoyancy_sections'] = bs
         # reset length
         self.L = self.L*2
         # # reset rA to -span

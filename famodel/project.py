@@ -1894,7 +1894,7 @@ class Project():
                         
                 elif isinstance(sub,StaticCable):
                     # add static cable routing if it exists
-                    if sub.x:
+                    if hasattr(sub,'x'):
                         burial = sub.burial
                         if 'NA' in burial:
                             # replace any NA with 0
@@ -1917,7 +1917,7 @@ class Project():
         
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if fowt:
-            for pf in self.array.fowtlist:
+            for pf in self.array.fowtList:
                 pf.plot(ax,zorder=20)
             # for i in range(self.nt):
             #     xy = self.turb_coords[i,:]
@@ -2503,15 +2503,16 @@ class Project():
                         cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.mooringList[i].ss_mod.pointList[cP[j]].r[2])
                 # adjust depth to change based on difference between actual and desired change depth
                 if cEq:
-                    mgDict['th'][0][2] = mgDict['th'][0][2] + sum(cEq)/len(cEq)
+                    mcEq = sum(cEq)/len(cEq)
+                    mgDict['th'][0][2] = mgDict['th'][0][2] + mcEq
                     for j in range(1,len(mgDict['th'])):
                         for k in range(1,3):
-                            if ct < 4:
-                                mgDict['th'][j][k] = mgDict['th'][j][k] + sum(cEq)/len(cEq)
-                            elif ct >= 4 and ct < 9:
+                            if ct < 4 and abs(mcEq)<12:
+                                mgDict['th'][j][k] = mgDict['th'][j][k] + mcEq
+                            elif (ct >= 4 and ct < 9) or abs(mcEq)>=12:
                                 # could be ping-ponging between two different things, try adding half
-                                mgDict['th'][j][k] = mgDict['th'][j][k] + 0.5*sum(cEq)/len(cEq)
-                    print('average difference between expected and actual change depth is: ',sum(cEq)/len(cEq))
+                                mgDict['th'][j][k] = mgDict['th'][j][k] + 0.5*mcEq
+                    print('average difference between expected and actual change depth is: ',mcEq)
                 else: # there were no change depths in the line (could be the case for a shared line)
                     cEq = [0,0] # kick out of the while loop
                 ct = ct + 1 # add to counter
