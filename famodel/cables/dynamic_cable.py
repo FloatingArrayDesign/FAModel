@@ -7,6 +7,7 @@ from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge
 from famodel.cables import cable_properties as cp
+from famodel.cables.components import Joint
 
 class DynamicCable(Edge):
     '''
@@ -433,15 +434,20 @@ class DynamicCable(Edge):
         elif 'buoyancy_sections' in dd:       
             # Parse buoyancy sections to compute their properties and all lengths
             for i, bs in enumerate(dd['buoyancy_sections']):
+                # check which end to start from ( need to flip locations of buoyancy modules if end A is at joint and end B is at platform)
+                if isinstance(self.attached_to[0],Joint):
+                    L_mid = self.L-bs['L_mid']
+                else:
+                    L_mid = bs['L_mid']
                 # get buoyancy section information
                 Ls,m,w,d_vol = self.calcEquivBuoyancy(bs) 
                 
                 # If this buoyancy section isn't at the very start of the cable
-                if i > 0 or Ls/2 < bs['L_mid']:  
+                if i > 0 or Ls/2 < L_mid:  
                     # Add a bare cable section before this buoyancy section
                     types.append(cableType)
-                    lengths.append(bs['L_mid'] - Ls/2 - currentL)
-                    currentL = bs['L_mid'] - Ls/2 # save the end location of the section
+                    lengths.append(L_mid - Ls/2 - currentL)
+                    currentL = L_mid - Ls/2 # save the end location of the section
                     
                 # create buoyancy section equivalent cable type dict
                 buoyCableType = deepcopy(cableType)
@@ -464,9 +470,9 @@ class DynamicCable(Edge):
                     #dd['sections'].append({'type':self.cableType})
                     #dd['sections'][-1]['length'] = self.L - bs['L_mid'] - Ls/2
                     types.append(cableType)
-                    lengths.append(self.L - bs['L_mid'] - Ls/2)
+                    lengths.append(self.L - L_mid - Ls/2)
                     
-                    currentL += self.L - bs['L_mid'] - Ls/2
+                    currentL += self.L - L_mid - Ls/2
         
         '''
         currentL = 0

@@ -1625,7 +1625,7 @@ anchor_types:
         type   :  suction_pile
         L      :     30  # length of pile [m]
         D      :     15  # diameter of pile [m]
-        zlug   :     10  # embedded depth of padeye [m]
+        zlug   :     20  # embedded depth of padeye [m]
     torpedo_pile1:
         type   :  torpedo_pile
         D1     :     # wing diameter [m]
@@ -1775,27 +1775,6 @@ cable_configs:
             spacing: 21 # [m]
             V: 2
 
-          # - type: Buoyancy_750m #_w_buoy # (section properties including averaged effect of buoyancy modules)
-          #   L_mid: 1350 # [m] from end A
-          #   N_modules: 2
-          #   spacing: 15 # [m]
-          #   V: 3            
-
-          # - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
-          #   L_mid: 1500 # [m] from end A
-          #   N_modules: 5
-          #   spacing: 15 # [m]
-
-          # - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
-          #   L_mid: 1800 # [m] from end A
-          #   N_modules: 5
-          #   spacing: 15 # [m]
-    rope_shared:
-        name: shared rope 
-        type: dynamic
-        typeID: rope
-        span: 1400
-        length: 1700
     
 # Cable cross-sectional properties
 cable_types:
@@ -1838,19 +1817,7 @@ cable_types:
         EI   :      5.10   # [kN.m^2] bending stiffness
         MBL  :      54.0   # [kN] minimum breaking load
         MBR  :     1.875   # [m] minimum bending radius
-        
-    rope:
-        d:    0.1797
-        m:        34.85
-        EA:       47610000
-        material: rope 
-        
-    # # alternative table-based format
-    
-    # keys :   name,   EA ,  MBL ...]
-    # data :
-    #     -    static_80 , 3232, 23
-    #     -    dynamic_80, 3232, 23
+
 
 # Cable appendages
 cable_appendages:

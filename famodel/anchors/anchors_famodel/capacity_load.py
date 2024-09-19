@@ -128,18 +128,22 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
          
     T_values = []; Su_values = [];
     drag_values = []; depth_values = []; 
-    
+
+    count = 0
     while (zlug - depth) >= 0:
         dtheta = (Nc*Su*AB - W*np.cos(theta))/T*deltas
         dT = -(alpha*Su*AS - W*np.sin(theta))*deltas
         ddrag = deltas*np.cos(theta)
         ddepth = deltas*np.sin(theta)
-        theta += dtheta; T += dT; 
-        drag += ddrag; depth += ddepth
+        theta += dtheta
+        theta=float(theta)
+        T += dT; 
+        drag += ddrag;
+        depth += ddepth
         Su = Su0 + k*depth
-           
         T_values.append(T); Su_values.append(Su)
         drag_values.append(drag); depth_values.append(depth); 
+        count += 1
                
     Ta = T; thetaa = theta 
     H = Ta*np.cos(thetaa); V = Ta*np.sin(thetaa) 
@@ -151,7 +155,7 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
     resultsLoad['H'] = H                       # Horizontal component @ lug
     resultsLoad['V'] = V                       # Vertical component @ lug
     resultsLoad['length'] = length_values      # Length of the embedded line
-    
+       
     # Plot of the line and extreme line tension
     drag_values = [-1*i for i in drag_values]
     depth_values = [-1*j for j in depth_values]
@@ -160,6 +164,7 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
     ax.scatter(0,0,color='r',zorder=4)
     ax.arrow(0,0,Tm*np.cos(np.deg2rad(thetam))/n,Tm*np.sin(np.deg2rad(thetam))/n,
           head_width=0.25,head_length=0.5,color='r',zorder=3)
+    # breakpoint()
     ax.arrow(drag_values[-1],depth_values[-1],Ta*np.cos(thetaa)/n,Ta*np.sin(thetaa)/n,
           head_width=0.25,head_length=0.5,color='g',zorder=2)
     ax.plot(drag_values,depth_values,color='b',zorder=1)

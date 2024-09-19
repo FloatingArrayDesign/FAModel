@@ -16,7 +16,7 @@ class Mooring(Edge):
     '''
     
     def __init__(self, dd=None, subsystem=None, anchor=None,
-                 rho=1025, g=9.81,id=None):
+                 rho=1025, g=9.81,id=None,shared=0):
         '''
         Parameters
         ----------
@@ -121,7 +121,7 @@ class Mooring(Edge):
         
         self.adjuster = None  # custom function that can adjust the mooring
         
-        self.shared = False # boolean for if the mooring line is a shared line
+        self.shared = shared # int for if the mooring line is a shared line (1) or part of a shared line (2)
         self.symmetric = False # boolean for if the mooring line is a symmetric shared line
         
         # relevant site info

@@ -193,7 +193,8 @@ class Platform(Node):
     def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
                        shapes=True,Fth=None,SFs=True):
         '''
-        Compute watch circle of platform based on rated thrust.
+        Compute watch circle of platform, as well as mooring and cable tension safety factors and 
+        cable sag safety factors based on rated thrust.
         
         Parameters
         ----------

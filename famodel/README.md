@@ -1,18 +1,57 @@
 # Project class and floating array subpackages
 
-This in-progress package currently includes the start of an
-overall floating array project class and a series of data
-structures and functions for bathymetry, soil conditions, 
-and anchor holding capacity.
+This in-progress package currently includes an
+overall floating array project class, classes for components of a floating array, and a series of data
+structures and functions for bathymetry, soil conditions, and other site conditions.
 
-## The Project Class
+This package integrates various open-source array modeling tools such as [RAFT](https://openraft.readthedocs.io/en/latest/), [MoorPy](https://moorpy.readthedocs.io/en/latest/), 
+and [FLORIS](https://nrel.github.io/floris/). FAModel can automatically create a model of the array in any of these tools.
+
+To enable organized storage of floating array information and functions specific to components, each component of an array 
+has a dedicated class (i.e. Mooring class, Turbine class, etc).
+
+
+## Overview
+This document provides information on the FAModel class structure, then delves into the Project class methods and properties, and finally provides an overview of the FAModel Ontology YAML setup.
+### Class Structure
+The structure of the project class and component classes is described in the following sections:
+* [Project Class](#project-class)
+* [Base Classes](#base-classes)
+  * [Node Class](#node-class)
+  * [Edge Class](#edge-class)
+* [Platform Class](#platform-class)
+* [Mooring Class](#mooring-class)
+  * [Section Class](#section-class)
+  * [Connector Class](#connector-class)
+* [Anchor Class](#anchor-class)
+* [Cable Class](#cable-class)
+  * [Dynamic Cable Class](#dynamic-cable-class)
+  * [Static Cable Class](#static-cable-class)
+  * [Joint Class](#joint-class)
+* [Turbine Class](#turbine-class)
+* [Substation Class](#substation-class)
+
+### Project Information
+A full description of the project class methods and properties is found in the following sections:
+* [Project Class Methods](#project-methods)
+* [Project Class Properties](#project-properties)
+
+### FAModel Ontology
+An overview of the Ontology YAML file setup is found in the following section.
+* [FAModel Ontology Overview](#ontology-yaml)
+<br><br>
+For a full description of the ontology yaml file with examples, see [Ontology ReadMe](./ontology/README.md)
+
+## Project Class
 
 The Project class provides a standard data structure that combines
 design information (through an ontology yaml file or RAFT) and site information. 
 Currently the site information focuses on the seabed and lease area
 boundary. In the future, metocean data will also be included. The design information 
-includes anchors, platforms, connectors, cables, and mooring lines.
-
+includes [anchors](#anchor-class), [platforms](#platform-class), [turbines](#turbine-class), [substations](#substation-class), [cables](#cable-class), and [mooring lines](#mooring-class). Components of the array each have a dedicated class. All component classes inherit from either an edge or a node 
+base class. Base classes are described in more detail in [Base Classes](#base-classes). The class structure is visualized below:<br><br>
+![FAModel Class Structure](./images/FAModel_nodes_edges.png)
+<br><br>
 The project class includes a grid over which seabed bathymetry and
 soil information is stored. The soil information follows a property
 parameterization with the following fields:
@@ -26,6 +65,163 @@ parameterization with the following fields:
 - soil_K     - undrained shear strength gradient [kPa/m] (clay soils)
 - soil_alpha - soil skin friction coefficient [-] (clay soils)
 - soil_phi   - angle of internal friction [deg] (sand soils)
+
+For details on the properties and methods of the Project class, see [Project class methods](#project-methods) and [Project class properties](#project-properties)
+
+
+[Back to Top](#class-structure)
+
+## Base Classes
+There are two base classes from which all array component classes inherit: Nodes and Edges. 
+These classes provide methods to create, look up, and remove attachments between component objects.
+
+Nodes are classes that can be described by a point in space, such as a platform or anchor. Edges are 
+classes that connect two nodes, such as a mooring line or cable. 
+
+### Node Class
+The Node class contains the following properties:
+
+ - id          : unique ID of the Node object
+ - attachments : dictionary of objects attached to the node (usually Edges). The key is the id of the attached object,
+                 and the value is a dictionary of information on the attached object, set up as shown below:
+				 {'obj':attached object,'id':id of attached object,'r_rel':relative location of attached object,
+				 'type':'node'}
+ - part_of     : Edge object this node is a subcomponent of (if applicable)
+ - r           : xy position of Node [m]
+ - theta       : heading of Node [rad]
+ - R           : rotation matrix
+				 
+
+The Node class methods are:
+ - isAttached      : check if an object is attached to the node
+ - attach          : attach an object to this node
+ - detach          : detach a specified object from this node 
+ - getTopLevelEdge : returns higher-level edge this node is a part of, if applicable
+ - setPosition     : sets position of node, and heading if applicable 
+
+### Edge Class
+The Edge class contains the following properties:
+  - id            : unique ID of the edge object
+  - attached_to   : object(s) either end of the edge is attached to. 
+                    This is a list of the objects (not a dictionary like node.attachments), where end A attachment 
+					is in the 0th index, and end B attachment object is in the 1st index.
+  - rA            : end A location [x,y]
+  - rB            : end B location [x,y]
+  - part_of       : Edge object this edge is a subcomponent of (if applicable)
+  - subcomponents : chain of edges and nodes that make up this edge
+  - whole         : boolean, false if sub edges/nodes aren't all connected
+
+The Edge class methods are:
+  - isAttachedTo     : checks if specified node is attached to this edge
+  - attachTo         : attaches a specified node to end A or end B of this edge
+  - detachFrom       : detach a specified end of this edge from what it is attached to
+  - addSubcomponents : adds a sequence of alternating nodes and edges as subcomponents of this edge, connecting the 
+                       subcomponent objects in the process.
+  - getTopLevelEdge  : returns higher-level edge this edge is a part of, if applicable
+  - setEndPosition   : sets the position of an edge end 
+  - delete           : detach the edge from anything it is attached to 
+
+Edge classes such as Cables and Moorings can be made up of subcomponents that are alternating series of nodes and edges.
+For example, a Mooring object with subcomponents Connector-Section-Connector, or a Cable with subcomponents 
+DynamicCable-Joint-StaticCable-Joint-DynamicCable. 
+
+[Back to Top](#class-structure)
+
+## Platform Class
+The platform class contains properties and methods pertaining to a floating offshore wind turbine platform. The Platform 
+class inherits from the Node class. 
+
+The Platform class is described in detail in the [Platform ReadMe file](./platform/README.md).
+
+[Back to Top](#class-structure)
+
+## Mooring Class 
+The Mooring class contains properties and methods pertaining to a mooring line of a floating offshore wind turbine. The 
+Mooring class inherits from the Edge class. 
+
+A mooring class object contains all of the subcomponents of a line from anchor to fairlead, or from fairlead to fairlead for a shared mooring line. Mooring lines will have subcomponents which alternate between Connector 
+objects and Section objects. 
+
+In a chain-polyester line, there would be 5 subcomponents of the Mooring object: 
+[Connector, Section, Connector, Section, Connector]
+
+![Mooring Object with subcomponents](./images/mooring_subcomponents.png)
+
+>[!NOTE]
+>The anchor is not part of the Mooring object
+
+
+Detailed information on the Mooring, Section, and Connector classes is provided in the [Mooring ReadMe file](./mooring/README.md)
+
+[Back to Top](#class-structure)
+
+### Section Class 
+
+The section class contains information on a mooring line segment. A mooring line may have multiple materials or properties along the line, and each segment will have its own Section object.
+For example: in a chain-polyester-chain line for a semi-taut mooring line, there will be 3 Section objects, one for each segment. These 
+Sections are subcomponents of the Mooring object.
+
+[Back to Top](#class-structure)
+
+### Connector Class 
+
+The Connector class contains information on a mooring line connector. Each end of a mooring line will have a Connector object, meaning the minimum number of subcomponents of a Mooring object is 3 (Connector, Section, Connector). There will also be a connector between segments of the mooring line with different properties.
+
+[Back to Top](#class-structure)
+
+## Anchor Class
+
+The Anchor class contains properties and methods of a mooring line anchor. The Anchor class inherits from the Node class.
+Anchors may be shared (multiple lines attached to the same anchor). 
+
+Capacity and load functions in the anchors folder 
+provide the capacities of an anchor and the loads at its lug location. These functions are called from the Anchor method getAnchorCapacity().
+Various anchor types are supported, for detailed information on the Anchor class, as well as capacity and load functions see the [Anchor ReadMe file](./anchors/README.md).
+
+[Back to Top](#class-structure)
+
+## Cable Class
+
+The Cable class contains properties and methods of an intra-array cable. The Cable object is defined as the entirety of 
+an electrical cable between two platforms or a platform and an offshore substation. For full details on the Cable class and its subcomponent classes (DynamicCable, StaticCable, Joint), see the [Cable ReadMe file](./cables/README.md)
+
+The Cable class is comprised of
+subcomponents. For a suspended cable with no static portion, there is only one subcomponent - a DynamicCable object, as shown below: 
+![Suspended cable design](./images/suspended_cable.png)
+For cables with dynamic and static portions, there will be multiple subcomponents, as the static portion 
+of the cable willl be a StaticCable object, and there will be a Joint object at each point where the  For example, a Cable object may 
+have subcomponents in the order DynamicCable-Joint-StaticCable-Joint-DynamicCable.
+![Cable with dynamic and static portions](./images/array_cable.png)
+
+>[!Note]
+>Unlike the Mooring class, there does not need to be a Joint at the platform/substation connections, only between a static and dynamic cable.
+
+### Dynamic Cable Class
+The DynamicCable class contains properties and methods for a cable section that will experience motion. These cables often contain buoyancy modules to create a buoyant section that relieves tensions when the platform it is connected to moves.
+
+The segments of the dynamic cable with buoyancy modules is not split into its own subcomponents because the dynamic cable is all one portion. Instead, the design dictionary contains information on the location of buoyancy modules along the cable length. Joint locations are determined based on the heading and span of the DynamicCable.
+
+### Static Cable Class
+The StaticCable class contains properties and methods for a cable section that will not move (generally these cables are buried or otherwise prevented from moving along the seabed). Routing can be specified for each StatiCable between its end Joints.
+
+### Joint Class
+The Joint class contains information on a joint between cable types. The Joint locations are set based on the seabed endpoint of the connected DynamicCable.
+
+[Back to Top](#class-structure)
+
+## Turbine Class
+The Turbine class contains properties and methods for a floating offshore wind turbine (including RNA, tower, and any transition pieces).
+
+For a complete description of the Turbine class, see the [Turbine ReadMe file](./turbine/README.md)
+
+[Back to Top](#class-structure)
+
+## Substation Class
+The substation class contains information on the offshore substation. Currently, the 
+capabilities of the substation class is very minimal, but in the future will include detailed information on the substation design.
+For a complete description of the Substation class, see the [Substation ReadMe file](./substation/README.md)
+
+[Back to Top](#class-structure)
 
 ## Subpackages
 
@@ -55,8 +251,7 @@ boundary.
 ### loadDesign
 
 Load in the design information from a YAML file or dictionary. Loads in cables,
-mooring lines, anchors, and connectors. Creates objects for each mooring line, anchor,
-connector, and cable. Lists of mooring line objects, anchor objects, and connector objects 
+mooring lines, anchors, platforms, turbines, and substations. Creates objects for each component in the array. Dictionaries of mooring line objects, anchor objects, and platform objects, cable objects, turbine objects, and substation objects 
 are created and stored in the project (array level) object.
 
 ### loadSite
@@ -158,9 +353,12 @@ in the project object. Also allows the option to plot the resulting MoorPy array
 
 Streamlines getting values from the design dictionary from YAML file, including error checking.
 
+## Project Properties
+
 ## Ontology YAML
 
 Contains all information on the design of the floating array.
+For a detailed description of the Ontology YAML by section with examples, see [Ontology ReadMe](./ontology/README.md)
 
 Key information for building the floating array design yaml file by section:
 
@@ -180,7 +378,7 @@ If 0 is provided for the mooring system ID, this designates that the mooring det
 turbine are in the array_mooring section, which is generally in use for shared moorings or anchors.
 
 ### Array Mooring
-This section contains array-level data on anchors and lines. The anchors are listed in the anchor_data table,
+This section contains array-level data on anchors and lines. Mooring lines listed here are not part of the mooring_systems section, as these are either shared lines or lines connected to shared anchors. The anchors are listed in the anchor_data table,
 where the xy location, anchor type, and embedment information are provided. The line_data table provides 
 information on each line, including which platform row number (from the array table) and/or anchor number (from the
 anchor_data table) is attached to the line, what the headings for each end are, and whether there is any length adjustment.

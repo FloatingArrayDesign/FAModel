@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 #### Pile Geometry and Loading ####
 ###################################
 
-def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H, t, fy):
+def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
     
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, EI*d4y/dz4
@@ -48,7 +48,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H, t, fy):
     # Convert L and D to floating point numbers to avoid rounding errors
     L = float(L)
     D = float(D)
-    # t = (6.35 + D*20)/1e3       # Pile wall thickness (m), API RP2A-WSD
+    t = (6.35 + D*20)/1e3       # Pile wall thickness (m), API RP2A-WSD
     E = 200e9                   # Elastic modulus of pile material (Pa)
     fy = 350e6                  # Yield strength of pile material (Pa)
     
@@ -105,9 +105,11 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H, t, fy):
         y, hinge_formed, hinge_location = fd_solver(n, N, h, D, t, fy, EI, V, H, zlug, k_secant)
 
         for i in range(2, n+3):
+            # if i==2 and j==5:
+            #     breakpoint()
             k_secant[i] = py_funs[i](y[i])/y[i]
 
-    print(f'y_max = {max(y):.3f} m')
+    #print(f'y_max = {max(y):.3f} m')
     
     resultsDrivenSoil = {}
     resultsDrivenSoil['Lateral displacement'] = y[2]
@@ -147,8 +149,8 @@ def fd_solver(n, N, h, D, t, fy, EI, V, H, zlug, k_secant):
     
     # Identify the node corresponding to zlug
     zlug_index = int(zlug/h)  # Index for the node corresponding to zlug
-    print(zlug)
-    print(zlug_index)
+    # print(zlug)
+    # print(zlug_index)
 
     # Initialize and assemble matrix
     X = np.zeros((N, N))
@@ -431,14 +433,14 @@ def clay_profile(profile):
     from scipy.interpolate import interp1d
 
     # Depth of mudline relative to pile head
-    z0 = profile[0,0].astype(float)
+    z0 = float(profile[0][0])
 
     # Extract data from profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([0,z0]), profile[:,0].astype(float)])  # m
-    Su    = np.concatenate([np.array([0, 0]), profile[:,1].astype(float)])  # kPa
-    gamma = np.concatenate([np.array([0, 0]), profile[:,2].astype(float)])  # kN/m3
-
+    depth = np.array(np.concatenate([np.array([0,z0]), np.array([float(x[0]) for x in profile])])) #profile[:,0].astype(float)])  # m
+    Su    = np.array(np.concatenate([np.array([0, 0]), np.array([float(x[1]) for x in profile])])) #profile[:,1].astype(float)])  # kPa
+    gamma = np.array(np.concatenate([np.array([0, 0]), np.array([float(x[2]) for x in profile])])) #profile[:,2].astype(float)])  # kN/m3
+    #breakpoint()
     # Calculate sigma_v_eff at each depth
     sigma_v_eff = np.zeros(len(depth))
 
@@ -497,3 +499,27 @@ def sand_profile(profile):
     f_sigma_v_eff = interp1d(depth, sigma_v_eff*1000, kind='linear') # Pa
     
     return z0, f_phi, f_sigma_v_eff
+    
+    
+if __name__ == '__main__':
+ 
+    profile = np.array([[0.0,  20, 10, 'Name of p-y model'],
+                        [75.0, 20, 10, 'Name of p-y model']])
+    L = 20
+    D = 1.5
+    zlug = 2*D
+    H = 426000
+    V = 15900       
+ 
+    y, z, results = getCapacityDrivenSoil(profile, soil_type='clay', L=L, D=D, zlug=zlug, V=V, H=H)
+    # y, z, results = getCapacityDrivenSoil(profile, soil_type='sand', L=L, D=D, zlug=zlug, V=V, H=H)
+    y0 = np.zeros(len(z))
+    #Plot deflection profile of pile
+    fig, ax = plt.subplots(figsize=(3,5))    
+    ax.plot(y0,z,'black')
+    ax.plot(y,z,'r')
+    ax.set_xlabel('Displacement [m]')
+    ax.set_ylabel('Depth below pile head [m]')
+    ax.set_ylim([L + 2,-2])
+    ax.set_xlim([-0.1*D, 0.1*D])
+    ax.grid(ls='--')

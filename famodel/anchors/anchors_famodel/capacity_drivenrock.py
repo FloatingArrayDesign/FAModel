@@ -44,7 +44,7 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
     
     # Extract optional keyword arguments
     # ls = 'x'
-    n = 50, iterations = 10; loc = 2
+    n = 50; iterations = 10; loc = 2
 
     # Resistance factor
     nhuc = 1; nhu = 0.3 
@@ -105,14 +105,14 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
         # if j == 0: print 'FD Solver started!'
         y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
 
-        if convergence_tracker == 'Yes':
-            plt.plot(y[loc], k_secant[loc]*y[loc])
+        # if convergence_tracker == 'Yes':
+        #     plt.plot(y[loc], k_secant[loc]*y[loc])
 
         for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]
 
-    if print_output == 'Yes':
-        print(f'y_0 = {y[2]:.3f} m')
+    # if print_output == 'Yes':
+    #     print(f'y_0 = {y[2]:.3f} m')
 
     resultsDrivenRock = {}
     resultsDrivenRock['Lateral displacement'] = y[2]
@@ -312,13 +312,13 @@ def rock_profile(profile):
     #global var_rock_profile
 
     # Depth of mudline relative to pile head
-    z0 = profile[0,0].astype(float)
+    z0 = float(profile[0][0])
 
     # Extract data from soil_profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([z0]),profile[:,0].astype(float)])  # m
-    UCS   = np.concatenate([np.array([0]),profile[:,1].astype(float)])   # MPa
-    Em    = np.concatenate([np.array([0]),profile[:,2].astype(float)])   # MPa
+    depth = np.concatenate([np.array([z0]),np.array([float(x[0]) for x in profile])]) #profile[:,0].astype(float)])  # m
+    UCS   = np.concatenate([np.array([0]),np.array([float(x[1]) for x in profile])])   # MPa
+    Em    = np.concatenate([np.array([0]),np.array([float(x[2]) for x in profile])])   # MPa
 
     # Define interpolation functions
     f_UCS = interp1d(depth, UCS*1e6, kind='linear') # Pa

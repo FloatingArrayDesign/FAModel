@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 from matplotlib import cm
 from mpl_toolkits import mplot3d 
-from capacity_load import getAnchorLoad
    
 def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
     

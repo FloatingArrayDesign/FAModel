@@ -33,7 +33,8 @@ def getCapacityHelical(D, L, d, soil_type, gamma, alpha_star, Su0=None, k=None, 
     # ----- Clay case -----
     if soil_type == 'clay':
         
-        Nc = 6.0*(1 + 0.2*d/D); Nc = np.where(Nc < 9, Nc, 9)
+        Nc = 6.0*(1 + 0.2*d/D); 
+        Nc = np.where(Nc < 9, Nc, 9)
         # Su is calculated, at the depth of the helix minus one helical plate diameter
         # A reduction of 25% is applied for a moderately sensitive clay
         Qh = ((np.pi/4)*(D**2 - d**2)*Nc*(Su0 + k*(L - D)) + gamma*D)*0.75 

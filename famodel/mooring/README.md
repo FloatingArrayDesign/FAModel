@@ -1,4 +1,14 @@
-# Moorings, Anchors, and Connectors
+# Moorings, Sections, and Connectors
+
+This file contains information on Mooring class and the subcomponent classes, Section and Connector.
+The layout of this file is as follows:
+## Layout
+* [The Mooring Class](#the-mooring-class)
+	* [Mooring Properties](#mooring-properties)
+	* [Mooring Methods](#mooring-methods)
+* [The Section Class](#the-section-class)
+* [The Connector Class](#the-connector-class)
+
 
 ## The Mooring Class
 
@@ -18,9 +28,9 @@ includes a design dictionary with the following details:
 		- EA
 	- Line section length
 	
-The Mooring class also stores the xyz location of each end of the mooring line, a list of connector 
-classes associated with this line, a boolean to determine if the line is symmetric, and a dictionary of 
-loads and costs.
+The Mooring object contains subcomponent objects that represent each component of the full mooring line. Line segments are Section objects, while connectors between segments and at the ends of the lines are Connector objects. These segments alternate.
+
+## Mooring Properties
 
 ## Mooring methods
 
@@ -42,26 +52,6 @@ Set the position of an end of the mooring line.
 Adjust the mooring position based on changed platform location or heading. It can call a custom "adjuster" 
 function if one is provided. Otherwise it will just update the end positions.
 
-## The Anchor Class
-
-The Anchor class provides a data structure for design information of an anchor. Design information includes a 
-dictionary with the following details:
-- Seabed angle
-- Cost
-- Detail on anchor
-	- length
-	- mass
-	- area
-	- thickness
-	- embedment length
-	- diameter
-- Name
-- Anchor type
-- Soil type
-
-The Anchor class also contains an xyz location of the anchor, list of mooring line objects connected to the 
-anchor, the MoorPy point object that represents the anchor in a MoorPy system, the anchor capacity, loads and 
-soil properties.
 
 ## Anchor methods
 

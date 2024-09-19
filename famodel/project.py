@@ -731,7 +731,7 @@ class Project():
                         # create anchor object
                         self.anchorList['shared_'+arrayAnchor[k]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1],id='shared_'+arrayAnchor[k]['ID'])
                         # attach mooring object to anchor
-                        mc.attachTo(self.anchorList[('shared_',arrayAnchor[k]['ID'])],end='A')
+                        mc.attachTo(self.anchorList[('shared_'+arrayAnchor[k]['ID'])],end='A')
                   
                     # add mooring object to project mooring list
                     self.mooringList[str(PFNum[0])+alph[ind]] = mc
@@ -1047,7 +1047,7 @@ class Project():
         self.mu_air = getFromDict(site['general'], 'mu_air', default=1.81e-5)
         
         # load bathymetry information, if provided
-        if 'bathymetry' in site:
+        if 'bathymetry' in site and site['bathymetry']:
             if 'file' in site['bathymetry'] and site['bathymetry']['file']: # make sure there was a file provided even if the key is there
                 self.loadBathymetry(site['bathymetry']['file'])
             elif 'x' in site['bathymetry'] and 'y' in site['bathymetry']:
@@ -1055,11 +1055,15 @@ class Project():
                 ys = np.array(site['bathymetry']['y'])
                 self.grid_depth = np.array(site['bathymetry']['depths'])
                 self.setGrid(xs,ys)
-                
             else:
                 # assume a flat bathymetry
                 self.grid_depth  = np.array([[self.depth]])
-        '''
+                
+        else:
+            # assume a flat bathymetry
+            self.grid_depth  = np.array([[self.depth]])
+            
+        
         # Load project boundary, if provided
         if 'boundaries' in site:
             if 'file' in site['boundaries'] and site['boundaries']['file']:  # load boundary data from file if filename provided
@@ -1070,12 +1074,12 @@ class Project():
                     for i in range(len(xy)):
                         self.boundary[i,0] = float(xy[i][0])
                         self.boundary[i,1] = float(xy[i][1])
-        '''
-        if 'seabed' in site:
-            if 'file' in site['seabed']:
-                self.loadSoil(site['seabed']['file'])
+        
+        if 'seabed' in site and site['seabed']:
+            if 'file' in site['seabed'] and site['seabed']['file']:
+                self.loadSoil(file=site['seabed']['file'])
             else:
-                self.loadSoil(None, yaml=site['seabed'])
+                self.loadSoil(yaml=site['seabed'])
 
         # and set the project boundary/grid based on the loaded information
         # TBD, may not be necessary in the short term. self.setGrid(xs, ys)

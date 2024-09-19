@@ -1,7 +1,143 @@
 # Anchors Library
 
-This subpackage of FAModel contains modules for anchor capacity 
-calculations. There are two levels of fidelity in these models:
+This subpackage of FAModel contains the Anchor class as well as modules for anchor capacity 
+calculations. 
+
+## Anchor Class
+The anchor class contains properties and methods related to mooring anchors.
+The supported anchor types are below, with the associated FAModel name in italics.
+- Plate anchors 
+  - *DEA* (drag-embedment anchors)
+  - *SEPLA* (suction embedded plate anchors)
+  - *DEPLA* (dynamically embedded plate anchors)
+  - *VLA* (vertically loaded anchors)
+  - *plate* (unspecified plate anchor)
+- *suction_pile* (Suction caisson/ suction bucket anchors)
+- *torpedo_pile* (Torpedo pile anchors)
+- *helical_pile* (Helical pile anchors)
+- *driven_pile*  (Driven pile anchors)
+- *dandg_pile* (Drilled and grouted piles)
+
+
+The anchor class stores properties and methods that enable a wide range of modeling - from capacity to cost to loads, and more. The [anchor capacity modules](#anchor-capacity-modules) are integrated with the anchor class through the getAnchorCapacity() method. 
+### Anchor Properties
+- **r** : anchor [x,y,z] position
+- **dd** : anchor design dictionary, containing geometric properties, soil properties at the anchor location, cost
+- **ms** : moorpy system associated with this anchor point
+- **aNum** : anchor index in array mooring list (generally only used for shared moorings)
+- **mpAnchor** : moorpy point object that models this anchor
+- **anchorCapacity** : dictionary with horizontal and vertical capacity of the anchor. Generally these are loads in [N], but can also be displacements (generally for driven or drilled and grouted piles)
+- **loads** : dictionary of loads on the anchor, and the method used to obtain these loads (static or dynamic modeling). Loads include horizontal (H) and vertical (V) loads, as well as the angle of the load (theta). The keys for these loads will either include an m (for loads at the mudline) or a (for loads at the anchor lug).
+- **soilProps** : dictionary of soil property information at the location of the anchor
+- **failure_probability** : dictionary of probabilities for failure of the anchor
+
+
+### Anchor Methods
+- **makeMoorPyAnchor()** : Creates a MoorPy point object representing the anchor in a moorpy system
+- **getAnchorCapacity()** : Calls anchor capacity functions for the correct anchor type
+- **getMPForces()** : Finds forces on anchor at mudline using MoorPy Point.getForces method and optionally forces at anchor lug location with getTransferLoad function in capacity_loads.py. Stores results in loads dictionary
+- **getFS()** : Computes safety factor for loads on the anchor
+- **getCost()** : Finds costs of anchor from MoorProps and stores in design dictionary
+- **getMass()** : Finds mass and/or UHC of anchor from MoorProps and stores in design dictionary
+
+### Anchor Type Requirements
+
+Different geometric properties and soil conditions are needed for each anchor type. See the [Anchor Capacity Modules](#anchor-capacity-modules) section for details on the requirements of each anchor type.
+
+
+## Anchor Capacity Modules
+The following list shows the required soil conditions, soil properties, geometry, and load information for anchor capacity calculations of each anchor type. Soil classification for clay and sand can be found in [Soil Classification Parameters](#soil-classification-parameters).
+- **DEA/SEPLA/DEPLA/VLA/plate**
+  - soil condition: clay/mud
+    - Su0 (undrained shear strength of soil at mudline) [kPa]
+    - k (rate of change in shear strength with depth) [kPa/m]
+    - gamma (submerged soil unit weight) [kN/m^3]
+  - geometry
+    - A (area of plate) [m^2]
+    - zlug (embedded depth of bridle/padeye below mudline - positive is below mudline, negative is above mudline) [m]
+    - beta (OPTIONAL - angle of plate after keying) [deg]
+  - loads: None
+- **suction_pile (Suction caisson/ suction bucket anchors)**
+  - soil conditions
+    - sand
+      - phi (internal friction angle) [deg]
+      - beta (skin friction coefficient) [-]
+    - clay/mud
+      - Su0 (undrained shear strength of soil at mudline) [kPa]
+      - k (rate of change in shear strength with depth) [kPa/m]
+      - alpha (adhesion factor) [-]
+  - geometry
+    - L (length of pile) [m]
+    - D (diameter of pile) [m]
+    - zlug (embedded depth of padeye below mudline) [m]
+  - loads
+    - Ha, Va (horizontal and vertical loads on padeye of anchor) 
+- **torpedo_pile (Torpedo pile anchors)**
+  - soil condition: clay/mud
+    - Su0 (undrained shear strength of soil at mudline) [kPa]
+    - k (rate of change in shear strength with depth) [kPa/m]
+    - alpha (adhesion factor) [-]
+  - geometry
+    - D1 (wing diameter) [m]
+    - D2 (shaft diameter) [m]
+    - L1 (wing length) [m]
+    - L2 (shaft length) [m]
+    - zlug (embedded depth of padeye below mudline) [m]
+  - loads: None
+- **helical_pile (Helical pile anchors)**
+  - soil conditions
+    - sand
+      - phi (internal friction angle) [deg]
+      - gamma (submerged soil unit weight) [kN/m^3]
+      - alpha_star (empirical adhesion factor **can use alpha instead*) [-]
+    - clay/mud
+      - Su0 (undrained shear strength of soil at mudline) [kPa]
+      - k (rate of change in shear strength with depth) [kPa/m]
+      - gamma (submerged soil unit weight) [kN/m^3]
+      - alpha_star (empirical adhesion factor **can use alpha instead*) [-]
+  - geometry
+    - D (helix diameter) [m]
+    - L (shaft length) [m]
+    - d (shaft diameter) [m]
+  - loads: None
+- **driven_pile (Driven pile anchors)**
+  - soil conditions:
+    - weak rock (up to UCS = 5 MPa)
+      - UCS (unconfined compressive strength at failure)
+      - Em (rock mass modulus)
+    - sand
+      - phi (internal friction angle) [deg]
+      - gamma (submerged soil unit weight) [kN/m^3]
+    - clay/mud
+      - Su0 (undrained shear strength of soil at mudline) [kPa]
+      - k (rate of change in shear strength with depth) [kPa/m]
+      - gamma (submerged soil unit weight) [kN/m^3]
+  - geometry
+    - L (length of pile) [m]
+    - D (diameter of pile) [m]
+    - zlug (embedded depth of padeye below mudline) [m]
+  - loads
+    - Ha, Va (horizontal and vertical loads on padeye of anchor)
+- **dandg_pile (Drilled and grouted piles)**
+  - soil condition: rock
+    - UCS (unconfined compressive strength at failure)
+    - Em (rock mass modulus)
+  - geometry
+    - L (length of pile) [m]
+    - D (diameter of pile) [m]
+    - zlug (lug location (lug above mudline has negative zlug)) [m]
+  - loads
+    - Ha, Va (horizontal and vertical loads on padeye of anchor)
+
+>[!IMPORTANT] A positive zlug denotes a lug/padeye/bridle below the mudline, while a negative zlug denotes a lug/padeye/bridle above the mudline. Anchors in rock should have a zlug >= 0.
+<br><br>
+>[!NOTE] Load inputs to the capacity functions are in kN, while the anchor loads dictionary is in N. This conversion is automatically completed in the getAnchorCapacity() function so no manual load conversion is required. Load outputs are automatically converted in the getAnchorCapacity function where necessary. 
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+### Model Fidelity
+
+There are two levels of fidelity in these models:
 
 - Level 1 basic models are soil-dependent capacity curves for a 
   range of anchor types based on performing curve fits to 
@@ -18,7 +154,7 @@ embedded plate anchor) as a function of surface shear strength:
 
 ### Implemented level-1 model anchor and soil types
 
-|             | Drag emb. | Suction | VLA | SEPLA |
+|             | DEA       | Suction | VLA | SEPLA |
 |-------------|-----------|---------|-----|-------|
 | Soft clay   | X         | X       | X   | X     |
 | Medium clay | X         | X       | X   | X     |

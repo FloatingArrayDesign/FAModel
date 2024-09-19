@@ -117,7 +117,9 @@ class Anchor(Node):
             (change to small value such as .001), but z must always start at 0. Ex: array([z1,Su1],[z2,Su2],...)
             Used only for driven pile and drilled and grouted pile anchors.
         loads : dict, optional
-            Dictionary of loads on the anchor at the lug point
+            Dictionary of loads on the anchor at the lug point. If not provided, will use the loads dictionary property 
+            of the anchor. If this is empty and it is needed for the capacity function (i.e. driven piles) then 
+            the anchor.getMPForces() function will be called.
 
         Returns
         -------
@@ -148,49 +150,40 @@ class Anchor(Node):
             if 'clay' in soil or 'mud' in soil:
                 # write or overwrite beta in geom dictionary from loads function
                 if anchType != 'DEA':
-                    if not 'thetaa' in loads:
-                        loads = self.getMPForces(capacity_loads=True)
-                    geom['beta'] = loads['thetaa']
+                    if not 'beta' in geom:
+                        if not 'thetaa' in loads:
+                            loads = self.getMPForces(capacity_loads=True)
+                        geom['beta'] = 90 - loads['thetaa']
                 else:
                     geom['beta'] = 0
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'gamma' in ground_conds:             
-                    results = getCapacityPlate(geom['A'], geom['beta'], geom['zlug'], 'clay', ground_conds['gamma'],
-                                               Su0=ground_conds['Su0'], k=ground_conds['k'])
+                    results = getCapacityPlate(geom['A'], geom['beta'], geom['zlug'], 'clay', ground_conds['gamma'][0],
+                                               Su0=ground_conds['Su0'][0], k=ground_conds['k'][0])
                 else:
-                    raise Exception('Ground conditions dictionary needs Su0, k, gamma, information for clay plate anchors')
+                    raise Exception('Ground conditions dictionary needs Su0, k, gamma information for clay plate anchors')
             else:
                 print(f'Warning: Soil type {soil} is not compatible with plate anchors (SEPLA/DEPLA/DEA/VLA)')
                                 
-        # elif anchType == 'DEA':
-            # from .anchors_famodel.capacity_plate import getCapacityPlate
-            # if 'clay' in soil or 'mud' in soil:
-                # write or overwrite beta in geom dictionary from loads function
-                # if not 'thetaa' in loads:
-                    # loads = self.getMPForces(capacity_loads=True)
-                # geom['beta'] = loads['thetaa']
-                # if 'Su0' in ground_conds and 'k' in ground_conds:
-                    # results = getCapacityPlate(geom['A'],geom['beta'],geom['zlug'],'clay',ground_conds['gamma'],
-                                               # Su0=ground_conds['Su0'],k=ground_conds['k'])
-                # else:
-                    # raise Exception('Ground conditions dictionary needs Su0, k information for clay DEA')
-            # else:
-                # print(f'Warning: Soil type {soil} is not compatible with drag-embedment anchors')
         elif anchType == 'suction' or anchType == 'suction_pile':
             from .anchors_famodel.capacity_suction import getCapacitySuction
+            print('suction pile')
             # check loads have been calculated (needed for capacity function in this case)
-            if not loads:
+            if not 'Ha' in loads:
                 # call getMPForces function 
                 loads = self.getMPForces(capacity_loads=True)
             if 'sand' in soil:
                 if 'phi' in ground_conds and 'beta' in ground_conds:
-                    results = getCapacitySuction(geom['D'],geom['L'],geom['zlug'],loads['Ha'],loads['Va'],'sand',ground_conds['gamma'],
-                                                 phi=ground_conds['phi'],beta=ground_conds['beta'])
+                    results = getCapacitySuction(geom['D'],geom['L'],geom['zlug'],loads['Ha'],loads['Va'],'sand',ground_conds['gamma'][0],
+                                                 phi=ground_conds['phi'][0],beta=ground_conds['beta'][0])
                 else:
                     raise Exception('Ground conditions dictionary needs phi and beta information for sand suction pile anchor')
             elif 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'alpha' in ground_conds:# and 'gamma_sub' in ground_conds:
-                    results = getCapacitySuction(geom['D'],geom['L'],geom['zlug'],loads['Ha'],loads['Va'],'clay',ground_conds['gamma'],
-                                                 Su0=ground_conds['Su0'],k=ground_conds['k'],alpha=ground_conds['alpha'])
+                    results = getCapacitySuction(geom['D'],geom['L'],geom['zlug'],loads['Ha']/1000,loads['Va']/1000,'clay',ground_conds['gamma'][0],
+                                                 Su0=ground_conds['Su0'][0],k=ground_conds['k'][0],alpha=ground_conds['alpha'][0])
+                    results['Horizontal max.'] = results['Horizontal max.']*1000
+                    results['Vertical max.'] = results['Vertical max.']*1000
+                    
                 else:
                     raise Exception('Ground conditions dictionary needs Su0, k, and alpha information for clay suction pile anchor')
             else:
@@ -198,17 +191,21 @@ class Anchor(Node):
         elif anchType == 'helical' or anchType == 'helical_pile':
             from .anchors_famodel.capacity_helical import getCapacityHelical
             if 'sand' in soil:
-                if 'phi' in ground_conds and 'gamma' in ground_conds and 'alpha_star' in ground_conds:
-                    results = getCapacityHelical(geom['D'],geom['L'],geom['d'],'sand',ground_conds['gamma'],
-                                                 ground_conds['alpha_star'],phi=ground_conds['phi'])
-                    results['Vertical max.'] = results['Capacity']
+                if not 'alpha_star' in ground_conds:
+                    ground_conds['alpha_star'] = ground_conds['alpha']
+                if 'phi' in ground_conds and 'gamma' in ground_conds:
+                    results = getCapacityHelical(geom['D'],geom['L'],geom['d'],'sand',ground_conds['gamma'][0],
+                                                 ground_conds['alpha_star'][0],phi=ground_conds['phi'][0])
+                    results['Vertical max.'] = results['Capacity']*1000
                 else:
                     raise Exception('Ground conditions dictionary needs phi, gamma and beta information for clay helical pile anchor')
             elif 'clay' in soil or 'mud' in soil:
+                if not 'alpha_star' in ground_conds:
+                    ground_conds['alpha_star'] = ground_conds['alpha']
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'gamma' in ground_conds and 'alpha_star' in ground_conds:
-                    getCapacityHelical(geom['D'],geom['L'],geom['d'],'clay',ground_conds['gamma'],ground_conds['alpha_star'],
-                                       Su0=ground_conds['Su0'],k=ground_conds['k'])
-                    results['Vertical max.'] = results['Capacity']
+                    results = getCapacityHelical(geom['D'],geom['L'],geom['d'],'clay',ground_conds['gamma'][0],ground_conds['alpha_star'][0],
+                                       Su0=ground_conds['Su0'][0],k=ground_conds['k'][0])
+                    results['Vertical max.'] = results['Capacity']*1000
                 else:
                     raise Exception('Ground conditions dictionary needs Su0, k, gamma, and alpha_star information for clay helical pile anchor')
             else:
@@ -217,15 +214,17 @@ class Anchor(Node):
             from .anchors_famodel.capacity_torpedo import getCapacityTorpedo
             if 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'alpha' in ground_conds:
-                    results = getCapacityTorpedo(geom['D1'],geom['D2'],geom['L1'],geom['L2'],geom['zlug'],'clay',ground_conds['Su0'],
-                                                 ground_conds['k'],ground_conds['alpha'])
+                    results = getCapacityTorpedo(geom['D1'],geom['D2'],geom['L1'],geom['L2'],geom['zlug'],'clay',ground_conds['Su0'][0],
+                                                 ground_conds['k'][0],ground_conds['alpha'][0])
+                    results['Horizontal max.'] = results['Horizontal max.']*1000
+                    results['Vertical max.'] = results['Vertical max.']*1000
                 else:
                     raise Exception('Ground conditions dictionary needs Su0, k, and alpha information')
             else:
                 print('Warning: Soil type {soil} is not compatible with torpedo pile anchor')
         elif anchType == 'driven' or anchType == 'driven_pile': # driven pile anchor
             # check loads have been calculated (needed for capacity function in this case)
-            if not loads:
+            if not 'Ha' in loads:
                 # call getMPForces function 
                 loads = self.getMPForces(capacity_loads=True)
             # check soil
@@ -238,14 +237,14 @@ class Anchor(Node):
                     else:
                         raise Exception('Ground conditions dictionary needs UCS, Em, and depth information for weak rock driven pile anchor')
                 results = getCapacityDrivenRock(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
-                    
+                   
             elif 'sand' in soil:
                 from .anchors_famodel.capacity_drivensoil import getCapacityDrivenSoil
                 if profile or ('gamma' in ground_conds and 'phi' in ground_conds):
                     if not profile:
                         profile = [[0,ground_conds['phi'][0],ground_conds['gamma'][0]],[75,ground_conds['phi'][0],ground_conds['gamma'][0]]] #profile = [list(x) for x in list(zip(ground_conds['depth'],ground_conds['phi'],ground_conds['gamma']))]
 
-                    results = getCapacityDrivenSoil(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'],'sand')
+                    results = getCapacityDrivenSoil(profile,'sand',geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
                 else:
                     raise Exception('Ground conditions dictionary needs phi, gamma, and depth information for sand driven pile anchor')
             elif 'clay' in soil or 'mud' in soil:
@@ -255,12 +254,12 @@ class Anchor(Node):
                     if 'Su' in ground_conds and 'depth' in ground_conds and 'gamma' in ground_conds:
                         profile = [list(x) for x in list(zip(ground_conds['depth'],ground_conds['Su'],ground_conds['gamma']))]
                     elif 'Su0' in ground_conds and 'k' in ground_conds and 'gamma' in ground_conds:
-                        Su = ground_conds['Su0'][0]*ground_conds['k'][0]
+                        Su = ground_conds['Su0'][0]+ground_conds['k'][0]*75
                         profile = [[0,ground_conds['Su0'][0],ground_conds['gamma'][0]],[75,Su,ground_conds['gamma'][0]]]
                     else:
                         raise Exception('Ground conditions dictionary needs information for clay driven pile anchor')
 
-                results = getCapacityDrivenSoil(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'],'clay')
+                results = getCapacityDrivenSoil(profile,'clay',geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
                     
             else:
                 print(f'Warning: Soil type {soil} is not compatible with driven pile anchors')
@@ -281,7 +280,7 @@ class Anchor(Node):
                         #     x.append('Reese')
                     results = getCapacityDandG(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
                 else:
-                    raise Exception('Ground conditions dictionary need UCS, Em, and depth information for drill and grout pile')
+                    raise Exception('Ground conditions dictionary need UCS and Em information for drill and grout pile')
             else:
                 print(f'Warning: soil type {soil} is not compatible with drill and grout pile')
         else:
@@ -291,16 +290,18 @@ class Anchor(Node):
         # capacity = cap*installAdj ??? OR is installAdj an input to the capacity functions?
         # save capacity 
         if 'dandg' in anchType or 'driven' in anchType: # will take in dandg, dandg_pile, driven, driven_pile
-            self.anchorCapacity['Lat_max'] = results['Lateral displacement']
-            self.anchorCapacity['Rot_max'] = results['Rotational displacement']
+            self.anchorCapacity['Lat_max'] = results[2]['Lateral displacement']
+            self.anchorCapacity['Rot_max'] = results[2]['Rotational displacement']
         else:
             if 'Horizontal max.' in results:
-                self.anchorCapacity['Ha_max'] = results['Horizontal max.'] # [kN]
-            self.anchorCapacity['Va_max'] = results['Vertical max.'] # [kN]
+                self.anchorCapacity['Ha_max'] = results['Horizontal max.'] # [N]
+            self.anchorCapacity['Va_max'] = results['Vertical max.'] # [N]
         return(results)
             
     def getMPForces(self, lines_only=False, seabed=True, xyz=False,capacity_loads=False):   
-        '''Find forces on anchor using MoorPy Point.getForces method and stores in loads dictionary
+        '''Find forces on anchor at mudline using MoorPy Point.getForces method and optionally forces at 
+        anchor lug location with getTransferLoad function in capacity_loads.py.
+        Stores in loads dictionary
         Parameters
         ----------
         lines_only : boolean
@@ -314,13 +315,12 @@ class Anchor(Node):
         '''
         # call getForces method from moorpy point object
         loads = self.mpAnchor.getForces(lines_only=lines_only, seabed=seabed, xyz=xyz)
-        self.loads['Hm'] = np.sqrt(loads[0]**2+loads[1]**2) # mudline forces
-        self.loads['Vm'] = loads[2]
-        self.loads['thetam'] = np.degrees(np.arctan(self.loads['Vm']/self.loads['Hm']))
-        Tm =  np.sqrt(loads[0]**2+loads[1]**2+loads[2]**2)
-    
+        self.loads['Hm'] = np.sqrt(loads[0]**2+loads[1]**2) # mudline forces in [N]
+        self.loads['Vm'] = loads[2] # [N]
+        self.loads['thetam'] = np.degrees(np.arctan(self.loads['Vm']/self.loads['Hm'])) # [deg]
+        Tm =  np.sqrt(loads[0]**2+loads[1]**2+loads[2]**2) # [N]
         if capacity_loads:
-            from .anchors_famodel.capacity_load import getTransferLoad
+            from .anchors_famodel.capacity_load import getTransferLoad,getAnchorLoad
             if 'zlug' in self.dd['design']:
                 if self.dd['design']['zlug'] > 0:
                     # get line type
@@ -333,24 +333,22 @@ class Anchor(Node):
                     ground_conds = self.dd['soil_properties']
                     if 'clay' in soil or 'mud' in soil:
                         loadresults = getTransferLoad(Tm,self.loads['thetam'],self.dd['design']['zlug'],line_type=mtype,
-                                                       soil_type='clay',Su0=ground_conds['Su0'],k=ground_conds['k'],d=md,w=mw) # output Ha and Va       
+                                                       soil_type='clay',Su0=ground_conds['Su0'][0],k=ground_conds['k'][0],d=md,w=mw/1000) # output Ha and Va    (convert weight to kN/m)   
                     elif 'sand' in soil:
                             soil = 'sand'
-                            loadresults = getTransferLoad(Tm,self.loads['thetam'],self.dd['design']['zlug'],line_type=mtype,
-                                                           soil_type=soil,d=md,w=mw) # output Ha and Va  
+                            loadresults = getAnchorLoad(Tm,self.loads['thetam'],self.dd['design']['zlug'],md,
+                                                           soil,gamma=ground_conds['gamma']) # output Ha and Va  (convert weight to kN/m)
                     if 'rock' in soil:
                         raise ValueError('zlug should be <= 0 for rock.')
                     else:
-                        self.loads['Ha'] = loadresults['H']
-                        self.loads['Va'] = loadresults['V']
+                        self.loads['Ha'] = loadresults['H'] # [N]
+                        self.loads['Va'] = loadresults['V'] # [N]
                         self.loads['thetaa'] = loadresults['angle'] # [deg]
-                elif 'zlug' == 0:
-                    # Ha = Hm because zlug is at mudline
-                    self.loads['Ha'] = self.loads['Hm']
-                    self.loads['Va'] = self.loads['Vm']
-                    self.loads['thetaa'] = self.loads['thetam'] 
                 else:
-                    pass
+                    # Ha = Hm because zlug is at mudline or above
+                    self.loads['Ha'] = self.loads['Hm'] # [N]
+                    self.loads['Va'] = self.loads['Vm'] # [N]
+                    self.loads['thetaa'] = self.loads['thetam'] # [deg]
 
         
         # loads determined from moorpy are static
