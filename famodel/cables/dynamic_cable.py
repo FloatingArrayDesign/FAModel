@@ -557,7 +557,7 @@ class DynamicCable(Edge):
         #     point.CdA = self.dd['connectors'][i]['CdA']
         # solve the system
         ss.initialize()
-        ss.staticSolve()
+        ss.staticSolve(maxIter = 5000)
         #breakpoint()
         
         # save it in the object
@@ -809,7 +809,7 @@ class DynamicCable(Edge):
                     cdAx.append(0.5)
                 if LThick[j] == 0:
                     nd[j]['type'] = deepcopy(st[linekey])
-                    nd[j]['type']['name'] = j
+                    #nd[j]['type']['name'] = j
                 else:
                     # calculate nominal diameter
                     d_nom_old[j] = d_ve_old[j]/ve_nom_adjust[j] # m
@@ -947,8 +947,8 @@ class DynamicCable(Edge):
             sections1 = deepcopy(self.dd['sections'])
             sections1.reverse()
             newsections = []
-            newsections.extend(deepcopy(self.dd['sections']))
             newsections.extend(sections1)
+            newsections.extend(deepcopy(self.dd['sections']))
             self.dd['sections'] = newsections
         else:
             oldbs = self.dd['buoyancy_sections']
