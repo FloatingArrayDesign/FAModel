@@ -129,7 +129,6 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
     T_values = []; Su_values = [];
     drag_values = []; depth_values = []; 
 
-    count = 0
     while (zlug - depth) >= 0:
         dtheta = (Nc*Su*AB - W*np.cos(theta))/T*deltas
         dT = -(alpha*Su*AS - W*np.sin(theta))*deltas
@@ -143,7 +142,6 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
         Su = Su0 + k*depth
         T_values.append(T); Su_values.append(Su)
         drag_values.append(drag); depth_values.append(depth); 
-        count += 1
                
     Ta = T; thetaa = theta 
     H = Ta*np.cos(thetaa); V = Ta*np.sin(thetaa) 

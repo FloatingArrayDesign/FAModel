@@ -1,10 +1,10 @@
 
 ''' Example driver file for creating an FAModel project from a YAML file.
 
-This particular example uses the OntologySample600m.yaml file as input.
+This particular example uses the OntologySample200m.yaml file as input.
 
 The output of this file should be a 2-turbine array with a shared mooring line 
-going between the turbines, and the bathymetry should be 600m. 
+going between the turbines, and the bathymetry should be 200m. 
 
 To run without RAFT installed, skip Section 2. To create a Project 
 that will automatically create a RAFT model, run Section 2. 

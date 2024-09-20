@@ -129,11 +129,12 @@ The following list shows the required soil conditions, soil properties, geometry
   - loads
     - Ha, Va (horizontal and vertical loads on padeye of anchor)
 
->[!IMPORTANT] A positive zlug denotes a lug/padeye/bridle below the mudline, while a negative zlug denotes a lug/padeye/bridle above the mudline. Anchors in rock should have a zlug >= 0.
-<br><br>
->[!NOTE] Load inputs to the capacity functions are in kN, while the anchor loads dictionary is in N. This conversion is automatically completed in the getAnchorCapacity() function so no manual load conversion is required. Load outputs are automatically converted in the getAnchorCapacity function where necessary. 
------------------------------------------------------------------------------
------------------------------------------------------------------------------
+> [!IMPORTANT] 
+> A positive zlug denotes a lug/padeye/bridle below the mudline, while a negative zlug denotes a lug/padeye/bridle above the mudline. Anchors in rock should have a zlug >= 0.
+
+> [!NOTE] 
+> Load inputs to the capacity functions are in kN, while the anchor loads dictionary is in N. This conversion is automatically completed in the getAnchorCapacity() function so no manual load conversion is required. Load outputs are automatically converted in the getAnchorCapacity function where necessary. 
+
 -----------------------------------------------------------------------------
 ### Model Fidelity
 

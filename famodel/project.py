@@ -1971,7 +1971,11 @@ class Project():
         '''
         print('Creating MoorPy Array')
         # create MoorPy system
-        self.ms = mp.System(depth=self.depth)
+        if len(self.grid_x)>1: # add bathymetry if available
+            bath = {'x':self.grid_x,'y':self.grid_y,'depth':self.grid_depth}
+            self.ms = mp.System(depth=self.depth,bathymetry=bath)
+        else:
+            self.ms = mp.System(depth=self.depth)
         # reset all anchor objects listed in self.anchorList to None in case there was a previous ms
         for i in self.anchorList:
             self.anchorList[i].mpAnchor = None
