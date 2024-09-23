@@ -390,7 +390,7 @@ class DynamicCable(Edge):
         return(self.loads['TAmax'],self.loads['TBmax'])
     
     def createSubsystem(self, case=0,pristine=True,dd=None):
-        ''' Create a subsystem for a line configuration from the design dictionary
+        ''' Creates a subsystem for cable and buoyancy section(s) configuration from the design dictionary
         
         Parameters
         ----------

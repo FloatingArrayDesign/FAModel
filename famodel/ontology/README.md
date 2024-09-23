@@ -235,7 +235,9 @@ RAFT_settings:
 ### Marine Growth
 The marine growth section contains information on marine growth thicknesses and densities for mooring lines and cables at various depth ranges.
 Each entry in the data table contains the thickness, lower and upper end of the depth range, and optionally the density.
-If no density is listed, it is defaulted to 1325 kg/m^3.
+If no density is listed, it is defaulted to `1325 kg/m^3`.
+
+The buoys section lists the marine growth thickness on the portions of the dynamic cable that are buoyant. Due to the complexities of modeling marine growth on buoys, FAModel requires the entire buoyant section to have the same marine growth thickness, so they are explicitly specified by section rather than using the marine growth data table. If only one thickness is provided in the buoys section, that thickness is used for all buoyancy sections. If multiple thicknesses are listed, the the index of the thickness corresponds to the index of the buoyancy section in the design dictionary of the DynamicCable. Bare sections of cable will use the thicknesses of the marine growth data table.
 ```yaml
 marine_growth:
         keys: [thickness, lowerRange, upperRange, density]
@@ -244,6 +246,7 @@ marine_growth:
           - [  0.05,        -100,       -80,       1325]
           - [  0.10,        -80,        -40,       1325]
           - [  0.20,        -40,          0,       1325]
+        buoys: [0.1]
 ```
 
 ## Array
@@ -564,8 +567,10 @@ can be specified to model the drag on the component.
 
 The anchor types section lists dimensions and sometimes embedment depth for each anchor type. The anchor types section
 allows the user to input various geometric properties. All parameters are optional,
-because the applicable information depends on the anchor type. The anchor types currently or in near future supported are:
-suction_pile (suction caisson/ suction pile anchor), DEA (drag-embedment anchor), dandg_pile (drill and grouted pile anchor), driven_pile (driven pile anchor),
+because the applicable information depends on the anchor type. T
+
+he anchor types currently or in near future supported are:
+suction_pile (suction caisson/ suction pile anchor), DEA (drag-embedment anchor), dandg_pile (drilled and grouted pile anchor), driven_pile (driven pile anchor),
 torpedo_pile (torpedo pile anchor), SEPLA (suction embedded plate anchor), DEPLA (dynamically embedded plate anchor), VLA (vertically loaded anchor) and helical_pile (helical anchor).
 
 Note that zlug refers to the location of the connection point with the mooring line. A positive zlug is below the mudline, while a negative zlug
@@ -581,7 +586,7 @@ anchor_types:
 
     drag-embedment1:
         type   :  DEA   # type of anchor
-        A      :      # net area of anchor's fluke
+        A      :      # net area of anchor's fluke [m^2]
         zlug   :      # embedded depth of padeye [m]
     d-g_pile1:
         type   :  dandg_pile
@@ -605,12 +610,12 @@ anchor_types:
         L1     :     # wing length [m]
         L2     :     # shaft length [m]
         zlug   :     # embedded depth [m]
-    Plate1:
+    plate1:
         type   :  SEPLA
         A      :    # net area of the plate [m^2]
         beta   :    # angle of the plate after keying process (optional) [deg]
         zlug   :    # embedded depth of bridle or padeye [m]
-    Helical1:
+    helical1:
         type   :  helical_pile
         D      :      # helix diameter
         L      :      # shaft length

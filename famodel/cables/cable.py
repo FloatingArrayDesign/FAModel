@@ -102,6 +102,9 @@ class Cable(Edge):
         self.L = 0  # total length (to be computed) [m]
         for i in self.dd['cables']: # self.subcomponents:
             self.L += i.L
+            
+        # cable cost
+        self.cost = None
         
         # failure probability
         self.failure_probability = {}
