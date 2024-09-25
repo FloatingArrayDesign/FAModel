@@ -93,6 +93,11 @@ may be used.
 ### addMarineGrowth
 Re-creates sections part of design dictionary to account for marine growth on the subsystem, then calls createSubsystem() to recreate the line
 
+#### Marine Growth Modeling Theory
+FAModel models marine growth on mooring lines according to methods developed in 
+
+A dictionary of marine growth thicknesses and densities for different depth ranges can be input to the addMarineGrowth function, or the dictionary can be pulled from the project class marine_growth property, which can be set by the user or read in from the yaml.
+
 ### addCorrosion
 Calculates MBL of chain line with corrosion included
 

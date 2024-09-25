@@ -84,8 +84,8 @@ The Node class contains the following properties:
  - id          : unique ID of the Node object
  - attachments : dictionary of objects attached to the node (usually Edges). The key is the id of the attached object,
                  and the value is a dictionary of information on the attached object, set up as shown below:
-				 {'obj':attached object,'id':id of attached object,'r_rel':relative location of attached object,
-				 'type':'node'}
+				 {'obj': attached object, 'id': id of attached object, 'r_rel': relative location of attached object,
+				  'type': 'node'}
  - part_of     : Edge object this node is a subcomponent of (if applicable)
  - r           : xy position of Node [m]
  - theta       : heading of Node [rad]

@@ -51,7 +51,7 @@ These subcomponents alternate between Edges (either a DynamicCable or StaticCabl
 
 ### Cable Methods
 
-
+[Back to Top](#the-cable-class)
 ## Dynamic Cable Class
 
 The [DynamicCable class](./dynamic_cable.py) contains properties and methods for a dynamic section of a power cable. The DynamicCable class inherits from Edge.
@@ -140,6 +140,9 @@ Often this is used for adding marine growth
  : Mirrors a half symmetrical cable design dictionary to show the entire cable, creates subsystem if asked.
 
 ### Marine Growth on DynamicCables
+Marine growth is modeled on dynamic cables using thicknesses and densities defined in a dictionary for different depth ranges. 
+
+[Back to Top](#the-cable-class)
 
 
 ## Static Cable Class
@@ -150,4 +153,7 @@ The StaticCable class contains properties and methods for a static section of a 
 
 ### Static Cable Methods
 
+[Back to Top](#the-cable-class)
 ## Joint Class
+
+[Back to Top](#the-cable-class)

@@ -261,6 +261,7 @@ class Platform(Node):
         minCurvSF = [None]*len(cables)
         CminTenSF = [None]*len(cables)
         minTenSF = [None]*len(moorings)
+        F = [None]*len(moorings)
         
         for ang in range(0, 360+ang_spacing, ang_spacing):
             print(ang)
@@ -281,6 +282,12 @@ class Platform(Node):
                     # atenMax[j], btenMax[j] = moor.updateTensions()
                     if not minTenSF[j] or minTenSF[j]>MTSF:
                         minTenSF[j] = deepcopy(MTSF)
+                        if not moor.shared:
+                            if self.attachments[moor.id]['end'] == 'a':
+                                # anchor attached to end B
+                                F[j] = moor.ss.fB
+                            else:
+                                F[j] = moor.ss.fA
                 
                 # get tensions, sag, and curvature on cable
                 for j,cab in enumerate(cables):
@@ -325,7 +332,16 @@ class Platform(Node):
         ms.solveEquilibrium3(DOFtype='both')
                 
         if SFs:
-            maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
+            # save anchor loads
+            for j,moor in enumerate(moorings):
+                for att3 in moor.attached_to:
+                    if isinstance(att3,Anchor):
+                        att3.loads['Hm'] = np.sqrt(F[j][0]**2+F[j][1]**2)
+                        att3.loads['Vm'] = F[j][2]
+                        att3.loads['thetam'] = np.degrees(np.arctan(att3.loads['Vm']/att3.loads['Hm'])) #[deg]
+                        att3.loads['mudline_load_type'] = 'max'
+                    
+            maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
             return(x,y,maxVals)
         else:
             return(x,y)

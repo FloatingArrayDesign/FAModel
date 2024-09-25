@@ -19,7 +19,7 @@ class DynamicCable(Edge):
     of a suspended cable it would attach to another Platform.
     '''
     
-    def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
+    def __init__(self, id, dd=None, subsystem=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=None, rad_fair=58, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81,span=2000,length=2200,A=None,conductorSize=None, 
                  type='dynamic',zJTube=-30,voltage=66,powerRating=None,cable_type=None,
@@ -164,6 +164,8 @@ class DynamicCable(Edge):
             cstart = 0  # case where buoyancy section starts right at end A
         else:
             raise Exception("Number of buoyancy sections doesn't match subsystem")
+            
+            
         
         
         currentL = 0  # the length along the cable as we process the sections
@@ -181,17 +183,25 @@ class DynamicCable(Edge):
             bs['L_A'] = bs['L_mid'] - Ls/2
             bs['L_B'] = bs['L_mid'] + Ls/2
             
+
+            halfLs = Ls/2
+            
             # If this buoyancy section isn't at the very start of the cable
             if cstart:  
-            #if i > 0 or bs['L_mid'] > Ls/2:  
+                # if cstart (end A starts with a buoy section) check if it's the first section of a shared half line (section length is half of actual section length)
+                if self.shared == 2 and i == 0:
+                    # adjust halfLs to be full Ls (half of the total buoyant segment length)
+                    halfLs = Ls 
+                
                 iLine +=1 
                 
                 # >>> note: this approach clashes/overlaps with the 'case' approach - should pick one <<<
                 
                 # Set length of bare cable section before this buoyancy section
                 #self.dd['sections'][iLine-1]['length'] = bs['L_mid'] - Ls/2 - currentL
-                self.ss.lineList[iLine-1].setL(bs['L_mid'] - Ls/2 - currentL)
-                currentL = bs['L_mid'] - Ls/2 # save the end location of the section
+                
+                self.ss.lineList[iLine-1].setL(bs['L_mid'] - halfLs - currentL)
+                currentL = bs['L_mid'] - halfLs # save the end location of the section
             
             
             # update properties of the corresponding Subsystem Line
@@ -211,7 +221,7 @@ class DynamicCable(Edge):
            
             if i == len(self.dd['buoyancy_sections'])-1:
                 # this is the last section - adjust cable length at the end
-                L_end = self.L - bs['L_mid'] - Ls/2
+                L_end = self.L - bs['L_mid'] - halfLs
                 self.ss.lineList[-1].setL(L_end)
                 #self.dd['sections'][-1]['length'] = L_end
                 currentL += L_end

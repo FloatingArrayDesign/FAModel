@@ -5,6 +5,8 @@ import moorpy as mp
 import numpy as np
 from famodel.famodel_base import Node
 from famodel.mooring.mooring import Mooring
+import famodel.platform.platform 
+
 
 class Anchor(Node):
     
@@ -70,6 +72,7 @@ class Anchor(Node):
         self.failure_probability = {}
         # self.cost = {}
         
+        
     def makeMoorPyAnchor(self, ms):
         '''Create a MoorPy anchor object in a moorpy system
         Parameters
@@ -117,14 +120,14 @@ class Anchor(Node):
             (change to small value such as .001), but z must always start at 0. Ex: array([z1,Su1],[z2,Su2],...)
             Used only for driven pile and drilled and grouted pile anchors.
         loads : dict, optional
-            Dictionary of loads on the anchor at the lug point. If not provided, will use the loads dictionary property 
+            Dictionary of loads on the anchor at the lug point in [N]. If not provided, will use the loads dictionary property 
             of the anchor. If this is empty and it is needed for the capacity function (i.e. driven piles) then 
-            the anchor.getMPForces() function will be called.
+            the anchor.getLugForces() function will be called.
 
         Returns
         -------
         results : dict
-            Dictionary of capacity of the anchor (generally a max force [kN] in H and V, but can be a max displacement (driven, dandg piles))
+            Dictionary of capacity of the anchor (generally a max force [N] in H and V, but can be a max displacement (driven, dandg piles))
 
         '''
         anchType = self.dd['type'] 
@@ -139,9 +142,14 @@ class Anchor(Node):
                 break               
         soil = self.dd['soil_type'] # soil type
         
-        # loads only used for driven and drilled and grouted piles
-        if not loads:
+        if loads:
+            # find out if mudline loads or anchor loads
+            if not 'Ha' in loads:
+                # get loads at lug
+                loads = self.getLugForces(mudloads=loads)
+        else:
             loads = self.loads
+        
         
        
         # logic to determine what functions to call based on anchor type and soil type...
@@ -152,7 +160,7 @@ class Anchor(Node):
                 if anchType != 'DEA':
                     if not 'beta' in geom:
                         if not 'thetaa' in loads:
-                            loads = self.getMPForces(lug_loads=True)
+                            loads = self.getLugForces()
                         geom['beta'] = 90 - loads['thetaa']
                 else:
                     geom['beta'] = 0
@@ -166,11 +174,10 @@ class Anchor(Node):
                                 
         elif anchType == 'suction' or anchType == 'suction_pile':
             from .anchors_famodel.capacity_suction import getCapacitySuction
-            print('suction pile')
             # check loads have been calculated (needed for capacity function in this case)
             if not 'Ha' in loads:
                 # call getMPForces function 
-                loads = self.getMPForces(lug_loads=True)
+                loads = self.getLugForces()
             if 'sand' in soil:
                 if 'phi' in ground_conds and 'beta' in ground_conds:
                     results = getCapacitySuction(geom['D'],geom['L'],geom['zlug'],loads['Ha']/1000,loads['Va']/1000,'sand',ground_conds['gamma'][0],
@@ -226,7 +233,7 @@ class Anchor(Node):
             # check loads have been calculated (needed for capacity function in this case)
             if not 'Ha' in loads:
                 # call getMPForces function 
-                loads = self.getMPForces(lug_loads=True)
+                loads = self.getLugForces()
             # check soil
             if 'weak_rock' in soil:
                 from .anchors_famodel.capacity_drivenrock import getCapacityDrivenRock
@@ -271,7 +278,7 @@ class Anchor(Node):
                 # check loads have been calculated (needed for capacity function in this case)
                 if not loads:
                     # call getMPForces function 
-                    loads = self.getMPForces(lug_loads=True)
+                    loads = self.getLugForces()
                 # check for correct ground properties
                 if profile or ('UCS' in ground_conds and 'Em' in ground_conds):
                     if not profile:
@@ -298,7 +305,7 @@ class Anchor(Node):
             self.anchorCapacity['Va_max'] = results['Vertical max.']*1000 # [N]
         return(results)
             
-    def getMPForces(self, max_force=False,lines_only=False, seabed=True, xyz=False,mud_loads=None,lug_loads=False):   
+    def getMudlineForces(self, max_force=False,lines_only=False, seabed=True, xyz=False):   
         '''Find forces on anchor at mudline using the platform.getWatchCircle method or MoorPy Point.getForces method. 
         Optionally, get forces at anchor lug location with getTransferLoad function in capacity_loads.py.
         Stores in loads dictionary
@@ -312,63 +319,101 @@ class Anchor(Node):
             Include effect of seabed pushing up the anchor (True) or not (False). Default is true
         xyz : boolean, optional
             Return forces in x,y,z DOFs (True) or only the enabled DOFs (False). Default is false
-        lug_loads : boolean, optional
-            Return loads from getTransferLoad function (forces at anchor lug)
-        mud_loads : dictionary, optional
-            Dictionary of mudline loads, which will be used as inputs to the getTransferLoad()
             
         '''
+        Platform = famodel.platform.platform.Platform
         if max_force:
-            pass
-            # # find platform associated with this anchor
-            # for att in self.attachments.items():
-            #     if isinstance(att['obj'],Mooring):
-            #         for attM in att['obj'].attached_to:
-            #             if isinstance(attM,Platform):
-            #                 locx,locy,maxVals = attM.getWatchCircle()
-            #                 load = maxVals['minTenSF']*att['obj'].dd['']
+            # find platform associated with this anchor
+            for att in self.attachments.values():
+                if isinstance(att['obj'],Mooring):
+                    for attM in att['obj'].attached_to:
+                        if isinstance(attM,Platform):
+                            locx,locy,maxVals = attM.getWatchCircle()
         # call getForces method from moorpy point object
         else:
             loads = self.mpAnchor.getForces(lines_only=lines_only, seabed=seabed, xyz=xyz)
             self.loads['Hm'] = np.sqrt(loads[0]**2+loads[1]**2) # mudline forces in [N]
             self.loads['Vm'] = loads[2] # [N]
             self.loads['thetam'] = np.degrees(np.arctan(self.loads['Vm']/self.loads['Hm'])) # [deg]
-            Tm =  np.sqrt(self.loads['Hm']**2+self.loads['Vm']**2) # [N]
+            self.loads['mud_load_type'] = 'current_state'
         
+        # loads determined from moorpy are static
+        self.loads['method'] = 'static'
         
-        if lug_loads:
-            from .anchors_famodel.capacity_load import getTransferLoad
-            if 'zlug' in self.dd['design']:
-                if self.dd['design']['zlug'] > 0:
-                    # get line type
-                    for att in self.attachments.values():
-                        if isinstance(att['obj'],Mooring):
-                            mtype = att['obj'].dd['sections'][0]['type']['material']
-                            md = att['obj'].dd['sections'][0]['type']['d_nom']
-                            mw = att['obj'].dd['sections'][0]['type']['w']
-                    soil = self.dd['soil_type']
-                    ground_conds = self.dd['soil_properties']
-                    if 'clay' in soil or 'mud' in soil:
-                        # Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, w=None
-                        loadresults = getTransferLoad(Tm/1000,self.loads['thetam'],self.dd['design']['zlug'],mtype,md,
-                                                       'clay',Su0=ground_conds['Su0'][0],k=ground_conds['k'][0],w=mw/1000) # output Ha and Va    (convert weight to kN/m)   
-                    elif 'sand' in soil:
-                            soil = 'sand'
-                            #loadresults = getAnchorLoad(Tm/1000,self.loads['thetam'],self.dd['design']['zlug'],md,
-                                                           #soil,gamma=ground_conds['gamma']) # output Ha and Va  (convert weight to kN/m)
-                    if 'rock' in soil:
-                        raise ValueError('zlug should be <= 0 for rock.')
-                    else:
-                        self.loads['Ha'] = loadresults['H']*1000 # [N]
-                        self.loads['Va'] = loadresults['V']*1000 # [N]
-                        self.loads['thetaa'] = loadresults['angle'] # [deg]
-                else:
-                    # Ha = Hm because zlug is at mudline or above
-                    self.loads['Ha'] = self.loads['Hm'] # [N]
-                    self.loads['Va'] = self.loads['Vm'] # [N]
-                    self.loads['thetaa'] = self.loads['thetam'] # [deg]
+        return(self.loads)
+    
+    def getLugForces(self,mudloads=None):
+        '''
+        Find forces on an anchor at the lug point based on the mudline forces and angles. Calls getTransferFunction script
 
+        Parameters
+        ----------
+        mudloads : dict, optional
+            Dictionary of max mudline forces. The default is None.
+
+        Returns
+        -------
+        loads: dict
+            Dictionary of loads at the lug point
+
+        '''
+        from .anchors_famodel.capacity_load import getTransferLoad
         
+        if not mudloads:        
+            if not self.loads:
+                # get max mudline forces first
+                self.getMudlineForces(max_force=True)
+            elif not 'mudline_load_type' in self.loads:
+                raise KeyError("Loads dictionary must specify 'mudline_load_type'='current_state' or 'mudline_load_type'='max', where 'max' indicates the loads are maximum loads.")
+            elif self.loads['mudline_load_type'] != 'max':
+                # need max forces, not current state
+                self.getMudlineForces(max_force=True)
+            mudloads = self.loads
+        else:
+            # check syntax
+            if not 'Hm' in mudloads or not 'Vm' in mudloads:
+                raise KeyError('Mudline load dictionary must have Hm and Vm keys for horizontal load and vertical load at the mudline')
+            if not 'thetam' in mudloads:
+                mudloads['thetam'] = np.degrees(np.arctan(self.loads['Vm']/self.loads['Hm']))
+                
+        def makeEqual_TaTm(mudloads):
+            self.loads['Ha'] = mudloads['Hm'] # [N]
+            self.loads['Va'] = mudloads['Vm'] # [N]
+            self.loads['thetaa'] = mudloads['thetam'] # [deg]
+        
+        if 'zlug' in self.dd['design']:
+            if self.dd['design']['zlug'] > 0:
+                # get line type
+                for att in self.attachments.values():
+                    if isinstance(att['obj'],Mooring):
+                        mtype = att['obj'].dd['sections'][0]['type']['material']
+                        md = att['obj'].dd['sections'][0]['type']['d_nom']
+                        mw = att['obj'].dd['sections'][0]['type']['w']
+                soil = self.dd['soil_type']
+                ground_conds = self.dd['soil_properties']
+                Tm =  np.sqrt(mudloads['Hm']**2+mudloads['Vm']**2) # [N]
+                if 'clay' in soil or 'mud' in soil:
+                    # Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, w=None
+                    loadresults = getTransferLoad(Tm/1000,mudloads['thetam'],self.dd['design']['zlug'],mtype,md,
+                                                  'clay',Su0=ground_conds['Su0'][0],k=ground_conds['k'][0],w=mw/1000) # output Ha and Va    (convert weight to kN/m)   
+                elif 'sand' in soil:
+                        soil = 'sand'
+                        #loadresults = getAnchorLoad(Tm/1000,self.loads['thetam'],self.dd['design']['zlug'],md,
+                                                       #soil,gamma=ground_conds['gamma']) # output Ha and Va  (convert weight to kN/m)
+                if 'rock' in soil:
+                    raise ValueError('zlug should be <= 0 for rock.')
+                else:
+                    self.loads['Ha'] = loadresults['H']*1000 # [N]
+                    self.loads['Va'] = loadresults['V']*1000 # [N]
+                    self.loads['thetaa'] = loadresults['angle'] # [deg]
+            else:
+                # Ha = Hm because zlug is at mudline or above
+                makeEqual_TaTm(mudloads)
+        else:
+            print('No zlug given, assuming loads at mudline = loads at anchor lug')
+            makeEqual_TaTm(mudloads)
+            
+            
         # loads determined from moorpy are static
         self.loads['method'] = 'static'
         
@@ -385,7 +430,7 @@ class Anchor(Node):
 
         '''
         if not 'Ha' in self.loads:
-            self.getMPForces(lug_loads=True)
+            self.getLugForces()
         if not self.anchorCapacity:
             self.getAnchorCapacity()
          
@@ -410,11 +455,11 @@ class Anchor(Node):
             # if not, check if theres a moorpy anchor object and calculate loads from that
             if self.mpAnchor:
                 print("Need anchor loads to obtain cost, using getMPForces to determine loads in MoorPy")
-                self.getMPForces()
+                self.getLugForces()
             elif self.ms:
                 print('Need anchor loads to obtain cost, creating a MoorPy anchor object and using getMPForces to determine loads in MoorPy')
                 self.makeMoorPyAnchor(self.ms)
-                self.getMPForces()
+                self.getLugForces()
             else:
                 raise Exception("Need anchor loads to obtain cost")
         # check again if there are loads
@@ -443,12 +488,12 @@ class Anchor(Node):
                 self.dd['design']['UHC'], self.dd['design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
             elif self.mpAnchor:
                 print("Need anchor loads to obtain mass, using getMPForces to determine loads in MoorPy")
-                self.getMPForces()
+                self.getLugForces()
                 self.dd['design']['UHC'], self.dd['design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
             elif self.ms:
                 print('Need anchor loads to obtain mass, creating a MoorPy anchor object and using getMPForces to determine loads in MoorPy')
                 self.makeMoorPyAnchor(self.ms)
-                self.getMPForces()
+                self.getLugForces()
                 self.dd['design']['UHC'], self.dd['design']['m'], info = mp.MoorProps.getAnchorMass(uhc_mode=0, fx=self.loads['ff'], fz=self.loads['fz'], anchor=self.dd['type'],soil_type=self.dd['soil_type'],method=self.loads['method'])
             else:
                 raise Exception("Need anchor loads to obtain mass")
