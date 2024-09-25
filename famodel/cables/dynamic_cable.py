@@ -183,15 +183,14 @@ class DynamicCable(Edge):
             bs['L_A'] = bs['L_mid'] - Ls/2
             bs['L_B'] = bs['L_mid'] + Ls/2
             
-
-            halfLs = Ls/2
+ 
             
             # If this buoyancy section isn't at the very start of the cable
             if cstart:  
+                
+                halfLs = Ls/2  
                 # if cstart (end A starts with a buoy section) check if it's the first section of a shared half line (section length is half of actual section length)
-                if self.shared == 2 and i == 0:
-                    # adjust halfLs to be full Ls (half of the total buoyant segment length)
-                    halfLs = Ls 
+                
                 
                 iLine +=1 
                 
@@ -202,6 +201,10 @@ class DynamicCable(Edge):
                 
                 self.ss.lineList[iLine-1].setL(bs['L_mid'] - halfLs - currentL)
                 currentL = bs['L_mid'] - halfLs # save the end location of the section
+            else:
+                if self.shared == 2 and i == 0:
+                    # adjust halfLs to be full Ls (half of the total buoyant segment length)
+                    halfLs = Ls 
             
             
             # update properties of the corresponding Subsystem Line
@@ -222,6 +225,7 @@ class DynamicCable(Edge):
             if i == len(self.dd['buoyancy_sections'])-1:
                 # this is the last section - adjust cable length at the end
                 L_end = self.L - bs['L_mid'] - halfLs
+
                 self.ss.lineList[-1].setL(L_end)
                 #self.dd['sections'][-1]['length'] = L_end
                 currentL += L_end
@@ -889,6 +893,8 @@ class DynamicCable(Edge):
                     ndt['EA'] = EA[j]
                     if 'EAd' in oldLine.lineTypes[linekey]:
                         ndt['EAd'] = oldLine.lineTypes[linekey]['EAd']
+                    if 'EI' in oldLine.lineTypes[linekey]:
+                        ndt['EI'] = oldLine.lineTypes[linekey]['EI']
                 # add lengths                 
                 nd[j]['length'] = Lengths[j]
             
@@ -1014,8 +1020,8 @@ class DynamicCable(Edge):
             self.dd['buoyancy_sections'] = bs
         # reset length
         self.L = self.L*2
-        # # reset rA to -span
-        self.rA = [-self.span,0,self.rA[2]]
+        # # reset rA to -span and assume same z fairlead as rB
+        self.rA = [-self.span,0,self.rB[2]]
         self.rB = [0,0,self.rB[2]]
         # call createSubsystem function if asked to
         if create_ss:
