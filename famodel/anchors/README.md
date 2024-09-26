@@ -35,10 +35,16 @@ The anchor class stores properties and methods that enable a wide range of model
 ### Anchor Methods
 - **makeMoorPyAnchor()** : Creates a MoorPy point object representing the anchor in a moorpy system
 - **getAnchorCapacity()** : Calls anchor capacity functions for the correct anchor type
-- **getMPForces()** : Finds forces on anchor at mudline using MoorPy Point.getForces method and optionally forces at anchor lug location with getTransferLoad function in capacity_loads.py. Stores results in loads dictionary
 - **getFS()** : Computes safety factor for loads on the anchor
 - **getCost()** : Finds costs of anchor from MoorProps and stores in design dictionary
 - **getMass()** : Finds mass and/or UHC of anchor from MoorProps and stores in design dictionary
+- **getMudlineForces()** : Finds forces on anchor at mudline using MoorPy Point.getForces method. Use max_force=True to obtain the maximum forces on that anchor from the platform.getWatchCircle() method. For more information on the getWatchCircle() calculations, see the [Platform ReadMe](../platform/README.md). An additional anchor.loads dictionary entry is included to describe the mudline load type. 'mudline_load_type'='max' if max_force=True, and 'mudline_load_type'='current_state' if max_force=False.
+- **getLugForces()** : Finds forces at the anchor lug location with getTransferFunction function in capacity_loads.py. 
+The getTransferLoad function requires **maximum** mudline forces as an input. These forces can be sent in as a dictionary, or anchor.loads dictionary will be searched for 'Hm' and 'Vm' values with additional key-value pair 'mudline_force_type':'max' to indicate these mudline forces are maximums. 
+If there are no max mudline forces in the anchor.loads dictionary, getMudlineForces(max_force=True) will be called. Stores results in loads dictionary. If lug is at mudline or no lug provided, equates mudline forces with lug forces. 
+>[!NOTE]
+>The getTransferFunction function called by getLugForces() is tuned to work with maximum loads on the anchor. Some anchor configuration, load, and soil condition combinations may produce invalid results in getTransferFunction. For example, the output Va may show as negative. In that case, getLugForces() will warn the user of the invalidity of the result and assign 'Ha'='Hm', 'Va'='Vm', and 'thetaa'='thetam'.
+
 
 ### Anchor Type Requirements
 
@@ -47,6 +53,9 @@ Different geometric properties and soil conditions are needed for each anchor ty
 
 ## Anchor Capacity Modules
 The following list shows the required soil conditions, soil properties, geometry, and load information for anchor capacity calculations of each anchor type. Soil classification for clay and sand can be found in [Soil Classification Parameters](#soil-classification-parameters).
+>[!NOTE] 
+>Some anchor capacity functions require input loads at the anchor lug point. These loads can be sent in to the getAnchorCapacity() method, or the getAnchorCapacity() method will calculate the loads by calling getLugLoads(). The input loads must be maximum or large loads on the anchor.
+
 - **DEA/SEPLA/DEPLA/VLA/plate**
   - soil condition: clay/mud
     - Su0 (undrained shear strength of soil at mudline) [kPa]
@@ -133,7 +142,7 @@ The following list shows the required soil conditions, soil properties, geometry
 > A positive zlug denotes a lug/padeye/bridle below the mudline, while a negative zlug denotes a lug/padeye/bridle above the mudline. Anchors in rock should have a zlug >= 0.
 
 > [!NOTE] 
-> Load inputs to the capacity functions are in kN, while the anchor loads dictionary is in N. This conversion is automatically completed in the getAnchorCapacity() function so no manual load conversion is required. Load outputs are automatically converted in the getAnchorCapacity function where necessary. 
+> Load inputs to the capacity functions (with the exception of driven & drilled and grouted anchors) are in kN, while the anchor loads dictionary is in N. This conversion is automatically completed in the getAnchorCapacity() function so no manual load conversion is required. Load outputs are automatically converted in the getAnchorCapacity function where necessary. 
 
 -----------------------------------------------------------------------------
 ### Model Fidelity

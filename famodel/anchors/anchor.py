@@ -172,7 +172,7 @@ class Anchor(Node):
             else:
                 print(f'Warning: Soil type {soil} is not compatible with plate anchors (SEPLA/DEPLA/DEA/VLA)')
                                 
-        elif anchType == 'suction' or anchType == 'suction_pile':
+        elif 'suction' in anchType:
             from .anchors_famodel.capacity_suction import getCapacitySuction
             # check loads have been calculated (needed for capacity function in this case)
             if not 'Ha' in loads:
@@ -195,7 +195,7 @@ class Anchor(Node):
                     raise Exception('Ground conditions dictionary needs Su0, k, and alpha information for clay suction pile anchor')
             else:
                 print(f'Warning: Soil type {soil} is not compatible with suction pile anchor')
-        elif anchType == 'helical' or anchType == 'helical_pile':
+        elif 'helical' in anchType:
             from .anchors_famodel.capacity_helical import getCapacityHelical
             if 'sand' in soil:
                 if not 'alpha_star' in ground_conds:
@@ -217,7 +217,7 @@ class Anchor(Node):
                     raise Exception('Ground conditions dictionary needs Su0, k, gamma, and alpha_star information for clay helical pile anchor')
             else:
                 print(f'Warning: Soil type {soil} is not compatible with helical pile anchor')
-        elif anchType == 'torpedo' or anchType == 'torpedo_pile':
+        elif 'torpedo' in anchType:
             from .anchors_famodel.capacity_torpedo import getCapacityTorpedo
             if 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'alpha' in ground_conds:
@@ -229,7 +229,7 @@ class Anchor(Node):
                     raise Exception('Ground conditions dictionary needs Su0, k, and alpha information')
             else:
                 print('Warning: Soil type {soil} is not compatible with torpedo pile anchor')
-        elif anchType == 'driven' or anchType == 'driven_pile': # driven pile anchor
+        elif 'driven' in anchType: # driven pile anchor
             # check loads have been calculated (needed for capacity function in this case)
             if not 'Ha' in loads:
                 # call getMPForces function 
@@ -271,7 +271,7 @@ class Anchor(Node):
             else:
                 print(f'Warning: Soil type {soil} is not compatible with driven pile anchors')
                         
-        elif anchType == 'dandg_pile' or anchType == 'dandg':  # drill and grout pile
+        elif 'dandg' in anchType:  # drill and grout pile
             from .anchors_famodel.capacity_dandg import getCapacityDandG
             # check for correct soil
             if 'rock' in soil:
@@ -297,8 +297,15 @@ class Anchor(Node):
         # capacity = cap*installAdj ??? OR is installAdj an input to the capacity functions?
         # save capacity 
         if 'dandg' in anchType or 'driven' in anchType: # will take in dandg, dandg_pile, driven, driven_pile
-            self.anchorCapacity['Lat_max'] = results[2]['Lateral displacement']
-            self.anchorCapacity['Rot_max'] = results[2]['Rotational displacement']
+            self.anchorCapacity['Lat_max'] = results[2]['Lateral displacement'] # [deg]
+            self.anchorCapacity['Rot_max'] = results[2]['Rotational displacement'] # [deg]
+            self.anchorCapacity['Va_max'] = results[2]['Vmax'] # [N]
+            # get Ha_max from iterating over a variety of input H values and finding what causes a larger displacement
+            ### while loop goes here ###
+            if geom['zlug'] > 0:
+                pass
+            else:
+                pass
         else:
             if 'Horizontal max.' in results:
                 self.anchorCapacity['Ha_max'] = results['Horizontal max.']*1000 # [N]
@@ -354,7 +361,7 @@ class Anchor(Node):
         Returns
         -------
         loads: dict
-            Dictionary of loads at the lug point
+            Dictionary of loads at the lug point [N]
 
         '''
         from .anchors_famodel.capacity_load import getTransferLoad
@@ -372,7 +379,7 @@ class Anchor(Node):
         else:
             # check syntax
             if not 'Hm' in mudloads or not 'Vm' in mudloads:
-                raise KeyError('Mudline load dictionary must have Hm and Vm keys for horizontal load and vertical load at the mudline')
+                raise KeyError('Mudline load dictionary must have Hm and Vm for horizontal load and vertical load (in [N]) at the mudline')
             if not 'thetam' in mudloads:
                 mudloads['thetam'] = np.degrees(np.arctan(self.loads['Vm']/self.loads['Hm']))
                 
@@ -400,8 +407,13 @@ class Anchor(Node):
                         soil = 'sand'
                         #loadresults = getAnchorLoad(Tm/1000,self.loads['thetam'],self.dd['design']['zlug'],md,
                                                        #soil,gamma=ground_conds['gamma']) # output Ha and Va  (convert weight to kN/m)
-                if 'rock' in soil:
+                elif 'rock' in soil:
                     raise ValueError('zlug should be <= 0 for rock.')
+                    
+                if loadresults['V']<0:
+                    # results are invalid
+                    print('Warning: invalid results for the combination of anchor ',self.dd['type'],' soil ',soil,' and loads ',mudloads,'. Setting Ha=Hm, Va=Vm, thetaa=thetam')
+                    makeEqual_TaTm(mudloads)
                 else:
                     self.loads['Ha'] = loadresults['H']*1000 # [N]
                     self.loads['Va'] = loadresults['V']*1000 # [N]
@@ -413,20 +425,33 @@ class Anchor(Node):
             print('No zlug given, assuming loads at mudline = loads at anchor lug')
             makeEqual_TaTm(mudloads)
             
-            
-        # loads determined from moorpy are static
-        self.loads['method'] = 'static'
+        if not 'method' in mudloads:
+            # assume mudloads are static unless told otherwise
+            # loads determined from moorpy are static
+            self.loads['method'] = 'static'
+        else:
+            self.loads['method'] = mudloads['method']
         
         return(self.loads)
     
-    def getFS(self):
+    def getFS(self,acceptance_crit=None):
         '''
         Compute safety factor for loads on the anchor
+        
+        Parameters
+        ----------
+        acceptance_crit : dict, optional
+            Dictionary of acceptable factors of safety for each load type.
+            Key is the load type, and value is the minimum acceptable safety factor.
+            Default is None (in which case no comparison between FS and acceptance criteria is calculated)
 
         Returns
         -------
         FS : dict
             Dictionary of safety factors (often horizontal and vertical load SFs, but could be displacement SFs (drilled and grouted/driven piles))
+        acceptance : dict
+            Dictionary of bools that state whether the FS>=acceptance_crit for each load
+        
 
         '''
         if not 'Ha' in self.loads:
@@ -436,13 +461,18 @@ class Anchor(Node):
          
         # look for load dictionary key in capacity dictionary
         FS = {}
+        acceptance = {}
         for Lkey,Lval in self.loads.items():
             for Ckey,Cval in self.anchorCapacity.items():
                 if Lkey in Ckey:
                     FS[Lkey] = Cval/Lval
+                    if acceptance_crit and Lkey in acceptance_crit:
+                        acceptance[Lkey] = acceptance_crit[Lkey]<=FS[Lkey]
                     
-                    
-        return(FS)
+        if acceptance_crit:
+            return(FS,acceptance[Lkey])
+        else:
+            return(FS)
             
         
                
