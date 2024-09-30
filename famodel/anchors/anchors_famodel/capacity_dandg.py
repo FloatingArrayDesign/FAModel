@@ -112,10 +112,12 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
             k_secant[i] = py_funs[i](y[i])/y[i]
 
     print(f'y_max = {max(y):.3f} m')
+    print(f'rot_max = {np.rad2deg((y[2] - y[3])/h):.3f} deg')
 
     resultsDandG = {}
     resultsDandG['Lateral displacement'] = y[2]
-    resultsDandG['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h) 
+    resultsDandG['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
+    resultsDandG['Axial capacity'] = DQ[-1]
     
     return y[2:-2], z[2:-2], resultsDandG
 
@@ -186,7 +188,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 
     # Populate q with boundary conditions
     q[-3] = 2*H*h**3      # Shear at pile head
-    q[-4] = M*h**2        # Moment at pile head
+    # q[-4] = M*h**2        # Moment at pile head
 
     y = linalg.solve(EI*X, q)
 
@@ -324,3 +326,39 @@ def rock_profile(profile):
 
     return z0, f_UCS, f_Em
 
+if __name__ == '__main__':
+
+    profile = np.array([[0.0,  5, 7, 'Name of p-y model'],
+                        [25.0, 5, 7, 'Name of p-y model']])
+    
+    L = 15
+    D = 1
+    zlug = 0
+    H0 = 318763.5
+    V0 = 297554.3 
+    
+    H = 1e4; V = 1e4
+
+    values_H =[]; values_V =[]      
+    
+    y, z, results = getCapacityDandG(profile, L=L, D=D, zlug=zlug, V=V0, H=H0)
+
+    while results['Lateral displacement']< 0.05*D and results['Rotational displacement'] < 0.25:
+               
+        y, z, results = getCapacityDandG(profile, L=L, D=D, zlug=zlug, V=V, H=H)
+        
+        H += 10000
+                   
+    values_H.append(H); H_ratio = np.array(values_H)/H0
+          
+    y0 = np.zeros(len(z))
+    #Plot deflection profile of pile
+    fig, ax = plt.subplots(figsize=(3,5))    
+    ax.plot(y0,z,'black')
+    ax.plot(y,z,'r')
+    ax.set_xlabel('Displacement [m]')
+    ax.set_ylabel('Depth below pile head [m]')
+    ax.set_ylim([L + 2, -2])
+    ax.set_xlim([-0.1*D, 0.1*D])
+    ax.grid(ls='--')
+    fig.show()
