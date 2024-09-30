@@ -105,14 +105,12 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
         # if j == 0: print 'FD Solver started!'
         y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
 
-        # if convergence_tracker == 'Yes':
-        #     plt.plot(y[loc], k_secant[loc]*y[loc])
+        plt.plot(y[loc], k_secant[loc]*y[loc])
 
         for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]
 
-    # if print_output == 'Yes':
-    #     print(f'y_0 = {y[2]:.3f} m')
+        print(f'y_max = {y[2]:.3f} m')
 
     resultsDrivenRock = {}
     resultsDrivenRock['Lateral displacement'] = y[2]
@@ -312,13 +310,13 @@ def rock_profile(profile):
     #global var_rock_profile
 
     # Depth of mudline relative to pile head
-    z0 = float(profile[0][0])
+    z0 = profile[0,0].astype(float)
 
     # Extract data from soil_profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([z0]),np.array([float(x[0]) for x in profile])]) #profile[:,0].astype(float)])  # m
-    UCS   = np.concatenate([np.array([0]),np.array([float(x[1]) for x in profile])])   # MPa
-    Em    = np.concatenate([np.array([0]),np.array([float(x[2]) for x in profile])])   # MPa
+    depth = np.concatenate([np.array([z0]),profile[:,0].astype(float)])  # m
+    UCS   = np.concatenate([np.array([0]),profile[:,1].astype(float)])   # MPa
+    Em    = np.concatenate([np.array([0]),profile[:,2].astype(float)])   # MPa
 
     # Define interpolation functions
     f_UCS = interp1d(depth, UCS*1e6, kind='linear') # Pa
@@ -327,3 +325,28 @@ def rock_profile(profile):
     #var_rock_profile = inspect.currentframe().f_locals
 
     return z0, f_UCS, f_Em
+
+if __name__ == '__main__':
+
+    profile = np.array([[0.0,  5, 7, 'Name of p-y model'],
+                        [25.0, 5, 7, 'Name of p-y model']])
+    
+    L = 20
+    D = 1.5
+    zlug = 2*D
+    H = 3187635
+    V = 2975543       
+
+    y, z, results = getCapacityDrivenRock(profile, L=L, D=D, zlug=zlug, V=V, H=H)
+          
+    y0 = np.zeros(len(z))
+    #Plot deflection profile of pile
+    fig, ax = plt.subplots(figsize=(3,5))    
+    ax.plot(y0,z,'black')
+    ax.plot(y,z,'r')
+    ax.set_xlabel('Displacement [m]')
+    ax.set_ylabel('Depth below pile head [m]')
+    ax.set_ylim([L + 2,-2])
+    ax.set_xlim([-0.1*D, 0.1*D])
+    ax.grid(ls='--')
+    fig.show()

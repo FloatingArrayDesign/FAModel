@@ -1,4 +1,3 @@
-
 ''' Example driver file for creating an FAModel project from a YAML file.
 
 This particular example uses the OntologySample200m.yaml file as input.
@@ -30,21 +29,21 @@ project.plot3d()
 
 
 
-#%% Section 2: Project with RAFT
-print('\nCreating project with RAFT \n')
-# create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
-project = Project(file=ontology_file,raft=1)
-# plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
-project.plot3d(fowt=True)
+# #%% Section 2: Project with RAFT
+# print('\nCreating project with RAFT \n')
+# # create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
+# project = Project(file=ontology_file,raft=1)
+# # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
+# project.plot3d(fowt=True)
 
-# get location of RAFT model (stored as array property in project class)
-model = project.array
-print('Running RAFT case')
-# run cases
-model.analyzeCases()
-# plot results
-model.plotResponses()
-model.plot()
+# # get location of RAFT model (stored as array property in project class)
+# model = project.array
+# print('Running RAFT case')
+# # run cases
+# model.analyzeCases()
+# # plot results
+# model.plotResponses()
+# model.plot()
 
 
 #%% Section 3: Other capabilities
