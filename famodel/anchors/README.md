@@ -43,7 +43,7 @@ The anchor class stores properties and methods that enable a wide range of model
 The getTransferLoad function requires **maximum** mudline forces as an input. These forces can be sent in as a dictionary, or anchor.loads dictionary will be searched for 'Hm' and 'Vm' values with additional key-value pair 'mudline_force_type':'max' to indicate these mudline forces are maximums. 
 If there are no max mudline forces in the anchor.loads dictionary, getMudlineForces(max_force=True) will be called. Stores results in loads dictionary. If lug is at mudline or no lug provided, equates mudline forces with lug forces. 
 >[!NOTE]
->The getTransferFunction function called by getLugForces() is tuned to work with maximum loads on the anchor. Some anchor configuration, load, and soil condition combinations may produce invalid results in getTransferFunction. For example, the output Va may show as negative. In that case, getLugForces() will warn the user of the invalidity of the result and assign 'Ha'='Hm', 'Va'='Vm', and 'thetaa'='thetam'.
+>The getTransferFunction function called by getLugForces() is tuned to work with maximum loads on the anchor. Some anchor configuration, load, and soil condition combinations may produce invalid results in getTransferFunction. For example, the output Va may show as negative. In that case, getLugForces() will warn the user of the invalidity of the result and assign the anchor lug forces = mudline forces.
 
 
 ### Anchor Type Requirements

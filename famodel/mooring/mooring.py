@@ -191,11 +191,13 @@ class Mooring(Edge):
         
         Parameters
         ----------
-        r_center
-            The x, y coordinates of the platform (undisplaced) [m].
+        r_center : list or nested list
+            The x, y coordinates of the platform(s) (undisplaced) [m]. If shared mooring, must be a list of lists, with the
+            coordinates for each platform connection. In this case, end A platform connection is the first entry and end B 
+            platform connection is the second entry.
         heading : float
-            The absolute heading compass direeciton of the mooring line 
-            [deg or rad] depending on degrees parameter (True or False).
+            The absolute heading compass direeciton of the mooring line from end B
+            [deg or rad] depending on degrees parameter (True or False). Must account for the platform heading as well.
         project : FAModel Project, optional
             A Project-type object for site-specific information used in custom
             mooring line adjustment functions (mooring.adjuster).
@@ -211,21 +213,29 @@ class Mooring(Edge):
                 self.heading = np.degrees(heading)
 
         phi = np.radians(90-self.heading) # heading in x-y radian convention [rad]
-        
         # heading 2D unit vector
         u = np.array([np.cos(phi), np.sin(phi)])
         
-        r_center = np.array(r_center)[:2]
-        # Set the updated fairlead location
-        self.setEndPosition(np.hstack([r_center + self.rad_fair*u, self.z_fair]), 'b')
+        if self.shared == 1:
+            r_centerB = np.array(r_center)[1][:2]
+            r_centerA = np.array(r_center)[0][:2]
+        else:
+            r_centerB = np.array(r_center)[:2]
+            
+        # Set the updated end B location
+        
+        self.setEndPosition(np.hstack([r_centerB + self.rad_fair*u, self.z_fair]), 'b')
         
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
         if self.adjuster:
-            self.adjuster(self, project, r_center, u, **kwargs)
+            self.adjuster(self, project, r_centerB, u, **kwargs)
+            
+        elif self.shared == 1: # set position of end A at platform end A
+            self.setEndPosition(np.hstack([r_centerA - self.rad_fair*u, self.z_fair]),'a')
         
         else: # otherwise just set the anchor position based on a set spacing
-            self.setEndPosition(np.hstack([r_center + self.rad_anch*u, self.z_anch]), 'a', sink=True)
+            self.setEndPosition(np.hstack([r_centerB + self.rad_anch*u, self.z_anch]), 'a', sink=True)
         
     
     

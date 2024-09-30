@@ -90,6 +90,7 @@ class Project():
         self.grid_x      = np.array([2200])
         self.grid_y      = np.array([200])
         self.grid_depth  = np.array([[depth]])  # depth at each grid point
+        self.depth = depth
         
         self.seabed_type = 'clay'  # switch of which soil property set to use ('clay', 'sand', or 'rock')
         
@@ -551,7 +552,7 @@ class Project():
             for i in range(0, len(arrayInfo)): # loop through each platform in array
                 
                 # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
-                self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'])
+                self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'])           
                 # add fairlead radius and fairlead depth of this platform type from platform information section
                 if type(platforms) == list:
                     # get index of platform from array table
@@ -662,14 +663,12 @@ class Project():
                         elif arrayInfo[k]['ID'] == PFNum[1]:
                             rowA = arrayInfo[k]
                     # get headings (mooring heading combined with platform heading)
-                    headingA = np.radians(90-arrayMooring[j]['headingA']) - self.platformList[PFNum[1]].phi
-                    headingB = np.radians(90-arrayMooring[j]['headingB']) - self.platformList[PFNum[0]].phi
-                    # print('headingA: ',headingA,'listed headingA',arrayMooring[j]['headingA'],'phi: ',self.platformList[PFNum[1]].phi)
-                    # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
-                    Aloc = [rowA['x_location']+np.cos(headingA)*self.platformList[PFNum[1]].rFair, rowA['y_location']+np.sin(headingA)*self.platformList[PFNum[1]].rFair, self.platformList[PFNum[1]].zFair]
-                    Bloc = [rowB['x_location']+np.cos(headingB)*self.platformList[PFNum[0]].rFair, rowB['y_location']+np.sin(headingB)*self.platformList[PFNum[0]].rFair, self.platformList[PFNum[0]].zFair]
+                    headingB = np.radians(arrayMooring[j]['headingB']) + self.platformList[PFNum[0]].phi
                     # get configuration for the line 
-                    lineconfig = arrayMooring[j]['MooringConfigID']                       
+                    lineconfig = arrayMooring[j]['MooringConfigID']       
+                    # # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
+                    # Aloc = [rowA['x_location']+np.cos(headingA)*self.platformList[PFNum[1]].rFair, rowA['y_location']+np.sin(headingA)*self.platformList[PFNum[1]].rFair, self.platformList[PFNum[1]].zFair]
+                    # Bloc = [rowB['x_location']+np.cos(headingB)*self.platformList[PFNum[0]].rFair, rowB['y_location']+np.sin(headingB)*self.platformList[PFNum[0]].rFair, self.platformList[PFNum[0]].zFair]
                     # create mooring and connector dictionary for that line
                     m_config = getMoorings(lineconfig,Bnum)
                     # get letter number for mooring line
@@ -677,11 +676,10 @@ class Project():
                     # create mooring class instance
                     mc = (Mooring(dd=m_config, id=str(PFNum[1])+'-'+str(PFNum[0])))
                     mc.shared = 1
-                    mc.rA = Aloc
-                    mc.rB = Bloc
-                    # add mooring object to project mooring list
-                    
-                    
+                    # reposition both ends
+                    mc.reposition(r_center=[self.platformList[PFNum[1]].r,self.platformList[PFNum[0]].r],heading=headingB)
+
+                    # add mooring object to project mooring list           
                     self.mooringList[str(PFNum[1])+'-'+str(PFNum[0])] = mc
                     # attach mooring object to platforms
                     mc.attachTo(self.platformList[PFNum[0]],end='B')

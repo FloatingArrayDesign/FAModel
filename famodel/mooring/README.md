@@ -148,7 +148,14 @@ A dictionary of marine growth thicknesses and densities for different depth rang
 
 The marine growth method Mooring.addMarineGrowth() uses the depth of the line at node points to determine cutoff points where different levels of marine growth should be added. For each segment of line, the end points of the segment are compared to the depth ranges of marine growth thicknesses in the dictionary to determine what marine growth thickness(es) that section should include, and where along the line each thickness should be added. If there are multiple thicknesses in one line segment, the segment is "split" into separate segments, with each assigned its associated marine growth thickness.
 
+For example, the figure below shows a catenary line, made up of a single segment of chain. We can then add marine growth, specifying 100 mm of marine growth thickness for the depth range 0-50 m, 50 mm for depths between 50-100 m, and no marine growth for depths lower than 100 m. The line, initially 1 segment, now has 3 distinct segments to reflect the different marine growth thicknesses.
+
+![Marine growth on a mooring line](../images/mg_example.png)
+
 The appropriate thickness is then added to the line diameter, and the line mass, weight, and drag coefficient are updated as described in the [Marine Growth Calculations](#marine-growth-calculations). 
+
+The additional weight of marine growth can cause the mooring line to sag significantly, which may lower the depth of the marine growth thickness change. To ensure the point of change between thicknesses matches the depths specified in the marine growth dictionary, the mooring.addMarineGrowth() is called in a while loop within project.getMarineGrowth(), where the difference between the initial and actual depths of change is used to update the inputs to mooring.addMarineGrowth() until the points of change are within the specified tolerance of the initial points of change.
+
 
 Marine growth is currently not modeled on connectors or platforms.
 
