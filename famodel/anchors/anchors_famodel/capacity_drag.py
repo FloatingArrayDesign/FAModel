@@ -104,19 +104,19 @@ def getCapacityDrag(Af, Lf, Ls, Lca, Lj, thetafs, bm, En,
     thetaf_values = [] 
      
     z = z0; x = x0; Ta = Ta0
-    xmax = 1000; Tmax = 30000;
+    xmax = 60; Tmax = 30000;
     
     for _ in range(3000):
-        # thetaaf = thetaf + thetaa
-        # thetaca = np.arctan(Ls*np.sin(np.deg2rad(thetafs))/(Lj + Ls*np.cos(np.deg2rad(thetafs)) - Lf/2))
-        # M = Ta*(np.cos(thetaaf)*np.sin(thetaca) - np.sin(thetaf)*np.cos(thetaca))*Lca
-        # Nn = Ta*np.sin(thetaaf); Nt = Ta*np.cos(thetaaf); Nm = M/(Su*Af*Lf)
-        # Rnt1 = (Nt_max/Nn_max)/(p*q/n)*(np.abs(Nn)/Nn_max)**(q-1)
-        # Rnt2 = ((np.abs(Nm)/Nm_max)**m + (np.abs(Nt)/Nt_max)**n)**(1/p-1)*(np.abs(Nt)/Nt_max)**(n-1) 
-        # Rnt = Rnt1/Rnt2
-        # print(Rnt)
-        dz = dt*np.sin(thetaf) - dt*Rnt0*np.cos(thetaf)   
-        dx = dt*np.cos(thetaf) + dt*Rnt0*np.sin(thetaf)
+        thetaaf = thetaf + thetaa
+        thetaca = np.arctan(Ls*np.sin(np.deg2rad(thetafs))/(Lj + Ls*np.cos(np.deg2rad(thetafs)) - Lf/2))
+        M = Ta*(np.cos(thetaaf)*np.sin(thetaca) - np.sin(thetaf)*np.cos(thetaca))*Lca
+        Nn = Ta*np.sin(thetaaf); Nt = Ta*np.cos(thetaaf); Nm = M/(Su*Af*Lf)
+        vn = (Nt_max/Nn_max)/(p*q/n)*(np.abs(Nn)/Nn_max)**(q-1)
+        vt = ((np.abs(Nm)/Nm_max)**m + (np.abs(Nt)/Nt_max)**n)**(1/p-1)*(np.abs(Nt)/Nt_max)**(n-1) 
+        Rnt = vn/vt
+        print(Rnt)
+        dz = dt*np.sin(thetaf) - dt*Rnt*np.cos(thetaf)   
+        dx = dt*np.cos(thetaf) + dt*Rnt*np.sin(thetaf)
         z += dz; x += dx
         dthetaa = (dz/thetaa)*(En*Nc*bm/Ne/Af - k*thetaa**2/2/Su)
         thetaa += dthetaa; thetaf -= dthetaa

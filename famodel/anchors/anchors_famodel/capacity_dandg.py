@@ -274,7 +274,7 @@ def py_Reese(z, D, zlug, UCS, Em):
         
     plt.plot(y, p) 
     plt.xlabel('y (m)') 
-    plt.ylabel('p (kN/m)'),
+    plt.ylabel('p (N/m)'),
     plt.title('PY Curves - Reese (1997)')
     plt.grid(True)
     plt.xlim([-0.03*D, 0.03*D])
@@ -314,7 +314,7 @@ def rock_profile(profile):
 
     # Extract data from soil_profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([z0]),np.array([row[0] for row in profile],dtype=float)])  # m  profile[:][0]
+    depth = np.concatenate([np.array([z0]),np.array([row[0] for row in profile],dtype=float)])  # m  
     UCS   = np.concatenate([np.array([0]),np.array([row[1] for row in profile],dtype=float)])   # MPa
     Em    = np.concatenate([np.array([0]),np.array([row[2] for row in profile],dtype=float)])   # MPa
 

@@ -1,7 +1,7 @@
 # DEA dimensions
 # in m and deg
-Af: 5
-Lf: 12
+Af: 6
+Lf: 2
 Ls: 3
 Lca: 1.85
 Lj: 1
@@ -15,9 +15,9 @@ En: 1
 nhu: 30.11
 # Soil condition (in clay)
 # in MPa
-Su0: 10.0
+Su0: 1.5
 # in MPa per m
-k: 2.0 
+k: 1.75 
 # # Bearing capacity factor (9 and 14) DNV-RP-E301 
 Ne: 9
 Nn_max: 11.6

@@ -110,11 +110,13 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
         for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]
 
-        print(f'y_max = {y[2]:.3f} m')
+    print(f'y_max = {y[2]:.3f} m')
+    print(f'rot_max = {np.rad2deg((y[2] - y[3])/h):.3f} deg')
 
     resultsDrivenRock = {}
     resultsDrivenRock['Lateral displacement'] = y[2]
-    resultsDrivenRock['Rotational displacement'] = np.rad2deg(y[2] - y[3])/h 
+    resultsDrivenRock['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
+    resultsDrivenRock['Axial capacity'] = DQ[-1]
     
     return y[2:-2], z[2:-2], resultsDrivenRock
 
@@ -141,7 +143,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 
     Output:
     ------
-    y_updated - Lateral displacement at each node
+    y        - Lateral displacement at each node
     '''
     M = H*zlug
     
@@ -185,7 +187,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 
     # Populate q with boundary conditions
     q[-3] = 2*H*h**3      # Shear at pile head
-    q[-4] = M*h**2        # Moment at pile head
+    # q[-4] = M*h**2        # Moment at pile head
 
     y = linalg.solve(EI*X, q)
 
@@ -269,7 +271,7 @@ def py_Reese(z, D, zlug, UCS, Em):
          
     plt.plot(y, p) 
     plt.xlabel('y (m)') 
-    plt.ylabel('p (kN/m)'),
+    plt.ylabel('p (N/m)'),
     plt.title('PY Curves - Reese (1997)')
     plt.grid(True)
     plt.xlim([-0.03*D, 0.03*D])
@@ -334,10 +336,22 @@ if __name__ == '__main__':
     L = 20
     D = 1.5
     zlug = 2*D
-    H = 3187635
-    V = 2975543       
+    H0 = 3187635
+    V0 = 2975543 
 
-    y, z, results = getCapacityDrivenRock(profile, L=L, D=D, zlug=zlug, V=V, H=H)
+    H = 1e4; V = 1e4    
+
+    values_H =[]; values_V =[]      
+
+    y, z, results = getCapacityDrivenRock(profile, L=L, D=D, zlug=zlug, V=V0, H=H0)
+    
+    while results['Lateral displacement']< 0.05*D and results['Rotational displacement'] < 0.25:
+           
+        y, z, results = getCapacityDrivenRock(profile, L=L, D=D, zlug=zlug, V=V, H=H)
+    
+        H += 10000
+               
+    values_H.append(H); H_ratio = np.array(values_H)/H0
           
     y0 = np.zeros(len(z))
     #Plot deflection profile of pile

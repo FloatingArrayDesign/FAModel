@@ -134,8 +134,8 @@ if __name__ == '__main__':
     ''' Testing the function in one case of the net area of the anchor's fluke = 10 m2, 
     the aspect ratio of the plate width and its thickness, default is 40, all other parameters are default.'''
  
-    results = getCapacityDrag(10, bm=0.073, En=1, Mu=0.1, Sum=0, N_eo=5.8, Theta_eo=58,
-                        Xo_Lf=7.5, Zo=1, soil_type='clay', k=1.6)
+    results = getCapacityDrag(6, bm=0.073, En=1, Mu=0.1, Sum=1.5, N_eo=5.8, Theta_eo=58,
+                        Xo_Lf=7.5, Zo=1, soil_type='clay', k=1.75)
     print('****************** One Case Test Result*****************')
 
     print('Embedded depth ,              ' , results['embedment_depth'], '[m]') 
