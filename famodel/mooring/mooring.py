@@ -526,7 +526,6 @@ class Mooring(Edge):
                                 xp = old_line[2][::-1] # flip because np.interp doesn't take
                                 yp = old_line[1][::-1]
                                 fp = old_line[0][::-1]
-                                #print('\n\n',old_line,'\n\n')
                         else:
                             if old_line[2][k]<=th[j][rs] and old_line[2][k+1]>th[j][rs]:
                                 nodeD = k # the node right below changeDepth depth

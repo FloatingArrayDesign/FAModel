@@ -2407,7 +2407,8 @@ class Project():
                 RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
 
             # create raft model
-            self.array = RAFT.Model(RAFTDict)
+            from raft.raft_model import Model
+            self.array = Model(RAFTDict)
             # create dictionary of dictionaries of body hydrostatics for MoorPy bodies
             bodyInfo = {}
             for i,body in enumerate(self.array.fowtList):

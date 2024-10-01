@@ -29,21 +29,21 @@ project.plot3d()
 
 
 
-# #%% Section 2: Project with RAFT
-# print('\nCreating project with RAFT \n')
-# # create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
-# project = Project(file=ontology_file,raft=1)
-# # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
-# project.plot3d(fowt=True)
+#%% Section 2: Project with RAFT
+print('\nCreating project with RAFT \n')
+# create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
+project = Project(file=ontology_file,raft=1)
+# plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
+project.plot3d(fowt=True)
 
-# # get location of RAFT model (stored as array property in project class)
-# model = project.array
-# print('Running RAFT case')
-# # run cases
-# model.analyzeCases()
-# # plot results
-# model.plotResponses()
-# model.plot()
+# get location of RAFT model (stored as array property in project class)
+model = project.array
+print('Running RAFT case')
+# run cases
+model.analyzeCases()
+# plot results
+model.plotResponses()
+model.plot()
 
 
 #%% Section 3: Other capabilities
@@ -65,13 +65,14 @@ loads = []
 sfs = []
 for anchor in project.anchorList.values():
     # get anchor capacity
-    capacities.append(anchor.getAnchorCapacity())
+    anchor.getAnchorCapacity()
+    capacities.append(anchor.anchorCapacity)
     # get anchor loads at mudline and anchor lug depth (if applicable)
-    loads.append(anchor.getMPForces())
+    loads.append(anchor.getLugForces())
     # get safety factor
     sfs.append(anchor.getFS())
     
-print('Anchor safety factors: ',sfs)
+print('\nAnchor safety factors: ',sfs)
     
 #### add marine growth to the mooring lines and cables ####
 print('\nAdding marine growth\n')
