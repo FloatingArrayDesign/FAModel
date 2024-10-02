@@ -2736,18 +2736,18 @@ class Project():
                 # call platform function to set location, phi, moorings, cables, and anchors
                 self.platformList[pfIDs[ct]].setPosition([x,y],heading=phi[ct],degrees=True)
                 self.platformList[pfIDs[ct]].rc = [i,j]
-                # update cable lengths as needed (assumes the attachments are correct)
-                cabs = self.platformList[pfIDs[ct]].getCables()
-                for cab in cabs.values():
-                    # determine what the cable is connected to
-                    rr = [0,0]
-                    for k,att in enumerate(cab.attached_to):
-                        if isinstance(att,Platform):
-                            rr[k] = att.r
-                    newSpan = np.sqrt((rr[0][0]-rr[1][0])**2 + (rr[0][1]-rr[1][1])**2)
-                    cab.updateSpan(newSpan)
-                    # update cable end locations
-                    cab.reposition()
+                # # update cable lengths as needed (assumes the attachments are correct)
+                # cabs = self.platformList[pfIDs[ct]].getCables()
+                # for cab in cabs.values():
+                #     # determine what the cable is connected to
+                #     rr = [0,0]
+                #     for k,att in enumerate(cab.attached_to):
+                #         if isinstance(att,Platform):
+                #             rr[k] = att.r
+                #     newSpan = np.sqrt((rr[0][0]-rr[1][0])**2 + (rr[0][1]-rr[1][1])**2)
+                #     cab.updateSpan(newSpan)
+                #     # update cable end locations
+                #     cab.reposition()
                 # update anchor locations
                 anchs = self.platformList[pfIDs[ct]].getAnchors()
                 for anch in anchs.values():

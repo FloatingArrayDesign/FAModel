@@ -235,7 +235,7 @@ class Mooring(Edge):
             self.setEndPosition(np.hstack([r_centerA - self.rad_fair*u, self.z_fair]),'a')
         
         else: # otherwise just set the anchor position based on a set spacing
-            self.setEndPosition(np.hstack([r_centerB + self.rad_anch*u, self.z_anch]), 'a', sink=True)
+            self.setEndPosition(np.hstack([self.rad_anch*u, self.z_anch]), 'a', sink=True)
         
     
     
