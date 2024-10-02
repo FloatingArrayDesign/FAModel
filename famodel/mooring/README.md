@@ -22,8 +22,8 @@ includes a design dictionary with the following details:
 - Anchor depth
 - Fairlead radius
 - Fairlead depth 
-- Detail on each line section
-	- Line section type
+- List of line segment detail dictionaries
+	- Line section type dictionary
 		- diameter (nominal and volume-equivalent)
 		- material
 		- cost
@@ -78,7 +78,7 @@ Sets length of the section, including in the subsystem if there is one
 Sets lineType of section, including in the subsystem if there is one
 
 ### reposition
-Adjusts mooring position based on changed platform location or heading, It can cll a custom "adjuster" function if one is provided. Otherwise it iwll jsut update the end positions.
+Adjusts mooring position based on changed platform location or heading, It can cll a custom "adjuster" function if one is provided. Otherwise it will just update the end positions.
 
 ### setEndPosition
 Set the position of an end of the mooring
@@ -95,7 +95,7 @@ Create a MoorPy subsystem for a line configuration from the design dictionary. R
 may be used.
 
 ### addMarineGrowth
-Re-creates sections part of design dictionary to account for marine growth on the subsystem, then calls createSubsystem() to recreate the line. For a detailed explanation of the function and modeling methods behind it, see[Marine Growth Modeling](#marine-growth-modeling)
+Re-creates sections part of design dictionary to account for marine growth on the subsystem, then calls createSubsystem() to recreate the line. For a detailed explanation of the function and modeling methods behind it, see [Marine Growth Modeling](#marine-growth-modeling)
 
 
 
@@ -196,7 +196,7 @@ Once $D_{ve}$ has been determined, the new volumetric-equivalent drag coefficien
 ```math
 C_{D_{growth-ve}} = C_{D_{ve}}\left(\frac{D_{ve_{pristine}}}{D_{nom_{pristine}}}\right) \left(\frac{D_{nom_{growth}}}{D_{nom_{pristine}}}\right) \left(\frac{D_{nom_{pristine}}}{D_{ve_{growth}}}\right)
 ```
-Where $C_{D_{ve}}$ is the volume equivalent drag coefficient for the pristine line, $D_{ve_{pristine}}$ is the volume-equivalent diameter for the pristine line, $D_{nom_{pristine}}$ is the nominal diameter for the pristine line, $D_{nom_{growth}} is the nominal diameter with marine growth, and $D_{ve_{growth}}$ is the volume-equivalent diameter with marine growth.
+Where $C_{D_{ve}}$ is the volume equivalent drag coefficient for the pristine line, $D_{ve_{pristine}}$ is the volume-equivalent diameter for the pristine line, $D_{nom_{pristine}}$ is the nominal diameter for the pristine line, $D_{nom_{growth}}$ is the nominal diameter with marine growth, and $D_{ve_{growth}}$ is the volume-equivalent diameter with marine growth.
 
 The first ratio in parentheses of the equation above is the conversion factor from $C_{D_{ve}}$ to $C_{D_{nom}}$. The second ratio is the same as the ratio in the equation provided by DNV, which serves to increase the drag coefficient based on the ratio of nominal diameters. The third ratio reconverts from the nominal to the volume equivalent diameter, and accounts for the use of the marine growth volume-equivalent diameter in MoorDyn’s calculation of drag force, as explained below. The calculation of the drag force can be determined using the equation below:
 ```math

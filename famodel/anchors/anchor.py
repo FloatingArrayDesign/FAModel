@@ -130,6 +130,7 @@ class Anchor(Node):
             Dictionary of capacity of the anchor (generally a max force [N] in H and V, but can be a max displacement (driven, dandg piles))
 
         '''
+        # - - - - set details - - - -
         anchType = self.dd['type'] 
         geom = self.dd['design']# geometric anchor information
 
@@ -153,6 +154,8 @@ class Anchor(Node):
         
        
         # logic to determine what functions to call based on anchor type and soil type...
+        
+        # - - - - plate anchors - - - - 
         if anchType == 'SEPLA' or anchType == 'DEA' or anchType == 'DEPLA' or anchType == 'VLA' or anchType == 'plate':
             from .anchors_famodel.capacity_plate import getCapacityPlate
             if 'clay' in soil or 'mud' in soil:
@@ -171,7 +174,8 @@ class Anchor(Node):
                     raise Exception('Ground conditions dictionary needs Su0, k, gamma information for clay plate anchors')
             else:
                 print(f'Warning: Soil type {soil} is not compatible with plate anchors (SEPLA/DEPLA/DEA/VLA)')
-                                
+         
+        # - - - - suction buckets - - - -                       
         elif 'suction' in anchType:
             from .anchors_famodel.capacity_suction import getCapacitySuction
             # check loads have been calculated (needed for capacity function in this case)
@@ -195,6 +199,8 @@ class Anchor(Node):
                     raise Exception('Ground conditions dictionary needs Su0, k, and alpha information for clay suction pile anchor')
             else:
                 print(f'Warning: Soil type {soil} is not compatible with suction pile anchor')
+                
+        # - - - - helical piles - - - -
         elif 'helical' in anchType:
             from .anchors_famodel.capacity_helical import getCapacityHelical
             if 'sand' in soil:
@@ -217,6 +223,8 @@ class Anchor(Node):
                     raise Exception('Ground conditions dictionary needs Su0, k, gamma, and alpha_star information for clay helical pile anchor')
             else:
                 print(f'Warning: Soil type {soil} is not compatible with helical pile anchor')
+        
+        # - - - - torpedo piles - - - - 
         elif 'torpedo' in anchType:
             from .anchors_famodel.capacity_torpedo import getCapacityTorpedo
             if 'clay' in soil or 'mud' in soil:
@@ -229,11 +237,15 @@ class Anchor(Node):
                     raise Exception('Ground conditions dictionary needs Su0, k, and alpha information')
             else:
                 print('Warning: Soil type {soil} is not compatible with torpedo pile anchor')
+        
+        # - - - - driven piles - - - - 
         elif 'driven' in anchType: # driven pile anchor
             # check loads have been calculated (needed for capacity function in this case)
             if not 'Ha' in loads:
-                # call getMPForces function 
+                # call getLugForces function 
                 loads = self.getLugForces()
+            H_inc = loads['Ha']*0.1 # increment H by 10% of Ha load in the while loops to back-calc max H from displacements
+            H = 0
             # check soil
             if 'weak_rock' in soil:
                 from .anchors_famodel.capacity_drivenrock import getCapacityDrivenRock
@@ -243,7 +255,16 @@ class Anchor(Node):
                         profile = [[0,ground_conds['UCS'][0],ground_conds['Em'][0]],[75,ground_conds['UCS'][0],ground_conds['Em'][0]]] #profile = [list(x) for x in list(zip(ground_conds['depth'],ground_conds['UCS'],ground_conds['Em']))]
                     else:
                         raise Exception('Ground conditions dictionary needs UCS, Em, and depth information for weak rock driven pile anchor')
-                results = getCapacityDrivenRock(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
+                
+                y, z, results = getCapacityDrivenRock(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
+                
+                # loop through, calling capacity with larger H values until a displacement value goes above limit
+                while results['Lateral displacement']< 0.05*geom['D'] and results['Rotational displacement'] < 0.25:
+                    # increment H 
+                    H += H_inc
+                    # call capacity function       
+                    y, z, results = getCapacityDrivenRock(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'], H=H)
+                    
                    
             elif 'sand' in soil:
                 from .anchors_famodel.capacity_drivensoil import getCapacityDrivenSoil
@@ -251,7 +272,22 @@ class Anchor(Node):
                     if not profile:
                         profile = [[0,ground_conds['phi'][0],ground_conds['gamma'][0]],[75,ground_conds['phi'][0],ground_conds['gamma'][0]]] #profile = [list(x) for x in list(zip(ground_conds['depth'],ground_conds['phi'],ground_conds['gamma']))]
 
-                    results = getCapacityDrivenSoil(profile,'sand',geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
+                    y, z, results = getCapacityDrivenSoil(profile,'sand',geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
+                    if geom['zlug'] > 0:
+                        # need to check bending moment if lug is below mudline (+ zlug)
+                        # loop through, calling capacity with larger H values until a displacement value goes above limit
+                        while results['Lateral displacement']<= 0.05*geom['D'] and results['Bending moment'] <= results['Plastic moment']:
+                            # increment H by 10% of load
+                            H += H_inc
+                            # call capacity function     
+                            y, z, results = getCapacityDrivenSoil(profile,'clay',geom['L'],geom['D'],geom['zlug'],loads['Va'], H=H)
+                            
+                    else:
+                        while results['Lateral displacement']<= 0.05*geom['D'] and results['Rotational displacement'] <= 0.25:
+                            # increment H by 10% of load
+                            H += H_inc  
+                            # call capacity function
+                            y, z, results = getCapacityDrivenSoil(profile,'clay',geom['L'],geom['D'],geom['zlug'],loads['Va'], H=H)
                 else:
                     raise Exception('Ground conditions dictionary needs phi, gamma, and depth information for sand driven pile anchor')
             elif 'clay' in soil or 'mud' in soil:
@@ -266,11 +302,29 @@ class Anchor(Node):
                     else:
                         raise Exception('Ground conditions dictionary needs information for clay driven pile anchor')
 
-                results = getCapacityDrivenSoil(profile,'clay',geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
+                y, z, results = getCapacityDrivenSoil(profile,'clay',geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
+                
+                if geom['zlug'] > 0:
+                    # need to check bending moment if lug is below mudline (+ zlug)
+                    # loop through, calling capacity with larger H values until a displacement value goes above limit
+                    while results['Lateral displacement']<= 0.05*geom['D'] and results['Bending moment'] <= results['Plastic moment']:
+                        # increment H by 10% of load
+                        H += H_inc
+                        # call capacity function     
+                        y, z, results = getCapacityDrivenSoil(profile,'clay',geom['L'],geom['D'],geom['zlug'],loads['Va'], H=H)
+                        
+                else:
+                    while results['Lateral displacement']<= 0.05*geom['D'] and results['Rotational displacement'] <= 0.25:
+                        # increment H by 10% of load
+                        H += H_inc  
+                        # call capacity function
+                        y, z, results = getCapacityDrivenSoil(profile,'clay',geom['L'],geom['D'],geom['zlug'],loads['Va'], H=H)
+                        
                     
             else:
                 print(f'Warning: Soil type {soil} is not compatible with driven pile anchors')
-                        
+                
+        # - - - - drilled and grouted piles - - - -                
         elif 'dandg' in anchType:  # drill and grout pile
             from .anchors_famodel.capacity_dandg import getCapacityDandG
             # check for correct soil
@@ -283,13 +337,23 @@ class Anchor(Node):
                 if profile or ('UCS' in ground_conds and 'Em' in ground_conds):
                     if not profile:
                         profile = [[0,ground_conds['UCS'][0],ground_conds['Em'][0]],[75,ground_conds['UCS'][0],ground_conds['Em'][0]]] #[list(x) for x in list(zip(ground_conds['depth'],ground_conds['UCS'],ground_conds['Em']))]
-                        # for x in profile:
-                        #     x.append('Reese')
-                    results = getCapacityDandG(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
+
+                    # call capacity function once to get displacement values
+                    y, z, results = getCapacityDandG(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'])
+                    H_inc = loads['Ha']*0.1 # increment H by 10% of Ha load
+                    H = H_inc # start H at 10% of Ha load
+                    # loop through, calling capacity with larger H values until a displacement value goes above limit
+                    while results['Lateral displacement']< 0.05*geom['D'] and results['Rotational displacement'] < 0.25:
+                        # call capacity function       
+                        y, z, results = getCapacityDandG(profile,geom['L'],geom['D'],geom['zlug'],loads['Va'], H=H)
+                        # increment H 
+                        H += H_inc
                 else:
                     raise Exception('Ground conditions dictionary need UCS and Em information for drill and grout pile')
             else:
                 print(f'Warning: soil type {soil} is not compatible with drill and grout pile')
+                
+        # - - - - anchor type not recognized or supported - - - - 
         else:
             raise Exception(f'Anchor type {anchType} is not supported at this time')
             
@@ -297,11 +361,11 @@ class Anchor(Node):
         # capacity = cap*installAdj ??? OR is installAdj an input to the capacity functions?
         # save capacity 
         if 'dandg' in anchType or 'driven' in anchType: # will take in dandg, dandg_pile, driven, driven_pile
-            self.anchorCapacity['Lat_max'] = results[2]['Lateral displacement'] # [deg]
-            self.anchorCapacity['Rot_max'] = results[2]['Rotational displacement'] # [deg]
-            self.anchorCapacity['Va_max'] = results[2]['Vmax'] # [N]
-            # get Ha_max from iterating over a variety of input H values and finding what causes a larger displacement
-            ### while loop goes here ###
+            self.anchorCapacity['Lat_max'] = results['Lateral displacement'] # [deg]
+            self.anchorCapacity['Rot_max'] = results['Rotational displacement'] # [deg]
+            self.anchorCapacity['Va_max'] = results['Axial Capacity'] # [N]
+            self.anchorCapacity['Ha_max'] = H
+
             if geom['zlug'] > 0:
                 pass
             else:

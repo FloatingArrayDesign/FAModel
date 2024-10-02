@@ -56,7 +56,7 @@ The following list shows the required soil conditions, soil properties, geometry
 >[!NOTE] 
 >Some anchor capacity functions require input loads at the anchor lug point. These loads can be sent in to the getAnchorCapacity() method, or the getAnchorCapacity() method will calculate the loads by calling getLugLoads(). The input loads must be maximum or large loads on the anchor.
 
-- **DEA/SEPLA/DEPLA/VLA/plate**
+### DEA/SEPLA/DEPLA/VLA/plate
   - soil condition: clay/mud
     - Su0 (undrained shear strength of soil at mudline) [kPa]
     - k (rate of change in shear strength with depth) [kPa/m]
@@ -66,7 +66,7 @@ The following list shows the required soil conditions, soil properties, geometry
     - zlug (embedded depth of bridle/padeye below mudline - positive is below mudline, negative is above mudline) [m]
     - beta (OPTIONAL - angle of plate after keying) [deg]
   - loads: None
-- **suction_pile (Suction caisson/ suction bucket anchors)**
+### suction_pile (Suction caisson/ suction bucket anchors)
   - soil conditions
     - sand
       - phi (internal friction angle) [deg]
@@ -81,7 +81,7 @@ The following list shows the required soil conditions, soil properties, geometry
     - zlug (embedded depth of padeye below mudline) [m]
   - loads
     - Ha, Va (horizontal and vertical loads on padeye of anchor) 
-- **torpedo_pile (Torpedo pile anchors)**
+### torpedo_pile (Torpedo pile anchors)
   - soil condition: clay/mud
     - Su0 (undrained shear strength of soil at mudline) [kPa]
     - k (rate of change in shear strength with depth) [kPa/m]
@@ -93,7 +93,7 @@ The following list shows the required soil conditions, soil properties, geometry
     - L2 (shaft length) [m]
     - zlug (embedded depth of padeye below mudline) [m]
   - loads: None
-- **helical_pile (Helical pile anchors)**
+### helical_pile (Helical pile anchors)
   - soil conditions
     - sand
       - phi (internal friction angle) [deg]
@@ -109,7 +109,7 @@ The following list shows the required soil conditions, soil properties, geometry
     - L (shaft length) [m]
     - d (shaft diameter) [m]
   - loads: None
-- **driven_pile (Driven pile anchors)**
+### driven_pile (Driven pile anchors)
   - soil conditions:
     - weak rock (up to UCS = 5 MPa)
       - UCS (unconfined compressive strength at failure)
@@ -127,7 +127,12 @@ The following list shows the required soil conditions, soil properties, geometry
     - zlug (embedded depth of padeye below mudline) [m]
   - loads
     - Ha, Va (horizontal and vertical loads on padeye of anchor)
-- **dandg_pile (Drilled and grouted piles)**
+
+  #### Output notes 
+  The general output is a lateral and rotational displacement. In getAnchorCapacity, the driven pile capacity function is called in a while loop with incremented horizontal input forces until one of the displacements goes past set failure criteria, thus providing a horizontal force capacity output [N]. Vertical capacity [N] is already calculated within the driven pile capacity function.
+  
+  For non-rock soil, the hinge (bending moment) is also considered as a failure mode along with the lateral and rotational displacement *IF* the zlug is positive (below the mudline)
+### dandg_pile (Drilled and grouted piles)
   - soil condition: rock
     - UCS (unconfined compressive strength at failure)
     - Em (rock mass modulus)
@@ -137,7 +142,10 @@ The following list shows the required soil conditions, soil properties, geometry
     - zlug (lug location (lug above mudline has negative zlug)) [m]
   - loads
     - Ha, Va (horizontal and vertical loads on padeye of anchor)
-
+#### Output notes
+ The general output is a lateral and rotational displacement. In getAnchorCapacity, the drilled and grouted pile function is called in a while loop with incremented horizontal input forces until one of the displacements goes past set failure criteria, thus providing a horizontal force capacity output [N]. Vertical capacity [N] is already calculated within the driven pile capacity function. 
+ 
+-------------------------------------------------------------------------------
 > [!IMPORTANT] 
 > A positive zlug denotes a lug/padeye/bridle below the mudline, while a negative zlug denotes a lug/padeye/bridle above the mudline. Anchors in rock should have a zlug >= 0.
 

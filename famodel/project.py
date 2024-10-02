@@ -1535,7 +1535,7 @@ class Project():
         # also save in RAFT, in its MoorPy System(s)
     
     def addCablesConnections(self,connDict,cableType='dynamic_cable_66',oss=False,substation_r=None,id_method='location',
-                             keep_old_cables=False):
+                             keep_old_cables=False,connect_ss=True,cableConfig=None):
         '''Adds cables and connects them to existing platforms/substations based on info in connDict
         Designed to work with cable optimization output designed by Michael Biglu
 
@@ -1557,7 +1557,14 @@ class Project():
         keep_old_cables : bool, optional
             Controls whether to keep any existing cables in the project object or disconnect and remove all of them.
             Default is False.
-            
+        connect_ss : bool, optional
+            Controls whether to add the cable connections to the substation
+        cableConfig : dict, optional
+            Dictionary listing details on cable configurations to apply to the cable objects. 
+            Key is <conductor size>_<dis. betwn turbines>_<type> where type = 0 for dynamic-static-dynamic config or 1 for suspended config
+            ex: '300_1500_0'
+        configType : int, optional
+            0 = 
 
         Returns
         -------
@@ -1571,12 +1578,11 @@ class Project():
             if not substation_r:
                 dd = {'r':[5000,1000]}
             else:
-                print(substation_r)
                 dd = {'r':substation_r}
             self.substationList[200] = Substation(dd,id=200)
             self.substationList[200].rFair = 58 ##### TEMPORARY #####
         
-        # detach and delete existing cable list
+        # detach and delete existing cable list unless specified to keep old cables
         if keep_old_cables:
             lcab = len(self.cableList)
         else:
@@ -1586,17 +1592,34 @@ class Project():
                     cab.detachFrom('b')
             self.cableList = {} 
             lcab = 0
-            
+        
         # go through each index in the list and create a cable, connect to platforms
         for i in range(0,len(connDict)): # go through each cable
-            # collect design dictionary info on cable
             dd = {}
             dd['cables'] = [{}]
-            cd = dd['cables'][0]
-            cd['span'] = connDict[i]['2Dlength']
-            cd['length'] = connDict[i]['2Dlength']
-            cd['A'] = connDict[i]['A_min_con']
-            cd['type'] = 'dynamic'
+            # collect design dictionary info on cable
+            if not cableConfig:           
+                cd = dd['cables'][0]
+                cd['span'] = connDict[i]['2Dlength']
+                cd['length'] = connDict[i]['2Dlength']
+                cd['A'] = connDict[i]['A_min_con']
+                cd['type'] = 'dynamic'
+            else:
+                # find associated cable in cableConfig dict
+                cableAs = []
+                for cabC in cableConfig.values():
+                    if connDict[i]['A_min_con'] == cabC['A']:
+                        cableAs.append(cabC)
+                
+                for cabA in cableAs:
+                    if connDict[i]['cable_id']>=100 and cabA[-1]=='0':
+                        pass
+                        # connected to a substation, use a dynamic-static-dynamic configuration
+                    elif connDict[i]['cable_id']<100 and cabA[-1]==str():
+                        # not connected to substation, use default config type
+                        pass
+                        
+                    
             
             # add routing if necessary
             if len(connDict[i]['coordinates'])>2:
@@ -1612,17 +1635,20 @@ class Project():
             dd['name'] = cableType
 
             
-            if connDict[i]['cable_id']>=100 and not oss:
-                # this is a substation
-                pass
-            else:        
+            if connDict[i]['cable_id']>=100 and not oss and not connect_ss:
+                # this is a substation, and we don't want to connect to it
+                attachCable = 0
+            else:
+                attachCable = 1
+                    
+            if attachCable:        
                 # create cable object
                 self.cableList[cableType+str(i+lcab)] = Cable(cableType+str(i+lcab),d=dd)
                 
                 cab = self.cableList[cableType+str(i+lcab)]
                                 
                 # update upstream turbines property
-                cab.upstream_turb_count = connDict['upstream_turb_count']
+                cab.upstream_turb_count = connDict[i]['upstream_turb_count']
                 
                 # attach to platforms/substations
                 for pf in self.platformList.values():
@@ -1696,7 +1722,7 @@ class Project():
         '''
      
         # Handle extra keyword arguments or use default values
-        figsize = kwargs.get('figsize', (6,4))  # the dimensions of the figure to be plotted
+        figsize = kwargs.get('figsize', (8,8))  # the dimensions of the figure to be plotted
         
         
         # if axes not passed in, make a new figure
@@ -1756,10 +1782,15 @@ class Project():
         
         # Plot cables one way or another (eventually might want to give Mooring a plot method)
         for cable in self.cableList.values():
+            # get cable color
+            import matplotlib.cm as cm
+            cmap = cm.get_cmap('plasma_r')
+            cableSize = cable.dd['cables'][0].dd['A']
+            Ccable = cmap(cableSize/1400)
         
             # simple line plot for now
             ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[0].rB[0]], 
-                    [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]], 'r--', lw=0.5,label='Cable')
+                    [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
             # add in routing if it exists
             for sub in cable.subcomponents:
                 if isinstance(sub,StaticCable):
@@ -1775,7 +1806,7 @@ class Project():
                         ax.plot([sub.coordinates[-1][0],sub.rB[0]],
                                 [sub.coordinates[-1][1],sub.rB[1]],'r:',lw=0.6,label='Buried Cable')
             ax.plot([cable.subcomponents[-1].rA[0], cable.subcomponents[-1].rB[0]], 
-                    [cable.subcomponents[-1].rA[1], cable.subcomponents[-1].rB[1]], 'r--', lw=0.5)
+                    [cable.subcomponents[-1].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
             
                 # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
                 #         [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]], 'r--', lw=0.5)
@@ -1794,7 +1825,7 @@ class Project():
             ax.axis('equal')
         handles, labels = plt.gca().get_legend_handles_labels()
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
-        ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=5)
+        ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=4)
         if save:
             plt.savefig('2dfarm.png', dpi=300, bbox_inches='tight')  # Adjust the dpi as needed
             
@@ -2703,7 +2734,6 @@ class Project():
                     phi[ct] = phis[p]
                     
                 # call platform function to set location, phi, moorings, cables, and anchors
-                #breakpoint()
                 self.platformList[pfIDs[ct]].setPosition([x,y],heading=phi[ct],degrees=True)
                 self.platformList[pfIDs[ct]].rc = [i,j]
                 # update cable lengths as needed (assumes the attachments are correct)

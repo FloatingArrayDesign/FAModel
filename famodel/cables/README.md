@@ -140,7 +140,35 @@ Often this is used for adding marine growth
  : Mirrors a half symmetrical cable design dictionary to show the entire cable, creates subsystem if asked.
 
 ### Marine Growth on DynamicCables
-Marine growth is modeled on dynamic cables using thicknesses and densities defined in a dictionary for different depth ranges. 
+Marine growth is modeled on bare dynamic cables similarly to the way it is modeled on mooring lines - using thicknesses and densities defined in a dictionary for different depth ranges. 
+
+For buoyant sections of dynamic cables, the marine growth on the buoyancy modules significantly alters the method of calculating marine growth mass and weight. A thickness of marine growth is added to the entire surface area of the buoy. In this instance, buoys are assumed cylinders with a hole through the axis that is the same diameter as the bare cable. See the figure below:
+
+
+The mass of marine growth is determined for each buoy, as well as for the bare cable length between buoys. The mass and weight of the marine growth for entire buoyant section length is then determined, and added to the pristine cable and buoy mass and weight. The calculations below describe this process in detail.
+
+The volume of marine growth on the buoy $V_{mg_{buoy}}$ can be described by the following equation:
+
+```math
+V_{mg_{buoy}} = \frac{\pi}{4}((d_{buoy}+2t)^2-d_{buoy}^2)L_{buoy} + \frac{\pi}{2}((d_{buoy}+2t)^2-d_{cable}^2)t
+
+```
+Where $d_{buoy}$ is the diameter of the buoy cylinder, $t$ is the thickness of marine growth, $L_{buoy}$ is the length of the buoy and $d_{cable}$ is the diameter of the bare cable.
+
+With the volume of marine growth, the mass of marine growth can easily be determined using the density of marine growth ($\rho_{mg}$)
+```math
+m_{mg_{buoy}} = \rho_{mg}V_{mg_{buoy}}
+
+```
+The weight of the marine growth on the buoy is calculated as follows:
+```math
+w_{mg_{buoy}} = (\rho_{mg}-\rho_{water})gV_{mg_{buoy}}
+```
+The volume of marine growth on the bare cable is calculated as :
+```math
+V_{mg_{cable}} = \frac{\pi}{4}((d_{cable}+2t)^2-d_{cable}^2)(L_{bare}-2t)*(N_{modules}-1)
+```
+Where 
 
 [Back to Top](#the-cable-class)
 
