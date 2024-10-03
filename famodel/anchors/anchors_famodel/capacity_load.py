@@ -75,7 +75,7 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, gamma, Su0, k):
     
     return resultsLoad
 
-def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, qc0=None, kc=None, w=None):
+def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, gamma=None, phi= None, delta=None, w=None):
 
     
     '''Calculate the transfer load from the mudline to the main padeye elevation using the DNV standards.
@@ -89,16 +89,24 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
         Mooring line angle at mudlevel [deg]
     zlug : float 
         Embedded depth of the lug [m]
-    soil_type = string
-        Select soil condition, 'clay' or 'sand'
+    line_type = string
+        Select line type, 'chain' or 'wire'
     d : float
-        Chain diameter [m]    
+        Chain diameter [m]
+    soil_type = string
+        Select soil condition, 'clay' or 'sand'  
     Su0 : float 
-        Undrained shear strength at the mudline (clay only) [kPa]
+        Undrained shear strength at the mudline (clay only) [Pa]
     k : float 
-        Undrained shear strength gradient (clay only) [kPa/m]
+        Undrained shear strength gradient (clay only) [Pa/m]
+    gamma: float
+        Effective unit weight of the soil (sand only) [N/m3]
+    phi : float
+        Friction angle (sand only) [deg]
+    delta: float
+        Interface friction angle at soil-anchor line (sand only) [deg]
     w : float
-        Mooring line unit weight [kN/m]
+        Mooring line unit weight [N/m]
     
     Returns
     -------
@@ -112,41 +120,56 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
       
     # Include element weight in terms of d and match it with deltas
     if line_type == 'chain':   
-        AS = 11.3*d; AB = 2.5*d; alpha = 0.7; W = w*deltas; 
+        Et = 10; En = 2.5;  W = w*deltas; 
     elif line_type == 'wire':
-        AS = np.pi*d; AB = d; alpha = 0.3; W = w*deltas;
+        Et = np.pi; En = 1; W = w*deltas;
     
     T = Tm; theta = np.deg2rad(thetam);
-    Su = Su0; qc = qc0;
-    drag = 0; depth = 0
+    Su = Su0; 
+    drag = 0; depth = 0.1
          
     T_values = []; Su_values = [];
     drag_values = []; depth_values = []; 
     
     # Setting bearing capacity values per soil type
     if soil_type == 'clay':
-        Nc = 8.5
+        Nc = 8.5; alpha = 0.7;
     elif soil_type == 'sand':
-        EWB = 2.2; beta = 0.625; nhu = 0.46
+        nhu = 0.5
+        Nq = np.exp(np.pi*np.tan(np.deg2rad(phi)))*(np.tan(np.deg2rad(45 + phi/2)))**2
+        print(Nq)
         
     while (zlug - depth) >= 0:
         if soil_type =='clay':
-            dtheta = (Nc*Su*AB - W*np.cos(theta))/T*deltas
-            dT = -(alpha*Su*AS - W*np.sin(theta))*deltas
-        if soil_type =='sand':
-            dtheta = (EWB*d*beta*qc*AB - W*np.cos(theta))/T*deltas
-            dT = -(nhu*EWB*d*beta*qc*AS - W*np.sin(theta))*deltas 
-        ddrag = deltas*np.cos(theta)
+            dtheta = (En*d*Nc*Su - W*np.cos(theta))/T*deltas
+            dT = (Et*d*alpha*Su  + W*np.sin(theta))*deltas
+            
+        elif soil_type =='sand':
+            dtheta  = (En*d*Nq*gamma*depth - W*np.cos(theta))/T*deltas
+            dT = (Et*d*gamma*depth*np.tan(np.rad2deg(delta)) + W*np.sin(theta))*deltas 
+        
+        ddrag  = deltas*np.cos(theta)
         ddepth = deltas*np.sin(theta)
-        theta += dtheta; T += dT; 
+        theta += dtheta; T -= dT;
+        
         drag += ddrag; depth += ddepth
         Su = Su0 + k*depth
-        qc = qc0 + kc*depth
-           
+                
+        # Ensure consistency in load transfer
+        if abs(Tm - T) > 0.75*Tm:  # More than 75% loss
+            print(f"Warning: Load transfer is unrealistic. Initial load Tm = {Tm/1e6:.2f} MN and current load T = {T/1e6:.2f} MN differ by more than 75 %")
+            break  # Exit the loop if load transfer is unrealistic
+            
+        # Check for excessive load angles
+        if not (0 < np.rad2deg(theta) < 90):
+            print(f"Warning: Load angle is unrealistic: {np.rad2deg(theta):.2f} deg")
+            break  # Exit the loop if the angle becomes unreasonable   
+            
         T_values.append(T); Su_values.append(Su)
         drag_values.append(drag); depth_values.append(depth); 
                
     Ta = T; thetaa = theta 
+    print(thetaa); print(Ta)
     H = Ta*np.cos(thetaa); V = Ta*np.sin(thetaa) 
     length_values = deltas*len(drag_values)
      
@@ -162,13 +185,13 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
     drag_values = [-1*i for i in drag_values]
     depth_values = [-1*j for j in depth_values]
     fig, ax = plt.subplots(figsize=(20, 5)); n = 2000000
-    ax.scatter(drag_values[-1],depth_values[-1],color='g',zorder=5)
-    ax.scatter(0,0,color='r',zorder=4)
-    ax.arrow(0,0,Tm*np.cos(np.deg2rad(thetam))/n,Tm*np.sin(np.deg2rad(thetam))/n,
-          head_width=0.25,head_length=0.5,color='r',zorder=3)
-    ax.arrow(drag_values[-1],depth_values[-1],Ta*np.cos(thetaa)/n,Ta*np.sin(thetaa)/n,
-          head_width=0.25,head_length=0.5,color='g',zorder=2)
-    ax.plot(drag_values,depth_values,color='b',zorder=1)
+    ax.scatter(drag_values[-1], depth_values[-1], color='g', zorder=5)
+    ax.scatter(0, 0, color='r', zorder=4)
+    ax.arrow(0, 0, Tm*np.cos(np.deg2rad(thetam))/n, Tm*np.sin(np.deg2rad(thetam))/n,
+          head_width=0.25, head_length=0.5, color='r', zorder=3)
+    ax.arrow(drag_values[-1], depth_values[-1], Ta*np.cos(thetaa)/n, Ta*np.sin(thetaa)/n,
+          head_width=0.25, head_length=0.5, color='g',zorder=2)
+    ax.plot(drag_values, depth_values,color='b', zorder=1)
      
     #Set labels and title
     plt.xlabel('Drag distance [m]')
@@ -181,17 +204,18 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
 
 if __name__ == '__main__':
     
-    Tm = 1.16e6  
+    Tm = 1.16e6 
     thetam = 0
     zlug = 10
     line_type ='chain'
     d = 0.160
-    soil_type ='clay'
+    soil_type ='sand'
     Su0 = 2.4*1e3
     k = 1.41*1e3
-    qc0 = 1.3e6
-    kc = 1.5*1e6
+    gamma = 9e3
+    phi = 35
+    delta = 27
     w = 4093
 
-    resultsDNV = getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0, k, qc0, kc, w)
+    resultsDNV = getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0, k, gamma, phi, delta, w)
     #results = getAnchorLoad(Tm, thetam, zlug, d, soil_type, gamma, Su0, k)
