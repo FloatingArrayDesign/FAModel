@@ -427,7 +427,7 @@ class Project():
                     #     m_config['sections'][ct]['type']['EAd_Lm'] = lt['EAd_Lm']
                         
                     # set line length
-                    m_config['sections'][ct]['length'] = lc['length']
+                    m_config['sections'][ct]['L'] = lc['length']
                     # update counter for line types 
                     ct = ct + 1
                     # update line last boolean
@@ -457,7 +457,7 @@ class Project():
                         # set connector (since it's mirrored, connector B becomes connector A)
                         c_config.append(c_config[-2-2*ii])
                 else: # double the length of the end line
-                    m_config['sections'][-1]['length'] = m_config['sections'][-1]['length']*2
+                    m_config['sections'][-1]['L'] = m_config['sections'][-1]['L']*2
                     # set connector B for line same as previous listed connector
                     c_config.append(c_config[-1])
                     for ii in range(0,ct-1): # go through every line config except the last (since it was doubled already)
@@ -826,9 +826,8 @@ class Project():
             
             if cabSection['type'] in d['cable_configs']:
                 cCondd['span'] = cC['span']
-                cCondd['length'] = cC['length']
+                cCondd['L'] = cC['length']
                 cCondd['A'] = getFromDict(cC,'A',default=0)
-                cCondd['conductorSize'] = getFromDict(cC,'conductorSize',default=111)
                 cCondd['type'] = cC['type']
                 cCondd['powerRating'] = getFromDict(cC,'powerRating',default=0)
                 if 'zJTube' in cC:
@@ -1534,8 +1533,10 @@ class Project():
         
         # also save in RAFT, in its MoorPy System(s)
     
-    def addCablesConnections(self,connDict,cableType='dynamic_cable_66',oss=False,substation_r=None,id_method='location',
-                             keep_old_cables=False,connect_ss=True,cableConfig=None):
+    def addCablesConnections(self,connDict,cableType='dynamic_cable_66',oss=False,
+                             substation_r=None,id_method='location',
+                             keep_old_cables=False, connect_ss=True, 
+                             cableConfig=None, configType=0):
         '''Adds cables and connects them to existing platforms/substations based on info in connDict
         Designed to work with cable optimization output designed by Michael Biglu
 
@@ -1564,7 +1565,7 @@ class Project():
             Key is <conductor size>_<dis. betwn turbines>_<type> where type = 0 for dynamic-static-dynamic config or 1 for suspended config
             ex: '300_1500_0'
         configType : int, optional
-            0 = 
+            0 = default to dynamic-static-dynamic cables, 1 = default to suspended cable systems
 
         Returns
         -------
@@ -1581,6 +1582,7 @@ class Project():
                 dd = {'r':substation_r}
             self.substationList[200] = Substation(dd,id=200)
             self.substationList[200].rFair = 58 ##### TEMPORARY #####
+            self.substationList[200].phi = 0
         
         # detach and delete existing cable list unless specified to keep old cables
         if keep_old_cables:
@@ -1596,42 +1598,96 @@ class Project():
         # go through each index in the list and create a cable, connect to platforms
         for i in range(0,len(connDict)): # go through each cable
             dd = {}
-            dd['cables'] = [{}]
+            dd['cables'] = []
             # collect design dictionary info on cable
+
             if not cableConfig:           
                 cd = dd['cables'][0]
                 cd['span'] = connDict[i]['2Dlength']
-                cd['length'] = connDict[i]['2Dlength']
+                cd['L'] = connDict[i]['2Dlength']
                 cd['A'] = connDict[i]['A_min_con']
-                cd['type'] = 'dynamic'
+                
+                # add routing if necessary
+                if len(connDict[i]['coordinates'])>2:
+                    cd['routing'] = []
+                    for coord in connDict[i]['coordinates'][1:-1]:
+                        cd['routing'].append(coord)
+                
+                if not 'cable_type' in cd:
+                    cp = loadCableProps(None)
+                    cabProps = getCableProps(connDict[i]['A_min_con'],cableType,cableProps=cp)
+                    # fix units
+                    cabProps['power'] = cabProps['power']*1e6
+                    cd['cable_type'] = cabProps
+                    
             else:
                 # find associated cable in cableConfig dict
-                cableAs = []
-                for cabC in cableConfig.values():
-                    if connDict[i]['A_min_con'] == cabC['A']:
-                        cableAs.append(cabC)
+                if 'typeList' in cableConfig:
+                    cable_name = cableConfig['typeList'][i]
+                    selected_cable = cableConfig[cable_name]
+                else:
+                    cableAs = []
+                    cableDs = []
+                    cable_selection = []
+                    for cabC in cableConfig['configs']:
+                        if connDict[i]['A_min_con'] == cabC['A']:
+                            cableAs.append(cabC)
+                    if not cableAs:
+                        raise Exception('Cable configs provided do not match required conductor area')
+                    elif len(cableAs) == 1:
+                        cable_selection = cableAs
+                    else:                        
+                        for cabA in cableAs:
+                            if connDict[i]['2Dlength'] == cabA['dist']:
+                                cableDs.append(cabA)              
+                        for cabD in cableDs:
+                            if connDict[i]['cable_id']>=100 and cabD['type']==0:
+                                # connected to a substation, use a dynamic-static-dynamic configuration
+                                cable_selection.append(cabD)
+                                
+                            elif connDict[i]['cable_id']<100 and cabD['type']==configType:
+                                # not connected to substation, use default config type
+                                cable_selection.append(cabD)
+                            
+                    if len(cable_selection)> 1:
+                        # need to downselect further...
+                        raise Exception(f"Multiple cables match selection criteria for cable {connDict[i]['cable_id']}")
+                    elif len(cable_selection) == 1:
+                        # found the correct cable
+                        selected_cable = cable_selection[0]
+                    else:
+                        raise Exception(f"No cable matching the selection criteria found for cable {connDict[i]['cable_id']}")
                 
-                for cabA in cableAs:
-                    if connDict[i]['cable_id']>=100 and cabA[-1]=='0':
-                        pass
-                        # connected to a substation, use a dynamic-static-dynamic configuration
-                    elif connDict[i]['cable_id']<100 and cabA[-1]==str():
-                        # not connected to substation, use default config type
-                        pass
+                # set up selected cable design dictionary
+                if len(selected_cable['sections'])> 1:
+                    dd['joints'] = []
+                # breakpoint()
+                for j in range(len(selected_cable['sections'])):
+                    dd['cables'].append(cableConfig['cableTypes'][selected_cable['sections'][j]])
+                    cd = dd['cables'][j]
+                    # cd['cable_type'] = cableConfig['cableTypes'][selected_cable['sections'][j]] # assign info in selected cable section dict to cd
+                    cd['A'] = selected_cable['A']
+                    if 'dist' in selected_cable:
+                        cd['span'] = selected_cable['dist']
+                    # add joints as needed (empty for now)
+                    if j < len(selected_cable['sections'])-1:
+                        dd['joints'].append({})
+
+       
+                    # add routing if necessary
+                    if len(connDict[i]['coordinates'])>2:
+                        cd['routing'] = []
+                        for coord in connDict[i]['coordinates'][1:-1]:
+                            cd['routing'].append(coord)
+                    if not 'cable_type' in cd or not cd['cable_type']:
+                        cp = loadCableProps(None)
+                        cabProps = getCableProps(connDict[i]['A_min_con'],cableType,cableProps=cp)
+                        # fix units
+                        cabProps['power'] = cabProps['power']*1e6
+                        cd['cable_type'] = cabProps
+
+                    cd['cable_type']['name'] = selected_cable['sections'][j]
                         
-                    
-            
-            # add routing if necessary
-            if len(connDict[i]['coordinates'])>2:
-                cd['routing'] = []
-                for coord in connDict[i]['coordinates'][1:-1]:
-                    cd['routing'].append(coord)
-            
-            cp = loadCableProps(None)
-            cabProps = getCableProps(connDict[i]['A_min_con'],cableType,cableProps=cp)
-            # fix units
-            cabProps['power'] = cabProps['power']*1e6
-            cd['cable_type'] = cabProps
             dd['name'] = cableType
 
             
@@ -1643,10 +1699,9 @@ class Project():
                     
             if attachCable:        
                 # create cable object
-                self.cableList[cableType+str(i+lcab)] = Cable(cableType+str(i+lcab),d=dd)
-                
-                cab = self.cableList[cableType+str(i+lcab)]
-                                
+                cab = Cable(cableType+str(i+lcab),d=dd)
+                self.cableList[cab.id] = cab
+              
                 # update upstream turbines property
                 cab.upstream_turb_count = connDict[i]['upstream_turb_count']
                 
@@ -1697,7 +1752,21 @@ class Project():
                 # print('headings: ',headingA,headingB)
     
                 # reposition cable
-                cab.reposition(headings=[headingA,headingB])                      
+                cab.reposition(headings=[headingA,headingB])  
+
+                # update lengths & spans of any static cables as needed (currently doesn't work w/routing)
+                cts = np.where([isinstance(a,StaticCable) for a in cab.subcomponents])[0]
+                for cs in cts:
+                    if not 'L' in cab.subcomponents[cs].dd:
+                        cab.subcomponents[cs].getLength()
+                        cab.subcomponents[cs].span = cab.subcomponents[cs].L
+                    try:
+                        cab.estJointLoc(cs-1)
+                        cab.estJointLoc(cs+1)
+                    except:
+                        breakpoint()
+                # update full cable L (in case the static cable L was updated)
+                cab.getL()                    
                 
     
     def updatePositions(self):
@@ -1860,7 +1929,7 @@ class Project():
         else:
             fig = ax.get_figure()
 
-        # try icnraesing grid density
+        # # try icnraesing grid density
         xs = np.arange(min(self.grid_x),max(self.grid_x),50)
         ys = np.arange(min(self.grid_y),max(self.grid_y),50)
         self.setGrid(xs, ys)
@@ -2077,7 +2146,10 @@ class Project():
             if check[ii] == 1: # mooring object not in any anchor lists
                 # new shared line
                 # create subsystem for shared line
-                self.mooringList[i].createSubsystem(case=1,pristine=pristineLines) # we doubled all symmetric lines so any shared lines should be case 1
+                if hasattr(self.mooringList[i],'shared'):
+                    self.mooringList[i].createSubsystem(case=self.mooringList[i].shared,pristine=pristineLines)
+                else:
+                    self.mooringList[i].createSubsystem(case=1,pristine=pristineLines) # we doubled all symmetric lines so any shared lines should be case 1
                 # set location of subsystem for simpler coding
                 if pristineLines:
                     ssloc = self.mooringList[i].ss
@@ -2769,6 +2841,85 @@ class Project():
         # update moorpy
         self.getMoorPyArray(plt=1,cables=1)
         
+        
+    def addPlatform(self,ms=None,config=None):
+        '''
+        Create a platform object, along with associated mooring and anchor objects.
+        Currently only works for regular (non-shared) moorings.
+
+        Parameters
+        ----------
+        ms : moorpy system, optional
+            Moorpy system representing the platform, its moorings, and its anchors. The default is None.
+        config : dict, optional
+            Dictionary that provides design dictionaries of the mooring, anchor, and platform. The default is None.
+        Must provide either ms or config, OR there must be one platform with mooring objects 
+        connected and anchors connected to them that will be copied
+        
+        Returns
+        -------
+        None.
+
+        '''
+        if ms:
+            # create platform, moorings, and anchors from ms
+            ix = len(self.platformList)
+            # check there is just one body
+            if ix > 1:
+                raise Exception('This function only works with a 1 body system')
+                
+            # switch to subsystems if lineList doesn't already have them
+            if isinstance(ms.lineList[0],mp.subsystem.Subsystem):
+                from moorpy.helpers import lines2ss
+                lines2ss(ms)
+                
+            # get lines attached to platform and headings
+            md = {'sections':[]} # start set up of mooring design dictionary
+            mhead = []
+            for point in ms.bodyList.attachedP:
+                for j,line in enumerate(ms.pointList[point].attached):
+                    rA = ms.lineList[line].rA
+                    rB = ms.lineList[line].rB
+                    if ms.pointList[point].attachedEndB[j]:
+                        vals = rB[0:2]-rA[0:2]
+                        zFair = rB[2]
+                        rFair = np.hypot(rB[0:2])
+                        flipped = 0
+                    else:
+                        vals = rA[0:2]-rB[0:2]
+                        zFair = rA[2]
+                        rFair = np.hypot(rA[0:2])
+                        flipped = 1
+                        
+                    # pull out mooring line info
+                    md['rad_fair'] = rFair
+                    md['zFair'] = zFair
+                    md['span'] = np.hypot(vals)
+                    if flipped:
+                        md['zAnchor'] = -self.getDepthAtLocation(rA[0],rA[1])
+                    else:
+                        md['zAnchor'] = -self.getDepthAtLocation(rB[0],rB[1])
+                    md['sections'].append({'type':ms.lineList[line].type})
+                    
+                    mhead.append(np.arctan2(vals[1],vals[0]))
+                    self.mooringList['fowt'+str(ix)+str()]
+                    
+            # add platform at ms.body location
+            
+            self.platformList['fowt'+str(ix)] = Platform('fowt'+str(ix), r=ms.bodyList[0].r6[0:2],
+                                                         mooring_headings=mhead,
+                                                         rFair=rFair, zFair=zFair)
+            # add moorings
+            
+            
+        elif config:
+            # create platform, moorings, and anchors from config dictionary
+            pass
+        elif self.platformList:
+            # create platform, moorings, and anchors from existing platform object and its connected
+            # objects
+            pass
+            
         
     
     

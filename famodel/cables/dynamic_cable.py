@@ -21,9 +21,9 @@ class DynamicCable(Edge):
     
     def __init__(self, id, dd=None, subsystem=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=None, rad_fair=58, z_anch=-100, z_fair=-14, 
-                 rho=1025, g=9.81,span=2000,length=2200,A=None,conductorSize=None, 
-                 type='dynamic',zJTube=-30,voltage=66,powerRating=None,cable_type=None,
-                 headingA=None,headingB=None,buoyancy_sections=None,shared=0):
+                 rho=1025, g=9.81,span=2000,length=2200,A=None, 
+                 zJTube=-30,voltage=66,powerRating=None,cable_type=None,
+                 headingA=None,headingB=None,buoyancy_sections=None,shared=0,**kwargs):
         '''
         Parameters
         ----------

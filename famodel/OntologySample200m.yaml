@@ -100,8 +100,8 @@ site:
 array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        -  [FOWT1,     1,         1,         ms2,          -1600,         -1600,          180   ]    # 2 array, shared moorings
-        -  [FOWT2,     2,         1,         ms2,          0,           -1600,            0   ] 
+        -  [FOWT1,     1,         1,         ms1,          -1600,         -1600,          180   ]    # 2 array, shared moorings
+        -  [FOWT2,     2,         1,         ms1,          0,           -1600,            0   ] 
         # -  [FOWT3,     1,         1,         ms3,          1600,           -1600,            0   ]
         # -  [FOWT4,     1,         2,         ms4,          -1600,          0,            0   ]
         # -  [FOWT5,     1,         1,         ms5,          0,              0,            45   ]
@@ -2472,8 +2472,8 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,  150 ,    drag-embedment1,   0 ]
-          - [  semitaut-poly_1,  30 ,    drag-embedment1,   0 ]
+          - [  semitaut-poly_1,  150 ,    torpedo_pile1,   0 ]
+          - [  semitaut-poly_1,  30 ,    torpedo_pile1,   0 ]
 
     ms2:
         name: 2-line semi-taut polyester mooring system with a third line shared
@@ -2621,11 +2621,38 @@ anchor_types:
         type   :  DEA   # type of anchor
         A      :    10 # net area of anchor's fluke [m^2]
         zlug   :    10 # embedded depth of padeye [m]
+    suction_pile1:
+        type   :  suction_pile
+        L      :     16.4  # length of pile [m]
+        D      :     5.45  # diameter of pile [m]
+        zlug   :     9.32  # embedded depth of padeye [m]
+    d-g_pile1:
+        type   :  dandg_pile
+        L      :     50 # length of pile [m]
+        D      :     3 # diameter of pile [m]
+        zlug   :     0 # embedded depth [m]
     driven_pile1:
-        type   : driven_pile
-        zlug   : 3
-        L      : 20
-        D      : 1.5
+        type   :  driven_pile
+        L      :     20 # pile length [m]
+        D      :     1.5 # pile diameter [m]
+        zlug   :     3 # embedded depth [m
+    plate_1:
+        type: SEPLA
+        A : 10
+        zlug : 10
+        #beta: 30
+    torpedo_pile1:
+        type: torpedo_pile 
+        D1 : 3
+        D2: 1.1
+        L1: 10
+        L2: 4
+        zlug: 16
+    helical_pile1:
+        type: helical_pile
+        L : 25.1
+        d : 1
+        D : 5.01
 
 cables:
 

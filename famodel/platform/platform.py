@@ -262,7 +262,7 @@ class Platform(Node):
         CminTenSF = [None]*len(cables)
         minTenSF = [None]*len(moorings)
         F = [None]*len(moorings)
-        
+        print(self.body.f6Ext,self.body.r6)
         for ang in range(0, 360+ang_spacing, ang_spacing):
             print(ang)
             fx = thrust*np.cos(np.radians(ang))
@@ -330,6 +330,8 @@ class Platform(Node):
         # restore platform to equilibrium position 
         self.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
         ms.solveEquilibrium3(DOFtype='both')
+        
+        print(self.body.f6Ext,self.body.r6)
                 
         if SFs:
             # save anchor loads
@@ -345,6 +347,9 @@ class Platform(Node):
             return(x,y,maxVals)
         else:
             return(x,y)
+        
+        
+        
     
     def getMoorings(self):
         '''

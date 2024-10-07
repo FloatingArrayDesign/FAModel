@@ -31,7 +31,7 @@ class Mooring(Edge):
                                       {
                                          name, d_nom, material, d_vol, m, EA, EAd, EAd_Lm, MBL, cost, weight
                                       }
-                                  length
+                                  L
                                  }
                          }
                      connectors:
@@ -196,7 +196,7 @@ class Mooring(Edge):
             coordinates for each platform connection. In this case, end A platform connection is the first entry and end B 
             platform connection is the second entry.
         heading : float
-            The absolute heading compass direeciton of the mooring line from end B
+            The absolute heading compass direction of the mooring line from end B
             [deg or rad] depending on degrees parameter (True or False). Must account for the platform heading as well.
         project : FAModel Project, optional
             A Project-type object for site-specific information used in custom
@@ -212,7 +212,7 @@ class Mooring(Edge):
             else:
                 self.heading = np.degrees(heading)
 
-        phi = np.radians(90-self.heading) # heading in x-y radian convention [rad]
+        phi = np.radians(90-self.heading) # heading in x-y radian convention [rad] (CONVERTS FROM COMPASS HEADINGS!)
         # heading 2D unit vector
         u = np.array([np.cos(phi), np.sin(phi)])
         
@@ -322,15 +322,6 @@ class Mooring(Edge):
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:
             dd = self.dd
-        # check if a subsystem already exists
-        if pristine:
-            if self.ss:
-                #print('A subsystem for this Mooring class instance already exists, this will be overwritten.')
-                flag = 1
-        else:
-            if self.ss_mod:
-                #print('A modified subsystem for this Mooring class instance already exists, this will be overwritten.')
-                flag = 1
         ss=Subsystem(depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
                           span=dd['span'], rad_fair=self.rad_fair,
                           z_fair=self.z_fair)
@@ -338,7 +329,7 @@ class Mooring(Edge):
         types = []
         # run through each line section and collect the length and type
         for i, sec in enumerate(dd['sections']):
-            lengths.append(sec['length'])
+            lengths.append(sec['L'])
             # points to existing type dict in self.dd for now
             types.append(sec['type']) # list of type names
             #types.append(sec['type']['name']) # list of type names
@@ -373,10 +364,48 @@ class Mooring(Edge):
             self.ss = ss
             return(self.ss)
         else:
-            # save to modified ss (may have marine growth, corossion, etc)
+            # save to modified ss (may have marine growth, corrosion, etc)
             self.ss_mod = ss
             return(self.ss_mod)
         
+    def Mirror(create_subsystem=True):
+        ''' Mirrors a half design dictionary. Useful for symmetrical shared mooring lines where 
+        only half of the line is provided 
+
+        Parameters
+        ----------
+        create_subsystem : bool, optional
+            Controls whether to create a new subsystem after mirroring dd.
+            Default is True
+        '''
+        # find out if the connector at end A (center of line) is empty 
+        if self.dd['connectors'][0]:
+            doubleL = False
+        else:
+            doubleL = True
+        from copy import deepcopy
+        # sections list is currently reversed (second half of full list)
+        addSections = deepcopy(self.dd['sections'])
+        addConns = deepcopy(self.dd['connectors'])
+        # reverse to get first half of full list
+        self.dd['sections'].reverse()
+        self.dd['connectors'].reverse()
+        # combine middle mirrored sections into one by removing from add list and doubling length
+        if doubleL:
+            # remove mirror section and connector in middle, double length of middle section
+            addSections.pop(0)
+            addConns.pop(0)
+            self.dd['sections'][-1]['L'] = self.dd['sections'][-1]['L']*2
+
+        # combine addSections and current reversed sectiosn list
+        self.dd['sections'].extend(addSections)
+        self.dd['connectors'].extend(addConns)
+
+        # creat subsystem if asked
+        if create_subsystem:
+            self.createSubsystem(case=1)
+
+
 
         
     
@@ -608,7 +637,7 @@ class Mooring(Edge):
             m.append(st[ltyp]['m'])
             d_ve_old.append(st[ltyp]['d_vol'])
             # new dictionary for this line type
-            nd.append({'type':{}, 'length':{}}) # new design dictionary
+            nd.append({'type':{}, 'L':{}}) # new design dictionary
             ndt = nd[j]['type']
             
             # load in line props from MoorProps
@@ -680,7 +709,7 @@ class Mooring(Edge):
                 if 'EAd' in oldLine.lineTypes[ltyp]:
                     ndt['EAd'] = oldLine.lineTypes[ltyp]['EAd']
             # add lengths                 
-            nd[j]['length'] = Lengths[j]
+            nd[j]['L'] = Lengths[j]
         
         # # overwrite design dictionary with new dictionary
         # self.dd['sections'] = nd

@@ -465,12 +465,21 @@ class Anchor(Node):
                 Tm =  np.sqrt(mudloads['Hm']**2+mudloads['Vm']**2) # [N]
                 if 'clay' in soil or 'mud' in soil:
                     # Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, w=None
-                    loadresults = getTransferLoad(Tm/1000,mudloads['thetam'],self.dd['design']['zlug'],mtype,md,
-                                                  'clay',Su0=ground_conds['Su0'][0],k=ground_conds['k'][0],w=mw/1000) # output Ha and Va    (convert weight to kN/m)   
+                    try:
+                        loadresults = getTransferLoad(Tm/1000,mudloads['thetam'],self.dd['design']['zlug'],mtype,md,
+                                                      'clay',Su0=ground_conds['Su0'][0],k=ground_conds['k'][0],w=mw/1000) # output Ha and Va    (convert weight to kN/m)   
+                    except:
+                        print('Unable to get loads at anchor lug location. Setting Ta = Tm')
+                        makeEqual_TaTm(mudloads)
                 elif 'sand' in soil:
                         soil = 'sand'
-                        #loadresults = getAnchorLoad(Tm/1000,self.loads['thetam'],self.dd['design']['zlug'],md,
-                                                       #soil,gamma=ground_conds['gamma']) # output Ha and Va  (convert weight to kN/m)
+                        loadresults = getTransferLoad(Tm/1000, self.loads['thetam'], 
+                                                    self.dd['design']['zlug'],
+                                                    mtype, md, soil,
+                                                    gamma=ground_conds['gamma'], 
+                                                    phi=ground_conds['phi'],
+                                                    delta=ground_conds['delta'], 
+                                                    w=mw/1000) # output Ha and Va  (convert weight to kN/m)
                 elif 'rock' in soil:
                     raise ValueError('zlug should be <= 0 for rock.')
                     

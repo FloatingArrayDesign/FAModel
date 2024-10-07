@@ -19,9 +19,9 @@ class StaticCable(Edge):
     
     def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
-                 rho=1025, g=9.81, span=2000, length=2000,A=0,conductorSize=None, 
+                 rho=1025, g=9.81, span=2000, L=2000,A=0,conductorSize=None, 
                  type='static',voltage=66,powerRating=None,cable_type=None,routing=None,
-                 burial=None,zAnchor=None):
+                 burial=None,zAnchor=None,**kwargs):
         '''
         Parameters
         ----------
@@ -37,7 +37,7 @@ class StaticCable(Edge):
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
 
         # cable length
-        self.L = length
+        self.L = L
         self.span = span
 
         # end point absolute coordinates, to be set later
@@ -80,6 +80,11 @@ class StaticCable(Edge):
         # >>> calcs here <<<
         
         self.L = 0
+        
+        if not hasattr(self,'x'): 
+            # there is not routing here, assume straight line between ends
+            vals = np.array(self.rB)-np.array(self.rA)
+            self.L = np.hypot(vals[0],vals[1])
         
         return self.L
     

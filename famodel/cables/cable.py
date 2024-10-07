@@ -157,14 +157,14 @@ class Cable(Edge):
             jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
             jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
             #depth = self.subcomponents[joint].r[2]
-            self.subcomponents[joint].r = [jLocX,jLocY]
+            self.subcomponents[joint]['r'] = [jLocX,jLocY]
         # if joint closer to end B, use opposite of (end B heading + platform B phi)
         else:
             heading = np.pi + self.subcomponents[-1].headingB - self.attached_to[1].phi
             jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
             jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
             #depth = self.subcomponents[joint].r[2]
-            self.subcomponents[joint].r = [jLocX,jLocY]
+            self.subcomponents[joint]['r'] = [jLocX,jLocY]
         return(jLocX,jLocY)     
     
     def getCost(self):
@@ -182,11 +182,26 @@ class Cable(Edge):
                 if 'cost' in sub:
                     cost += sub['cost']
             elif 'cost' in sub.dd['cable_type']:
-                cost += sub.dd['cable_type']['cost']*sub.dd['length']   
+                cost += sub.dd['cable_type']['cost']*sub.dd['L']   
                 
         self.cost = cost
         
         return(cost)
+    
+    def getL(self):
+        '''
+        Get the total length of the cable
+
+        Returns
+        -------
+        None.
+
+        '''
+        L = 0
+        for cab in self.dd['cables']:
+            L += cab.L
+            
+        self.L = L
     
     def updateSpan(self,newSpan):
         '''
