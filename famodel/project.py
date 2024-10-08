@@ -973,18 +973,18 @@ class Project():
                         # connect to platform
                         self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='B')                            
                 
-                self.cableList[cable+str(i)].reposition()          
-                
-                # set joint positions
-                for j,comp in enumerate(self.cableList[cable+str(i)].subcomponents):
-                    if isinstance(comp,Joint):
-                        if not 'r' in comp or comp['r'] is None:
-                            jLocX,jLocY = self.cableList[cable+str(i)].estJointLoc(j)
-                            depth = self.getDepthAtLocation(jLocX,jLocY)
-                            comp['r']= [jLocX,jLocY,-depth]
-                        # set rB of previous line and rA of next line to joint location
-                        self.cableList[cable+str(i)].subcomponents[j-1].rB = comp['r']
-                        self.cableList[cable+str(i)].subcomponents[j+1].rA = comp['r']
+                self.cableList[cable+str(i)].reposition(project=self)          
+
+                # # set joint positions
+                # for j,comp in enumerate(self.cableList[cable+str(i)].subcomponents):
+                #     if isinstance(comp,Joint):
+                #         if not 'r' in comp or comp['r'] is None:
+                #             jLocX,jLocY = self.cableList[cable+str(i)].estJointLoc(j)
+                #             depth = self.getDepthAtLocation(jLocX,jLocY)
+                #             comp['r']= [jLocX,jLocY,-depth]
+                #         # set rB of previous line and rA of next line to joint location
+                #         self.cableList[cable+str(i)].subcomponents[j-1].rB = comp['r']
+                #         self.cableList[cable+str(i)].subcomponents[j+1].rA = comp['r']
         
         
         # ===== load RAFT model parts =====
@@ -1582,6 +1582,7 @@ class Project():
                 dd = {'r':substation_r}
             self.substationList[200] = Substation(dd,id=200)
             self.substationList[200].rFair = 58 ##### TEMPORARY #####
+            self.substationList[200].zFair = -14
             self.substationList[200].phi = 0
         
         # detach and delete existing cable list unless specified to keep old cables
@@ -1752,21 +1753,23 @@ class Project():
                 # print('headings: ',headingA,headingB)
     
                 # reposition cable
-                cab.reposition(headings=[headingA,headingB])  
-
+                cab.reposition(project=self,headings=[headingA,headingB])  
                 # update lengths & spans of any static cables as needed (currently doesn't work w/routing)
                 cts = np.where([isinstance(a,StaticCable) for a in cab.subcomponents])[0]
                 for cs in cts:
                     if not 'L' in cab.subcomponents[cs].dd:
                         cab.subcomponents[cs].getLength()
                         cab.subcomponents[cs].span = cab.subcomponents[cs].L
-                    try:
-                        cab.estJointLoc(cs-1)
-                        cab.estJointLoc(cs+1)
-                    except:
-                        breakpoint()
+                    # try:
+                    #     cab.estJointLoc(cs-1)
+                    #     cab.estJointLoc(cs+1)
+                    # except:
+                    #     breakpoint()
                 # update full cable L (in case the static cable L was updated)
-                cab.getL()                    
+                cab.getL() 
+                
+
+                 
                 
     
     def updatePositions(self):
@@ -1856,10 +1859,10 @@ class Project():
             cmap = cm.get_cmap('plasma_r')
             cableSize = cable.dd['cables'][0].dd['A']
             Ccable = cmap(cableSize/1400)
-        
             # simple line plot for now
-            ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[0].rB[0]], 
-                    [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
+            ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
+                    [cable.subcomponents[0].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
+            
             # add in routing if it exists
             for sub in cable.subcomponents:
                 if isinstance(sub,StaticCable):
@@ -2000,8 +2003,8 @@ class Project():
                                 if b == 'NA':
                                    burial[i] = 0 
                         # first plot from joint to start of cable route
-                        jointA = cable.subcomponents[j-1].r
-                        jointB = cable.subcomponents[j+1].r
+                        jointA = cable.subcomponents[j-1]['r']
+                        jointB = cable.subcomponents[j+1]['r']
                         soil_z = self.projectAlongSeabed(sub.x,sub.y)
                         ax.plot([jointA[0],sub.x[0]],[jointA[1],sub.y[0]],[-soil_z[0],-soil_z[0]-burial[0]],'k:',zorder=5,lw=1,alpha=0.7)
                         ax.plot([jointB[0],sub.x[-1]],[jointB[1],sub.y[-1]],[-soil_z[-1],-soil_z[-1]-burial[-1]],'k:',zorder=5,lw=1,alpha=0.7)

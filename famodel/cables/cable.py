@@ -109,14 +109,18 @@ class Cable(Edge):
         # failure probability
         self.failure_probability = {}
         
-    def reposition(self,headings=None):
+    def reposition(self,headings=None,project=None):
         '''
         Repositions the cable based on headings of the end subcomponents and the locations of attached nodes
 
         Parameters
         ----------
-        headings : TYPE, optional
-            DESCRIPTION. The default is None.
+        headings : list, optional
+            List of headings associated with the platform/substation attached
+            to each end of the cable. The default is None.
+        project : FAModel project object, optional
+            FAModel project object associated with this cable, only used if 
+            the end points of cable sections in the middle need to be set as well.
 
         Returns
         -------
@@ -133,8 +137,43 @@ class Cable(Edge):
         # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
         Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*self.attached_to[0].rFair, self.attached_to[0].r[1]+np.sin(headingA)*self.attached_to[0].rFair, self.attached_to[0].zFair]
         Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*self.attached_to[1].rFair, self.attached_to[1].r[1]+np.sin(headingB)*self.attached_to[1].rFair, self.attached_to[1].zFair]
-        self.subcomponents[0].rA = Aloc
-        self.subcomponents[-1].rB = Bloc
+        self.subcomponents[0].rA = Aloc; self.rA = Aloc
+        self.subcomponents[-1].rB = Bloc; self.rB = Bloc
+        
+        if project:
+            # set end points of subcomponents
+            lensub = len(self.subcomponents)
+            # if there's more than 1 subcomponent, there will be joints
+            # and will need to set the locs of inner subcomponents
+            if lensub > 1:
+                for i,sub in enumerate(self.subcomponents):                 
+                    if i == 0:
+                        # get depth at location of rB
+                        xy = [sub.rA[0]+np.cos(headingA)*sub.span,
+                              sub.rA[1]+np.sin(headingA)*sub.span]
+                        z = project.getDepthAtLocation(xy[0],xy[1])
+                        # set the end B of the first subsection
+                        sub.rB = [xy[0],xy[1],-z]
+                        sub.z_anch = -z
+                        sub.depth = z
+                        # set joint
+                        self.subcomponents[i+1]['r'] = sub.rB
+                        # set rA of next cable section
+                        self.subcomponents[i+2].rA = self.subcomponents[i].rB
+                    if i == lensub-1:
+                        xy = [sub.rB[0]+np.cos(headingB)*sub.span,
+                              sub.rB[1]+np.sin(headingB)*sub.span]
+                        z = project.getDepthAtLocation(xy[0],xy[1])
+                        # set the end A of the last subsection
+                        sub.rA = [xy[0],xy[1],-z]
+                        # update z_anch and depth of the subsection
+                        sub.z_anch = -z
+                        sub.depth = z
+                        # set joint
+                        self.subcomponents[i-1]['r'] = sub.rA
+                        # set the rB of the previous cable section (likely a static cable)
+                        self.subcomponents[i-2].rB = self.subcomponents[i].rA
+                    
         
     def estJointLoc(self,joint):
         '''Estimates joint location if they are not provided in yaml based on heading, span, and rA of cable before it

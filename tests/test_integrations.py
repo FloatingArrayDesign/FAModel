@@ -63,7 +63,7 @@ def test_lineDesign_integration():
     # Assign section properties for use in Mooring's Subsystem.makeGeneric call
     for i in range(1):
         dd['sections'][i]['type'] = lineProps[i]
-        dd['sections'][i]['length'] = lengths[i]
+        dd['sections'][i]['L'] = lengths[i]
     
     # # Assign props for intermediate points/connectors
     # for i in range(self.nLines-1):
@@ -97,7 +97,7 @@ if __name__=='__main__':
     
     from famodel.mooring.mooring import Mooring
     from famodel.platform.platform import Platform
-    from famodel.mooring.anchor import Anchor
+    from famodel.anchors.anchor import Anchor
     from famodel.mooring.connector import Connector
     from famodel.substation.substation import Substation
     from famodel.cables.cable import Cable

@@ -38,7 +38,10 @@ class DynamicCable(Edge):
         
         self.n_sec = 1
         
-        self.span = span  # <<< what about self.dd['span']? TODO: ensure they stay consistent
+        if 'span' in self.dd:
+            self.span = self.dd['span']
+        else:
+            self.span = None# <<< what about self.dd['span']? TODO: ensure they stay consistent
         self.depth = -z_anch  # <<< may want to make 'depth' an input
         
         # Store the cable type properties dict here for easy access (temporary - may be an inconsistent coding choice)
@@ -82,7 +85,10 @@ class DynamicCable(Edge):
             self.headingB = 0
         
         
-        self.L = length
+        if 'L' in self.dd:
+            self.L = self.dd['L']
+        else:
+            self.L = length
         # self.dd['lenght'] <<< also/or use this?
         
         # relative positions (variables could be renamed)
@@ -459,8 +465,8 @@ class DynamicCable(Edge):
                 # If this buoyancy section isn't at the very start of the cable
                 if i > 0 or Ls/2 < L_mid:  
                     # Add a bare cable section before this buoyancy section
-                    types.append(cableType)
                     lengths.append(L_mid - Ls/2 - currentL)
+                    types.append(cableType)
                     currentL = L_mid - Ls/2 # save the end location of the section
                     
                 # create buoyancy section equivalent cable type dict
@@ -487,7 +493,6 @@ class DynamicCable(Edge):
                     lengths.append(self.L - L_mid - Ls/2)
                     
                     currentL += self.L - L_mid - Ls/2
-        
         '''
         currentL = 0
         # add buoyancy sections to design dictionary if it doesn't already exist
@@ -551,10 +556,10 @@ class DynamicCable(Edge):
                 nsegs[-1] = 3
         '''
         # make the lines and set the points
+        # breakpoint()
         ss.makeGeneric(lengths,types,suspended=case)
         ss.setEndPosition(self.rA,endB=0)
         ss.setEndPosition(self.rB,endB=1)
-        
         #breakpoint()
         # note: next bit has similar code/function as Connector.makeMoorPyConnector <<<
         
@@ -571,7 +576,10 @@ class DynamicCable(Edge):
         #     point.CdA = self.dd['connectors'][i]['CdA']
         # solve the system
         ss.initialize()
-        ss.staticSolve(maxIter = 5000)
+        try:
+            ss.staticSolve(maxIter = 5000)
+        except:
+            breakpoint()
         #breakpoint()
         
         # save it in the object

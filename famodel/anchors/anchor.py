@@ -483,10 +483,10 @@ class Anchor(Node):
                 elif 'rock' in soil:
                     raise ValueError('zlug should be <= 0 for rock.')
                     
-                if loadresults['V']<0:
-                    # results are invalid
-                    print('Warning: invalid results for the combination of anchor ',self.dd['type'],' soil ',soil,' and loads ',mudloads,'. Setting Ha=Hm, Va=Vm, thetaa=thetam')
-                    makeEqual_TaTm(mudloads)
+                # if loadresults['V']<0:
+                #     # results are invalid
+                #     print('Warning: invalid results for the combination of anchor ',self.dd['type'],' soil ',soil,' and loads ',mudloads,'. Setting Ha=Hm, Va=Vm, thetaa=thetam')
+                #     makeEqual_TaTm(mudloads)
                 else:
                     self.loads['Ha'] = loadresults['H']*1000 # [N]
                     self.loads['Va'] = loadresults['V']*1000 # [N]

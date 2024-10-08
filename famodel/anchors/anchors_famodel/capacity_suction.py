@@ -152,13 +152,13 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
     y = (1 - x**bVH)**(1/aVH)
     X = Hmax*x; Y = Vmax*y
     plt.plot(X, Y, color = 'b')
-    plt.scatter(H, V, color = 'r')
+    plt.plot(H, V, color = 'r')
         
     # Set labels and title
     plt.xlabel('Horizontal capacity [kN]')
     plt.ylabel('Vertical capacity [kN]')
     plt.suptitle('VH suction pile capacity envelope')
-    plt.axis([0, 1.3*max(X[0], H), 0, 1.3*max(Y[-1], V)]) 
+    plt.axis([0, 1.3*max(X[0], H), 0, 1.3*max(Y[-1], V),0,0]) 
     plt.grid(True)
     plt.show()
     
