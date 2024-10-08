@@ -368,7 +368,7 @@ class Mooring(Edge):
             self.ss_mod = ss
             return(self.ss_mod)
         
-    def Mirror(create_subsystem=True):
+    def mirror(self,create_subsystem=True):
         ''' Mirrors a half design dictionary. Useful for symmetrical shared mooring lines where 
         only half of the line is provided 
 
@@ -380,8 +380,10 @@ class Mooring(Edge):
         '''
         # find out if the connector at end A (center of line) is empty 
         if self.dd['connectors'][0]:
+            # do not double the middle section length
             doubleL = False
         else:
+            # double the middle section length (remove the empty connector essentially)
             doubleL = True
         from copy import deepcopy
         # sections list is currently reversed (second half of full list)
@@ -400,6 +402,20 @@ class Mooring(Edge):
         # combine addSections and current reversed sectiosn list
         self.dd['sections'].extend(addSections)
         self.dd['connectors'].extend(addConns)
+        
+        # Connect them and store them in self(Edge).subcomponents!
+        subcons = []  # temporary list of node-edge-node... to pass to the function
+        for i in range(len(self.dd['sections'])):
+            subcons.append(self.dd['connectors'][i])
+            subcons.append(self.dd['sections'][i])
+        subcons.append(self.dd['connectors'][-1])
+        self.addSubcomponents(subcons)  # Edge method to connect and store em
+        
+        self.n_sec = len(self.dd['sections'])
+        # Indices of connectors and sections in self.subcomponents list
+        self.i_con = list(range(0, 2*self.n_sec+1, 2))
+        self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+    
 
         # creat subsystem if asked
         if create_subsystem:
