@@ -1562,8 +1562,6 @@ class Project():
             Controls whether to add the cable connections to the substation
         cableConfig : dict, optional
             Dictionary listing details on cable configurations to apply to the cable objects. 
-            Key is <conductor size>_<dis. betwn turbines>_<type> where type = 0 for dynamic-static-dynamic config or 1 for suspended config
-            ex: '300_1500_0'
         configType : int, optional
             0 = default to dynamic-static-dynamic cables, 1 = default to suspended cable systems
 
@@ -1639,8 +1637,10 @@ class Project():
                         cable_selection = cableAs
                     else:                        
                         for cabA in cableAs:
-                            if connDict[i]['2Dlength'] == cabA['dist']:
-                                cableDs.append(cabA)              
+                            if 'dist' in cabA:
+                                if connDict[i]['2Dlength'] == cabA['dist']:
+                                    cableDs.append(cabA)    
+                            
                         for cabD in cableDs:
                             if connDict[i]['cable_id']>=100 and cabD['type']==0:
                                 # connected to a substation, use a dynamic-static-dynamic configuration
@@ -2002,18 +2002,21 @@ class Project():
                             for i,b in enumerate(burial):
                                 if b == 'NA':
                                    burial[i] = 0 
-                        # first plot from joint to start of cable route
+                        # get joint locations
                         jointA = cable.subcomponents[j-1]['r']
                         jointB = cable.subcomponents[j+1]['r']
                         soil_z = self.projectAlongSeabed(sub.x,sub.y)
+                        # plot connections from joints to first and last routing point
                         ax.plot([jointA[0],sub.x[0]],[jointA[1],sub.y[0]],[-soil_z[0],-soil_z[0]-burial[0]],'k:',zorder=5,lw=1,alpha=0.7)
                         ax.plot([jointB[0],sub.x[-1]],[jointB[1],sub.y[-1]],[-soil_z[-1],-soil_z[-1]-burial[-1]],'k:',zorder=5,lw=1,alpha=0.7)
                         
                         
                         # plot in 3d along soil_z
                         ax.plot(sub.x,sub.y,-soil_z-burial,'k:',zorder=5,lw=1,alpha=0.7)
-                                
-            
+                    else:
+                        # no routing - just plot a straight line
+                        ax.plot([sub.rA[0],sub.rB[0]],[sub.rA[1],sub.rB[1]],[sub.rA[2],sub.rB[2]])
+                        
                         
         
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
@@ -2844,85 +2847,250 @@ class Project():
         # update moorpy
         self.getMoorPyArray(plt=1,cables=1)
         
-        
-    def addPlatform(self,ms=None,config=None):
+    def duplicate(self,pf, r=None,heading=None):
         '''
-        Create a platform object, along with associated mooring and anchor objects.
+        Function to duplicate a platform object and all
+        of its associated moorings and anchors (NOT CABLES)
+
+        Parameters
+        ----------
+        pf : Platform object
+            Platform object to duplicate
+        r : list, optional
+            Location of new platform object. Default is None,
+            in which case platform is not moved
+
+        Returns
+        -------
+        pf2 : Platform object
+            Duplicated object
+
+        '''
+        from copy import deepcopy
+        # get name for new platform based on length of platformList
+        if self.platformList:
+            lp = len(self.platformList)
+        else:
+            lp = 0
+        newid = 'fowt'+str(lp)
+        import string
+        alph = list(string.ascii_lowercase)
+        
+        # copy platform object and its attachments and disconnect from attachments
+        pf2 = deepcopy(pf)
+        pf2.id = newid
+        self.platformList[newid] = pf2
+        count = 0 
+        
+        for att in pf.attachments.values():
+            if isinstance(att['obj'],Mooring):
+                if att['end'] == 'a':
+                    endB = 0 
+                else:
+                    endB = 1
+                # grab all info from mooring object
+                md = deepcopy(att['obj'].dd)
+                # detach mooring object from platform
+                pf2.detach(att['obj'],end=endB)
+                # create new mooring object
+                newm = Mooring(dd=md,id=newid+alph[count])
+                self.mooringList[newm.id] = newm
+                # attach to platform
+                pf2.attach(newm,end=endB)
+                # grab info from anchor object and create new one
+                ad = deepcopy(att['obj'].attached_to[1-endB].dd)
+                newa = Anchor(dd=ad,id=newid+alph[count])
+                self.anchorList[newa.id] = newa
+                # attach anchor to mooring
+                newm.attachTo(newa,end=1-endB)
+                
+                
+                count += 1
+                
+            elif isinstance(att['obj'],Turbine):
+                pf2.detach(att['obj'])
+                turb = deepcopy(att['obj'])
+                turb.id = newid+'turb'
+                self.turbineList[turb.id] = turb
+                pf2.attach(turb)
+                
+            else:
+                # could be cable, just detach for now
+                pf2.detach(att['obj'])
+        
+        # reposition platform as needed
+        pf2.setPosition(r,heading=heading)
+        zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
+        mc.rA[2] = -zAnew
+        mc.dd['zAnchor'] = -zAnew
+        mc.z_anch = -zAnew
+        
+        # delete body object from pf2
+        pf2.body = None
+        
+        return(pf2)
+            
+        
+    def addPlatformMS(self,ms,config=None):
+        '''
+        Create a platform object, along with associated mooring and anchor objects
+        from a moorpy system
         Currently only works for regular (non-shared) moorings.
 
         Parameters
         ----------
         ms : moorpy system, optional
             Moorpy system representing the platform, its moorings, and its anchors. The default is None.
-        config : dict, optional
-            Dictionary that provides design dictionaries of the mooring, anchor, and platform. The default is None.
-        Must provide either ms or config, OR there must be one platform with mooring objects 
-        connected and anchors connected to them that will be copied
         
         Returns
         -------
-        None.
+        new platform object
 
         '''
-        if ms:
-            # create platform, moorings, and anchors from ms
-            ix = len(self.platformList)
-            # check there is just one body
-            if ix > 1:
-                raise Exception('This function only works with a 1 body system')
+        # create platform, moorings, and anchors from ms
+        ix = len(ms.bodyList)
+        # check there is just one body
+        if ix > 1:
+            raise Exception('This function only works with a 1 body system')
+            
+        # switch to subsystems if lineList doesn't already have them
+        if isinstance(ms.lineList[0],mp.subsystem.Subsystem):
+            from moorpy.helpers import lines2ss
+            lines2ss(ms)
+            
+        # get lines attached to platform and headings
+        md = {'sections':[],'connectors':[]} # start set up of mooring design dictionary
+        mhead = []
+        mList = []
+        endB = []
+        count = 0
+        pfid = 'fowt'+str(ix)
+        import string
+        alph = list(string.ascii_lowercase)
+        for point in ms.bodyList.attachedP:
+            for j,line in enumerate(ms.pointList[point].attached):
+                rA = ms.lineList[line].rA
+                rB = ms.lineList[line].rB
+                if ms.pointList[point].attachedEndB[j]:
+                    vals = rB[0:2]-rA[0:2]
+                    zFair = rB[2]
+                    rFair = np.hypot(rB[0:2])
+                    endB.append(1)
+                else:
+                    vals = rA[0:2]-rB[0:2]
+                    zFair = rA[2]
+                    rFair = np.hypot(rA[0:2])
+                    endB.append(0)
+                    
+                # pull out mooring line info
+                md['rad_fair'] = rFair
+                md['zFair'] = zFair
+                md['span'] = np.hypot(vals)
+                if not endB[-1]:
+                    md['zAnchor'] = -self.getDepthAtLocation(rA[0],rA[1])
+                else:
+                    md['zAnchor'] = -self.getDepthAtLocation(rB[0],rB[1])
                 
-            # switch to subsystems if lineList doesn't already have them
-            if isinstance(ms.lineList[0],mp.subsystem.Subsystem):
-                from moorpy.helpers import lines2ss
-                lines2ss(ms)
+                for k,sline in enumerate(ms.lineList[line]):
+                    # add section info
+                    md['sections'].append({'type':sline.type})
+                    spt = ms.lineList[line].pointList[k]
+                    md['connectors'].append({'m':spt.m,'v':spt.v,'Cd':spt.Cd,'CdA':spt.CdA})
+                spt = ms.lineList[line].pointList[k+1]
+                md['connectors'].append({'m':spt.m,'v':spt.v,'Cd':spt.Cd,'CdA':spt.CdA})
                 
-            # get lines attached to platform and headings
-            md = {'sections':[]} # start set up of mooring design dictionary
-            mhead = []
-            for point in ms.bodyList.attachedP:
-                for j,line in enumerate(ms.pointList[point].attached):
-                    rA = ms.lineList[line].rA
-                    rB = ms.lineList[line].rB
-                    if ms.pointList[point].attachedEndB[j]:
-                        vals = rB[0:2]-rA[0:2]
-                        zFair = rB[2]
-                        rFair = np.hypot(rB[0:2])
-                        flipped = 0
-                    else:
-                        vals = rA[0:2]-rB[0:2]
-                        zFair = rA[2]
-                        rFair = np.hypot(rA[0:2])
-                        flipped = 1
+                mhead.append(np.arctan2(vals[1],vals[0]))
+                mList.append(Mooring(dd=md,id=pfid+alph[count]))
+                self.mooringList[mList[-1].id] = mList[-1]
+                count += 1
+                
+                # pull out anchor info
+                for pt in ms.pointList:
+                    if pt.r == line.rB or pt.r == line.rA:
+                        ad = {'design':{}}
+                        ad['design']['m'] = pt.m
+                        ad['design']['v'] = pt.v
+                        ad['design']['CdA'] = pt.CdA
+                        ad['design']['Cd'] = pt.Ca
+                        self.anchorList[mList[-1].id] = Anchor(dd=ad,r=pt.r,id=mList[-1].id)
+                        self.anchorList[mList[-1].id].attach(mList[-1],end=endB[-1])
+                            
+                
+        # add platform at ms.body location       
+        self.platformList[pfid] = Platform(pfid, r=ms.bodyList[0].r6[0:2],
+                                                     mooring_headings=mhead,
+                                                     rFair=rFair, zFair=zFair)
+        # attach moorings
+        for i,moor in enumerate(mList):
+            self.platformList[pfid].attach(moor,end=endB[i])
+            
+        return(self.platformList[pfid])
+            
+    def addPlatformConfig(self,configDict,r=[0,0]):
+        '''
+        Add a platform, anchors, and mooring lines based on a configuration dictionary
+        
+        Parameters
+        ----------
+        configDict : dict
+            Dictionary describing design of platform, moorings, and anchors
+            The dictionary layout is as follows:
+                platform:
+                    rFair: 
+                    zFair:
+                    moor_headings:
+                    platform_heading:
+                mooring_config:
+                    span:
+                    segment list: # in order from end A to end B
+                        - <segment name>:
+                            material: # polyester,chain,etc
+                            length:
+                            d_nom: # can list material properties below this, or it will be imported from MoorProps
+                                    # based on the material type and nominal diameter
+                        - <c
+                        - <segment name>:
+                            material: 
+                            length:
+                            d_nom:
+                anchor_config:
+                    geometry:
+                    type:
+        r : list, optional
+            x,y location of platform. The default is [0,0]
                         
-                    # pull out mooring line info
-                    md['rad_fair'] = rFair
-                    md['zFair'] = zFair
-                    md['span'] = np.hypot(vals)
-                    if flipped:
-                        md['zAnchor'] = -self.getDepthAtLocation(rA[0],rA[1])
-                    else:
-                        md['zAnchor'] = -self.getDepthAtLocation(rB[0],rB[1])
-                    md['sections'].append({'type':ms.lineList[line].type})
+        Returns
+        -------
+        pf : new platform object
                     
-                    mhead.append(np.arctan2(vals[1],vals[0]))
-                    self.mooringList['fowt'+str(ix)+str()]
-                    
-            # add platform at ms.body location
+        '''
+        
+        if self.platformList:
+            lp = len(self.platformList)
+        else:
+            lp = 0
             
-            self.platformList['fowt'+str(ix)] = Platform('fowt'+str(ix), r=ms.bodyList[0].r6[0:2],
-                                                         mooring_headings=mhead,
-                                                         rFair=rFair, zFair=zFair)
-            # add moorings
+        pfid = 'fowt'+str(lp)
+        import string
+        alph = list(string.ascii_lowercase)
             
-            
-        elif config:
-            # create platform, moorings, and anchors from config dictionary
-            pass
-        elif self.platformList:
-            # create platform, moorings, and anchors from existing platform object and its connected
-            # objects
-            pass
-            
+        # pull out platform info
+        pfinfo = configDict['platform']
+        
+        # create platform object
+        self.platformList[pfid] = Platform(pfid, r=r,
+                                           mooring_headings=pfinfo['mooring_headings'],
+                                           rFair=pfinfo['rFair'], zFair=pfinfo['zFair'],
+                                           phi=pfinfo['platform_heading'])
+        
+        # pull out mooring info
+        minfo = configDict['mooring_config']
+        # create mooring objects
+        for i in range(len(pfinfo['mooring_headings'])):
+            head = pfinfo['mooring_headings'][i]+pfinfo['platform_heading']
+            md = {'span':minfo['span'],'sections':[],'connectors':[]}
+        
+        
         
     
     

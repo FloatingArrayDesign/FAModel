@@ -225,7 +225,8 @@ class Mooring(Edge):
         # Set the updated end B location
         
         self.setEndPosition(np.hstack([r_centerB + self.rad_fair*u, self.z_fair]), 'b')
-        
+        # if r_centerB[0] == 0:
+        #     breakpoint()
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
         if self.adjuster:
@@ -378,13 +379,17 @@ class Mooring(Edge):
             Controls whether to create a new subsystem after mirroring dd.
             Default is True
         '''
+        # disconnect all sections and connectors
+        for i, sec in enumerate(self.dd['sections']):
+            self.dd['sections'][i].detachFrom(end='a')
+            self.dd['sections'][i].detachFrom(end='b')
         # find out if the connector at end A (center of line) is empty 
-        if self.dd['connectors'][0]:
+        if not self.dd['connectors'][0] or self.dd['connectors'][0]['m']==0:
             # do not double the middle section length
-            doubleL = False
+            doubleL = True
         else:
             # double the middle section length (remove the empty connector essentially)
-            doubleL = True
+            doubleL = False
         from copy import deepcopy
         # sections list is currently reversed (second half of full list)
         addSections = deepcopy(self.dd['sections'])
@@ -397,11 +402,28 @@ class Mooring(Edge):
             # remove mirror section and connector in middle, double length of middle section
             addSections.pop(0)
             addConns.pop(0)
+            self.dd['connectors'].pop(-1)
             self.dd['sections'][-1]['L'] = self.dd['sections'][-1]['L']*2
+        else:
+            self.dd['connectors'][0]['m'] *= 2
+            self.dd['connectors'][0]['v'] *= 2
 
+        # create Section objects for new sections
+        for i, sec in enumerate(addSections):
+            self.dd['sections'][i] = Section('Section'+str(i),**self.dd['sections'][i])
+            
+        for i,con in enumerate(self.dd['connectors']):
+            if con and 'type' in con:
+                Cid=con['type']+str(i)
+            else:
+                Cid = 'Conn'+str(i)
+                
+            self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
+            
         # combine addSections and current reversed sectiosn list
         self.dd['sections'].extend(addSections)
         self.dd['connectors'].extend(addConns)
+        
         
         # Connect them and store them in self(Edge).subcomponents!
         subcons = []  # temporary list of node-edge-node... to pass to the function

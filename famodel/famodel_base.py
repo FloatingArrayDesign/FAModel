@@ -178,7 +178,7 @@ class Node():
         # Handle attachment type and the end if applicable, and record
         # the detachment in the subordinate object.
         if isinstance(object, Node):
-            object._detach_from(self)  # tell the attached object to record things
+            object._detach_from()  # tell the attached object to record things
             
         elif isinstance(object, Edge):
             
@@ -458,7 +458,6 @@ class Edge():
         end
             Which end of the line is being dettached, 'a' or 'b'.
         '''
-        
         # Determine which end to detach
         i_end = endToIndex(end, estr='when detaching an edge.')
         
