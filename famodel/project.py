@@ -1056,6 +1056,7 @@ class Project():
                 # assume a flat bathymetry
                 self.grid_depth  = np.array([[self.depth]])
                 
+                
         else:
             # assume a flat bathymetry
             self.grid_depth  = np.array([[self.depth]])
@@ -1637,10 +1638,19 @@ class Project():
                         cable_selection = cableAs
                     else:                        
                         for cabA in cableAs:
-                            if 'dist' in cabA:
-                                if connDict[i]['2Dlength'] == cabA['dist']:
-                                    cableDs.append(cabA)    
                             
+                            # only check distance if the cable is NOT connected to substation
+                            if 'dist' in cabA and connDict[i]['cable_id']<100:
+                                if abs(connDict[i]['2Dlength'] - cabA['dist']) < 0.1:
+                                    cableDs.append(cabA)    
+                        
+                        #if there's no matching distance, assume the nonsuspended cables 
+                        if cableDs == []:
+                            for cabA in cableAs:
+                                if cabA['type'] == 0:
+                                    cableDs.append(cabA)
+                        
+                        
                         for cabD in cableDs:
                             if connDict[i]['cable_id']>=100 and cabD['type']==0:
                                 # connected to a substation, use a dynamic-static-dynamic configuration
@@ -1649,6 +1659,12 @@ class Project():
                             elif connDict[i]['cable_id']<100 and cabD['type']==configType:
                                 # not connected to substation, use default config type
                                 cable_selection.append(cabD)
+                        
+                        #if no cables are found to match, override the configType
+                        if cable_selection == []:
+                            for cabD in cableDs:
+                                if connDict[i]['cable_id']<100:
+                                    cable_selection.append(cabD)
                             
                     if len(cable_selection)> 1:
                         # need to downselect further...
@@ -2252,7 +2268,7 @@ class Project():
 
         # initialize, solve equilibrium, and plot the system 
         self.ms.initialize()
-        self.ms.solveEquilibrium(DOFtype='coupled')
+        self.ms.solveEquilibrium() 
         
         
         # Plot array if requested
