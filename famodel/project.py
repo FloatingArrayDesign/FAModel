@@ -1055,6 +1055,7 @@ class Project():
             else:
                 # assume a flat bathymetry
                 self.grid_depth  = np.array([[self.depth]])
+                self.setGrid([0],[0])
                 
                 
         else:
@@ -1075,7 +1076,7 @@ class Project():
         
         if 'seabed' in site and site['seabed']:
             if 'file' in site['seabed'] and site['seabed']['file']:
-                self.loadSoil(file=site['seabed']['file'])
+                self.loadSoil(filename=site['seabed']['file'])
             else:
                 self.loadSoil(yaml=site['seabed'])
 
@@ -1219,7 +1220,7 @@ class Project():
             z = np.zeros([len(y), len(x)])
             for i in range(len(y)):
                 for j in range(len(x)):
-                    z[i,j] = getDepthAtLocation(x[j], y[i])
+                    z[i,j] = self.getDepthAtLocation(x[j], y[i])
             
         return z
 
@@ -1637,8 +1638,7 @@ class Project():
                     elif len(cableAs) == 1:
                         cable_selection = cableAs
                     else:                        
-                        for cabA in cableAs:
-                            
+                        for cabA in cableAs:                           
                             # only check distance if the cable is NOT connected to substation
                             if 'dist' in cabA and connDict[i]['cable_id']<100:
                                 if abs(connDict[i]['2Dlength'] - cabA['dist']) < 0.1:
@@ -1659,8 +1659,9 @@ class Project():
                             elif connDict[i]['cable_id']<100 and cabD['type']==configType:
                                 # not connected to substation, use default config type
                                 cable_selection.append(cabD)
-                        
-                        #if no cables are found to match, override the configType
+         
+                        # if no cables are found to match, override the configType
+
                         if cable_selection == []:
                             for cabD in cableDs:
                                 if connDict[i]['cable_id']<100:
@@ -1680,19 +1681,20 @@ class Project():
                     dd['joints'] = []
                 # breakpoint()
                 for j in range(len(selected_cable['sections'])):
-                    dd['cables'].append(cableConfig['cableTypes'][selected_cable['sections'][j]])
+                    dd['cables'].append(deepcopy(cableConfig['cableTypes'][selected_cable['sections'][j]]))
                     cd = dd['cables'][j]
+                    cd['z_anch'] = -self.depth
                     # cd['cable_type'] = cableConfig['cableTypes'][selected_cable['sections'][j]] # assign info in selected cable section dict to cd
                     cd['A'] = selected_cable['A']
-                    if 'dist' in selected_cable:
-                        cd['span'] = selected_cable['dist']
+                    # if 'dist' in selected_cable:
+                    #     cd['span'] = selected_cable['dist']
                     # add joints as needed (empty for now)
                     if j < len(selected_cable['sections'])-1:
                         dd['joints'].append({})
 
        
                     # add routing if necessary
-                    if len(connDict[i]['coordinates'])>2:
+                    if dd['cables'][j]['type']=='static' and len(connDict[i]['coordinates'])>2:
                         cd['routing'] = []
                         for coord in connDict[i]['coordinates'][1:-1]:
                             cd['routing'].append(coord)
@@ -1702,6 +1704,8 @@ class Project():
                         # fix units
                         cabProps['power'] = cabProps['power']*1e6
                         cd['cable_type'] = cabProps
+                        
+                    
 
                     cd['cable_type']['name'] = selected_cable['sections'][j]
                         
@@ -1728,7 +1732,7 @@ class Project():
                         # find platform associated with ends
                         if np.allclose(pf.r,connDict[i]['coordinates'][0],atol=.01): 
                             attA = pf
-                        elif np.allclose(pf.r,connDict[i]['coordinates'][1],atol=.01):
+                        elif np.allclose(pf.r,connDict[i]['coordinates'][-1],atol=.01):
                             attB = pf
                     elif id_method == 'id':
                         # find platform associated with global id
@@ -1739,14 +1743,14 @@ class Project():
                         elif connDict[i]['turbineB_glob_id'] == pf.id:
                             attB = pf
                             # update platform location
-                            pf.r = connDict[i]['coordinates'][1]
+                            pf.r = connDict[i]['coordinates'][-1]
                         
                 for substation in self.substationList.values():
                     if id_method == 'location':
                         # find substation associated with ends
                         if np.allclose(substation.r,connDict[i]['coordinates'][0],atol=.01):
                             attA = substation
-                        elif np.allclose(substation.r,connDict[i]['coordinates'][1],atol=.01):
+                        elif np.allclose(substation.r,connDict[i]['coordinates'][-1],atol=.01):
                             attB = substation
                     elif id_method == 'id':
                         # find substation associated with global id
@@ -1757,15 +1761,16 @@ class Project():
                         elif connDict[i]['turbineB_glob_id'] == substation.id:
                             attB = substation
                             # update oss location
-                            substation.r = connDict[i]['coordinates']
+                            substation.r = connDict[i]['coordinates'][-1]
                 
                 # attach cable
                 cab.attachTo(attA,end='A')
                 cab.attachTo(attB,end='B')
     
                 # get heading of cable from attached object coordinates
-                headingA = np.radians(90) - np.arctan2((attB.r[0]-attA.r[0]),(attB.r[1]-attA.r[1]))
-                headingB = np.radians(90) - np.arctan2((attA.r[0]-attB.r[0]),(attA.r[1]-attB.r[1]))
+                
+                headingA = np.radians(90) - np.arctan2((connDict[i]['coordinates'][1][0]-connDict[i]['coordinates'][0][0]),(connDict[i]['coordinates'][1][1]-connDict[i]['coordinates'][0][1]))
+                headingB = np.radians(90) - np.arctan2((connDict[i]['coordinates'][-2][0]-connDict[i]['coordinates'][-1][0]),(connDict[i]['coordinates'][-2][1]-connDict[i]['coordinates'][-1][1]))
                 # print('headings: ',headingA,headingB)
     
                 # reposition cable
@@ -1875,26 +1880,38 @@ class Project():
             cmap = cm.get_cmap('plasma_r')
             cableSize = cable.dd['cables'][0].dd['A']
             Ccable = cmap(cableSize/1400)
-            # simple line plot for now
-            ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
-                    [cable.subcomponents[0].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
+            # # simple line plot for now
+            # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
+            #         [cable.subcomponents[0].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
             
             # add in routing if it exists
             for sub in cable.subcomponents:
                 if isinstance(sub,StaticCable):
                     if sub.coordinates:
+                        print(sub.coordinates,cable.id)
                         # has routing  - first plot rA to sub.coordinate[0] connection
                         ax.plot([sub.rA[0],sub.coordinates[0][0]],
-                                [sub.rA[1],sub.coordinates[0][1]],'r:',lw=0.6,label='Buried Cable')
+                                [sub.rA[1],sub.coordinates[0][1]],':',color = Ccable,
+                                lw=0.6,label='Buried Cable'+str(cableSize)+' mm$^{2}$')
                         # now plot route
-                        for i in range(1,len(sub.coordinates)):
-                            ax.plot([sub.coordinates[i-1][0],sub.coordinates[i][0]],
-                                    [sub.coordinates[i-1][1],sub.coordinates[i][1]],'r:',lw=0.6,label='Buried Cable')
+                        if len(sub.coordinates) > 1:
+                            for i in range(1,len(sub.coordinates)):
+                                ax.plot([sub.coordinates[i-1][0],sub.coordinates[i][0]],
+                                        [sub.coordinates[i-1][1],sub.coordinates[i][1]],
+                                        ':',color=Ccable,lw=0.6,label='Buried Cable'+str(cableSize)+' mm$^{2}$')
                         # finally plot sub.coordinates[-1] to rB connection
                         ax.plot([sub.coordinates[-1][0],sub.rB[0]],
-                                [sub.coordinates[-1][1],sub.rB[1]],'r:',lw=0.6,label='Buried Cable')
-            ax.plot([cable.subcomponents[-1].rA[0], cable.subcomponents[-1].rB[0]], 
-                    [cable.subcomponents[-1].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
+                                [sub.coordinates[-1][1],sub.rB[1]],':',color=Ccable,
+                                lw=0.6,label='Buried Cable'+str(cableSize)+' mm$^{2}$')
+                    else:
+                        # if not routing just do simple line plot
+                        ax.plot([sub.rA[0],sub.rB[0]], 
+                                [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1,
+                                label='Buried Cable'+str(cableSize)+' mm$^{2}$')
+                elif isinstance(sub,DynamicCable):
+                        ax.plot([sub.rA[0],sub.rB[0]], 
+                                [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1,
+                                label='Cable '+str(cableSize)+' mm$^{2}$')
             
                 # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
                 #         [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]], 'r--', lw=0.5)
@@ -1949,36 +1966,37 @@ class Project():
             fig = ax.get_figure()
 
         # # try icnraesing grid density
-        xs = np.arange(min(self.grid_x),max(self.grid_x),50)
-        ys = np.arange(min(self.grid_y),max(self.grid_y),50)
-        self.setGrid(xs, ys)
-
-        # plot the bathymetry in matplotlib using a plot_surface
-        X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
-        '''
-        # interpolate soil rockyness factor onto this grid
-        xs = self.grid_x
-        ys = self.grid_y
-        rocky = np.zeros([len(ys), len(xs)])
-        for i in range(len(ys)):
-            for j in range(len(xs)):
-                rocky[i,j], _,_,_,_ = sbt.interpFromGrid(xs[j], ys[i], 
-                           self.soil_x, self.soil_y, self.soil_rocky)
-                           
-        # or if we have a grid of soil types, something like
-        ax.plot_surface(X, Y, h, rstride=1, cstride=1, facecolors = soil grid converted to colors <<<,
-                       linewidth=0, antialiased=False)
-                           
-                           
-        # apply colormap
-        rc = cmap(norm(rocky))
-        bath = ax.plot_surface(X, Y, -self.grid_depth, facecolors=rc, **args_bath)
-        '''
-        #################
-        # from matplotlib import cm
-        # args_bath = {'cmap':cm.GnBu_r}
-        ####################
-        bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
+        if self.grid_x:
+            xs = np.arange(min(self.grid_x),max(self.grid_x),50)
+            ys = np.arange(min(self.grid_y),max(self.grid_y),50)
+            self.setGrid(xs, ys)
+    
+            # plot the bathymetry in matplotlib using a plot_surface
+            X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+            '''
+            # interpolate soil rockyness factor onto this grid
+            xs = self.grid_x
+            ys = self.grid_y
+            rocky = np.zeros([len(ys), len(xs)])
+            for i in range(len(ys)):
+                for j in range(len(xs)):
+                    rocky[i,j], _,_,_,_ = sbt.interpFromGrid(xs[j], ys[i], 
+                               self.soil_x, self.soil_y, self.soil_rocky)
+                               
+            # or if we have a grid of soil types, something like
+            ax.plot_surface(X, Y, h, rstride=1, cstride=1, facecolors = soil grid converted to colors <<<,
+                           linewidth=0, antialiased=False)
+                               
+                               
+            # apply colormap
+            rc = cmap(norm(rocky))
+            bath = ax.plot_surface(X, Y, -self.grid_depth, facecolors=rc, **args_bath)
+            '''
+            #################
+            # from matplotlib import cm
+            # args_bath = {'cmap':cm.GnBu_r}
+            ####################
+            bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
         
         
         # # also if there are rocky bits... (TEMPORARY)
@@ -1996,43 +2014,62 @@ class Project():
             boundary_z = self.projectAlongSeabed(boundary[:,0], boundary[:,1])
             ax.plot(boundary[:,0], boundary[:,1], -boundary_z, 'k--', zorder=10, lw=1, alpha=0.7)
 
+        
+        # find max cable size as applicable
+        if self.cableList:
+            maxA = max([a.subcomponents[0].dd['A'] for a in self.cableList.values()])
+        for cable in self.cableList.values():
+            # get cable color
+            import matplotlib.cm as cm
+            cmap = cm.get_cmap('plasma_r')
+            cableSize = cable.dd['cables'][0].dd['A']
+            Ccable = cmap(cableSize/maxA)
+            
+            for j,sub in enumerate(cable.subcomponents):
+                if isinstance(sub,DynamicCable):
+                    if sub.ss:
+                        sub.ss.drawLine(0,ax,color=Ccable)
+                        
+                elif isinstance(sub,StaticCable):
+                    # add static cable routing if it exists
+                    if hasattr(sub,'x'):
+                        burial = sub.burial
+                        if 'NA' in burial or not burial:
+                            # replace any NA with 0
+                            for i,b in enumerate(burial):
+                                if b == 'NA':
+                                   burial[i] = 0 
+                            if not burial:
+                                burial.append(0)
+                        # get joint locations
+                        jointA = cable.subcomponents[j-1]['r']
+                        jointB = cable.subcomponents[j+1]['r']
+                        try:
+                            if len(sub.x)==1:
+                                soil_z=self.getDepthAtLocation(sub.x[0],sub.y[0])
+                            else:
+                                soil_z = self.projectAlongSeabed(sub.x,sub.y)
+                        except:
+                            soil_z = [self.depth]
+                        # plot connections from joints to first and last routing point
+                        ax.plot([jointA[0],sub.x[0]],[jointA[1],sub.y[0]],[-soil_z[0],-soil_z[0]-burial[0]],
+                                ':',color=Ccable,zorder=5,lw=1)
+                        ax.plot([jointB[0],sub.x[-1]],[jointB[1],sub.y[-1]],[-soil_z[-1],-soil_z[-1]-burial[-1]],
+                                ':',color=Ccable,zorder=5,lw=1)
+                        
+                        if len(sub.x)> 1:
+                            # plot in 3d along soil_z
+                            ax.plot(sub.x,sub.y,-soil_z-burial,':',color=Ccable,zorder=5,lw=1)
+                    else:
+                        # no routing - just plot a straight line
+                        ax.plot([sub.rA[0],sub.rB[0]],[sub.rA[1],sub.rB[1]],[sub.rA[2],sub.rB[2]],':',color=Ccable,zorder=5,lw=1)
+        
         # plot the Moorings
         ct = 0
         for mooring in self.mooringList.values():
             #mooring.subsystem.plot(ax = ax, draw_seabed=False)
             if mooring.ss:
                 mooring.ss.drawLine(0,ax)
-                
-        for cable in self.cableList.values():
-            for j,sub in enumerate(cable.subcomponents):
-                if isinstance(sub,DynamicCable):
-                    if sub.ss:
-                        sub.ss.drawLine(0,ax)
-                        
-                elif isinstance(sub,StaticCable):
-                    # add static cable routing if it exists
-                    if hasattr(sub,'x'):
-                        burial = sub.burial
-                        if 'NA' in burial:
-                            # replace any NA with 0
-                            for i,b in enumerate(burial):
-                                if b == 'NA':
-                                   burial[i] = 0 
-                        # get joint locations
-                        jointA = cable.subcomponents[j-1]['r']
-                        jointB = cable.subcomponents[j+1]['r']
-                        soil_z = self.projectAlongSeabed(sub.x,sub.y)
-                        # plot connections from joints to first and last routing point
-                        ax.plot([jointA[0],sub.x[0]],[jointA[1],sub.y[0]],[-soil_z[0],-soil_z[0]-burial[0]],'k:',zorder=5,lw=1,alpha=0.7)
-                        ax.plot([jointB[0],sub.x[-1]],[jointB[1],sub.y[-1]],[-soil_z[-1],-soil_z[-1]-burial[-1]],'k:',zorder=5,lw=1,alpha=0.7)
-                        
-                        
-                        # plot in 3d along soil_z
-                        ax.plot(sub.x,sub.y,-soil_z-burial,'k:',zorder=5,lw=1,alpha=0.7)
-                    else:
-                        # no routing - just plot a straight line
-                        ax.plot([sub.rA[0],sub.rB[0]],[sub.rA[1],sub.rB[1]],[sub.rA[2],sub.rB[2]])
-                        
                         
         
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
@@ -2045,7 +2082,10 @@ class Project():
             #     fowt.plot(ax, zorder=20)
         
         # Show full depth range
-        ax.set_zlim([-np.max(self.grid_depth), 0])
+        if len(self.grid_depth)>1:
+            ax.set_zlim([-np.max(self.grid_depth), 0])
+        else:
+            ax.set_zlim([-self.depth,0])
 
         set_axes_equal(ax)
         if not draw_axes:
@@ -2268,8 +2308,8 @@ class Project():
 
         # initialize, solve equilibrium, and plot the system 
         self.ms.initialize()
-        self.ms.solveEquilibrium() 
-        
+
+        self.ms.solveEquilibrium()       
         
         # Plot array if requested
         if plt>0:
@@ -2906,11 +2946,13 @@ class Project():
                     endB = 1
                 # grab all info from mooring object
                 md = deepcopy(att['obj'].dd)
+                mhead = att['obj'].heading
                 # detach mooring object from platform
                 pf2.detach(att['obj'],end=endB)
                 # create new mooring object
                 newm = Mooring(dd=md,id=newid+alph[count])
                 self.mooringList[newm.id] = newm
+                newm.heading = mhead
                 # attach to platform
                 pf2.attach(newm,end=endB)
                 # grab info from anchor object and create new one
@@ -2919,7 +2961,11 @@ class Project():
                 self.anchorList[newa.id] = newa
                 # attach anchor to mooring
                 newm.attachTo(newa,end=1-endB)
-                
+                newm.reposition(r_center=r)
+                zAnew, nAngle = self.getDepthAtLocation(newm.rA[0], newm.rA[1], return_n=True)
+                newm.rA[2] = -zAnew
+                newm.dd['zAnchor'] = -zAnew
+                newa.r = newm.rA
                 
                 count += 1
                 
@@ -2936,10 +2982,8 @@ class Project():
         
         # reposition platform as needed
         pf2.setPosition(r,heading=heading)
-        zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
-        mc.rA[2] = -zAnew
-        mc.dd['zAnchor'] = -zAnew
-        mc.z_anch = -zAnew
+ 
+        
         
         # delete body object from pf2
         pf2.body = None
@@ -2947,7 +2991,7 @@ class Project():
         return(pf2)
             
         
-    def addPlatformMS(self,ms,config=None):
+    def addPlatformMS(self,ms,r=[0,0]):
         '''
         Create a platform object, along with associated mooring and anchor objects
         from a moorpy system
@@ -2970,12 +3014,12 @@ class Project():
             raise Exception('This function only works with a 1 body system')
             
         # switch to subsystems if lineList doesn't already have them
-        if isinstance(ms.lineList[0],mp.subsystem.Subsystem):
+        if not isinstance(ms.lineList[0],mp.subsystem.Subsystem):
             from moorpy.helpers import lines2ss
             lines2ss(ms)
             
         # get lines attached to platform and headings
-        md = {'sections':[],'connectors':[]} # start set up of mooring design dictionary
+        
         mhead = []
         mList = []
         endB = []
@@ -2983,53 +3027,66 @@ class Project():
         pfid = 'fowt'+str(ix)
         import string
         alph = list(string.ascii_lowercase)
-        for point in ms.bodyList.attachedP:
-            for j,line in enumerate(ms.pointList[point].attached):
-                rA = ms.lineList[line].rA
-                rB = ms.lineList[line].rB
-                if ms.pointList[point].attachedEndB[j]:
+        for point in ms.bodyList[0].attachedP:
+            for j,line in enumerate(ms.pointList[point-1].attached):
+                md = {'sections':[],'connectors':[]} # start set up of mooring design dictionary
+                rA = ms.lineList[line-1].rA
+                rB = ms.lineList[line-1].rB
+                pfloc = ms.bodyList[0].r6
+                if ms.pointList[point-1].attachedEndB[j]:
                     vals = rB[0:2]-rA[0:2]
                     zFair = rB[2]
-                    rFair = np.hypot(rB[0:2])
+                    rFair = np.hypot(rB[0]-pfloc[0],rB[1]-pfloc[1])
                     endB.append(1)
                 else:
                     vals = rA[0:2]-rB[0:2]
                     zFair = rA[2]
-                    rFair = np.hypot(rA[0:2])
+                    rFair = np.hypot(rA[0]-pfloc[0],rA[1]-pfloc[1])
                     endB.append(0)
                     
                 # pull out mooring line info
                 md['rad_fair'] = rFair
-                md['zFair'] = zFair
-                md['span'] = np.hypot(vals)
+                md['z_fair'] = zFair
+                md['span'] = np.hypot(vals[0],vals[1])
                 if not endB[-1]:
                     md['zAnchor'] = -self.getDepthAtLocation(rA[0],rA[1])
                 else:
                     md['zAnchor'] = -self.getDepthAtLocation(rB[0],rB[1])
                 
-                for k,sline in enumerate(ms.lineList[line]):
-                    # add section info
+                for k,sline in enumerate(ms.lineList[line-1].lineList):
+                    # add section and connector info
                     md['sections'].append({'type':sline.type})
-                    spt = ms.lineList[line].pointList[k]
-                    md['connectors'].append({'m':spt.m,'v':spt.v,'Cd':spt.Cd,'CdA':spt.CdA})
-                spt = ms.lineList[line].pointList[k+1]
-                md['connectors'].append({'m':spt.m,'v':spt.v,'Cd':spt.Cd,'CdA':spt.CdA})
+                    spt = ms.lineList[line-1].pointList[k]
+                    md['connectors'].append({'m':spt.m,'v':spt.v,'Ca':spt.Ca,'CdA':spt.CdA})
+                spt = ms.lineList[line-1].pointList[k+1]
+                md['connectors'].append({'m':spt.m,'v':spt.v,'Ca':spt.Ca,'CdA':spt.CdA})
                 
-                mhead.append(np.arctan2(vals[1],vals[0]))
+                mhead.append(90 - np.degrees(np.arctan2(vals[1],vals[0])))
                 mList.append(Mooring(dd=md,id=pfid+alph[count]))
+                mList[-1].heading = mhead[-1]
                 self.mooringList[mList[-1].id] = mList[-1]
-                count += 1
                 
                 # pull out anchor info
                 for pt in ms.pointList:
-                    if pt.r == line.rB or pt.r == line.rA:
-                        ad = {'design':{}}
-                        ad['design']['m'] = pt.m
-                        ad['design']['v'] = pt.v
-                        ad['design']['CdA'] = pt.CdA
-                        ad['design']['Cd'] = pt.Ca
-                        self.anchorList[mList[-1].id] = Anchor(dd=ad,r=pt.r,id=mList[-1].id)
-                        self.anchorList[mList[-1].id].attach(mList[-1],end=endB[-1])
+                    if line in pt.attached:
+                        loc = np.where([x==line for x in pt.attached])[0][0]
+                        if pt.attachedEndB[loc]:
+                            ad = {'design':{}}
+                            ad['design']['m'] = pt.m
+                            ad['design']['v'] = pt.v
+                            ad['design']['CdA'] = pt.CdA
+                            ad['design']['Ca'] = pt.Ca
+                            self.anchorList[mList[-1].id] = Anchor(dd=ad,r=pt.r,id=mList[-1].id)
+                            self.anchorList[mList[-1].id].attach(mList[-1],end=1-endB[-1])
+                            # reposition mooring and anchor
+                            mList[-1].reposition(r_center=r)
+                            zAnew = self.getDepthAtLocation(mList[-1].rA[0], 
+                                                            mList[-1].rA[1])
+                            mList[-1].rA[2] = -zAnew
+                            mList[-1].dd['zAnchor'] = -zAnew
+                            self.anchorList[mList[-1].id].r = mList[-1].rA
+                        
+                count += 1
                             
                 
         # add platform at ms.body location       
@@ -3039,6 +3096,11 @@ class Project():
         # attach moorings
         for i,moor in enumerate(mList):
             self.platformList[pfid].attach(moor,end=endB[i])
+            
+        # update location
+        self.platformList[pfid].setPosition(r=r)
+        
+        #breakpoint()
             
         return(self.platformList[pfid])
             
