@@ -98,7 +98,9 @@ class Anchor(Node):
         if 'd' in self.dd['design'] and self.dd['design']['d']:
             self.mpAnchor.d = self.dd['design']['d']
         # set the point as an anchor entity
-        self.mpAnchor.entity= {'type': 'anchor', 'anchor_type':self.dd['type']}
+        self.mpAnchor.entity= {'type': 'anchor'}
+        if 'type' in self.dd:
+            self.mpAnchor.entity['anchor_type']=self.dd['type']
         
         return(ms)
     

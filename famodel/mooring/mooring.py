@@ -225,8 +225,7 @@ class Mooring(Edge):
         # Set the updated end B location
         
         self.setEndPosition(np.hstack([r_centerB + self.rad_fair*u, self.z_fair]), 'b')
-        # if r_centerB[0] == 0:
-        #     breakpoint()
+        
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
         if self.adjuster:

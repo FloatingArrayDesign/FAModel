@@ -13,8 +13,9 @@ Section 3 shows various modeling capabilities of FAModel
 
 # import necessary packages
 from famodel.project import Project
+import os
 
-
+os.chdir('./Inputs/')
 # set yaml file location and name
 ontology_file = 'OntologySample200m.yaml'
 
@@ -23,7 +24,7 @@ print('Creating project without RAFT\n')
 # create project object
 project = Project(file=ontology_file,raft=0)
 # create moorpy system of the array, include cables in the system
-project.getMoorPyArray(cables=1,plt=1)
+project.getMoorPyArray(cables=1)
 # plot in 3d, using moorpy system for the mooring and cable plots
 project.plot3d()
 

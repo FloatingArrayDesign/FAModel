@@ -1966,7 +1966,9 @@ class Project():
             fig = ax.get_figure()
 
         # # try icnraesing grid density
-        if self.grid_x:
+        if len(self.grid_x)<=1:
+            pass
+        else:
             xs = np.arange(min(self.grid_x),max(self.grid_x),50)
             ys = np.arange(min(self.grid_y),max(self.grid_y),50)
             self.setGrid(xs, ys)
@@ -2308,7 +2310,6 @@ class Project():
 
         # initialize, solve equilibrium, and plot the system 
         self.ms.initialize()
-
         self.ms.solveEquilibrium()       
         
         # Plot array if requested
@@ -2978,7 +2979,7 @@ class Project():
                 
             else:
                 # could be cable, just detach for now
-                pf2.detach(att['obj'])
+                pf2.detach(att['obj'],att['end'])
         
         # reposition platform as needed
         pf2.setPosition(r,heading=heading)
@@ -3034,12 +3035,12 @@ class Project():
                 rB = ms.lineList[line-1].rB
                 pfloc = ms.bodyList[0].r6
                 if ms.pointList[point-1].attachedEndB[j]:
-                    vals = rB[0:2]-rA[0:2]
+                    vals = rA[0:2]-rB[0:2]
                     zFair = rB[2]
                     rFair = np.hypot(rB[0]-pfloc[0],rB[1]-pfloc[1])
                     endB.append(1)
                 else:
-                    vals = rA[0:2]-rB[0:2]
+                    vals = rB[0:2]-rA[0:2]
                     zFair = rA[2]
                     rFair = np.hypot(rA[0]-pfloc[0],rA[1]-pfloc[1])
                     endB.append(0)
@@ -3056,11 +3057,11 @@ class Project():
                 for k,sline in enumerate(ms.lineList[line-1].lineList):
                     # add section and connector info
                     md['sections'].append({'type':sline.type})
+                    md['sections'][-1]['L'] = sline.L
                     spt = ms.lineList[line-1].pointList[k]
                     md['connectors'].append({'m':spt.m,'v':spt.v,'Ca':spt.Ca,'CdA':spt.CdA})
                 spt = ms.lineList[line-1].pointList[k+1]
                 md['connectors'].append({'m':spt.m,'v':spt.v,'Ca':spt.Ca,'CdA':spt.CdA})
-                
                 mhead.append(90 - np.degrees(np.arctan2(vals[1],vals[0])))
                 mList.append(Mooring(dd=md,id=pfid+alph[count]))
                 mList[-1].heading = mhead[-1]
@@ -3076,6 +3077,8 @@ class Project():
                             ad['design']['v'] = pt.v
                             ad['design']['CdA'] = pt.CdA
                             ad['design']['Ca'] = pt.Ca
+                            if 'anchor_type' in pt.entity:
+                                ad['type'] = pt.entity['anchor_type']
                             self.anchorList[mList[-1].id] = Anchor(dd=ad,r=pt.r,id=mList[-1].id)
                             self.anchorList[mList[-1].id].attach(mList[-1],end=1-endB[-1])
                             # reposition mooring and anchor
