@@ -2048,7 +2048,7 @@ class Project():
                         jointB = cable.subcomponents[j+1]['r']
                         try:
                             if len(sub.x)==1:
-                                soil_z=self.getDepthAtLocation(sub.x[0],sub.y[0])
+                                soil_z= [self.getDepthAtLocation(sub.x[0],sub.y[0])]
                             else:
                                 soil_z = self.projectAlongSeabed(sub.x,sub.y)
                         except:
