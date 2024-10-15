@@ -159,7 +159,7 @@ class Project():
         # ===== load FAM-specific model parts =====
         
         # array table
-        if 'array' in d:
+        if 'array' in d and d['array']['data']:
             arrayInfo = [dict(zip(d['array']['keys'], row)) for row in d['array']['data']]
         
         # cable types
@@ -215,7 +215,7 @@ class Project():
         # ----- array mooring -----
         arrayMooring = {}
         arrayAnchor = {}
-        if 'array_mooring' in d:
+        if 'array_mooring' in d and d['array_mooring']:
             # for mooring lines: save a list of dictionaries from each row in the data section
             if 'line_data' in d['array_mooring']:
                 if d['array_mooring']['line_data']:                    
@@ -226,7 +226,7 @@ class Project():
                     arrayAnchor = [dict(zip(d['array_mooring']['anchor_keys'], row)) for row in d['array_mooring']['anchor_data']]
         # ----- mooring systems ------
         mSystems = {}
-        if 'mooring_systems' in d:
+        if 'mooring_systems' in d and d['mooring_systems']:
             for k, v in d['mooring_systems'].items():
                 # set up mooring systems dictionary
                 mSystems[k] = v
@@ -238,7 +238,7 @@ class Project():
         # ----- mooring line section types ----- 
         self.lineTypes = {}
         
-        if 'mooring_line_types' in d:
+        if 'mooring_line_types' in d and d['mooring_line_types']:
             # check if table format was used at all
             if 'keys' and 'data' in d['mooring_line_types']: # table-based
                 dt = d['mooring_line_types'] # save location for code clarity
@@ -255,14 +255,14 @@ class Project():
         # ----- mooring connectors -----
         connectorTypes = {}
         
-        if 'mooring_connector_types' in d:
+        if 'mooring_connector_types' in d and d['mooring_connector_types']:
             for k, v in d['mooring_connector_types'].items():
                 connectorTypes[k] = v
         
         # ----- anchor types -----
         self.anchorTypes = {}
         
-        if 'anchor_types' in d:
+        if 'anchor_types' in d and d['anchor_types']:
             for k, v in d['anchor_types'].items():
                 self.anchorTypes[k] = v
         
@@ -666,9 +666,7 @@ class Project():
                     headingB = np.radians(arrayMooring[j]['headingB']) + self.platformList[PFNum[0]].phi
                     # get configuration for the line 
                     lineconfig = arrayMooring[j]['MooringConfigID']       
-                    # # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
-                    # Aloc = [rowA['x_location']+np.cos(headingA)*self.platformList[PFNum[1]].rFair, rowA['y_location']+np.sin(headingA)*self.platformList[PFNum[1]].rFair, self.platformList[PFNum[1]].zFair]
-                    # Bloc = [rowB['x_location']+np.cos(headingB)*self.platformList[PFNum[0]].rFair, rowB['y_location']+np.sin(headingB)*self.platformList[PFNum[0]].rFair, self.platformList[PFNum[0]].zFair]
+                    
                     # create mooring and connector dictionary for that line
                     m_config = getMoorings(lineconfig,Bnum)
                     # get letter number for mooring line
@@ -974,17 +972,6 @@ class Project():
                         self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='B')                            
                 
                 self.cableList[cable+str(i)].reposition(project=self)          
-
-                # # set joint positions
-                # for j,comp in enumerate(self.cableList[cable+str(i)].subcomponents):
-                #     if isinstance(comp,Joint):
-                #         if not 'r' in comp or comp['r'] is None:
-                #             jLocX,jLocY = self.cableList[cable+str(i)].estJointLoc(j)
-                #             depth = self.getDepthAtLocation(jLocX,jLocY)
-                #             comp['r']= [jLocX,jLocY,-depth]
-                #         # set rB of previous line and rA of next line to joint location
-                #         self.cableList[cable+str(i)].subcomponents[j-1].rB = comp['r']
-                #         self.cableList[cable+str(i)].subcomponents[j+1].rA = comp['r']
         
         
         # ===== load RAFT model parts =====
@@ -1771,6 +1758,10 @@ class Project():
                 
                 headingA = np.radians(90) - np.arctan2((connDict[i]['coordinates'][1][0]-connDict[i]['coordinates'][0][0]),(connDict[i]['coordinates'][1][1]-connDict[i]['coordinates'][0][1]))
                 headingB = np.radians(90) - np.arctan2((connDict[i]['coordinates'][-2][0]-connDict[i]['coordinates'][-1][0]),(connDict[i]['coordinates'][-2][1]-connDict[i]['coordinates'][-1][1]))
+                if cableConfig:
+                    if 'head_offset' in selected_cable:
+                        headingA += np.radians(selected_cable['head_offset'])
+                        headingB -= np.radians(selected_cable['head_offset'])
                 # print('headings: ',headingA,headingB)
     
                 # reposition cable
@@ -3102,8 +3093,6 @@ class Project():
             
         # update location
         self.platformList[pfid].setPosition(r=r)
-        
-        #breakpoint()
             
         return(self.platformList[pfid])
             

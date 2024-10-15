@@ -23,6 +23,13 @@ This example shows how to make an FAModel project from a yaml file. The sample s
     - mooring lines, platforms, and substations
     - dynamic cables
     - static cables, including burial depth and routing
+    
+## Duplicate Platform Example
+This example shows how to "copy" a platform object and its connected moorings and anchors, and reposition the copied platform to the location of your choice.
+
+## Create Platform from MS
+This example shows how to create an empty project object and then add in a platform object and its connected moorings and anchors from a moorpy system (or MoorDyn file).
+
 ## FAModel project manual example
 This example shows how to make an FAModel project with platforms, anchors, and mooring lines without a yaml file. 
 
