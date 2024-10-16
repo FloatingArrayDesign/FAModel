@@ -30,6 +30,16 @@ def getCapacityHelical(D, L, d, soil_type, gamma, alpha_star, Su0=None, k=None, 
        Maximum vertical capacity [kN]    
     '''
     
+    rhos= 78.50                      # Dry steel unit weight (kN/m3)
+    t = (6.35 + D*20)/1e3            # Suction pile wall thickness (m), API RP2A-WSD
+    
+    # Dry and wet mass of the pile    
+    def PileWeight(Len, Dia1, Dia2, tw, rho):
+        Wp = ((np.pi/4)*((Dia1**2 - (Dia1 - 2*tw)**2)*Len + (np.pi/4)*Dia2**2*tw))*rho
+        return Wp 
+        
+    Wp = 1.10*PileWeight(L, D, d, t, rhos) 
+    
     # ----- Clay case -----
     if soil_type == 'clay':
         
@@ -48,9 +58,9 @@ def getCapacityHelical(D, L, d, soil_type, gamma, alpha_star, Su0=None, k=None, 
         Qh = (np.pi/4)*(D**2 - d**2)*Nq*gamma*L
         Qs = np.pi*d*L*alpha_star*gamma*L
         Qu = Qh + Qs
-            
-        
+                  
     resultsHelical = {}
-    resultsHelical['Capacity'] = Qu   # Vertical capacity 
+    resultsHelical['Capacity'] = Qu          # Vertical capacity 
+    resultsHelical['Pile weight'] = Wp       # Dry weight of the plate (kN)
 
     return resultsHelical

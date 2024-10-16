@@ -32,8 +32,8 @@ site:
         file:   './bathymetry200m_sample.txt'
     
     seabed:
-      x : [-10901,    0,    10000]
-      y : [-10900,     0,  10000 ]
+      x : [-10901,    0,  10000]
+      y : [-10900,    0,  10000]
     
       type_array:
         - [mud_soft ,  mud_soft ,   mud_soft]  
@@ -2472,8 +2472,8 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,  150 ,    torpedo_pile1,   0 ]
-          - [  semitaut-poly_1,  30 ,    torpedo_pile1,   0 ]
+          - [  semitaut-poly_1,  150 , suction_pile1,   0 ]
+          - [  semitaut-poly_1,  30 ,  suction_pile1,   0 ]
 
     ms2:
         name: 2-line semi-taut polyester mooring system with a third line shared

@@ -56,12 +56,19 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     D = float(D)
     t = (6.35 + D*20)/1e3        # Pile wall thickness (m), API RP2A-WSD
     E = 200e9                    # Elastic modulus of pile material (Pa)
+    rhows = 66.90e3              # Submerged steel specific weight (N/m3)
+    rhow = 10e3                  # Water specific weight (N/m3) 
     
     # Pile geometry
     I = (np.pi/64.0)*(D**4 - (D - 2*t)**4)
     EI = E*I
     h = L/n                      # Element size
     N = (n + 1) + 4              # (n+1) Real + 4 Imaginary nodes
+    
+    # Dry and wet mass of the pile    
+    def PileWeight(Len, Dia, tw, rho):
+        Wp = ((np.pi/4)*((Dia**2 - (Dia - 2*tw)**2)*Len 
+        return Wp 
 
     # Array for displacements at nodes, including imaginary nodes.
     y = np.ones(N)*(0.01*D)      # An initial value of 0.01D was arbitrarily chosen
@@ -118,6 +125,7 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     resultsDandG['Lateral displacement'] = y[2]
     resultsDandG['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
     resultsDandG['Axial capacity'] = DQ[-1]
+    resultsDandG['Pile weight'] = PileWeight(L, D, t, (rhows + rhow))
     
     return y[2:-2], z[2:-2], resultsDandG
 
@@ -315,8 +323,8 @@ def rock_profile(profile):
     # Extract data from soil_profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
     depth = np.concatenate([np.array([z0]),np.array([row[0] for row in profile],dtype=float)])  # m  
-    UCS   = np.concatenate([np.array([0]),np.array([row[1] for row in profile],dtype=float)])   # MPa
-    Em    = np.concatenate([np.array([0]),np.array([row[2] for row in profile],dtype=float)])   # MPa
+    UCS   = np.concatenate([np.array([0]), np.array([row[1] for row in profile],dtype=float)])  # MPa
+    Em    = np.concatenate([np.array([0]), np.array([row[2] for row in profile],dtype=float)])  # MPa
 
     # Define interpolation functions
     f_UCS = interp1d(depth, UCS*1e6, kind='linear')  # Pa

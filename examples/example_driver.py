@@ -16,6 +16,7 @@ from famodel.project import Project
 import os
 
 os.chdir('./Inputs/')
+
 # set yaml file location and name
 ontology_file = 'OntologySample200m.yaml'
 
@@ -32,7 +33,7 @@ project.plot3d()
 
 #%% Section 2: Project with RAFT
 print('\nCreating project with RAFT \n')
-# create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
+#create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
 project = Project(file=ontology_file,raft=1)
 # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
 project.plot3d(fowt=True)

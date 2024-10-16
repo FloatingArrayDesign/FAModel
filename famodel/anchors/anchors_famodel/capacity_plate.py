@@ -31,17 +31,17 @@ def getCapacityPlate(A, beta, zlug, soil_type, gamma, Su0=None, k=None):
     '''
       
 
-    Los=0.05                   # Key lost fraction due to the keying process, default 0.05 [-]
-    rhos= 7850.0               # Steel density in air [kg/m3]
+    Los=0.05                   # Key lost fraction due to the keying process, default 0.05 (-)
+    rhos= 78.50                # Dry steel unit weight (kN/m3)
  
-    B = round(np.sqrt(A),2)    # Anchor width (and length, approximated as square for now) [m]
-    zlug_B = zlug/B               # Anchor depth range/ The width of the Plate 
+    B = round(np.sqrt(A),2)    # Anchor width (and length, approximated as square) (m)
+    zlug_B = zlug/B            # Anchor depth range/ width of the plate 
     B_t = 40                   # Aspect ratio plate width to thickness, default is 40
-    t = round(B/B_t, 2)        # Thickness of the plate, which it depends on the width [m]
+    t = round(B/B_t, 2)        # Thickness of the plate, which it depends on the width (m)
     
     #t=np.sqrt(0.006*A)/4  
-    V = round(A*t,2)           # Steel volume [m3]
-    W = V*rhos                 # Plate weight [kg]
+    V = round(A*t,2)           # Steel volume (m3)
+    W = V*rhos                 # Plate weight (kg)
     Su = Su0 + k*zlug          # Undrained shear strength at plate depth
 
     # ----- anchor pullout capacity -----
@@ -95,7 +95,8 @@ def getCapacityPlate(A, beta, zlug, soil_type, gamma, Su0=None, k=None):
 
     resultsPlate = {}
     resultsPlate['Capacity'] = Tmax                 # Capacity at specified loading angle
-    resultsPlate['Horizontal max.'] = Hmax          # Maximum horizontal capacity in sand
-    resultsPlate['Vertical max.'] = Vmax            # Maximum vertical capacity in sand
+    resultsPlate['Horizontal max.'] = Hmax          # Maximum horizontal capacity in clay
+    resultsPlate['Vertical max.'] = Vmax            # Maximum vertical capacity in clay
+    resultsPlate['Plate weight'] = W                # Dry weight of the plate (kN)
     
     return resultsPlate

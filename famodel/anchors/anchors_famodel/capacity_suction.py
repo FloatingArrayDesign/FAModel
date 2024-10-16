@@ -43,11 +43,12 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
     '''  
             
     lambdap = L/D; m = -2/3;         # Suction pile slenderness ratio
-    t = 10*D/1e3                     # Thickness of the pile
+    t = (6.35 + D*20)/1e3            # Suction pile wall thickness (m), API RP2A-WSD
     rlug = D/2                       # Radial position of the lug
-    thetalug = 5                     # Angle of tilt misaligment, default is 5. [deg]
-    psilug = 7.5                     # Angle of twist misaligment, default is 7.5. [deg]
-    rhows = 66.90                    # Submerged steel specific weight [kN/m3]
+    thetalug = 5                     # Angle of tilt misaligment, default is 5. (deg)
+    psilug = 7.5                     # Angle of twist misaligment, default is 7.5. (deg)
+    rhows = 66.90                    # Submerged steel specific weight (kN/m3)
+    rhow = 10                        # Water specific weight (kN/m3) 
     
     # Outer and inner surface of the pile skirt
     def PileSurface(Len, Dia):
@@ -139,8 +140,8 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         Vmax = 7*gamma*Ze**2*y(L/Ze)*PileSurface(L, D)/L + 5*gamma*Zi**2*y(L/Zi)*PileSurface(L,(D - 2*t))/L
         # Vmax = PileWeight(L, D, t, rhows) + gamma*L**2/(2*(beta + beta)*np.pi*D)
      
-    # Submerged pile weight (inc. stiffening plus vent) assessed as a factor
-    Wp = 1.00*PileWeight(L, D, t, (rhows)) 
+    # Pile weight (inc. stiffening plus vent) assessed as a factor
+    Wp = 1.10*PileWeight(L, D, t, (rhows + rhow)) 
     # Submerged weight of the soil plug
     Ws = SoilWeight(L, D, t, gamma)
     
@@ -158,7 +159,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
     plt.xlabel('Horizontal capacity [kN]')
     plt.ylabel('Vertical capacity [kN]')
     plt.suptitle('VH suction pile capacity envelope')
-    plt.axis([0, 1.3*max(X[0], H), 0, 1.3*max(Y[-1], V),0,0]) 
+    plt.axis([0, 1.3*max(X[0], H), 0, 1.3*max(Y[-1], V)]) 
     plt.grid(True)
     plt.show()
     
@@ -172,8 +173,8 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         resultsSuction['UC'] = UC[0]                # Unity check in clay
     elif soil_type == 'sand':
         resultsSuction['UC'] = UC                   # Unity check in sand
-    resultsSuction['Weight Pile'] = Wp              # in kN
-    resultsSuction['Weight Soil'] = Ws              # in kN
+    resultsSuction['Weight Pile'] = Wp              # Dry weight of the suction pile (kN)
+    resultsSuction['Weight Soil'] = Ws              # Submerged weight of the soil plug (kN)
     resultsSuction['t'] = t                         # Pile thikness in [m]
     
     return resultsSuction

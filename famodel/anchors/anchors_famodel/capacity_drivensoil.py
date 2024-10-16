@@ -52,6 +52,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
     E = 200e9                   # Elastic modulus of pile material (Pa)
     fy = 350e6                  # Yield strength of pile material (Pa)
     rhows = 66.90e3             # Submerged steel specific weight (N/m3)
+    rhow = 10e3                 # Water specific weight (N/m3) 
     alpha = 0.6                 # Adhesion coefficient of clay (-)
     beta = 0.37                 # Shaft friction factor (-)
     
@@ -67,7 +68,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
         return Sp    
     # Dry and wet mass of the pile    
     def PileWeight(Len, Dia, tw, rho):
-        Wp = ((np.pi/4)*((Dia**2 - (Dia - 2*tw)**2)*Len + (np.pi/4)*Dia**2*tw))*rho
+        Wp = ((np.pi/4)*((Dia**2 - (Dia - 2*tw)**2)*Len 
         return Wp 
     # Mass of the soil plug      
     def SoilWeight(Len, Dia, tw, gamma_soil): 
@@ -140,6 +141,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
         resultsDrivenSoil['Lateral displacement'] = max(y)
         resultsDrivenSoil['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
         resultsDrivenSoil['Axial capacity'] = Vmax
+        resultsDrivenSoil['Pile weight'] = PileWeight(L, D, t, (rhows + rhow))
    
     else:
         print(f'y_max = {max(y):.3f} m')
@@ -151,6 +153,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
         resultsDrivenSoil['Plastic hinge'] = hinge_formed
         resultsDrivenSoil['Hinge location'] = hinge_location
         resultsDrivenSoil['Axial capacity'] = Vmax
+        resultsDrivenSoil['Pile weight'] = PileWeight(L, D, t, (rhows + rhow))
     
     return y[2:-2], z[2:-2], resultsDrivenSoil
 
@@ -469,13 +472,13 @@ def clay_profile(profile):
     from scipy.interpolate import interp1d
 
     # Depth of mudline relative to pile head
-    z0 = profile[0,0].astype(float)
+    z0 = float(profile[0][0])
 
     # Extract data from profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([0,z0]), profile[:,0].astype(float)]) # (m)
-    Su    = np.concatenate([np.array([0, 0]), profile[:,1].astype(float)]) # (kPa)
-    gamma = np.concatenate([np.array([0, 0]), profile[:,2].astype(float)]) # (kN/m3)
+    depth = np.concatenate([np.array([z0]),np.array([row[0] for row in profile],dtype=float)]) # m
+    Su    = np.concatenate([np.array([0]), np.array([row[1] for row in profile],dtype=float)]) # kPa
+    gamma = np.concatenate([np.array([0]), np.array([row[2] for row in profile],dtype=float)]) # kN/m3
 
     # Calculate sigma_v_eff at each depth
     sigma_v_eff = np.zeros(len(depth))
@@ -484,9 +487,9 @@ def clay_profile(profile):
         sigma_v_eff[i] = sigma_v_eff[i-1] + gamma[i-1]*(depth[i] - depth[i-1])
 
     # Define interpolation functions
-    f_Su          = interp1d(depth, Su*1000, kind='linear')                # (Pa)
-    f_sigma_v_eff = interp1d(depth, sigma_v_eff*1000, kind='linear')       # (Pa)
-    f_gamma       = interp1d(depth, gamma*1000, kind='linear')             # (N/m3)
+    f_Su          = interp1d(depth, Su*1000, kind='linear')           # Pa
+    f_sigma_v_eff = interp1d(depth, sigma_v_eff*1000, kind='linear')  # Pa
+    f_gamma       = interp1d(depth, gamma*1000, kind='linear')        # N/m3
     
     # Calculate f_psi and f_alpha at each depth (not as a scalar)
     f_psi = lambda z: f_Su(z) / f_sigma_v_eff(z)
@@ -530,14 +533,14 @@ def sand_profile(profile):
     from scipy.interpolate import interp1d
 
     # Depth of mudline relative to pile head
-    z0 = profile[0,0].astype(float)
+    z0 = float(profile[0][0])
 
     # Extract data from profile array and zero strength virtual soil layer
     # from the pile head down to the mudline
-    depth = np.concatenate([np.array([0,z0]), profile[:,0].astype(float)]) # (m)
-    phi   = np.concatenate([np.array([0, 0]), profile[:,1].astype(float)]) # (deg)
-    gamma = np.concatenate([np.array([0, 0]), profile[:,2].astype(float)]) # (kN/m3)
-    Dr    = np.concatenate([np.array([0, 0]), profile[:,3].astype(float)]) # (%)
+    depth = np.concatenate([np.array([z0]),np.array([row[0] for row in profile],dtype=float)]) # m
+    phi   = np.concatenate([np.array([0]), np.array([row[1] for row in profile],dtype=float)]) # deg
+    gamma = np.concatenate([np.array([0]), np.array([row[2] for row in profile],dtype=float)]) # kN/m3
+    Dr    = np.concatenate([np.array([0]), np.array([row[3] for row in profile],dtype=float)]) # %
    
     # Calculate sigma_v_eff and static loading factor at each depth
     sigma_v_eff = np.zeros(len(depth))
@@ -546,10 +549,10 @@ def sand_profile(profile):
         sigma_v_eff[i] = sigma_v_eff[i-1] + gamma[i-1]*(depth[i] - depth[i-1])
 
     # Define interpolation functions
-    f_phi         = interp1d(depth, phi, kind='linear')                    # (deg)
-    f_sigma_v_eff = interp1d(depth, sigma_v_eff*1000, kind='linear')       # (Pa)
-    f_gamma       = interp1d(depth, gamma*1000, kind='linear')             # (N/m3)
-    f_Dr          = interp1d(depth, Dr, kind='linear')                     # (%)
+    f_phi         = interp1d(depth, phi, kind='linear')                    # deg
+    f_sigma_v_eff = interp1d(depth, sigma_v_eff*1000, kind='linear')       # Pa
+    f_gamma       = interp1d(depth, gamma*1000, kind='linear')             # N/m3
+    f_Dr          = interp1d(depth, Dr, kind='linear')                     # %
     
     # Define beta as a function of Dr
     def calc_beta(Dr_val):
