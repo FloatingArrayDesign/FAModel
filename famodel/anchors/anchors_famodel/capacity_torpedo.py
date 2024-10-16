@@ -42,14 +42,17 @@ def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
         Maximum vertical capacity [kN]
     '''
 
-    #m = -5;
+    rhos= 78.50                                     # Dry steel unit weight (kN/m3)
+    t = (6.35 + D*20)/1e3                           # Torpedo pile wall thickness (m), API RP2A-WSD
+    
     L = L1 + L2;
     Dstar = (D1*L1 + (D1 + 2*D2)*L2)/L              # Plane 1 (four fins)
     #Dstar = (D1*L1 + np.sqrt(2)*(D1/2 + D2)*L2)/L  # Plane 2 (four fins)    
     #rlug = D2/2; zlug = zlug; 
     lambdap = L/Dstar; print('lambdap = ' +str(lambdap))
     a = zlug; b = zlug + L1; c = zlug + L1 + L2;
-    Wp = 850                                        # Weight of the pile. [kN]
+    Wp = 850                                        # Weight of the pile with ballast [kN]
+    W = PileWeight(L1, L2, D1, D2, t, rhos)         # Weight of the steel pile [kN]
     
     # Dry and wet mass of the pile
     def PileSurface(Len1, Len2, Dia1, Dia2):
@@ -86,5 +89,6 @@ def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
     resultsTorpedo = {}
     resultsTorpedo['Horizontal max.'] = Hmax #Hmax[0]    # Capacity at specified loading angle
     resultsTorpedo['Vertical max.'] = Vmax               # Capacity at specified loading angle
+    resultsTorpedo['Pile weight'] = W                    # Dry weight of the helical pile (kN)
    
     return resultsTorpedo

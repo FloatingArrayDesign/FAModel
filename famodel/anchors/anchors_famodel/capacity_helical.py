@@ -61,6 +61,6 @@ def getCapacityHelical(D, L, d, soil_type, gamma, alpha_star, Su0=None, k=None, 
                   
     resultsHelical = {}
     resultsHelical['Capacity'] = Qu          # Vertical capacity 
-    resultsHelical['Pile weight'] = Wp       # Dry weight of the plate (kN)
+    resultsHelical['Pile weight'] = Wp       # Dry weight of the helical pile (kN)
 
     return resultsHelical
