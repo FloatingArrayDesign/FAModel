@@ -12,7 +12,7 @@ cable_types:          # standard size of conductors [mm^2]: [800, 630, 400, 300,
         D_A_coefs   : [3.0, 92.5]                    # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
         P_A_coefs   : [2.12, 0.525]                  # P[MW] = (1st)*A[mm^2]^(2nd)
         R_A_coefs   : [24]                           # R[ohm/km] = (1st)/A[mm^2]
-        cost_A      : [0.7845, 257.32]               # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
+        cost_A      : [0.719, 239.57]               # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
               
     static_cable_66:                                   
         kV          : 66                             # voltage rating [kV]    
@@ -24,7 +24,7 @@ cable_types:          # standard size of conductors [mm^2]: [800, 630, 400, 300,
         D_A_coefs   : [3.0, 102]                     # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
         P_A_coefs   : [4.24, 0.525]                  # P[MW] = (1st)*A[mm^2]^(2nd)
         R_A_coefs   : [24]                           # R[ohm/km] = (1st)/A[mm^2]
-        cost_A      : [0.7845, 257.32]               # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
+        cost_A      : [0.719, 239.57]               # cost of cable [$/m] = (1st)*A[mm^2] + (2nd) 
         
     static_cable_132:                                   
         kV          : 132                            # voltage rating [kV]    
@@ -36,7 +36,7 @@ cable_types:          # standard size of conductors [mm^2]: [800, 630, 400, 300,
         D_A_coefs   : [3.0, 120]                     # Outer diameter coefficients: OD[mm] = SQRT(A^2[mm^2])*(1st) + (2nd)
         P_A_coefs   : [8.48, 0.525]                  # P[MW] = (1st)*A[mm^2]^(2nd)
         R_A_coefs   : [24]                           # R[ohm/km] = (1st)/A[mm^2]
-        cost_A      : [0.7845, 257.32]               # cost of cable [$/m] = (1st)*A[mm^2] + (2nd)
+        cost_A      : [0.719, 239.57]            # cost of cable [$/m] = (1st)*A[mm^2] + (2nd)
         
     dynamic_cable_33:                                   
         kV          : 33                             # voltage rating [kV]    
