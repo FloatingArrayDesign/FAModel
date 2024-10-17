@@ -40,7 +40,7 @@ class Cable(Edge):
         # Turn what's in dd and turn it into Sections and Connectors (if there is more than one section)
         if len(d['cables'])>1:
             for i, joi in enumerate(d['joints']):
-                if joi:
+                if joi and 'type' in joi:
                     Jid = id+'_'+d['joints'][i]['type']+str(i)
                 else:
                     Jid = id+'_'+str(i)
@@ -77,6 +77,12 @@ class Cable(Edge):
         # add overall routing to design dictionary
         if 'routing' in d:
             self.dd['routing'] = d['routing']
+            
+        # cost dictionary
+        self.cost = {}
+        # add any connector costs to cost dictionary
+        if 'connector_cost' in d:
+            self.cost['connector_cost'] = d['connector_cost']
 
         '''
         self.system = system
@@ -103,8 +109,6 @@ class Cable(Edge):
         for i in self.dd['cables']: # self.subcomponents:
             self.L += i.L
             
-        # cable cost
-        self.cost = None
         
         # failure probability
         self.failure_probability = {}
@@ -220,10 +224,15 @@ class Cable(Edge):
             if isinstance(sub,Joint):
                 if 'cost' in sub:
                     cost += sub['cost']
-            elif 'cost' in sub.dd['cable_type']:
-                cost += sub.dd['cable_type']['cost']*sub.dd['L']   
+            else:
+                cost += sub.getCost()
+            # elif 'cost' in sub.dd['cable_type']:
+            #     cost += sub.dd['cable_type']['cost']*sub.dd['L']
+        if self.cost:
+            if 'connector_cost' in self.cost:
+                cost += 2*self.cost['connector_cost']
                 
-        self.cost = cost
+        self.cost['total'] = cost
         
         return(cost)
     

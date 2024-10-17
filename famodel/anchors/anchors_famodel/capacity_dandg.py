@@ -89,7 +89,7 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
         # Extract rock profile data
         zlug, f_UCS, f_Em = rock_profile(profile)
         UCS, Em = f_UCS(z[i]), f_Em(z[i])
-        py_funs.append(py_Reese(z[i], D, zlug, UCS, Em))
+        py_funs.append(py_Reese(z[i], D, zlug, UCS, Em, plot=plot))
         k_secant[i] = py_funs[i](y[i])/y[i]
         SCR = nhuc*Em/(UCS*(1 + nhu))*delta_r/D
         alpha = 0.36*SCR - 0.0005
@@ -105,15 +105,16 @@ def getCapacityDandG(profile, L, D, zlug, V, H):
     # Track k_secant and current displacements
 
     y1 = np.linspace(-2.*D, 2.*D, 500)
-    plt.plot(y1, py_funs[loc](y1))
-    plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
-    plt.grid(True)
+    if plot:
+        plt.plot(y1, py_funs[loc](y1))
+        plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
+        plt.grid(True)
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
         y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
-      
-        plt.plot(y[loc], k_secant[loc]*y[loc])
+        if plot:
+            plt.plot(y[loc], k_secant[loc]*y[loc])
 
         for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]
@@ -207,7 +208,7 @@ def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
 ###############################
 
 
-def py_Reese(z, D, zlug, UCS, Em):
+def py_Reese(z, D, zlug, UCS, Em, plot=True):
 
     '''
     Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
@@ -279,14 +280,14 @@ def py_Reese(z, D, zlug, UCS, Em):
     #var_Reese = inspect.currentframe().f_locals          
     
     f = interp1d(y, p)   # Interpolation function for p-y curve
-        
-    plt.plot(y, p) 
-    plt.xlabel('y (m)') 
-    plt.ylabel('p (N/m)'),
-    plt.title('PY Curves - Reese (1997)')
-    plt.grid(True)
-    plt.xlim([-0.03*D, 0.03*D])
-    plt.ylim([min(p), max(p)])     
+    if plot:    
+        plt.plot(y, p) 
+        plt.xlabel('y (m)') 
+        plt.ylabel('p (N/m)'),
+        plt.title('PY Curves - Reese (1997)')
+        plt.grid(True)
+        plt.xlim([-0.03*D, 0.03*D])
+        plt.ylim([min(p), max(p)])     
         
     return f      # This is f (linear interpolation of y-p)
    

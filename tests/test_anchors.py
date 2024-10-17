@@ -6,7 +6,7 @@ import numpy as np
 def test_anchor_loads():
     # load in famodel project 
     project = Project(file='tests/testOntology.yaml', raft=False)
-    project.getMoorPyArray()
+    project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
     
     # get lug loads on anchor

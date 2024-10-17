@@ -251,13 +251,31 @@ marine_growth:
 
 ## Array
 
-This part of the ontology includes a section for the tubine layout, as
+This part of the ontology includes a section for the turbine layout, as
 well as optional array-level descriptions of the mooring system and 
-array cabling.
+array cabling. 
 
 ### Array Layout
+There are two options for describing the array layout: uniform or freeform array. For a simple uniform array, use the 'uniform_array' section. This section provides information on parameters of a uniform array such as number of rows and columns, spacing, etc, along with the id of a mooring system, platform, and turbine that will be used for all platforms. These ids connect to details on specific mooring systems, platforms, and turbines in [mooring_systems](#mooring-systems), [Platform](#platforms), and [Turbine](#turbines) sections respectively. Due to the nature of this method, no shared moorings/anchors can be used.
+```yaml
+# Wind turbine array layout
+uniform_array:
+  n_rows: 5 # number of rows in the array
+  n_cols: 5 # number of cols in the array
+  west_start: -1500 # western-most edge of the array
+  north_start: 1500 # north-most edge of the array
+  spacing_x: 1700 # spacing in x (East-West) direction
+  spacing_y: 1900 # spacing in y (North-South) direction
+  turbineID: 1 # turbine ID
+  platformID: 1 # platform ID
+  mooringID: ms1 # mooring system ID
+  heading_adjust: 0 # heading adjustment for the platforms
+```
+
+To specify the location of each platform individually, you must use the array table section.
 The array section summarizes the floating wind turbines in the array. The 
 section inputs a list where each entry corresponds to a wind turbine. The ID serves as a method to identify the specific turbine system. 
+
 As such, each list entry should have a unique ID, but the ID type (string, int, etc) is up to the user. The turbineID and platformID are specified for each list entry,
 connecting to details in the [Turbine](#turbines) and [Platform](#platforms) sections. This allows the user to easily 
 specify different turbine or platform types throughout the array. 

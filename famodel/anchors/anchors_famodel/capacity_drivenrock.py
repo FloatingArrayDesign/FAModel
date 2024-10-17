@@ -9,7 +9,7 @@ import inspect
 #### Pile Geometry and Loading ####
 ###################################
 
-def getCapacityDrivenRock(profile, L, D, zlug, V, H):
+def getCapacityDrivenRock(profile, L, D, zlug, V, H, plot=True):
     '''
     Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, 
@@ -104,15 +104,17 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H):
     # Track k_secant and current displacements
 
     y1 = np.linspace(-2.*D, 2.*D, 500)
-    plt.plot(y1, py_funs[loc](y1))
-    plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
-    plt.grid(True)
+    if plot:
+        plt.plot(y1, py_funs[loc](y1))
+        plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
+        plt.grid(True)
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
         y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
-
-        plt.plot(y[loc], k_secant[loc]*y[loc])
+        
+        if plot:
+            plt.plot(y[loc], k_secant[loc]*y[loc])
 
         for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]

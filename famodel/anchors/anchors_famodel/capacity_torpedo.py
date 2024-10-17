@@ -52,16 +52,17 @@ def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
     lambdap = L/Dstar; print('lambdap = ' +str(lambdap))
     a = zlug; b = zlug + L1; c = zlug + L1 + L2;
     Wp = 850                                        # Weight of the pile with ballast [kN]
+    # Dry and wet mass of the pile    
+    def PileWeight(Len1, Len2, Dia1, Dia2, tw, rho):
+        Wp = ((np.pi/4)*(Dia1**2 - (Dia1 - 2*tw)**2)*(Len1 + Len2) + 4*Len2*Dia2*tw)*rho
+        return(Wp)
     W = PileWeight(L1, L2, D1, D2, t, rhos)         # Weight of the steel pile [kN]
     
     # Dry and wet mass of the pile
     def PileSurface(Len1, Len2, Dia1, Dia2):
         Sp = np.pi*Dia1*(Len1 + Len2) + 8*Len2*Dia2*0.9
         return(Sp)  
-    # Dry and wet mass of the pile    
-    def PileWeight(Len1, Len2, Dia1, Dia2, tw, rho):
-        Wp = ((np.pi/4)*(Dia1**2 - (Dia1 - 2*tw)**2)*(Len1 + Len2) + 4*Len2*Dia2*tw)*rho
-        return(Wp)
+
     
     ez_Su_den = D1*Su0*(b - a) + 0.5*D1*k*(b**2 - a**2) + D2*Su0*(c - b) + 0.5*D2*k*(c**2 - b**2)
     ez_Su_num = D1*Su0*(a**2 - a*b) + 0.33*D1*k*(b**3 - a**3) + b**2*(0.5*D1*Su0 - 0.5*D1*a*k) - a**2*(0.5*D1*Su0 - 0.5*D1*a*k)\

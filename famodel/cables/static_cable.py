@@ -19,7 +19,7 @@ class StaticCable(Edge):
     
     def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
-                 rho=1025, g=9.81, span=2000, L=2000,A=0,conductorSize=None, 
+                 rho=1025, g=9.81, L=2000,A=0,conductorSize=None, 
                  type='static',voltage=66,powerRating=None,cable_type=None,routing=None,
                  burial=None,zAnchor=None,**kwargs):
         '''
@@ -38,7 +38,6 @@ class StaticCable(Edge):
 
         # cable length
         self.L = L
-        self.span = span
 
         # end point absolute coordinates, to be set later
         self.rA = rA
@@ -79,12 +78,27 @@ class StaticCable(Edge):
         # get some calculations from Stein's arc-shaped work on IProTech geometry
         # >>> calcs here <<<
         
-        self.L = 0
+        L = 0
         
         if not hasattr(self,'x'): 
             # there is not routing here, assume straight line between ends
             vals = np.array(self.rB)-np.array(self.rA)
-            self.L = np.hypot(vals[0],vals[1])
+            L += np.hypot(vals[0],vals[1])
+            
+        else:
+            # get L from rA to first point
+            vals = np.array((self.x[0],self.y[0]) - np.array(self.rA[0:2]))
+            L += np.hypot(vals[0],vals[1])
+            # get L from rB to last point
+            vals = np.array((self.x[-1],self.y[-1])) - np.array((self.rB[0:2]))
+            L += np.hypot(vals[0],vals[1])
+            
+            if len(self.x)>1:
+                for i,x in enumerate(self.x):
+                    vals = np.array((self.x[i+1],self.y[i+1])) - np.array((x,self.y[i]))                   
+                    L += np.hypot(vals[0],vals[1])
+                
+        self.L = L                            
         
         return self.L
     
@@ -176,7 +190,12 @@ class StaticCable(Edge):
     def getCost(self):
         
         # >>> UPDATE <<<
-        
+        self.getLength()
+        cost = 0
+        if 'cost' in self.dd['cable_type']:
+            cost += self.dd['cable_type']['cost']*self.L
+            
+        self.cost['total'] = cost
         # sum up the costs in the dictionary and return
         return sum(self.cost.values()) 
     

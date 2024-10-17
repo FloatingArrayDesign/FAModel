@@ -1540,7 +1540,7 @@ class Project():
         
         # also save in RAFT, in its MoorPy System(s)
     
-    def addCablesConnections(self,connDict,cableType='dynamic_cable_66',oss=False,
+    def addCablesConnections(self,connDict,cableType_def='dynamic_cable_66',oss=False,
                              substation_r=None,id_method='location',
                              keep_old_cables=False, connect_ss=True, 
                              cableConfig=None, configType=0):
@@ -1551,7 +1551,7 @@ class Project():
         ----------
         connDict : dict
             Connection dictionary that describes the cables to create and their connections
-        cableType : str, optional
+        cableType_def : str, optional
             Cable family name corresponding to a name in the CableProps_default file. Default is 'dynamic_cable_66'
         oss : bool, optional
             Controls whether to create an offshore substation object. Default is False.
@@ -1621,7 +1621,7 @@ class Project():
                 
                 if not 'cable_type' in cd:
                     cp = loadCableProps(None)
-                    cabProps = getCableProps(connDict[i]['A_min_con'],cableType,cableProps=cp)
+                    cabProps = getCableProps(connDict[i]['A_min_con'],cableType_def,cableProps=cp)
                     # fix units
                     cabProps['power'] = cabProps['power']*1e6
                     cd['cable_type'] = cabProps
@@ -1684,25 +1684,33 @@ class Project():
                 # set up selected cable design dictionary
                 if len(selected_cable['sections'])> 1:
                     dd['joints'] = []
-                # breakpoint()
+                
+                # get connector and joint costs if they were given
+                dd['connector_cost'] = getFromDict(selected_cable,'connector_cost',default=0)
+                joint_cost = getFromDict(selected_cable,'joint_cost',default=0)
+                
                 for j in range(len(selected_cable['sections'])):
                     dd['cables'].append(deepcopy(cableConfig['cableTypes'][selected_cable['sections'][j]]))
                     cd = dd['cables'][j]
                     cd['z_anch'] = -self.depth
                     # cd['cable_type'] = cableConfig['cableTypes'][selected_cable['sections'][j]] # assign info in selected cable section dict to cd
                     cd['A'] = selected_cable['A']
-                    # if 'dist' in selected_cable:
-                    #     cd['span'] = selected_cable['dist']
+
+                    
                     # add joints as needed (empty for now)
                     if j < len(selected_cable['sections'])-1:
-                        dd['joints'].append({})
-
+                        dd['joints'].append({'cost':joint_cost}) # default 0
        
                     # add routing if necessary
-                    if dd['cables'][j]['type']=='static' and len(connDict[i]['coordinates'])>2:
-                        cd['routing'] = []
-                        for coord in connDict[i]['coordinates'][1:-1]:
-                            cd['routing'].append(coord)
+                    if dd['cables'][j]['type']=='static':
+                        if len(connDict[i]['coordinates'])>2:
+                            cd['routing'] = []
+                            for coord in connDict[i]['coordinates'][1:-1]:
+                                cd['routing'].append(coord)
+                        cableType = 'static_cable_'+cableType_def[-2:]
+                    else:
+                        cableType = 'dynamic_cable_'+cableType_def[-2:]
+                    
                     if not 'cable_type' in cd or not cd['cable_type']:
                         cp = loadCableProps(None)
                         cabProps = getCableProps(connDict[i]['A_min_con'],cableType,cableProps=cp)
@@ -1789,12 +1797,7 @@ class Project():
                 for cs in cts:
                     if not 'L' in cab.subcomponents[cs].dd:
                         cab.subcomponents[cs].getLength()
-                        cab.subcomponents[cs].span = cab.subcomponents[cs].L
-                    # try:
-                    #     cab.estJointLoc(cs-1)
-                    #     cab.estJointLoc(cs+1)
-                    # except:
-                    #     breakpoint()
+
                 # update full cable L (in case the static cable L was updated)
                 cab.getL() 
                 
@@ -2577,8 +2580,9 @@ class Project():
             #             IDindex = i
             #     if RAFTDict['array']['keys'][i] =='mooringID':
             #         mooringIDindex = i
-            IDindex = np.where(np.array(RAFTDict['array']['keys'])=='ID')[0][0]
-            RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
+            if 'ID' in RAFTDict['array']['keys']:
+                IDindex = np.where(np.array(RAFTDict['array']['keys'])=='ID')[0][0]
+                RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
             mooringIDindex = np.where(np.array(RAFTDict['array']['keys'])=='mooringID')[0][0]
             
             for i in range(0,len(RAFTDict['array']['data'])):
@@ -2596,7 +2600,8 @@ class Project():
                 # get body hydrostatics info for MoorPy bodies
                 body.calcStatics()
                 # populate dictionary of body info to send to moorpy
-                bodyInfo[RAFTable[i]['ID']] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
+                if 'ID' in RAFTable:
+                    bodyInfo[RAFTable[i]['ID']] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
             # create moorpy array if it doesn't exist
             if not self.ms:
                 if self.cableList:

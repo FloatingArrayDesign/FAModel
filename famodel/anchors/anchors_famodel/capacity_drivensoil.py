@@ -99,14 +99,14 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
         z[i] = (i - 2)*h      
         if soil_type == 'clay':
             Su, sigma_v_eff, gamma, alpha = f_Su(z[i]), f_sigma_v_eff(z[i]), f_gamma(z[i]), f_alpha(z[i])
-            py_funs.append(py_Matlock(z[i], D, zlug, Su, sigma_v_eff, gamma))
+            py_funs.append(py_Matlock(z[i], D, zlug, Su, sigma_v_eff, gamma, plot=plot))
             Vo = np.pi*D*alpha*Su*z[i]**2
             PileShaft.append(Vo)
             Vmax = PileWeight(L, D, t, rhows) + SoilWeight(L, D, t, gamma) + PileShaft[-1]
             
         elif soil_type == 'sand':
             phi, sigma_v_eff, gamma, Dr, beta = f_phi(z[i]), f_sigma_v_eff(z[i]), f_gamma(z[i]), f_Dr(z[i]), f_beta(z[i])
-            py_funs.append(py_API(z[i], D, zlug, phi, sigma_v_eff, Dr))
+            py_funs.append(py_API(z[i], D, zlug, phi, sigma_v_eff, Dr, plot=plot))
             fs = beta*sigma_v_eff
             Vo = np.pi*D*fs*z[i]
             PileShaft.append(Vo)
@@ -120,9 +120,10 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
         k_secant[i] = 0.0
 
     y1 = np.linspace(-2.*D, 2.*D, 500)
-    plt.plot(y1, py_funs[loc](y1))
-    plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
-    plt.grid(True)
+    if plot:
+        plt.plot(y1, py_funs[loc](y1))
+        plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
+        plt.grid(True)
 
     for j in range(iterations):
         # if j == 0: print 'FD Solver started!'
@@ -250,7 +251,7 @@ def fd_solver(n, N, h, D, t, fy, EI, V, H, zlug, k_secant):
 #### P-Y Curve Definitions ####
 ###############################
 
-def py_Matlock(z, D, zlug, Su, sigma_v_eff, gamma):
+def py_Matlock(z, D, zlug, Su, sigma_v_eff, gamma, plot=True):
     
     '''Returns an interp1d interpolation function which represents the Matlock (1970) p-y curve at the depth of interest.
     Important: Make sure to import the interp1 function by running 'from scipy.interpolate import interp1d' in the main program.
@@ -321,16 +322,17 @@ def py_Matlock(z, D, zlug, Su, sigma_v_eff, gamma):
     f = interp1d(y, p, kind='linear')   # Interpolation function for p-y curve
 
     # Plot of p-y curve and check if 'k' is calculated correctly
-    plt.plot(y, p,'-')
-    plt.xlabel('y (m)') 
-    plt.ylabel('p (N/m)')
-    plt.title('PY Curves - Matlock (1970)')
-    plt.grid(True)
-    plt.xlim([-2*D, 2*D])
+    if plot:
+        plt.plot(y, p,'-')
+        plt.xlabel('y (m)') 
+        plt.ylabel('p (N/m)')
+        plt.title('PY Curves - Matlock (1970)')
+        plt.grid(True)
+        plt.xlim([-2*D, 2*D])
 
     return f   # This is f (linear interpolation of y-p)
        
-def py_API(z, D, zlug, phi, sigma_v_eff, Dr):
+def py_API(z, D, zlug, phi, sigma_v_eff, Dr, plot=True):
     
     '''Returns an interp1d interpolation function which represents the Matlock (1970) p-y curve at the depth of interest.
 
@@ -383,13 +385,14 @@ def py_API(z, D, zlug, phi, sigma_v_eff, Dr):
 
     f = interp1d(y, p, kind='linear')   # Interpolation function for p-y curve
     
-    # Plot of p-y curve and check if 'k' is calculated correctly
-    plt.plot(y, p,'-') 
-    plt.xlabel('y (m)') 
-    plt.ylabel('p (N/m)')
-    plt.title('PY Curves - API (1993)')
-    plt.grid(True)
-    plt.xlim([-0.10*D, 0.10*D])
+    if plot:
+        # Plot of p-y curve and check if 'k' is calculated correctly
+        plt.plot(y, p,'-') 
+        plt.xlabel('y (m)') 
+        plt.ylabel('p (N/m)')
+        plt.title('PY Curves - API (1993)')
+        plt.grid(True)
+        plt.xlim([-0.10*D, 0.10*D])
     # plt.ylim([min(y), max(y)])  # Adjust x-axis limits to match y values
         
     return f  # This is f (linear interpolation of y-p)

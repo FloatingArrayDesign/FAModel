@@ -13,35 +13,13 @@ from famodel import Project
 
 from famodel.mooring.mooring import Mooring
 
-"""
-
-def test_tensions_swap():
-    '''Compares two equivalent catenary mooring lines that are defined in opposite directions.'''
-       
-    ms = mp.System(depth=60)
-
-    #ms.lineTypes['chain'] = getLineProps(120, name='chain')    # add a line type
-    ms.setLineType(120, 'chain', name='chain')    # add a line type
-    
-    ms.addPoint(1, [  0, 0, -60])
-    ms.addPoint(1, [100, 10, -30])
-
-    # line sloping up from A to B, and another in the opposite order
-    ms.addLine(120, 'chain', pointA=1, pointB=2)
-    ms.addLine(120, 'chain', pointA=2, pointB=1)
-
-    ms.initialize()
-    
-    # compare tensions
-    assert_allclose(np.hstack([ms.lineList[0].fA, ms.lineList[0].fB]),
-                    np.hstack([ms.lineList[1].fB, ms.lineList[1].fA]), rtol=0, atol=10.0, verbose=True)
-"""
 
 def test_MoorPy_integration():
     project = Project(file='tests/testOntology.yaml',raft=0)
     project.getMoorPyArray(cables=1,plt=1)
     # check a random mooring line for ss
     assert project.mooringList['FOWT1a'].ss is not None
+    
 def test_RAFT_integration():
     project = Project(file='tests/testOntology.yaml')
     assert project.array is not None

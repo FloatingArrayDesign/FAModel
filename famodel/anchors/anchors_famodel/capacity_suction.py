@@ -6,7 +6,7 @@ from scipy.optimize import fsolve
 #from famodel.anchors.capacity_load import getAnchorLoad
 from famodel.anchors.capacity_load import getAnchorLoadDNV
 
-def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alpha=None, phi=None, beta=None):
+def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alpha=None, phi=None, beta=None, plot=True):
     
     '''Calculate the inclined load capacity of a suction pile in sand or clay following S. Kay methodology.
     The calculation is based on the soil properties, anchor geometry and inclined load.  
@@ -130,6 +130,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         T = H*rlug*np.sin(np.deg2rad(psilug))
         nhuT = T/Tmax; nhuV = H/Fo;
         nhuVstar = np.sqrt(nhuV**2 - nhuT**2)
+        breakpoint()
         alphastar = alpha*(nhuVstar/nhuV)
     
         # "Coring"        
@@ -152,16 +153,17 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
     x = np.cos(np.linspace (0, np.pi/2, 100))
     y = (1 - x**bVH)**(1/aVH)
     X = Hmax*x; Y = Vmax*y
-    plt.plot(X, Y, color = 'b')
-    plt.plot(H, V, color = 'r')
-        
-    # Set labels and title
-    plt.xlabel('Horizontal capacity [kN]')
-    plt.ylabel('Vertical capacity [kN]')
-    plt.suptitle('VH suction pile capacity envelope')
-    plt.axis([0, 1.3*max(X[0], H), 0, 1.3*max(Y[-1], V)]) 
-    plt.grid(True)
-    plt.show()
+    if plot:
+        plt.plot(X, Y, color = 'b')
+        plt.plot(H, V, color = 'r')
+            
+        # Set labels and title
+        plt.xlabel('Horizontal capacity [kN]')
+        plt.ylabel('Vertical capacity [kN]')
+        plt.suptitle('VH suction pile capacity envelope')
+        plt.axis([0, 1.3*max(X[0], H), 0, 1.3*max(Y[-1], V)]) 
+        plt.grid(True)
+        plt.show()
     
     resultsSuction = {}
     if soil_type == 'clay':

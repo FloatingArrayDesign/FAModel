@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 def getCapacityDrag(Af, Lf, Ls, Lca, Lj, thetafs, bm, En, 
                     nhu, Su0, k, Ne, thetae0, z0,
-                    Nn_max, Nt_max, Nm_max, m, n, p, q): 
+                    Nn_max, Nt_max, Nm_max, m, n, p, q, plot=True): 
         
     ''' 
     Calculate the inclined load capacity, measured in [kN], of the Drag Embedded Anchor in clay soil.
@@ -133,34 +133,35 @@ def getCapacityDrag(Af, Lf, Ls, Lca, Lj, thetafs, bm, En,
         
         if thetaf < 0 or x > xmax or Ta > Tmax:
             break
+    
+    if plot:
+        fig = plt.figure(figsize=(8, 6), dpi=100)
+        plt.plot(x_values, z_values, color='red', linestyle='-')
+        plt.gca().invert_yaxis()
+        plt.xlabel('Drag distance (X), [m]')
+        plt.ylabel('Embedded depth (z), [m]')
+        plt.legend(['Drag Embedded Anchor (DEA) _ Clay Soil'], loc='upper left')
+        plt.tick_params(axis='both', which='major', labelsize=12)
+        plt.grid(True, which='major', linestyle='--')
+        plt.show()
         
-    fig = plt.figure(figsize=(8, 6), dpi=100)
-    plt.plot(x_values, z_values, color='red', linestyle='-')
-    plt.gca().invert_yaxis()
-    plt.xlabel('Drag distance (X), [m]')
-    plt.ylabel('Embedded depth (z), [m]')
-    plt.legend(['Drag Embedded Anchor (DEA) _ Clay Soil'], loc='upper left')
-    plt.tick_params(axis='both', which='major', labelsize=12)
-    plt.grid(True, which='major', linestyle='--')
-    plt.show()
-    
-    fig = plt.figure(figsize=(8, 6), dpi=100)
-    plt.plot(x_values, Ta_values, color='blue', linestyle='-')
-    plt.xlabel('Drag distance (X), [m]')
-    plt.ylabel('Maximum Tension Capacity (Ta), [kN]')
-    plt.legend(['Drag Embedded Anchor (DEA) _ Clay Soil'], loc='upper left')
-    plt.tick_params(axis='both', which='major', labelsize=12)
-    plt.grid(True, which='major', linestyle='--')
-    plt.show()
-    
-    fig = plt.figure(figsize=(8, 6), dpi=100)
-    plt.plot(x_values, thetaf_values, color='green', linestyle='-')
-    plt.xlabel('Drag distance (X), [m]')
-    plt.ylabel('Fluke angle (deg), [kN]')
-    plt.legend(['Drag Embedded Anchor (DEA) _ Clay Soil'], loc='upper left')
-    plt.tick_params(axis='both', which='major', labelsize=12)
-    plt.grid(True, which='major', linestyle='--')
-    plt.show()
+        fig = plt.figure(figsize=(8, 6), dpi=100)
+        plt.plot(x_values, Ta_values, color='blue', linestyle='-')
+        plt.xlabel('Drag distance (X), [m]')
+        plt.ylabel('Maximum Tension Capacity (Ta), [kN]')
+        plt.legend(['Drag Embedded Anchor (DEA) _ Clay Soil'], loc='upper left')
+        plt.tick_params(axis='both', which='major', labelsize=12)
+        plt.grid(True, which='major', linestyle='--')
+        plt.show()
+        
+        fig = plt.figure(figsize=(8, 6), dpi=100)
+        plt.plot(x_values, thetaf_values, color='green', linestyle='-')
+        plt.xlabel('Drag distance (X), [m]')
+        plt.ylabel('Fluke angle (deg), [kN]')
+        plt.legend(['Drag Embedded Anchor (DEA) _ Clay Soil'], loc='upper left')
+        plt.tick_params(axis='both', which='major', labelsize=12)
+        plt.grid(True, which='major', linestyle='--')
+        plt.show()
        
     resultsDrag = {}
     resultsDrag['capacity'] = max(Ta_values)

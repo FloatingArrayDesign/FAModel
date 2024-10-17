@@ -36,6 +36,10 @@ A full description of the project class methods and properties is found in the f
 * [Project Class Methods](#project-methods)
 * [Project Class Properties](#project-properties)
 
+### FAModel Integration Information
+FAModel integrates a many modeling tools, and provides functions for easy transfer of information from design tools to FAModel. The [FAModel Integration](#famodel-integration) section provides an 
+overview of the tools integrated with FAModel and how to use them.
+
 ### FAModel Ontology
 An overview of the Ontology YAML file setup is found in the following section.
 * [FAModel Ontology Overview](#ontology-yaml)
@@ -354,6 +358,24 @@ in the project object. Also allows the option to plot the resulting MoorPy array
 Streamlines getting values from the design dictionary from YAML file, including error checking.
 
 ## Project Properties
+
+
+## FAModel Integration
+
+A variety of tools are integrated with FAModel. RAFT, MoorPy, and FLORIS models can all be automatically built based on information stored in the project class:
+### RAFT
+The frequency domain floating wind modeling tool [RAFT](https://github.com/WISDEM/RAFT.git) is integrated in FAModel through the project method getRAFT(). This requires the RAFT dependencies to be included in your python environment. Additionally, sections of the yaml file related to RAFT are required. If building a project class without a yaml file, a modified RAFT yaml will need to be built and sent as a dictionary input to project.getRAFT(), although no mooring sections are needed as this information is pulled from the project's moorpy array. The RAFT model is then automatically saved in the project class under the property project.array.
+
+### MoorPy
+[MoorPy](https://github.com/NREL/MoorPy.git) is a quasi-static modeling tool for stationkeeping systems, cables, and floating platforms. It is recommended to check out the development branch of MoorPy for use with FAModel.
+
+A MoorPy system of all the platforms, moorings, anchors, and cables in an array can be automatically built using the project method getMoorPyArray(). No further information is required to build this model, as it pulls details on object connections, design, and location from the project class.
+
+### FLORIS
+[FLORIS](https://github.com/NREL/floris.git) is a wake modeling and wind farm controls software for wind farm arrays, including floating arrays. To use the FLORIS-FAModel integration, FLORIS and its dependencies must be installed in the famodel environment. 
+
+### Design Tool Integration
+FAModel is designed to be compatible with the information outputs from NREL floating array design tools, which are being concurrently developed.
 
 ## Ontology YAML
 

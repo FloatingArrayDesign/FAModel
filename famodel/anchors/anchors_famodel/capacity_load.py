@@ -75,7 +75,7 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, gamma, Su0, k):
     
     return resultsLoad
 
-def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, gamma=None, phi= None, delta=None, w=None):
+def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, gamma=None, phi= None, delta=None, w=None, plot=True):
 
     
     '''Calculate the transfer load from the mudline to the main padeye elevation using the DNV standards.
@@ -184,21 +184,22 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
     # Plot of the line and extreme line tension
     drag_values = [-1*i for i in drag_values]
     depth_values = [-1*j for j in depth_values]
-    fig, ax = plt.subplots(figsize=(20, 5)); n = 2000000
-    ax.scatter(drag_values[-1], depth_values[-1], color='g', zorder=5)
-    ax.scatter(0, 0, color='r', zorder=4)
-    ax.arrow(0, 0, Tm*np.cos(np.deg2rad(thetam))/n, Tm*np.sin(np.deg2rad(thetam))/n,
-          head_width=0.25, head_length=0.5, color='r', zorder=3)
-    ax.arrow(drag_values[-1], depth_values[-1], Ta*np.cos(thetaa)/n, Ta*np.sin(thetaa)/n,
-          head_width=0.25, head_length=0.5, color='g',zorder=2)
-    ax.plot(drag_values, depth_values,color='b', zorder=1)
-     
-    #Set labels and title
-    plt.xlabel('Drag distance [m]')
-    plt.ylabel('Embedded depth [m]')
-    plt.suptitle('Inverse catenary profile in soil DNV')
-    plt.grid(True)
-    plt.show()   
+    if plot:
+        fig, ax = plt.subplots(figsize=(20, 5)); n = 2000000
+        ax.scatter(drag_values[-1], depth_values[-1], color='g', zorder=5)
+        ax.scatter(0, 0, color='r', zorder=4)
+        ax.arrow(0, 0, Tm*np.cos(np.deg2rad(thetam))/n, Tm*np.sin(np.deg2rad(thetam))/n,
+              head_width=0.25, head_length=0.5, color='r', zorder=3)
+        ax.arrow(drag_values[-1], depth_values[-1], Ta*np.cos(thetaa)/n, Ta*np.sin(thetaa)/n,
+              head_width=0.25, head_length=0.5, color='g',zorder=2)
+        ax.plot(drag_values, depth_values,color='b', zorder=1)
+         
+        #Set labels and title
+        plt.xlabel('Drag distance [m]')
+        plt.ylabel('Embedded depth [m]')
+        plt.suptitle('Inverse catenary profile in soil DNV')
+        plt.grid(True)
+        plt.show()   
 
     return resultsLoad
 
