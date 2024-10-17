@@ -32,6 +32,12 @@ ms.plot()
 # create empty project class
 project = Project(depth=ms.depth, raft=0)
 
+# add bathymetry if you want 
+project.loadBathymetry('bathymetry200m_sample.txt')
+
+# add soil info as needed
+project.loadSoil('soil_sample.txt')
+
 # add platform, mooring, and anchor objects from ms
 project.addPlatformMS(ms, r=new_pf_loc)
 

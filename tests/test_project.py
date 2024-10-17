@@ -124,25 +124,24 @@ def test_marine_growth():
     # check correct mg gets added to specified mooring lines and cables for ss_mod
     project.getMarineGrowth(lines=['FOWT1a',['suspended_cable11',0]])
     # pull out a mooring line and a cable to check
-    Moor = project.mooringList['FOWT1a'].ss.lineList[0].type['d_vol']
-    mgMoor = project.mooringList['FOWT1a'].ss_mod.lineList[1].type['d_vol']
+    Moor = project.mooringList['FOWT1a'].ss.lineList[1].type['d_nom']
+    mgMoor = project.mooringList['FOWT1a'].ss_mod.lineList[2].type['d_nom']
     
     Cab = project.cableList['suspended_cable11'].subcomponents[0].ss.lineList[0].type['d_vol']
     mgCab = project.cableList['suspended_cable11'].subcomponents[0].ss_mod.lineList[0].type['d_vol']
     
-    assert_allclose(np.hstack((mgMoor,mgCab)),np.hstack((Moor+0.1156,Cab+0.4)),rtol=0,atol=0.05)
+    assert_allclose(np.hstack((mgMoor,mgCab)),np.hstack((Moor+0.1,Cab+0.4)),rtol=0,atol=0.05)
     
 def test_seabed():
-    '''test seabed properties are properly loaded and included in anchor design dictionaries'''
+    '''test seabed properties are properly loaded from a file'''
     # check soil at a location
-    project = Project(file='tests/testOntology.yaml',raft=0)
+    project = Project()
+    project.loadSoil(filename='tests/soil_sample.txt')
     soilInfo = project.getSoilAtLocation(-828.637,-828.637)
-    assert soilInfo[0] == 'rock'
-    assert soilInfo[1]['UCS'] == 7
-    assert soilInfo[1]['Em'] == 50
-    anch = project.anchorList['FOWT1a']
-    assert anch.dd['soil_properties']['UCS'] == 7
-    assert anch.dd['soil_type'] == 'rock'
+    assert soilInfo[0] == 'mud_soft'
+    assert soilInfo[1]['Su0'] == 2.39
+    assert soilInfo[1]['k'] == 1.41
+
 
     
     

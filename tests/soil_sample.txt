@@ -1,0 +1,15 @@
+--- MoorPy Soil Input File ---
+nGridX 3
+nGridY 3
+       -1901    0    1900
+-1900    mud   mud    mud 
+    2    mud   mud_soft   mud 
+ 1900    mud   mud    mud 
+--- SOIL TYPES ---
+Class 		Gamma 	 Su0 	k	alpha	phi	UCS	Em	
+(name) 	      (kN/m^3)  (kPa) 	(kPa/m) (-) 	(deg) 	(MPa) 	(MPa)
+mud_soft        4.7      2.39   1.41    0.7      -       -       -
+mud             4.7     23.94   2.67    0.7      -       -       - 
+rock             -        -      -       -       -       7       50
+------------------
+

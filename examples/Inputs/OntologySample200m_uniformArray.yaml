@@ -13,10 +13,10 @@ site:
     boundaries:  # project or lease area boundary, via file or vertex list
         file:   # filename of x-y vertex coordinates [m]
         x_y:    # list of polygon vertices in order [m]
-          - [-3000, -3000]
-          - [-3000, 3000]
-          - [3000, 3000]
-          - [3000, -3000]
+          - [-2000, -2000]
+          - [-2000, 8000]
+          - [8000, 8000]
+          - [8000, -2000]
     
     exclusions:
       - name: round example
@@ -29,7 +29,7 @@ site:
             -[x2, y2]
     
     bathymetry:
-        file:   './bathymetry200m_sample.txt'
+        file:   './bathymetry200m_Array.txt'
     
     seabed:
       x : [-10901,    0,    10000]
@@ -87,18 +87,18 @@ site:
 # ----- Array-level inputs -----
 
 # Wind turbine array layout
-array:
-    keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
-    data : #    ID#        ID#        ID#          [m]             [m]           [deg]
-        # -  [FOWT1,     1,         1,         ms1,          -1600,         -1600,          180   ]    # 2 array, shared moorings
-        # -  [FOWT2,     2,         1,         ms1,          0,           -1600,            0   ] 
-        # -  [FOWT3,     1,         1,         ms3,          1600,           -1600,            0   ]
-        # -  [FOWT4,     1,         2,         ms4,          -1600,          0,            0   ]
-        # -  [FOWT5,     1,         1,         ms5,          0,              0,            45   ]
-        # -  [FOWT6,     1,         1,         ms10,          1600,              0,            0   ]
-        # -  [FOWT7,     1,         1,         ms6,          -1600,           1600,            0   ]
-        # -  [FOWT8,     1,         1,         ms6,          0,              1600,            0   ]
-        # -  [FOWT9,     1,         1,         ms6,          1600,           1600,            0   ] 
+uniform_array:
+  n_rows: 5 # number of rows in the array
+  n_cols: 5 # number of cols in the array
+  west_start: -1500 # western-most edge of the array
+  north_start: 1500 # north-most edge of the array
+  spacing_x: 1700 # spacing in x (East-West) direction
+  spacing_y: 1900 # spacing in y (North-South) direction
+  turbineID: 1 # turbine ID
+  platformID: 1 # platform ID
+  mooringID: ms1 # mooring system ID
+  heading_adjust: 0 # heading adjustment for the platforms
+
 
 
 # Array-level mooring system (in addition to any per-turbine entries later)

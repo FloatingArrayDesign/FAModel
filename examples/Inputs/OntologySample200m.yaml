@@ -36,6 +36,9 @@ site:
       y : [-10900,    0,  10000]
     
       type_array:
+      # - [rock ,  rock ,   rock]  
+      # - [rock ,  rock ,   rock]  
+      # - [rock ,  rock ,   rock]
         - [mud_soft ,  mud_soft ,   mud_soft]  
         - [mud_soft ,  mud_soft ,   mud_soft]  
         - [mud_soft ,  mud_soft ,   mud_soft]
@@ -50,7 +53,10 @@ site:
           Su0 : [23.94] # [kPa]
           k : [2.67]    # [kPa/m]
           gamma: [15]
-          depth: [0]    # [m]   
+          depth: [0]    # [m]  
+        rock:
+          UCS: [5] # [MPa]
+          Em: [7] # [MPa]
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)
@@ -101,7 +107,7 @@ array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
         -  [FOWT1,     1,         1,         ms1,          -1600,         -1600,          180   ]    # 2 array, shared moorings
-        -  [FOWT2,     2,         1,         ms1,          0,           -1600,            0   ] 
+        -  [FOWT2,     2,         1,         ms2,          0,           -1600,            0   ] 
         # -  [FOWT3,     1,         1,         ms3,          1600,           -1600,            0   ]
         # -  [FOWT4,     1,         2,         ms4,          -1600,          0,            0   ]
         # -  [FOWT5,     1,         1,         ms5,          0,              0,            45   ]
@@ -2626,7 +2632,7 @@ anchor_types:
         L      :     16.4  # length of pile [m]
         D      :     5.45  # diameter of pile [m]
         zlug   :     9.32  # embedded depth of padeye [m]
-    d-g_pile1:
+    dandg_pile1:
         type   :  dandg_pile
         L      :     50 # length of pile [m]
         D      :     3 # diameter of pile [m]
@@ -2635,7 +2641,12 @@ anchor_types:
         type   :  driven_pile
         L      :     20 # pile length [m]
         D      :     1.5 # pile diameter [m]
-        zlug   :     3 # embedded depth [m
+        zlug   :     3 # embedded depth [m]
+    driven_pile2:
+        type   :  driven_pile
+        L      :     20 # pile length [m]
+        D      :     1.5 # pile diameter [m]
+        zlug   :     -3 # embedded depth [m]
     plate_1:
         type: SEPLA
         A : 10

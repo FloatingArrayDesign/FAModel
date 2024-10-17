@@ -161,6 +161,35 @@ class Project():
         # array table
         if 'array' in d and d['array']['data']:
             arrayInfo = [dict(zip(d['array']['keys'], row)) for row in d['array']['data']]
+        elif 'uniform_array' in d and d['uniform_array']:
+            # build array info dictionary from uniform array
+            ua = d['uniform_array']
+            # pull out information
+            WestStart = ua['west_start'] 
+            NorthStart = ua['north_start']
+            xSpacing = ua['spacing_x']
+            ySpacing = ua['spacing_y']
+            turbID = ua['turbineID'] 
+            pfID = ua['platformID']
+            moorID = ua['mooringID']
+            pfhead = ua['heading_adjust']
+            
+            # get locations of platforms
+            arrayInfo = []
+            xs = WestStart + np.arange(0, ua['n_cols']) * xSpacing
+            ys = NorthStart + np.arange(0, ua['n_rows']) * ySpacing
+            
+            xlocs,ylocs = np.meshgrid(xs,ys)
+
+            outx = np.hstack(xlocs)
+            outy = np.hstack(ylocs)
+
+            for i in range(ua['n_rows']*ua['n_cols']):
+                arrayInfo.append({'ID':'fowt'+str(i), 'turbineID':turbID, 'platformID':pfID,
+                                  'mooringID':moorID, 'x_location':outx[i], 'y_location':outy[i],
+                                  'heading_adjust':pfhead})
+            
+            
         
         # cable types
         
@@ -412,20 +441,7 @@ class Project():
                     m_config['sections'].append({'type':lt})# {'name':str(ct)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA'])}})
                     m_config['sections'][ct]['type']['name'] = str(ct)+'_'+lt['name']
                     # make EA a float not a string
-                    m_config['sections'][ct]['type']['EA'] = float(lt['EA'])
-                    # # need to calculate the submerged weight of the line (not currently available in ontology yaml file)
-                    # m_config['sections'][ct]['type']['w'] = (lt['m']-np.pi/4*lt['d_vol']**2*self.rho_water)*self.g
-                    # add cost if given
-                    # if 'cost' in lt:
-                    #     m_config['sections'][ct]['type']['cost'] = lt['cost']
-                    # # add MBL if given
-                    # if 'MBL' in lt:
-                    #     m_config['sections'][ct]['type']['MBL'] = lt['MBL']
-                    # # add dynamic stretching if there is any
-                    # if 'EAd' in lt: 
-                    #     m_config['sections'][ct]['type']['EAd'] = lt['EAd']
-                    #     m_config['sections'][ct]['type']['EAd_Lm'] = lt['EAd_Lm']
-                        
+                    m_config['sections'][ct]['type']['EA'] = float(lt['EA'])  
                     # set line length
                     m_config['sections'][ct]['L'] = lc['length']
                     # update counter for line types 
@@ -998,7 +1014,9 @@ class Project():
                 RAFTDict['cases'] = d['site']['RAFT_cases']
             
             # load array information into RAFT dictionary
-            RAFTDict['array'] = deepcopy(d['array']) # need to change items so make a deepcopy
+            RAFTDict['array'] = {}
+            RAFTDict['array']['keys'] = deepcopy(list(arrayInfo[0].keys())) # need to change items so make a deepcopy
+            RAFTDict['array']['data'] = deepcopy([list(x.values()) for x in arrayInfo])
             # load general site info to RAFT dictionary
             RAFTDict['site'] = {'water_depth':self.depth,'rho_water':self.rho_water,'rho_air':self.rho_air,'mu_air':self.mu_air}
             RAFTDict['site']['shearExp'] = getFromDict(d['site']['general'],'shearExp',default=0.12)
@@ -1397,7 +1415,7 @@ class Project():
         '''
 
         # interpolate soil properties/class based on anchor position
-        anchor.soilProps = getSoilAtLocation(anchor.r[0], anchor.r[1])
+        anchor.soilProps = self.getSoilAtLocation(anchor.r[0], anchor.r[1])
         
         # fill in generic anchor properties if anchor info not provided
         if not type(anchor.anchorProps) == dict:
@@ -2552,16 +2570,20 @@ class Project():
             # set up a dictionary with keys as the table names for each row (ease of use later)
             RAFTable = [dict(zip(RAFTDict['array']['keys'], row)) for row in RAFTDict['array']['data']]
             # find index for ID and mooringID
-            for i in range(0,len(RAFTDict['array']['keys'])):
-                if RAFTDict['array']['keys'][i] == 'ID':
-                    IDindex = i
-                elif RAFTDict['array']['keys'][i] =='mooringID':
-                    mooringIDindex = i
-
+            # for i in range(0,len(RAFTDict['array']['keys'])):
+            #     if 'ID' in RAFTDict['array']['keys']:
+            #         if RAFTDict['array']['keys'][i] == 'ID':
+            #             delID = True
+            #             IDindex = i
+            #     if RAFTDict['array']['keys'][i] =='mooringID':
+            #         mooringIDindex = i
+            IDindex = np.where(np.array(RAFTDict['array']['keys'])=='ID')[0][0]
             RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
+            mooringIDindex = np.where(np.array(RAFTDict['array']['keys'])=='mooringID')[0][0]
+            
             for i in range(0,len(RAFTDict['array']['data'])):
-                RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
                 RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
+                RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
 
             # create raft model
             from raft.raft_model import Model

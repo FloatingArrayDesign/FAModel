@@ -37,7 +37,7 @@ site:
         
         type_array:
           - [mud_soft ,  mud_firm ,   mud_soft]  
-          - [mud_soft ,  rock     ,   mud_soft]  
+          - [mud_soft ,  mud_soft     ,   mud_soft]  
           - [mud_soft ,  mud_firm ,   mud_soft]  
 
         soil_types:   # dictionary-based approach
@@ -117,7 +117,7 @@ array_mooring:
     anchor_keys :
           [ID, type,  x,  y,  embedment ]
     anchor_data :
-        - [  Anch1,  suction1, -828  , 828  ,  2   ]
+        - [  Anch1,  suction_pile1, -828  , 828  ,  2   ]
         # - [  2,  suction1,  -1900 ,  -1200 ,  2   ]
         # - [  3,  suction1,  -850 ,  -1806 ,  2   ]
         # - [  4,  suction1,  -850 ,  600 ,  2   ]
@@ -1353,8 +1353,10 @@ mooring_line_configs:
 
         
         sections:                 #in order from anchor to fairlead
+          - type: chain_155mm
+            length: 20
           - type: rope       # ID of a mooring line section type
-            length: 1190            # [m] usntretched length of line section
+            length: 1170            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
 
     rope_shared:
@@ -1424,6 +1426,7 @@ mooring_line_types:
         d_vol:    0.1797
         m:        34.85
         EA:       4.761e7
+        MBL:    11.75e6
         material: rope        
     
     polyester_182mm:
