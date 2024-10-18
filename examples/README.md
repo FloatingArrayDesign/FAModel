@@ -33,6 +33,9 @@ This example shows how to create an empty project object and then add in a platf
 ## FAModel project manual example
 This example shows how to make an FAModel project with platforms, anchors, and mooring lines without a yaml file. 
 
+There are many ways to manually fill in a project class with array components and site information.
+In this case, site information is loaded in from files, and a platform, moorings, and anchors are loaded in from a moorpy array (which comes from a MoorDyn file). Further platforms are added by using the duplicate() function to "copy" the platform and associated moorings and anchors and place in a specific location.
+
 ## Anchor capacity examples
 This example calculates the anchor capacity for each different type of anchor, determines the load on the anchor, and then determines the safety factor. 
 This is provided to show an example of what information is required for each anchor type, and how results can differ for different anchor types.

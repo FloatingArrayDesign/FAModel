@@ -390,9 +390,10 @@ class DynamicCable(Edge):
         if 'cost' in self.dd['cable_type']:
             cost += self.dd['cable_type']['cost']*self.L 
         # get cost of buoyancy modules
-        for bs in self.dd['buoyancy_sections']:
-            if 'cost' in bs['module_props']:
-                cost += bs['module_props']['cost']*bs['N_modules']
+        if 'buoyancy_sections' in self.dd:
+            for bs in self.dd['buoyancy_sections']:
+                if 'cost' in bs['module_props']:
+                    cost += bs['module_props']['cost']*bs['N_modules']
         # sum up the costs in the dictionary and return
         self.cost['total'] = cost
         return(cost)

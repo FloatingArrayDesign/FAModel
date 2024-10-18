@@ -1504,7 +1504,8 @@ class Project():
         # check compatibility with project grid size
         
         # save as project boundaries
-        self.boundary = np.vstack([Xs, Ys])
+        self.boundary = np.vstack([[Xs[i],Ys[i]] for i in range(len(Xs))])
+        # self.boundary = np.vstack([Xs, Ys])
         
         # figure out masking to exclude grid data outside the project boundary
         
@@ -1788,7 +1789,6 @@ class Project():
                     if 'head_offset' in selected_cable:
                         headingA += np.radians(selected_cable['head_offset'])
                         headingB -= np.radians(selected_cable['head_offset'])
-                # print('headings: ',headingA,headingB)
     
                 # reposition cable
                 cab.reposition(project=self,headings=[headingA,headingB])  
@@ -1900,7 +1900,6 @@ class Project():
             for sub in cable.subcomponents:
                 if isinstance(sub,StaticCable):
                     if sub.coordinates:
-                        print(sub.coordinates,cable.id)
                         # has routing  - first plot rA to sub.coordinate[0] connection
                         ax.plot([sub.rA[0],sub.coordinates[0][0]],
                                 [sub.rA[1],sub.coordinates[0][1]],':',color = Ccable,
@@ -1967,7 +1966,6 @@ class Project():
         from matplotlib.colors import Normalize
         cmap = cm.cividis_r
         norm = Normalize(vmin=-0.5, vmax=1.5)
-        #print(cmap(norm(np.array([0,1]))))
         
 
         # if axes not passed in, make a new figure
@@ -2820,7 +2818,6 @@ class Project():
                     west_bound = xy[0]
                 if xy[1] > north_bound:
                     north_bound = xy[1]
-            #print(north_bound)
         
         # set up grid
         ct = 0 # counter variable
@@ -3043,7 +3040,7 @@ class Project():
         mList = []
         endB = []
         count = 0
-        pfid = 'fowt'+str(ix)
+        pfid = 'fowt'+str(ix-1)
         import string
         alph = list(string.ascii_lowercase)
         for point in ms.bodyList[0].attachedP:

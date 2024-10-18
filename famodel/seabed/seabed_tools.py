@@ -321,7 +321,7 @@ def getCoast(Xbath, Ybath, depths):
     return xcoast, ycoast
 
 
-def processBoundary(filename, lat, lon):
+def processBoundary(filename, lat, lon,meters=True):
     '''Reads boundary information from a CSV file and stores the boundary 
     coordinate list in a set of arrays. This function can be extended to
     deal with multiple boundary sets.
@@ -351,8 +351,12 @@ def processBoundary(filename, lat, lon):
     longs = np.array(delin['X_UTM10'])
     lats = np.array(delin['Y_UTM10'])
     
-    Xs, Ys = convertLatLong2Meters(zerozero, lats, longs)
-    
+    if meters:
+        Xs = longs
+        Ys = lats
+    else:
+        Xs, Ys = convertLatLong2Meters(zerozero, lats, longs)
+    #breakpoint()
     return Xs, Ys
 
 
