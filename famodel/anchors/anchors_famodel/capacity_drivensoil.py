@@ -53,8 +53,6 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
     fy = 350e6                  # Yield strength of pile material (Pa)
     rhows = 66.90e3             # Submerged steel specific weight (N/m3)
     rhow = 10e3                 # Water specific weight (N/m3) 
-    alpha = 0.6                 # Adhesion coefficient of clay (-)
-    beta = 0.37                 # Shaft friction factor (-)
     
     # Pile geometry
     I = (np.pi/64.0)*(D**4 - (D - 2*t)**4)
@@ -68,7 +66,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
         return Sp    
     # Dry and wet mass of the pile    
     def PileWeight(Len, Dia, tw, rho):
-        Wp = ((np.pi/4)*((Dia**2 - (Dia - 2*tw)**2)*Len 
+        Wp = ((np.pi/4)*((Dia**2 - (Dia - 2*tw)**2)*Len)*(rhows + rhow) 
         return Wp 
     # Mass of the soil plug      
     def SoilWeight(Len, Dia, tw, gamma_soil): 
@@ -93,7 +91,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
         z0, f_Su, f_sigma_v_eff, f_gamma, f_alpha = clay_profile(profile)
 
     elif soil_type == 'sand':
-        z0, f_phi, f_sigma_v_eff, f_gamma, f_Dr, f_beta = sand_profile(profile)
+        z0, f_phi, f_sigma_v_eff, f_gamma, f_Dr, f_delta = sand_profile(profile)
 
     for i in range(2, n+3):    # Real nodes
         z[i] = (i - 2)*h      
@@ -105,9 +103,15 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
             Vmax = PileWeight(L, D, t, rhows) + SoilWeight(L, D, t, gamma) + PileShaft[-1]
             
         elif soil_type == 'sand':
+<<<<<<< HEAD
             phi, sigma_v_eff, gamma, Dr, beta = f_phi(z[i]), f_sigma_v_eff(z[i]), f_gamma(z[i]), f_Dr(z[i]), f_beta(z[i])
             py_funs.append(py_API(z[i], D, zlug, phi, sigma_v_eff, Dr, plot=plot))
             fs = beta*sigma_v_eff
+=======
+            phi, sigma_v_eff, gamma, Dr, delta = f_phi(z[i]), f_sigma_v_eff(z[i]), f_gamma(z[i]), f_Dr(z[i]), f_delta(z[i])
+            py_funs.append(py_API(z[i], D, zlug, phi, sigma_v_eff, Dr))
+            fs = delta*sigma_v_eff
+>>>>>>> af72aad (updates to torsion degradation in capacity_suction and pile weights for slender piles)
             Vo = np.pi*D*fs*z[i]
             PileShaft.append(Vo)
             Vmax = PileWeight(L, D, t, rhows) + SoilWeight(L, D, t, gamma) + PileShaft[-1]
@@ -530,7 +534,7 @@ def sand_profile(profile):
     f_sigma_v_eff - 'interp1d' function containing effective vertical stress profile (Pa)
     f_gamma       - 'interp1d' function containing effective unit weight (N/m3)
     f_Dr          - Relative density of the soil (%)
-    f_beta        - Adhesion factor for clays
+    f_delta       - Skin friction factor (sand/steel)
     '''
 
     from scipy.interpolate import interp1d
@@ -557,8 +561,8 @@ def sand_profile(profile):
     f_gamma       = interp1d(depth, gamma*1000, kind='linear')             # N/m3
     f_Dr          = interp1d(depth, Dr, kind='linear')                     # %
     
-    # Define beta as a function of Dr
-    def calc_beta(Dr_val):
+    # Define delta as a function of Dr
+    def calc_delta(Dr_val):
         if 35 <= Dr_val < 50:
             return 0.29
         elif 50 <= Dr_val < 65:
@@ -570,11 +574,11 @@ def sand_profile(profile):
         else:
             return 0  # Default or error value for very low Dr values
         
-    # Apply beta calculation to Dr profile
-    beta_values = np.array([calc_beta(Dr_val) for Dr_val in Dr])
-    f_beta      = interp1d(depth, beta_values, kind='linear')  # Interpolated beta values
+    # Apply delta calculation to Dr profile
+    delta_values = np.array([calc_delta(Dr_val) for Dr_val in Dr])
+    f_delta      = interp1d(depth, delta_values, kind='linear')  # Interpolated delta values
     
-    return z0, f_phi, f_sigma_v_eff, f_gamma, f_Dr, f_beta
+    return z0, f_phi, f_sigma_v_eff, f_gamma, f_Dr, f_delta
 
 if __name__ == '__main__':
 

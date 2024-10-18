@@ -71,13 +71,12 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         return Z
        
     if soil_type == 'clay':
-        # Setting default gamma values per soil type [kN/m3]
-        gamma = 8.75
         # Definitions for cohesive soils
         Nc = min (6.2*(1 + 0.34*np.arctan(lambdap)),9)   # End-bearing capacity factor
         ez = (Su0*L**2/2 + k*L**3/3)/(Su0*L + k*L**2/2)
         Np_fixed = 10.25; Np_free = 4                    # From Np vs L/D chart from CAISSON_VHM
-        Su_av_L = Su0 + k*zlug; Su_tip = Su0 + k*L       # Undrained shear strength values (average, tip)
+        Su_av_L = Su0 + k*zlug                           # Undrained shear strength values (average) 
+        Su_tip = Su0 + k*L                               # Undrained shear strength values (tip)
         #zlug = ez                                       # Optimized depth of the lug 
         
         Hmax = Np_fixed*L*D*Su_av_L; H0 = Np_free*L*D*Su_av_L;
@@ -91,10 +90,10 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         
         # Torsion capacity
         Fo = PileSurface(L, D)*alpha*Su_av_L
-        To = Fo; print(To)
-        Ti = PileSurface(L,(D - 2*t))*alpha*Su_av_L; print(Ti)
+        To = Fo
+        Ti = PileSurface(L,(D - 2*t))*alpha*Su_av_L
         Tbase = np.pi*D**3*Su_tip/12
-        Tmax = min(Ti + To, To + Tbase) 
+        Tmax = min(To + Ti, To + Tbase) 
         
         # Introduce twist effects due to installation misaligment
         T = H*rlug*np.sin(np.deg2rad(psilug))
@@ -111,35 +110,37 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         Vmax = min(Vmax1, Vmax2, Vmax3)
                
     elif soil_type == 'sand':
-        # Setting default gamma values per soil type [kN/m3]
-        gamma = 9
         # Definition for non-cohesive soils
         Nq = np.e**(np.pi*np.tan(np.radians(phi)))*np.tan(np.radians(45) + np.radians(phi)/2)**2 # Lateral-bearing capacity factor
-        sigma_av_L = gamma*2*L/3                             # Effective stress (average)
+        sigma_av_L = gamma*L/2                        # Effective stress (average)
+        sigma_tip = gamma*L                           # Effective stress (tip)
         Hmax = 0.5*D*Nq*gamma*L**2
 
         M = - V*rlugTilt(rlug,zlug,thetalug) - H*(zlugTilt(rlug,zlug,thetalug) - zlug)
         
         # Torsion capacity
-        Fo = PileSurface(L, D)*beta*sigma_av_L
-        To = Fo; print(To)
-        Ti = Fo
-        Tmax = Ti + To
+        delta = 0.8*np.radians(phi)
+        To = PileSurface(L, D)*delta*sigma_av_L
+        Ti = PileSurface(L, (D -2*t))*delta*sigma_av_L
+        Tbase = np.pi*D**3*sigma_tip/12
+        Tmax = min(To + Ti, To + Tbase) 
         
         # Introduce twist effects due to installation misaligment
         T = H*rlug*np.sin(np.deg2rad(psilug))
+        Fo = delta*sigma_av_L*L*np.pi*D
         nhuT = T/Tmax; nhuV = H/Fo;
         nhuVstar = np.sqrt(nhuV**2 - nhuT**2)
-        breakpoint()
-        alphastar = alpha*(nhuVstar/nhuV)
+        deltastar = delta*(nhuVstar/nhuV)
     
         # "Coring"        
-        Vmax = PileWeight(L, D, t, rhows) + PileSurface(L, D)*beta*sigma_av_L + PileSurface(L,(D - 2*t))*beta*sigma_av_L
-        def y(depth):
-            return np.e**(-depth) - 1 + depth
-        Ze = D/(4*7); Zi = D/(4*5)    
-        Vmax = 7*gamma*Ze**2*y(L/Ze)*PileSurface(L, D)/L + 5*gamma*Zi**2*y(L/Zi)*PileSurface(L,(D - 2*t))/L
-        # Vmax = PileWeight(L, D, t, rhows) + gamma*L**2/(2*(beta + beta)*np.pi*D)
+        Vmax2 = PileWeight(L, D, t, rhows) + PileSurface(L, D)*deltastar*sigma_av_L + PileSurface(L,(D - 2*t))*deltastar*sigma_av_L
+        # "Leaking"        
+        Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + SoilWeight(L, D, t, gamma))
+        Vmax = min(Vmax2, Vmax3)
+        # def y(depth):
+            # return np.e**(-depth) - 1 + depth
+        # Ze = D/(4*7); Zi = D/(4*5)    
+        # Vmax = 7*gamma*Ze**2*y(L/Ze)*PileSurface(L, D)/L + 5*gamma*Zi**2*y(L/Zi)*PileSurface(L,(D - 2*t))/L
      
     # Pile weight (inc. stiffening plus vent) assessed as a factor
     Wp = 1.10*PileWeight(L, D, t, (rhows + rhow)) 
