@@ -32,7 +32,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
     phi : float
         Angle of internal friction (sand only) [deg]
     Dr : float
-        - Relative density of the soil (%) (sand only) [-]       
+        Relative density of the soil (%) (sand only) [-]       
     
     Returns
     -------
@@ -147,7 +147,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         # "Coring"        
         Vmax2 = PileWeight(L, D, t, rhows) + PileSurface(L, D)*deltastar*sigma_av_L + PileSurface(L,(D - 2*t))*deltastar*sigma_av_L
         # "Leaking"        
-        Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + SoilWeight(L, D, t, gamma))
+        Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*deltastar*sigma_av_L + SoilWeight(L, D, t, gamma))
         Vmax = min(Vmax2, Vmax3)
         # def y(depth):
             # return np.e**(-depth) - 1 + depth
