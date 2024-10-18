@@ -6,7 +6,7 @@ from scipy.optimize import fsolve
 #from famodel.anchors.capacity_load import getAnchorLoad
 from famodel.anchors.capacity_load import getAnchorLoadDNV
 
-def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alpha=None, phi=None, beta=None, plot=True):
+def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alpha=None, phi=None, Dr=None, plot=True):
     
     '''Calculate the inclined load capacity of a suction pile in sand or clay following S. Kay methodology.
     The calculation is based on the soil properties, anchor geometry and inclined load.  
@@ -31,8 +31,8 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         Skin friction coefficient (outer and inner - clay only)[-] 
     phi : float
         Angle of internal friction (sand only) [deg]
-    beta : float
-        Skin friction coefficient (sand only) [-]       
+    Dr : float
+        - Relative density of the soil (%) (sand only) [-]       
     
     Returns
     -------
@@ -69,6 +69,18 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
     def zlugTilt(r, z, theta):
         Z = r*np.sin(np.deg2rad(theta)) + z*np.cos(np.deg2rad(theta))
         return Z
+    # Define delta as a function of Dr
+    def calc_delta(Dr_val):
+        if 35 <= Dr_val < 50:
+            return 0.29
+        elif 50 <= Dr_val < 65:
+            return 0.37
+        elif 65 <= Dr_val < 85:
+            return 0.46
+        elif Dr_val >= 85:
+            return 0.56
+        else:
+            return 0  # Default or error value for very low Dr values
        
     if soil_type == 'clay':
         # Definitions for cohesive soils
@@ -119,7 +131,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         M = - V*rlugTilt(rlug,zlug,thetalug) - H*(zlugTilt(rlug,zlug,thetalug) - zlug)
         
         # Torsion capacity
-        delta = 0.8*np.radians(phi)
+        delta = calc_delta(Dr)
         To = PileSurface(L, D)*delta*sigma_av_L
         Ti = PileSurface(L, (D -2*t))*delta*sigma_av_L
         Tbase = np.pi*D**3*sigma_tip/12
