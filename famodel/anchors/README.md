@@ -70,7 +70,8 @@ The following list shows the required soil conditions, soil properties, geometry
   - soil conditions
     - sand
       - phi (internal friction angle) [deg]
-      - beta (skin friction coefficient) [-]
+      - Dr (relative density) [%]
+      - delta (interface friction angle at soil-anchor line) [deg] ***only needed for loads calculation*
     - clay/mud
       - Su0 (undrained shear strength of soil at mudline) [kPa]
       - k (rate of change in shear strength with depth) [kPa/m]
@@ -117,6 +118,7 @@ The following list shows the required soil conditions, soil properties, geometry
     - sand
       - phi (internal friction angle) [deg]
       - gamma (submerged soil unit weight) [kN/m^3]
+      - Dr (relative density) [%]
     - clay/mud
       - Su0 (undrained shear strength of soil at mudline) [kPa]
       - k (rate of change in shear strength with depth) [kPa/m]
@@ -129,7 +131,7 @@ The following list shows the required soil conditions, soil properties, geometry
     - Ha, Va (horizontal and vertical loads on padeye of anchor)
 
   #### Output notes 
-  The general output is a lateral and rotational displacement. In getAnchorCapacity, the driven pile capacity function is called in a while loop with incremented horizontal input forces until one of the displacements goes past set failure criteria, thus providing a horizontal force capacity output [N]. Vertical capacity [N] is already calculated within the driven pile capacity function.
+  The general output is a lateral and rotational displacement or bending moment. In getAnchorCapacity, the driven pile capacity function is called in a while loop with incremented horizontal input forces until one of the displacements goes past set failure criteria, thus providing a horizontal force capacity output [N]. Vertical capacity [N] is already calculated within the driven pile capacity function.
   
   For non-rock soil, the hinge (bending moment) is also considered as a failure mode along with the lateral and rotational displacement *IF* the zlug is positive (below the mudline)
 ### dandg_pile (Drilled and grouted piles)

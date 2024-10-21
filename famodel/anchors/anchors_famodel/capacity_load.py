@@ -153,7 +153,8 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
         theta += dtheta; T -= dT;
         
         drag += ddrag; depth += ddepth
-        Su = Su0 + k*depth
+        if Su:
+            Su = Su0 + k*depth
                 
         # Ensure consistency in load transfer
         if abs(Tm - T) > 0.75*Tm:  # More than 75% loss

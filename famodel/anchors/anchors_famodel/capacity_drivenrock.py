@@ -66,7 +66,7 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H, plot=True):
     
     # Dry and wet mass of the pile    
     def PileWeight(Len, Dia, tw, rho):
-        Wp = ((np.pi/4)*((Dia**2 - (Dia - 2*tw)**2)*Len)*rho
+        Wp = ((np.pi/4)*(Dia**2 - (Dia - 2*tw)**2)*Len)*rho
         return Wp 
 
     # Array for displacements at nodes, including imaginary nodes.

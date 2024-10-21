@@ -188,11 +188,11 @@ class Anchor(Node):
                 # call getMPForces function 
                 loads = self.getLugForces(plot=plot)
             if 'sand' in soil:
-                if 'phi' in ground_conds and 'beta' in ground_conds:
+                if 'phi' in ground_conds and 'Dr' in ground_conds:
                     results = getCapacitySuction(geom['D'],geom['L'],geom['zlug'],loads['Ha']/1000,loads['Va']/1000,'sand',ground_conds['gamma'],
-                                                 phi=ground_conds['phi'],beta=ground_conds['beta'],plot=plot)
+                                                 phi=ground_conds['phi'],Dr=ground_conds['Dr'],plot=plot)
                 else:
-                    raise Exception('Ground conditions dictionary needs phi and beta information for sand suction pile anchor')
+                    raise Exception('Ground conditions dictionary needs phi and relative density information for sand suction pile anchor')
             elif 'clay' in soil or 'mud' in soil:
                 if 'Su0' in ground_conds and 'k' in ground_conds and 'alpha' in ground_conds:# and 'gamma_sub' in ground_conds:
                     results = getCapacitySuction(geom['D'],geom['L'],geom['zlug'],loads['Ha']/1000,loads['Va']/1000,'clay',ground_conds['gamma'],
@@ -273,9 +273,9 @@ class Anchor(Node):
                    
             elif 'sand' in soil:
                 from .anchors_famodel.capacity_drivensoil import getCapacityDrivenSoil
-                if profile or ('gamma' in ground_conds and 'phi' in ground_conds):
+                if profile or ('gamma' in ground_conds and 'Dr' in ground_conds and 'phi' in ground_conds):
                     if not profile:
-                        profile = [[0,ground_conds['phi'],ground_conds['gamma']],[75,ground_conds['phi'],ground_conds['gamma']]] #profile = [list(x) for x in list(zip(ground_conds['depth'],ground_conds['phi'],ground_conds['gamma']))]
+                        profile = [[0,ground_conds['phi'],ground_conds['gamma'],ground_conds['Dr']],[75,ground_conds['phi'],ground_conds['gamma'],ground_conds['Dr']]] #profile = [list(x) for x in list(zip(ground_conds['depth'],ground_conds['phi'],ground_conds['gamma']))]
 
                     y, z, results = getCapacityDrivenSoil(profile,'sand',geom['L'],geom['D'],geom['zlug'],loads['Va'],loads['Ha'],plot=plot)
                     if geom['zlug'] > 0:
@@ -371,7 +371,10 @@ class Anchor(Node):
         # save capacity 
         if 'dandg' in anchType or 'driven' in anchType: # will take in dandg, dandg_pile, driven, driven_pile
             self.anchorCapacity['Lat_max'] = results['Lateral displacement'] # [deg]
-            self.anchorCapacity['Rot_max'] = results['Rotational displacement'] # [deg]
+            if 'Rotational displacement' in results:
+                self.anchorCapacity['Rot_max'] = results['Rotational displacement'] # [deg]
+            elif 'Bending moment' in results:
+                self.anchorCapacity['Mbend_max'] = results['Bending moment']
             self.anchorCapacity['Va_max'] = results['Axial capacity'] # [N]
             self.anchorCapacity['Ha_max'] = H
 
@@ -477,6 +480,7 @@ class Anchor(Node):
                             break 
                         else:
                             ground_conds[key] = prop[0]
+                            
                 Tm =  np.sqrt(mudloads['Hm']**2+mudloads['Vm']**2) # [N]
                 if 'clay' in soil or 'mud' in soil:
                     # Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, w=None

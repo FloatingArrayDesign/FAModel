@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 #### Pile Geometry and Loading ####
 ###################################
 
-def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
+def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H, plot=True):
     
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, EI*d4y/dz4
@@ -66,7 +66,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
         return Sp    
     # Dry and wet mass of the pile    
     def PileWeight(Len, Dia, tw, rho):
-        Wp = ((np.pi/4)*((Dia**2 - (Dia - 2*tw)**2)*Len)*rho 
+        Wp = ((np.pi/4)*(Dia**2 - (Dia - 2*tw)**2)*Len)*rho 
         return Wp 
     # Mass of the soil plug      
     def SoilWeight(Len, Dia, tw, gamma_soil): 
@@ -103,9 +103,9 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H):
             Vmax = PileWeight(L, D, t, rhows) + SoilWeight(L, D, t, gamma) + PileShaft[-1]
             
         elif soil_type == 'sand':
-            phi, sigma_v_eff, gamma, Dr, beta = f_phi(z[i]), f_sigma_v_eff(z[i]), f_gamma(z[i]), f_Dr(z[i]), f_beta(z[i])
+            phi, sigma_v_eff, gamma, Dr, delta = f_phi(z[i]), f_sigma_v_eff(z[i]), f_gamma(z[i]), f_Dr(z[i]), f_delta(z[i])
             py_funs.append(py_API(z[i], D, zlug, phi, sigma_v_eff, Dr, plot=plot))
-            fs = beta*sigma_v_eff
+            fs = delta*sigma_v_eff
             Vo = np.pi*D*fs*z[i]
             PileShaft.append(Vo)
             Vmax = PileWeight(L, D, t, rhows) + SoilWeight(L, D, t, gamma) + PileShaft[-1]

@@ -32,7 +32,7 @@ def test_anchor_capacities():
     newdd = anch.dd
     newdd['soil_type'] = 'sand'
     newdd['soil_properties']['phi'] =33
-    newdd['soil_properties']['beta'] = 5
+    newdd['soil_properties']['Dr'] = 50
     # get capacity and safety factor
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
@@ -64,10 +64,27 @@ def test_anchor_capacities():
     anch.getFS(loads=loads)
     
     newdd['soil_type'] = 'clay'
-    newdd['design']['zlug'] = 3
+    newdd['design'] = {'type':'driven','L':30,'D':2,'zlug':3}
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
     
+    newdd['soil_type'] = 'sand'
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
+    newdd['soil_properties']['Dr'] = 50
+    
+    # check helical pile anchor with sand
+    newdd['type'] = 'helical_pile'
+    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01}
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
+    
+    # check helical pile anchor with clay
+    newdd['soil_type'] = 'clay'
+    newdd['type'] = 'helical_pile'
+    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01}
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
     
     # check torpedo anchor
     newdd['type'] = 'torpedo_pile'
@@ -75,11 +92,7 @@ def test_anchor_capacities():
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
     
-    # check helical pile anchor
-    newdd['type'] = 'helical_pile'
-    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01}
-    anch.getAnchorCapacity(loads=loads, plot=False)
-    anch.getFS(loads=loads)
+    
     
     
 
