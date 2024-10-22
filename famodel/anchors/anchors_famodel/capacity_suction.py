@@ -6,7 +6,7 @@ from scipy.optimize import fsolve
 #from famodel.anchors.capacity_load import getAnchorLoad
 from famodel.anchors.capacity_load import getAnchorLoadDNV
 
-def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alpha=None, phi=None, Dr=None, plot=True):
+def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi=None, Dr=None, plot=True):
     
     '''Calculate the inclined load capacity of a suction pile in sand or clay following S. Kay methodology.
     The calculation is based on the soil properties, anchor geometry and inclined load.  
@@ -20,15 +20,13 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
     zlug: float
         Embedded depth of the main padeye [m]
     soil_type : string
-        Specify 'clay' or 'sand'. This affects what other soil parameters.               
+        Select soil condition, 'clay' or 'sand'              
     gamma: float 
         The effective unit weight of the soil. [kN/m3]
     Su0 : float 
         Undrained shear strength at the mudline (clay only) [kPa]
     k : float 
         Undrained shear strength gradient (clay only) [kPa/m]
-    alpha : float 
-        Skin friction coefficient (outer and inner - clay only)[-] 
     phi : float
         Angle of internal friction (sand only) [deg]
     Dr : float
@@ -89,9 +87,17 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, alp
         Np_fixed = 10.25; Np_free = 4                    # From Np vs L/D chart from CAISSON_VHM
         Su_av_L = Su0 + k*zlug                           # Undrained shear strength values (average) 
         Su_tip = Su0 + k*L                               # Undrained shear strength values (tip)
+        sigma_v_eff = gamma*zlug                         # Effective soil stress (kN/m2)
+        psi_val = Su_av_L/sigma_v_eff                    # Su/p0' for point in question (API DP 2A-WSD)
         #zlug = ez                                       # Optimized depth of the lug 
-        
-        Hmax = Np_fixed*L*D*Su_av_L; H0 = Np_free*L*D*Su_av_L;
+ 
+        if psi_val <= 1.0:
+            alpha = min(0.5*psi_val**-0.50, 1)
+        else:
+            alpha = min(0.5*psi_val**-0.25, 1)
+ 
+        Hmax = Np_fixed*L*D*Su_av_L; 
+        H0 = Np_free*L*D*Su_av_L;
         Mmax = Np_fixed*L*L*D*Su_av_L; 
         
         # M modifies the Hmax capacity

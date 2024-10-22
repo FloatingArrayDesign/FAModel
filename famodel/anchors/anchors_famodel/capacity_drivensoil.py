@@ -576,21 +576,25 @@ def sand_profile(profile):
 
 if __name__ == '__main__':
 
-    profile = np.array([[ 0.0, 25, 8, 85, 'Name of p-y model'],
-                        [75.0, 45, 5, 35, 'Name of p-y model']])
+    # CLAY
+    profile = np.array([[ 0.0,  10, 8],
+                        [75.0, 245, 5]])
+    # SAND
+    # profile = np.array([[ 0.0, 32, 8, 75],
+    #                     [75.0, 38, 9, 85]])  
+                       
+    L = 20
+    D = 1.5
+    zlug = 5*D
     
-    L = 50
-    D = 1
-    zlug = 30*D
-    
-    H0 = 426000
-    V0 = 15900
+    H0 = 4260000
+    V0 = 1590000
 
-    H = 1e4; V = 1e4
+    H = 1e6; V = 1e6
 
     values_H =[]; values_V =[]      
     
-    y, z, results = getCapacityDrivenSoil(profile, soil_type='sand', L=L, D=D, zlug=zlug, V=V, H=H)
+    y, z, results = getCapacityDrivenSoil(profile, soil_type='clay', L=L, D=D, zlug=zlug, V=V, H=H)
 
     # while results['Lateral displacement']<= 0.05*D and results['Rotational displacement'] <= 0.25:
                
