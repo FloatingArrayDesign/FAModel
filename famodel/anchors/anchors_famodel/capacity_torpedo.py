@@ -43,11 +43,7 @@ def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
     '''
 
     rhos= 78.50                                     # Dry steel unit weight (kN/m3)
-<<<<<<< HEAD
-    t = (6.35 + D2*20)/1e3                           # Torpedo pile wall thickness (m), API RP2A-WSD
-=======
     t = (6.35 + D2*20)/1e3                          # Torpedo pile wall thickness (m), API RP2A-WSD
->>>>>>> 18e8970 (updates on adhesion factor for clay)
     
     L = L1 + L2;
     Dstar = (D1*L1 + (D1 + 2*D2)*L2)/L              # Plane 1 (four fins)
