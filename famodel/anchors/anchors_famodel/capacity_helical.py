@@ -42,6 +42,7 @@ def getCapacityHelical(D, L, d, soil_type, gamma, Su0=None, k=None, phi=None, Dr
         Wp = ((np.pi/4)*((Dia1**2 - (Dia1 - 2*tw)**2)*Len + (np.pi/4)*Dia2**2*tw))*rho
         return Wp
     # Define alpha coefficient (clay)
+    Su_av_L = Su0 + k*(L - D)        # Undrained shear strength values (average)
     sigma_v_eff = gamma*zlug         # Effective soil stress (kN/m2)
     psi_val = Su_av_L/sigma_v_eff    # Su/p0' for point in question (API DP 2A-WSD)   
     if psi_val <= 1.0:
