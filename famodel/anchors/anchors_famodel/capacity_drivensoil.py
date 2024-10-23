@@ -134,8 +134,8 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H, plot=True):
     resultsDrivenSoil = {}
     # Populate q with boundary conditions
     if zlug <= 0:      
-        print(f'y_max = {max(y):.3f} m')
-        print(f'rot_max = {np.rad2deg((y[2] - y[3])/h):.3f} deg')
+        # print(f'y_max = {max(y):.3f} m')
+        # print(f'rot_max = {np.rad2deg((y[2] - y[3])/h):.3f} deg')
                
         resultsDrivenSoil['Lateral displacement'] = max(y)
         resultsDrivenSoil['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
@@ -143,8 +143,8 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H, plot=True):
         resultsDrivenSoil['Pile weight'] = PileWeight(L, D, t, (rhows + rhow))
    
     else:
-        print(f'y_max = {max(y):.3f} m')
-        print(f'Mi = {Mi:.3f} Nm')
+        # print(f'y_max = {max(y):.3f} m')
+        # print(f'Mi = {Mi:.3f} Nm')
         
         resultsDrivenSoil['Lateral displacement'] = max(y)
         resultsDrivenSoil['Bending moment'] = Mi

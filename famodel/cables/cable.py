@@ -179,36 +179,36 @@ class Cable(Edge):
                         self.subcomponents[i-2].rB = self.subcomponents[i].rA
                     
         
-    def estJointLoc(self,joint):
-        '''Estimates joint location if they are not provided in yaml based on heading, span, and rA of cable before it
+    # def setJointLoc(self,joint):
+    #     '''Estimates joint location if they are not provided in yaml based on heading, span, and rA of cable before it
 
-        Parameters
-        ----------
-        joint : int
-            Index in subcomponents list of relevant joint
+    #     Parameters
+    #     ----------
+    #     joint : int
+    #         Index in subcomponents list of relevant joint
 
-        Returns
-        -------
-        None.
+    #     Returns
+    #     -------
+    #     None.
 
-        '''
-        from famodel.project import Project
+    #     '''
+    #     from famodel.project import Project
         
-        # if joint closer to end A, use end A heading + platform A phi
-        if len(self.subcomponents)/2 > joint+1:
-            heading = self.subcomponents[0].headingA - self.attached_to[0].phi
-            jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
-            jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
-            #depth = self.subcomponents[joint].r[2]
-            self.subcomponents[joint]['r'] = [jLocX,jLocY]
-        # if joint closer to end B, use opposite of (end B heading + platform B phi)
-        else:
-            heading = np.pi + self.subcomponents[-1].headingB - self.attached_to[1].phi
-            jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
-            jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
-            #depth = self.subcomponents[joint].r[2]
-            self.subcomponents[joint]['r'] = [jLocX,jLocY]
-        return(jLocX,jLocY)     
+    #     # if joint closer to end A, use end A heading + platform A phi
+    #     if len(self.subcomponents)/2 > joint+1:
+    #         heading = self.subcomponents[0].headingA - self.attached_to[0].phi
+    #         jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
+    #         jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
+    #         #depth = self.subcomponents[joint].r[2]
+    #         self.subcomponents[joint]['r'] = [jLocX,jLocY]
+    #     # if joint closer to end B, use opposite of (end B heading + platform B phi)
+    #     else:
+    #         heading = np.pi + self.subcomponents[-1].headingB - self.attached_to[1].phi
+    #         jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
+    #         jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
+    #         #depth = self.subcomponents[joint].r[2]
+    #         self.subcomponents[joint]['r'] = [jLocX,jLocY]
+    #     return(jLocX,jLocY)     
     
     def getCost(self):
         '''
@@ -238,7 +238,7 @@ class Cable(Edge):
     
     def getL(self):
         '''
-        Get the total length of the cable
+        Get the total length of the cable (includes any routing for static cables)
 
         Returns
         -------
@@ -284,11 +284,11 @@ class Cable(Edge):
                     sub.span = sub.span + spanDiff
                     sub.L = sub.L + spanDiff
                 
-                elif isinstance(sub,Joint):
-                    jointCount += 1
-                    # move all joints after the first joint (since the dynamic cable span is unchanged, first joint loc is unchanged too)
-                    if jointCount > 1:
-                        self.estJointLoc(i)
+                # elif isinstance(sub,Joint):
+                #     jointCount += 1
+                #     # move all joints after the first joint (since the dynamic cable span is unchanged, first joint loc is unchanged too)
+                #     if jointCount > 1:
+                #         self.estJointLoc(i)
         else:
             # this is a suspended cable
             sub = self.subcomponents[0]

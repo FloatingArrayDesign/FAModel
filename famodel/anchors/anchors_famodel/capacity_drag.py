@@ -114,7 +114,7 @@ def getCapacityDrag(Af, Lf, Ls, Lca, Lj, thetafs, bm, En,
         vn = (Nt_max/Nn_max)/(p*q/n)*(np.abs(Nn)/Nn_max)**(q-1)
         vt = ((np.abs(Nm)/Nm_max)**m + (np.abs(Nt)/Nt_max)**n)**(1/p-1)*(np.abs(Nt)/Nt_max)**(n-1) 
         Rnt = vn/vt
-        print(Rnt)
+        # print(Rnt)
         dz = dt*np.sin(thetaf) - dt*Rnt*np.cos(thetaf)   
         dx = dt*np.cos(thetaf) + dt*Rnt*np.sin(thetaf)
         z += dz; x += dx

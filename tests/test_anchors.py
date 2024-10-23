@@ -75,14 +75,14 @@ def test_anchor_capacities():
     
     # check helical pile anchor with sand
     newdd['type'] = 'helical_pile'
-    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01}
+    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01,'zlug':5}
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
     
     # check helical pile anchor with clay
     newdd['soil_type'] = 'clay'
     newdd['type'] = 'helical_pile'
-    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01}
+    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01,'zlug':5}
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
     

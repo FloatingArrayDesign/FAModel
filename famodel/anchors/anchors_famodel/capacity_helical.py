@@ -1,7 +1,7 @@
 
 import numpy as np
 
-def getCapacityHelical(D, L, d, soil_type, gamma, Su0=None, k=None, phi=None, Dr=None):
+def getCapacityHelical(D, L, d, zlug, soil_type, gamma, Su0=None, k=None, phi=None, Dr=None):
     
     '''Calculate the inclined vertical load capacity of a helical pile in clay.
     The calculation is based on the soil properties and anchor geometry.  
@@ -14,6 +14,8 @@ def getCapacityHelical(D, L, d, soil_type, gamma, Su0=None, k=None, phi=None, Dr
         Length shaft [m]
     d : float 
         Pile shaft diameter [m]
+    zlug : float
+        Embedded depth of the lug [m]
     soil_type : string
         Select soil condition, 'clay' or 'sand' 
     gamma: float 
@@ -42,13 +44,14 @@ def getCapacityHelical(D, L, d, soil_type, gamma, Su0=None, k=None, phi=None, Dr
         Wp = ((np.pi/4)*((Dia1**2 - (Dia1 - 2*tw)**2)*Len + (np.pi/4)*Dia2**2*tw))*rho
         return Wp
     # Define alpha coefficient (clay)
-    Su_av_L = Su0 + k*(L - D)        # Undrained shear strength values (average)
-    sigma_v_eff = gamma*zlug         # Effective soil stress (kN/m2)
-    psi_val = Su_av_L/sigma_v_eff    # Su/p0' for point in question (API DP 2A-WSD)   
-    if psi_val <= 1.0:
-        alpha = min(0.5*psi_val**-0.50, 1)
-    else:
-        alpha = min(0.5*psi_val**-0.25, 1)
+    if soil_type == 'clay':
+        Su_av_L = Su0 + k*(L - D)        # Undrained shear strength values (average)
+        sigma_v_eff = gamma*zlug         # Effective soil stress (kN/m2)
+        psi_val = Su_av_L/sigma_v_eff    # Su/p0' for point in question (API DP 2A-WSD)   
+        if psi_val <= 1.0:
+            alpha = min(0.5*psi_val**-0.50, 1)
+        else:
+            alpha = min(0.5*psi_val**-0.25, 1)
         
     # Define delta as a function of Dr (sand)
     def calc_delta(Dr_val):

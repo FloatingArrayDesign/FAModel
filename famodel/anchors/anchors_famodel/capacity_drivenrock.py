@@ -119,8 +119,8 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H, plot=True):
         for i in range(2, n+3):
             k_secant[i] = py_funs[i](y[i])/y[i]
 
-    print(f'y_max = {y[2]:.3f} m')
-    print(f'rot_max = {np.rad2deg((y[2] - y[3])/h):.3f} deg')
+    # print(f'y_max = {y[2]:.3f} m')
+    # print(f'rot_max = {np.rad2deg((y[2] - y[3])/h):.3f} deg')
 
     resultsDrivenRock = {}
     resultsDrivenRock['Lateral displacement'] = y[2]

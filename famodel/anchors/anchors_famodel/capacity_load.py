@@ -137,7 +137,7 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
     elif soil_type == 'sand':
         nhu = 0.5
         Nq = np.exp(np.pi*np.tan(np.deg2rad(phi)))*(np.tan(np.deg2rad(45 + phi/2)))**2
-        print(Nq)
+        # print(Nq)
         
     while (zlug - depth) >= 0:
         if soil_type =='clay':
@@ -158,19 +158,19 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
                 
         # Ensure consistency in load transfer
         if abs(Tm - T) > 0.75*Tm:  # More than 75% loss
-            print(f"Warning: Load transfer is unrealistic. Initial load Tm = {Tm/1e6:.2f} MN and current load T = {T/1e6:.2f} MN differ by more than 75 %")
+            raise Exception(f"Warning: Load transfer is unrealistic. Initial load Tm = {Tm/1e6:.2f} MN and current load T = {T/1e6:.2f} MN differ by more than 75 %")
             break  # Exit the loop if load transfer is unrealistic
             
         # Check for excessive load angles
         if not (0 < np.rad2deg(theta) < 90):
-            print(f"Warning: Load angle is unrealistic: {np.rad2deg(theta):.2f} deg")
+            raise Exception(f"Warning: Load angle is unrealistic: {np.rad2deg(theta):.2f} deg")
             break  # Exit the loop if the angle becomes unreasonable   
             
         T_values.append(T); Su_values.append(Su)
         drag_values.append(drag); depth_values.append(depth); 
                
     Ta = T; thetaa = theta 
-    print(thetaa); print(Ta)
+    # print(thetaa); print(Ta)
     H = Ta*np.cos(thetaa); V = Ta*np.sin(thetaa) 
     length_values = deltas*len(drag_values)
      

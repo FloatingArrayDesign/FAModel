@@ -69,13 +69,13 @@ def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
         + D2*Su0*(b**2 - b*c) + 0.33*D2*k*(c**3 - b**3) + c**2*(0.5*D2*Su0 - 0.5*D2*b*k) - b**2*(0.5*D2*Su0 - 0.5*D2*b*k)
     ez_Su = ez_Su_num/ez_Su_den
     ez_Su_L = ez_Su/L
-    print('ez_Su = ' +str(ez_Su))
+    # print('ez_Su = ' +str(ez_Su))
     Np_free = 3.45     # From Np vs L/D chart from CAISSON_VHM
                  
     Hmax = L*Dstar*Np_free*(Su0 + k*(zlug + ez_Su))
-    print('Hmax = ' +str(Hmax))
+    # print('Hmax = ' +str(Hmax))
     Vmax = PileSurface(L1, L2, D1, D2)*alpha*(Su0 + k*(zlug + ez_Su)) + Wp
-    print('Vmax = ' +str(Vmax))
+    # print('Vmax = ' +str(Vmax))
        
     #aVH = 0.5 + L/Dstar; bVH = 4.5 - L/(3*Dstar)
     aVH = 4.5 + L/(2*Dstar); bVH = 3.5 - L/(4*Dstar) 

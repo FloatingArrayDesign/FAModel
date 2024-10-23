@@ -557,9 +557,10 @@ class Project():
         
         
         # ----- set up dictionary for each individual mooring line, create anchor, mooring, and platform classes ----
-                
-        # check that all necessary sections of design dictionary exist to create non-shared lines
-        if self.lineTypes and lineConfigs and mSystems:
+        
+        # check that all necessary sections of design dictionary exist
+        if arrayInfo and self.lineTypes and lineConfigs:
+            
             mct = 0 # counter for number of mooring lines
             # set up a list of the alphabet for assigning names purposes
             import string
@@ -591,7 +592,7 @@ class Project():
                 # attach turbine to platform
                 self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])
                 
-                if not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
+                if mSystems and not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
                     m_s = arrayInfo[i]['mooringID'] # get mooring system ID
                     mySys_unsorted = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
                     # sort the mooring lines in the mooring system by heading from 0 (North)

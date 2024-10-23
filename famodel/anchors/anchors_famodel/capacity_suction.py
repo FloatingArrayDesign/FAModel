@@ -167,7 +167,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
     
     # Capacity envelope
     aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
-    print('Env. exp = ' +str(aVH)+'   '+str(bVH))
+    # print('Env. exp = ' +str(aVH)+'   '+str(bVH))
     UC = (H/Hmax)**aVH + (V/Vmax)**bVH      
     x = np.cos(np.linspace (0, np.pi/2, 100))
     y = (1 - x**bVH)**(1/aVH)
@@ -265,7 +265,7 @@ def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
     Vmax2 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + PileSurface(L,(D - 2*t))*alpha*Su_av_L)
     # "Leaking"        
     Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + SoilWeight(L, D, t, gamma)) 
-    print(Vmax1); print(Vmax2); print(Vmax3)                  
+    # print(Vmax1); print(Vmax2); print(Vmax3)                  
     Vmax = min(Vmax1,Vmax2,Vmax3)
     
     # Submerged pile weight (inc. stiffening plus vent) assessed as a factor
@@ -277,7 +277,7 @@ def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
     
     # Capacity envelope
     aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
-    print('Env. exp =' +str(aVH)+str(bVH))
+    # print('Env. exp =' +str(aVH)+str(bVH))
     UC = (H/Hmax)**aVH + (V/Vmax)**bVH
 
     x = np.cos(np.linspace (0,np.pi/2,1000))

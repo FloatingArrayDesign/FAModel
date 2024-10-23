@@ -44,7 +44,8 @@ These subcomponents alternate between Edges (either a DynamicCable or StaticCabl
 - failure_probability
 : dictionary of failure probabilities for the cable
 - cost
-: total cost of the cable components (USD)
+: cost dictionary of the cable components (USD). Can include entries for total cost
+(key = 'total') and 'connector_cost', along with other entries.
 
 
 
@@ -52,6 +53,15 @@ These subcomponents alternate between Edges (either a DynamicCable or StaticCabl
 ### Cable Methods
 
 [Back to Top](#the-cable-class)
+
+- reposition() :  Repositions the cable based on headings of the end subcomponents and the locations of attached nodes. Also repositions any joints in the cable.
+- getCost() : Get the total cost of the cable (includes all cable subcomponent costs).
+Any connector costs in the cable cost dictionary are added twice (once for each end)
+- getL() : Get the total length of the cable (includes any routing for static cables)
+- updateSpan() : Change the lengths of subcomponents based on the new total span. For dynamic-static-dynamic configurations, just increase static span. For suspended cable, increase lengths of non-buoyant sections
+
+
+
 ## Dynamic Cable Class
 
 The [DynamicCable class](./dynamic_cable.py) contains properties and methods for a dynamic section of a power cable. The DynamicCable class inherits from Edge.
