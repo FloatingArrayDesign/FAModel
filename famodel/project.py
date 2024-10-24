@@ -1538,7 +1538,21 @@ class Project():
         # interpolate onto grid defined by grid_x, grid_y
             for i, x in enumerate(self.grid_x):
                 for j, y in enumerate(self.grid_y):
-                    self.grid_depth[i,j], _ = sbt.getDepthFromBathymetry(x, y, Xs, Ys, Zs)
+                    self.grid_depth[i,j], _ = sbt.getDepthAtLocation(x, y, Xs, Ys, Zs)
+                    
+        # update anchor depths and the mooring ends connected to these anchors
+        if self.anchorList:
+            for anch in self.anchorList.values():
+                anch.r[2] = -self.getDepthFromBathymetry(anch.r[0],anch.r[1])
+                # now update any connected moorings
+                for att in anch.attachments.items():
+                    if isinstance(att['obj'], Mooring):
+                        moor = att['obj']
+                        if att['end'] == 'a':
+                            moor.rA[2] = -self.getDepthFromBathymetry(moor.rA[0],moor.rA[1])
+                        else:
+                            moor.rB[2] = -self.getDepthAtLocation
+                
         
         
         # also save in RAFT, in its MoorPy System(s)
@@ -2584,10 +2598,12 @@ class Project():
                 IDindex = np.where(np.array(RAFTDict['array']['keys'])=='ID')[0][0]
                 RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
             mooringIDindex = np.where(np.array(RAFTDict['array']['keys'])=='mooringID')[0][0]
+            headindex = np.where(np.array(RAFTDict['array']['keys'])=='heading_adjust')[0][0]
             
             for i in range(0,len(RAFTDict['array']['data'])):
                 RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
                 RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
+                RAFTDict['array']['data'][i][headindex] = - RAFTDict['array']['data'][i][headindex] # convert heading to cartesian from compass
 
             # create raft model
             from raft.raft_model import Model
