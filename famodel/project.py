@@ -594,9 +594,10 @@ class Project():
                 
                 if mSystems and not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
                     m_s = arrayInfo[i]['mooringID'] # get mooring system ID
-                    mySys_unsorted = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
-                    # sort the mooring lines in the mooring system by heading from 0 (North)
-                    mySys = sorted(mySys_unsorted,key=lambda x:x['heading'])
+                    # mySys_unsorted = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
+                    # # sort the mooring lines in the mooring system by heading from 0 (North)
+                    # mySys = sorted(mySys_unsorted,key=lambda x:x['heading'])
+                    mySys = [dict(zip(d['mooring_systems'][m_s]['keys'], row)) for row in d['mooring_systems'][m_s]['data']]
                     # get mooring headings (need this for platform class)
                     headings = []
                     for ii in range(0,len(mySys)):
@@ -1044,7 +1045,7 @@ class Project():
         # standard function to load dict if input is yaml
         
         # load general information
-        self.depth = getFromDict(site['general'], 'water_depth', default=100)
+        self.depth = getFromDict(site['general'], 'water_depth', default=self.depth)
         self.rho_water = getFromDict(site['general'], 'rho_water', default=1025.0)
         self.rho_air = getFromDict(site['general'], 'rho_air', default=1.225)
         self.mu_air = getFromDict(site['general'], 'mu_air', default=1.81e-5)

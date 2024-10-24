@@ -639,11 +639,14 @@ class Anchor(Node):
         
         Parameters
         ----------
-        costDict : dictionary, optional
+        costDict : dictionary or yaml, optional
             Dictionary of various costs for anchors. Sub costs that can be included are: 
             material : material costs
             
         '''
+        if isinstance(costDict,str) and costDict != 'default':
+            import yaml
+            costDict = yaml.load(costDict, Loader=yaml.FullLoader)
         anchType = self.dd['type']
         if costDict == 'default':
             matCostDict = {'DEA':5.705,'suction_pile':4.435,'gravity':1.905} # mean values from Task 49 Design Basis ranges
