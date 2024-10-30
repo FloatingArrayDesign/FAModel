@@ -1967,7 +1967,7 @@ class Project():
         
 
     def plot3d(self, ax=None, figsize=(10,8), fowt=False, save=False,
-               draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True):
+               draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True, draw_bathymetry=True):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -1991,40 +1991,41 @@ class Project():
         else:
             fig = ax.get_figure()
 
-        # # try icnraesing grid density
-        if len(self.grid_x)<=1:
-            pass
-        else:
-            xs = np.arange(min(self.grid_x),max(self.grid_x),50)
-            ys = np.arange(min(self.grid_y),max(self.grid_y),50)
-            self.setGrid(xs, ys)
-    
-            # plot the bathymetry in matplotlib using a plot_surface
-            X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
-            '''
-            # interpolate soil rockyness factor onto this grid
-            xs = self.grid_x
-            ys = self.grid_y
-            rocky = np.zeros([len(ys), len(xs)])
-            for i in range(len(ys)):
-                for j in range(len(xs)):
-                    rocky[i,j], _,_,_,_ = sbt.interpFromGrid(xs[j], ys[i], 
-                               self.soil_x, self.soil_y, self.soil_rocky)
-                               
-            # or if we have a grid of soil types, something like
-            ax.plot_surface(X, Y, h, rstride=1, cstride=1, facecolors = soil grid converted to colors <<<,
-                           linewidth=0, antialiased=False)
-                               
-                               
-            # apply colormap
-            rc = cmap(norm(rocky))
-            bath = ax.plot_surface(X, Y, -self.grid_depth, facecolors=rc, **args_bath)
-            '''
-            #################
-            # from matplotlib import cm
-            # args_bath = {'cmap':cm.GnBu_r}
-            ####################
-            bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
+        if draw_bathymetry:
+            # # try increasing grid density
+            if len(self.grid_x)<=1:
+                pass
+            else:
+                xs = np.linspace(min(self.grid_x),max(self.grid_x),len(self.grid_x))
+                ys = np.linspace(min(self.grid_y),max(self.grid_y),len(self.grid_y))
+                self.setGrid(xs, ys)
+        
+                # plot the bathymetry in matplotlib using a plot_surface
+                X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+                '''
+                # interpolate soil rockyness factor onto this grid
+                xs = self.grid_x
+                ys = self.grid_y
+                rocky = np.zeros([len(ys), len(xs)])
+                for i in range(len(ys)):
+                    for j in range(len(xs)):
+                        rocky[i,j], _,_,_,_ = sbt.interpFromGrid(xs[j], ys[i], 
+                                self.soil_x, self.soil_y, self.soil_rocky)
+                                
+                # or if we have a grid of soil types, something like
+                ax.plot_surface(X, Y, h, rstride=1, cstride=1, facecolors = soil grid converted to colors <<<,
+                            linewidth=0, antialiased=False)
+                                
+                                
+                # apply colormap
+                rc = cmap(norm(rocky))
+                bath = ax.plot_surface(X, Y, -self.grid_depth, facecolors=rc, **args_bath)
+                '''
+                #################
+                # from matplotlib import cm
+                # args_bath = {'cmap':cm.GnBu_r}
+                ####################
+                bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
         
         
         # # also if there are rocky bits... (TEMPORARY)
@@ -2039,6 +2040,7 @@ class Project():
             
         # plot the projection of the boundary on the seabed, if desired
         if boundary_on_bath:
+            boundary = np.vstack([self.boundary, self.boundary[0,:]])
             boundary_z = self.projectAlongSeabed(boundary[:,0], boundary[:,1])
             ax.plot(boundary[:,0], boundary[:,1], -boundary_z, 'k--', zorder=10, lw=1, alpha=0.7)
 
@@ -2097,7 +2099,15 @@ class Project():
         for mooring in self.mooringList.values():
             #mooring.subsystem.plot(ax = ax, draw_seabed=False)
             if mooring.ss:
-                mooring.ss.drawLine(0,ax)
+                for line in mooring.ss.lineList:
+                    if 'chain' in line.type['material']:
+                        line.color = 'k'
+                    elif 'polyester' in line.type['material']:
+                        line.color = [.3,.5,.5]
+                    else:
+                        line.color = [0.5,0.5,0.5]
+                    line.lw = 1
+                mooring.ss.drawLine(0, ax, color='self')
                         
         
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
