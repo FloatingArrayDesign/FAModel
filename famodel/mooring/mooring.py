@@ -404,11 +404,17 @@ class Mooring(Edge):
             self.dd['connectors'].pop(-1)
             self.dd['sections'][-1]['L'] = self.dd['sections'][-1]['L']*2
         else:
-            self.dd['connectors'][0]['m'] *= 2
-            self.dd['connectors'][0]['v'] *= 2
+            addConns.pop(0)
+            self.dd['connectors'][-1]['m'] *= 2
+            self.dd['connectors'][-1]['v'] *= 2
 
-        # create Section objects for new sections
-        for i, sec in enumerate(addSections):
+            
+        # combine addSections and current reversed sectiosn list
+        self.dd['sections'].extend(addSections)
+        self.dd['connectors'].extend(addConns)
+
+        # create Section objects for ALL sections and connectors
+        for i, sec in enumerate(self.dd['sections']):
             self.dd['sections'][i] = Section('Section'+str(i),**self.dd['sections'][i])
             
         for i,con in enumerate(self.dd['connectors']):
@@ -417,12 +423,7 @@ class Mooring(Edge):
             else:
                 Cid = 'Conn'+str(i)
                 
-            self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
-            
-        # combine addSections and current reversed sectiosn list
-        self.dd['sections'].extend(addSections)
-        self.dd['connectors'].extend(addConns)
-        
+            self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])        
         
         # Connect them and store them in self(Edge).subcomponents!
         subcons = []  # temporary list of node-edge-node... to pass to the function
