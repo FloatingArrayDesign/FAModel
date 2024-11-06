@@ -408,7 +408,7 @@ class Anchor(Node):
         else:
             raise Exception(f'Anchor type {anchType} is not supported at this time')
             
-        
+        # - - - - save relevant results in dictionary using common terms - - - - 
         # capacity = cap*installAdj ??? OR is installAdj an input to the capacity functions?
         # save capacity 
         if 'dandg' in anchType or 'driven' in anchType: # will take in dandg, dandg_pile, driven, driven_pile
@@ -431,6 +431,10 @@ class Anchor(Node):
             self.mass = results['Plate weight']*1000/self.g # mass in [kg]
         elif 'suction' in anchType:
             self.mass = results['Weight Pile']*1000/self.g # mass in [kg]
+            
+        # add on extra for drag-embedment anchors (flukes)
+        if 'DEA' in anchType:
+            self.mass *= 1.75
         
             
         return(results)
@@ -506,12 +510,12 @@ class Anchor(Node):
             if not 'Hm' in mudloads or not 'Vm' in mudloads:
                 raise KeyError('Mudline load dictionary must have Hm and Vm for horizontal load and vertical load (in [N]) at the mudline')
             if not 'thetam' in mudloads:
-                mudloads['thetam'] = np.degrees(np.arctan(self.loads['Vm']/self.loads['Hm']))
+                mudloads['thetam'] = np.degrees(np.arctan(mudloads['Vm']/mudloads['Hm']))
                 
         def makeEqual_TaTm(mudloads):
-            self.loads['Ha'] = mudloads['Hm'] # [N]
-            self.loads['Va'] = mudloads['Vm'] # [N]
-            self.loads['thetaa'] = mudloads['thetam'] # [deg]
+            mudloads['Ha'] = mudloads['Hm'] # [N]
+            mudloads['Va'] = mudloads['Vm'] # [N]
+            mudloads['thetaa'] = mudloads['thetam'] # [deg]
         
         if 'zlug' in self.dd['design']:
             if self.dd['design']['zlug'] > 0:
@@ -569,9 +573,9 @@ class Anchor(Node):
                 if nolugload:
                     makeEqual_TaTm(mudloads)
                 else:
-                    self.loads['Ha'] = loadresults['H']*1000 # [N]
-                    self.loads['Va'] = loadresults['V']*1000 # [N]
-                    self.loads['thetaa'] = loadresults['angle'] # [deg]
+                    mudloads['Ha'] = loadresults['H']*1000 # [N]
+                    mudloads['Va'] = loadresults['V']*1000 # [N]
+                    mudloads['thetaa'] = loadresults['angle'] # [deg]
             else:
                 # Ha = Hm because zlug is at mudline or above
                 makeEqual_TaTm(mudloads)
@@ -582,9 +586,9 @@ class Anchor(Node):
         if not 'method' in mudloads:
             # assume mudloads are static unless told otherwise
             # loads determined from moorpy are static
-            self.loads['method'] = 'static'
+            mudloads['method'] = 'static'
         else:
-            self.loads['method'] = mudloads['method']
+            mudloads['method'] = mudloads['method']
         
         return(self.loads)
     
@@ -623,7 +627,10 @@ class Anchor(Node):
         for Lkey,Lval in loads.items():
             for Ckey,Cval in self.anchorCapacity.items():
                 if Lkey in Ckey:
-                    FS[Lkey] = Cval/Lval
+                    if Lval == 0:
+                        FS[Lkey] = float('inf')
+                    else:
+                        FS[Lkey] = Cval/Lval
                     if acceptance_crit and Lkey in acceptance_crit:
                         acceptance[Lkey] = acceptance_crit[Lkey]<=FS[Lkey]
                     
@@ -671,11 +678,69 @@ class Anchor(Node):
                 # self.cost['install'] = instCostDict[Ckey]
                 # self.cost['decom'] = decomCostDict[Ckey]
                 keyFail = False
+        # raise error if anchType not found in cost dictionary
         if keyFail:
             raise KeyError(f'anchor type {anchType} not found in material cost dictionary')
+            
+        return(sum(self.cost.values()))
 
            
+    def getSize(self,startGeom,loads=None,minfs={'Ha':1.8,'Va':1.8},inc_pct=10):
+        '''
+        
+
+        Parameters
+        ----------
+        startGeom : dict
+            Dictionary of required geometric values to start with. These will be increased by
+            inc_pct for each run of the while loop
+        loads : TYPE, optional
+            DESCRIPTION. The default is None.
+        inc_pct : float
+            Percent to increase the geometric properties by in each iteration of the while loop
+
+        Returns
+        -------
+        None.
+
+        '''
+        anchType = self.dd['type']
+        if not loads:
+            loads = self.loads
             
+        if not 'Ha' in loads:
+            self.getLugForces(mudloads=loads)
+            
+        if not 'zlug' in self.dd['design']:
+            self.dd['design']['zlug'] = 0
+        
+        geom = self.dd['design']
+        geom.update(startGeom)
+
+        try:
+            self.getAnchorCapacity(loads=loads,plot=False)
+        except:
+            for cKey in startGeom.keys():
+                geom[cKey]*=2
+            self.getAnchorCapacity(loads=loads,plot=False)
+        fs = self.getFS(loads=loads)
+            
+        while fs['Ha'] < minfs['Ha'] or fs['Va'] < minfs['Va']:
+            
+            for cKey in startGeom.keys():
+                geom[cKey] *= (1+inc_pct/100)
+                
+            self.getAnchorCapacity(loads=loads,plot=False)
+            fs = self.getFS(loads=loads)
+            
+                
+                
+        return(geom,fs)
+                
+            
+            
+             
+       
             
         # # check if anchor loads are available
         # if not self.loads:

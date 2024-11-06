@@ -21,12 +21,7 @@ os.chdir(inputfolder)
 
 # create empty project
 project = Project()
-# add bathymetry from file (alternatively, set depth in project initialization input in line above)
-project.loadBathymetry(filename=bathfile)
-# add soil info from file (only required if doing anchor capacity calc's)
-project.loadSoil(filename=soilfile)
-# add boundary from file
-project.loadBoundary(filename=boundfile)
+
 
 ### populate the Project class ###
 
@@ -45,6 +40,13 @@ for i in range(n_pfs-1):
         pflocs[1] += pf_spacing
     # copy platform we made from ms
     project.duplicate(project.platformList['fowt0'],r=pflocs)
+    
+# add bathymetry from file (alternatively, set depth in project initialization input in line above)
+project.loadBathymetry(filename=bathfile)
+# add soil info from file (only required if doing anchor capacity calc's)
+project.loadSoil(filename=soilfile)
+# add boundary from file
+project.loadBoundary(filename=boundfile)
     
 
 # create moorpy system and plot

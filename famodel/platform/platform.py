@@ -152,38 +152,39 @@ class Platform(Node):
             
         
         # create new MoorPy system and set its depth
-        self.ms = mp.System(depth=mList[0].subsystem.depth)
+        self.ms = mp.System(depth=mList[0].ss.depth)
         
         if rotateBool:
             # rotation
             self.setPosition(self.r)
         
         # make mooring system from subsystems
-        for i in self.attachments:
+        for i,attID in enumerate(self.attachments):
         
             # only process moorings that have subsystems for now
             
-            if type(self.attachments[i]['ref']) == Mooring:
-                mooring = self.attachments[i]['ref']
-                ssloc = mooring.subsystem
+            if type(self.attachments[attID]['obj']) == Mooring:
+                mooring = self.attachments[attID]['obj']
+                ssloc = mooring.ss
                 
                 if ssloc:  # only proceed it's not None
                     # add subsystem as a line to the linelist
                     self.ms.lineList.append(ssloc)
                     ssloc.number = i
-                    # check whether a moorpy anchor object exists for this mooring line
-                    if not mooring.anchor.mpAnchor:
-                        # create anchor moorpy object
-                        mooring.anchor.makeMoorPyAnchor()
-                    # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
-                    self.ms.pointList.append(mooring.anchor.mpAnchor) # anchor
-                    # attach subsystem line to the anchor point
-                    self.ms.pointList[-1].attachLine(i,0)
-                    # add fairlead point as a coupled point
-                    self.ms.addPoint(-1,ssloc.rB)
-                    # attach subsystem line to the fairlead point
-                    self.ms.pointList[-1].attachLine(i,1)
-        
+                    for att in mooring.attached_to:
+                        if isinstance(att,Anchor):
+                            # check whether a moorpy anchor object exists for this mooring line
+                            if not att.mpAnchor:
+                                # create anchor moorpy object
+                                att.makeMoorPyAnchor()
+                            # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
+                            self.ms.pointList.append(att.mpAnchor) # anchor
+                            # attach subsystem line to the anchor point
+                            self.ms.pointList[-1].attachLine(i,0)
+                            # add fairlead point as a coupled point
+                            self.ms.addPoint(-1,ssloc.rB)
+                            # attach subsystem line to the fairlead point
+                            self.ms.pointList[-1].attachLine(i,1)
         # initialize and plot
         self.ms.initialize()
         self.ms.solveEquilibrium()

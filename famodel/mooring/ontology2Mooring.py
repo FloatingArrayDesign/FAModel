@@ -10,7 +10,7 @@ import numpy as np
 # create project class instance from yaml file
 #Array = Project(file='mooringOntology.yaml')
 ###########No marine growth####################################
-Array = Project(file='../OntologySample600m.yaml',raft=0)
+Array = Project(file='../OntologySample600mVert.yaml',raft=1)
 
 Array.getMoorPyArray(pristineLines=1,cables=1)
 
@@ -20,7 +20,7 @@ mgDict = {'th':[[0,-600,-100],[.05,-100,-80],[.1,-80,0],[0,0,100]],'buoy_th':[.1
 # x,y,vals = Array.platformList[('fowt2')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
 # Array.platformList[('fowt1')].getWatchCircle(Array.ms,ang_spacing=10,plot=1)
 Array.plot2d(plot_boundary=False,plot_bathymetry=False)
-Array.plot3d(draw_boundary=False,boundary_on_bath=False)
+Array.plot3d(draw_boundary=False,boundary_on_bath=False,fowt=True)
 
 for anch in Array.anchorList.values():
     anch.getAnchorCapacity()

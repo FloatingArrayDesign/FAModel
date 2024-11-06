@@ -195,7 +195,7 @@ class StaticCable(Edge):
         if 'cost' in self.dd['cable_type']:
             cost += self.dd['cable_type']['cost']*self.L
             
-        self.cost['total'] = cost
+        self.cost['cable'] = cost
         # sum up the costs in the dictionary and return
         return sum(self.cost.values()) 
     

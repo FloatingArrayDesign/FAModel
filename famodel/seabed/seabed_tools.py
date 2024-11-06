@@ -74,7 +74,7 @@ def getSoilTypes(filename):
 
 
 
-""" OUTDATED BC THERE'S A NEW ONE IN GEOGRAPHY.PY
+
 def convertLatLong2Meters(zerozero, lats, longs):
     '''Convert a list of latitude and longitude coordinates into
     x-y positions relative to a project reference point.
@@ -115,7 +115,7 @@ def convertLatLong2Meters(zerozero, lats, longs):
         Ys[i] = geopy.distance.distance(zerozero, (lats[i], zerozero[1])).km*1000*sign
 
     return Xs, Ys
-"""
+
 
 
 

@@ -1322,6 +1322,11 @@ class Project():
             self.soil_names = np.array(soil_names)
         
         
+        # update soil info for anchor if needed
+        if self.anchorList:
+            for anch in self.anchorList.values():
+                anch.dd['soil_type'], anch.dd['soil_properties'] = self.getSoilAtLocation(anch.r[0],anch.r[1])
+        
         # load data from file
         
         # interpolate onto grid defined by grid_x, grid_y
@@ -1401,38 +1406,38 @@ class Project():
         return soilProps
         '''
 
-    # ----- Anchor capacity calculation functions -----
+    # # ----- Anchor capacity calculation functions -----
 
 
-    def calcAnchorCapacity(self, anchor):
-        '''Compute holding capacity of a given anchor based on the soil
-        info at its position. The anchor object's anchor properties and
-        location will be used to determine the holding capacity, which
-        will be saved to the anchor object.
+    # def calcAnchorCapacity(self, anchor):
+    #     '''Compute holding capacity of a given anchor based on the soil
+    #     info at its position. The anchor object's anchor properties and
+    #     location will be used to determine the holding capacity, which
+    #     will be saved to the anchor object.
         
-        Parameters
-        ----------
-        anchor : MoorPy Anchor object (derived from Point)
-            The anchor object in question.
-        '''
+    #     Parameters
+    #     ----------
+    #     anchor : MoorPy Anchor object (derived from Point)
+    #         The anchor object in question.
+    #     '''
 
-        # interpolate soil properties/class based on anchor position
-        anchor.soilProps = self.getSoilAtLocation(anchor.r[0], anchor.r[1])
+    #     # interpolate soil properties/class based on anchor position
+    #     anchor.soilProps = self.getSoilAtLocation(anchor.r[0], anchor.r[1])
         
-        # fill in generic anchor properties if anchor info not provided
-        if not type(anchor.anchorProps) == dict:
-            anchor.anchorProps = dict(type='suction', diameter=6, length=12)
+    #     # fill in generic anchor properties if anchor info not provided
+    #     if not type(anchor.anchorProps) == dict:
+    #         anchor.anchorProps = dict(type='suction', diameter=6, length=12)
         
-        # apply anchor capacity model
-        capacity, info = anchorCapacity(anchorProps, soilProps)
+    #     # apply anchor capacity model
+    #     capacity, info = anchorCapacity(anchorProps, soilProps)
         
-        # save all information to the anchor (attributes of the Point)
-        anchor.soilProps = soilProps
-        anchor.anchorCapacity = capacity
-        anchor.anchorInfo = info
+    #     # save all information to the anchor (attributes of the Point)
+    #     anchor.soilProps = soilProps
+    #     anchor.anchorCapacity = capacity
+    #     anchor.anchorInfo = info
         
-        # also return it
-        return capacity
+    #     # also return it
+    #     return capacity
 
     
     def setCableLayout(self):
@@ -1543,15 +1548,21 @@ class Project():
         # update anchor depths and the mooring ends connected to these anchors
         if self.anchorList:
             for anch in self.anchorList.values():
-                anch.r[2] = -self.getDepthFromBathymetry(anch.r[0],anch.r[1])
+                anch.r[2] = -self.getDepthAtLocation(anch.r[0],anch.r[1])
                 # now update any connected moorings
-                for att in anch.attachments.items():
+                for att in anch.attachments.values():
                     if isinstance(att['obj'], Mooring):
                         moor = att['obj']
-                        if att['end'] == 'a':
-                            moor.rA[2] = -self.getDepthFromBathymetry(moor.rA[0],moor.rA[1])
+                        if att['end'] == 'a' or att['end']== 'A' or att['end']== 0:
+                            moor.rA[2] = -self.getDepthAtLocation(moor.rA[0],moor.rA[1])
                         else:
-                            moor.rB[2] = -self.getDepthAtLocation
+                            moor.rB[2] = -self.getDepthAtLocation(moor.rB[0],moor.rB[1])
+        # update any joint depths
+        if self.cableList:               
+            for cab in self.cableList.values():
+                for sub in cab.subcomponents():
+                    if isinstance(sub,Joint):
+                        sub.r[2] = -self.getDepthAtLocation(sub.r[0],sub.r[1])
                 
         
         
@@ -1980,8 +1991,8 @@ class Project():
         # color map for soil plotting
         import matplotlib.cm as cm
         from matplotlib.colors import Normalize
-        cmap = cm.cividis_r
-        norm = Normalize(vmin=-0.5, vmax=1.5)
+        
+            
         
 
         # if axes not passed in, make a new figure
@@ -1996,8 +2007,13 @@ class Project():
             if len(self.grid_x)<=1:
                 pass
             else:
+                if not args_bath:
+                    cmap = cm.cividis_r
+                    args_bath = {'cmap': cmap, 'vmin':min([min(x) for x in self.grid_depth]),
+                                 'vmax': max([max(x) for x in self.grid_depth])}
                 xs = np.linspace(min(self.grid_x),max(self.grid_x),len(self.grid_x))
                 ys = np.linspace(min(self.grid_y),max(self.grid_y),len(self.grid_y))
+
                 self.setGrid(xs, ys)
         
                 # plot the bathymetry in matplotlib using a plot_surface
@@ -2023,9 +2039,9 @@ class Project():
                 '''
                 #################
                 # from matplotlib import cm
-                # args_bath = {'cmap':cm.GnBu_r}
+                # args_bath = {'color':'#C8A2C8'}
                 ####################
-                bath = ax.plot_surface(X, Y, -self.grid_depth, **args_bath)
+                bath = ax.plot_surface(X, Y, -self.grid_depth, rstride=1, cstride=1, **args_bath)
         
         
         # # also if there are rocky bits... (TEMPORARY)
@@ -2044,7 +2060,7 @@ class Project():
             boundary_z = self.projectAlongSeabed(boundary[:,0], boundary[:,1])
             ax.plot(boundary[:,0], boundary[:,1], -boundary_z, 'k--', zorder=10, lw=1, alpha=0.7)
 
-        
+        lw=1
         # find max cable size as applicable
         if self.cableList:
             maxA = max([a.subcomponents[0].dd['A'] for a in self.cableList.values()])
@@ -2058,6 +2074,9 @@ class Project():
             for j,sub in enumerate(cable.subcomponents):
                 if isinstance(sub,DynamicCable):
                     if sub.ss:
+                        for ii in range(len(sub.ss.lineList)):
+                            sub.ss.lineList[ii].color=Ccable
+                            sub.ss.lineList[ii].lw=lw
                         sub.ss.drawLine(0,ax,color=Ccable)
                         
                 elif isinstance(sub,StaticCable):
@@ -2083,16 +2102,16 @@ class Project():
                             soil_z = [self.depth]
                         # plot connections from joints to first and last routing point
                         ax.plot([jointA[0],sub.x[0]],[jointA[1],sub.y[0]],[-soil_z[0],-soil_z[0]-burial[0]],
-                                ':',color=Ccable,zorder=5,lw=1)
+                                ':',color=Ccable,zorder=5,lw=lw)
                         ax.plot([jointB[0],sub.x[-1]],[jointB[1],sub.y[-1]],[-soil_z[-1],-soil_z[-1]-burial[-1]],
-                                ':',color=Ccable,zorder=5,lw=1)
+                                ':',color=Ccable,zorder=5,lw=lw)
                         
                         if len(sub.x)> 1:
                             # plot in 3d along soil_z
-                            ax.plot(sub.x,sub.y,-soil_z-burial,':',color=Ccable,zorder=5,lw=1)
+                            ax.plot(sub.x,sub.y,-soil_z-burial,':',color=Ccable,zorder=5,lw=lw)
                     else:
                         # no routing - just plot a straight line
-                        ax.plot([sub.rA[0],sub.rB[0]],[sub.rA[1],sub.rB[1]],[sub.rA[2],sub.rB[2]],':',color=Ccable,zorder=5,lw=1)
+                        ax.plot([sub.rA[0],sub.rB[0]],[sub.rA[1],sub.rB[1]],[sub.rA[2],sub.rB[2]],':',color=Ccable,zorder=5,lw=lw)
         
         # plot the Moorings
         ct = 0
@@ -2106,7 +2125,7 @@ class Project():
                         line.color = [.3,.5,.5]
                     else:
                         line.color = [0.5,0.5,0.5]
-                    line.lw = 1
+                    line.lw = lw
                 mooring.ss.drawLine(0, ax, color='self')
                         
         
@@ -2130,6 +2149,16 @@ class Project():
             ax.axis('off')
         
         ax.view_init(20, -130)
+        
+        # # Remove x-axis tick labels
+        # ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+        # ax.set_xticks([])
+        # ax.set_yticks([])
+        # # # # Remove y-axis tick labels
+        # # # ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+        # ax.set_zticks([])
+        # ax.set_axis_off()
+        # ax.tick_params(axis='z', labelsize=0)
         # ax.dist -= 3
         fig.tight_layout()
         
@@ -2142,7 +2171,7 @@ class Project():
                 output_filename = f'wind farm 3d_{counter}.png'
             
             # Increase the resolution when saving the plot
-            plt.savefig(output_filename, dpi=300, bbox_inches='tight')  # Adjust the dpi as needed
+            plt.savefig(output_filename, dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
         
        
     def getMoorPyArray(self,bodyInfo=None,plt=0, pristineLines=True,cables=0):
@@ -2387,7 +2416,11 @@ class Project():
         self.fi = FlorisInterface(config)
         
         self.fi.reinitialize(layout_x=[PF.r[0] for PF in self.platformList], layout_y=[PF.r[1] for PF in self.platformList])
-        
+        # # FLORIS inputs x y positions in m
+        # self.fi.set(layout_x=[PF.r[0] for PF in self.platformList],
+        #             layout_y=  [PF.r[1] for PF in self.platformList],
+        #                        wind_data = self.wind_rose
+        #                        )
         #right now, point to FLORIS turbine yaml. eventually should connect to ontology
         self.fi.reinitialize(turbine_type= turblist)       
         
@@ -2614,7 +2647,6 @@ class Project():
                 RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
                 RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
                 RAFTDict['array']['data'][i][headindex] = - RAFTDict['array']['data'][i][headindex] # convert heading to cartesian from compass
-
             # create raft model
             from raft.raft_model import Model
             self.array = Model(RAFTDict)
@@ -3212,6 +3244,60 @@ class Project():
             head = pfinfo['mooring_headings'][i]+pfinfo['platform_heading']
             md = {'span':minfo['span'],'sections':[],'connectors':[]}
         
+        
+    def getFarmCost(self):
+        '''
+        Function to sum all available costs for the array components and produce a 
+        spreadsheet with itemized costs for each component.
+
+        Returns
+        -------
+        total cost
+
+        '''
+        total_cost = 0
+        anch_costs = {}
+        pf_costs = {}
+        mooring_costs = {}
+        cable_costs = {}
+        turbine_costs = {}
+        substation_costs = {}
+        # anchors
+        for anch in self.anchorList.values():
+            total_cost += anch.getCost()
+            anch_costs[anch.id] = anch.cost
+        # maxrows_anch = max([len(anch.cost) for anch in self.anchorList.values()])
+        headings_anch = set([anch.cost.keys() for anch in self.anchorList.values()])
+        # platforms
+        for pf in self.platformList.values():
+            if pf.cost:
+                total_cost += sum(pf.cost.values())
+            pf_costs[pf.id] = pf.cost
+        # maxrows_pf = max([len(pf.cost) for pf in self.platformList.values()])
+        # moorings
+        for moor in self.mooringList.values():
+            total_cost += moor.getCost()
+            mooring_costs[moor.id] = moor.cost
+        # maxrows_moor = max([len(moor.cost) for moor in self.mooringList.values()])
+        # cables
+        for cab in self.cableList.values():
+            total_cost += cab.getCost()
+            cable_costs[cab.id] = cab.cost
+        # maxrows_cab = max([len(cab.cost) for cab in self.cableList.values()])
+        # turbine
+        for turb in self.turbineList.values():
+            if turb.cost:
+                total_cost += sum(turb.cost.values())
+            turbine_costs[turb.id] = turb.cost
+        # maxrows_turb = max([len(turb.cost) for turb in self.turbineList.values()])
+        # substation
+        for oss in self.substationList.values():
+            if oss.cost:
+                total_cost += sum(oss.cost.values())
+            substation_costs[oss.id] = oss.cost
+        # maxrows_oss = max([len(oss.cost) for oss in self.substationList.values()])
+            
+        # now write the costs to a spreadsheet
         
         
     

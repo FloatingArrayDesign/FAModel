@@ -385,19 +385,21 @@ class DynamicCable(Edge):
         
         # >>> UPDATE FROM CABLEDESIGN2 <<<
         # go through dictionary and add up costs
-        cost = 0
+        cost_cable = 0
+        cost_buoys = 0
         # get cost of bare cable
         if 'cost' in self.dd['cable_type']:
-            cost += self.dd['cable_type']['cost']*self.L 
+            cost_cable += self.dd['cable_type']['cost']*self.L 
         # get cost of buoyancy modules
         if 'buoyancy_sections' in self.dd:
             for bs in self.dd['buoyancy_sections']:
                 if 'cost' in bs['module_props']:
-                    cost += bs['module_props']['cost']*bs['N_modules']
-        # sum up the costs in the dictionary and return
-        self.cost['total'] = cost
-        return(cost)
-        #return sum(self.cost.values()) 
+                    cost_buoys += bs['module_props']['cost']*bs['N_modules']
+        self.cost['cable'] = cost_cable
+        self.cost['buoys'] = cost_buoys
+                    
+        # sum up the costs in the dictionary and return       
+        return sum(self.cost.values()) 
     
     def updateTensions(self):
         ''' Gets tensions from subsystem and updates the max tensions dictionary if it is larger than a previous tension

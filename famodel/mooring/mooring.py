@@ -223,7 +223,6 @@ class Mooring(Edge):
             r_centerB = np.array(r_center)[:2]
             
         # Set the updated end B location
-        
         self.setEndPosition(np.hstack([r_centerB + self.rad_fair*u, self.z_fair]), 'b')
         
         # Run custom function to update the mooring design (and anchor position)
@@ -268,15 +267,39 @@ class Mooring(Edge):
             raise Exception('End A or B must be specified with either the letter, 0/1, or False/True.')
     
     
-    def getCost(self):
+    def getCost(self,from_ss=True):
+        '''
+        Obtain cost of the Mooring object either from the subsystem costs (if from_ss = True)
+        or from the design dictionary (which will calculate line and connector costs)
+
+        Parameters
+        ----------
+        from_ss : bool, optional
+            Describe whether to get costs from the subsystem (True) or design dict (False). The default is True.
+
+        Returns
+        -------
+        Total cost (float)
+            Returns the sum of all costs in the design dictionary
+
+        '''
         
         # mooring line cost
         line_cost = 0
-        if self.ss:
+        conn_cost = 0
+        if self.ss and from_ss:
             for line in self.ss.lineList:
                 line_cost += line.getCost()
         else:
-            pass # could have some proxy cost calculation
+            for sub in self.subcomponents:
+                if isinstance(sub,Section):
+                    if 'cost' in sub['type']:
+                        line_cost += sub['type']['cost']*sub['L']
+                elif isinstance(sub,Connector):
+                    if 'cost' in sub:
+                        conn_cost += sub['cost']
+                        
+            self.cost['connector'] = conn_cost
         
         self.cost['line'] = line_cost
         
@@ -387,7 +410,7 @@ class Mooring(Edge):
             # do not double the middle section length
             doubleL = True
         else:
-            # double the middle section length (remove the empty connector essentially)
+            # double the middle section length 
             doubleL = False
         from copy import deepcopy
         # sections list is currently reversed (second half of full list)
@@ -416,7 +439,7 @@ class Mooring(Edge):
         # create Section objects for ALL sections and connectors
         for i, sec in enumerate(self.dd['sections']):
             self.dd['sections'][i] = Section('Section'+str(i),**self.dd['sections'][i])
-            
+        
         for i,con in enumerate(self.dd['connectors']):
             if con and 'type' in con:
                 Cid=con['type']+str(i)

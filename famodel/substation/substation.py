@@ -22,7 +22,11 @@ class Substation(Node):
         self.zFair = None
         self.point = None
         
+        # cost dictionary
+        self.cost = {}
         # dictionary of failure probability
         self.failure_probability = {}
         
         # further functionality to be added later
+        
+        

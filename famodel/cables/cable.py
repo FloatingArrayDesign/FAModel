@@ -232,7 +232,6 @@ class Cable(Edge):
             if 'connector_cost' in self.cost:
                 cost += 2*self.cost['connector_cost']
                 
-        self.cost['total'] = cost
         
         return(cost)
     

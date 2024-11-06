@@ -39,21 +39,26 @@ site:
       # - [rock ,  rock ,   rock]  
       # - [rock ,  rock ,   rock]  
       # - [rock ,  rock ,   rock]
-        - [mud_soft ,  mud_soft ,   mud_soft]  
-        - [mud_soft ,  mud_soft ,   mud_soft]  
-        - [mud_soft ,  mud_soft ,   mud_soft]
+        - [mud_hard ,  mud_hard ,   mud_hard]  
+        - [mud_hard ,  mud_hard ,   mud_hard]  
+        - [mud_hard ,  mud_hard ,   mud_hard]
       
       soil_types:  
         mud_soft:
           Su0 : [2.39]  # [kPa]
           k : [1.41]    # [kPa/m]
-          gamma : [10]
+          gamma : [10]  # [kN/m^3]
           depth: [0]    # [m]
         mud_firm:
           Su0 : [23.94] # [kPa]
           k : [2.67]    # [kPa/m]
           gamma: [15]
-          depth: [0]    # [m]  
+          depth: [0]    # [m]
+        mud_hard:
+          Su0: [50]
+          k: [1.0]
+          gamma: [9.5]
+          depth: [0]  
         rock:
           UCS: [5] # [MPa]
           Em: [7] # [MPa]
@@ -2478,8 +2483,8 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,  150 , suction_pile1,   0 ]
-          - [  semitaut-poly_1,  30 ,  suction_pile1,   0 ]
+          - [  semitaut-poly_1,  150 , drag-embedment1,   0 ]
+          - [  semitaut-poly_1,  30 ,  drag-embedment1,   0 ]
 
     ms2:
         name: 2-line semi-taut polyester mooring system with a third line shared
@@ -2626,7 +2631,7 @@ anchor_types:
     drag-embedment1:
         type   :  DEA   # type of anchor
         A      :    10 # net area of anchor's fluke [m^2]
-        zlug   :    10 # embedded depth of padeye [m]
+        zlug   :    20 # embedded depth of padeye [m]
     suction_pile1:
         type   :  suction_pile
         L      :     16.4  # length of pile [m]
