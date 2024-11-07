@@ -140,11 +140,11 @@ Currently, only homogeneous soils are supported by the anchor capacity models, b
           mud_soft:
             Su0 : [2.39]  # [kPa]
             k : [1.41]    # [kPa/m]
-			depth: [0]    # [m]
+			      depth: [0]    # [m]
           mud_firm:
             Su0 : [23.94] # [kPa]
             k : [2.67]    # [kPa/m]
-			depth [0]     # [m]
+			      depth: [0]     # [m]
           rock:
             UCS : [7]     # [MPa]
             Em  : [50]    # [MPa]
@@ -186,7 +186,7 @@ csv filename.
                 ...
             
             
-        joint_probabality_bins:  # a set of cases representing the joint metocean probability distribution
+        joint_probability_bins:  # a set of cases representing the joint metocean probability distribution
             keys : [ prob , Hs  , Tp, WindSpeed, TI, Shear, Gamma, CurrentSpeed, WindDir, WaveDir, CurrentDir  ]
             data :
                 -  [ 0.010  ,   ,   ]
@@ -256,7 +256,9 @@ well as optional array-level descriptions of the mooring system and
 array cabling. 
 
 ### Array Layout
-There are two options for describing the array layout: uniform or freeform array. For a simple uniform array, use the 'uniform_array' section. This section provides information on parameters of a uniform array such as number of rows and columns, spacing, etc, along with the id of a mooring system, platform, and turbine that will be used for all platforms. These ids connect to details on specific mooring systems, platforms, and turbines in [mooring_systems](#mooring-systems), [Platform](#platforms), and [Turbine](#turbines) sections respectively. Due to the nature of this method, no shared moorings/anchors can be used.
+There are two options for describing the array layout: uniform or freeform array.
+
+For a simple uniform array, use the 'uniform_array' section. This section provides information on parameters of a uniform array such as number of rows and columns, spacing, etc, along with the id of a mooring system, platform, and turbine that will be used for all platforms. These ids connect to details on specific mooring systems, platforms, and turbines in [mooring_systems](#mooring-systems), [Platform](#platforms), and [Turbine](#turbines) sections respectively. Due to the nature of this method, no shared moorings/anchors can be used. Platform IDs for uniform arrays will be assigned automatically in the Project class.
 ```yaml
 # Wind turbine array layout
 uniform_array:
@@ -272,20 +274,18 @@ uniform_array:
   heading_adjust: 0 # heading adjustment for the platforms
 ```
 
-To specify the location of each platform individually, you must use the array table section.
-The array section summarizes the floating wind turbines in the array. The 
-section inputs a list where each entry corresponds to a wind turbine. The ID serves as a method to identify the specific turbine system. 
+Alternatively, to specify the location of each platform individually, you must use the array table section.
+The section inputs a list where each entry corresponds to a wind turbine. The ID serves as a method to identify the specific turbine system. 
 
 As such, each list entry should have a unique ID, but the ID type (string, int, etc) is up to the user. The turbineID and platformID are specified for each list entry,
 connecting to details in the [Turbine](#turbines) and [Platform](#platforms) sections. This allows the user to easily 
 specify different turbine or platform types throughout the array. 
 Similarly, the mooringID is included and refers to the [mooring_systems](#mooring-systems) section.
 This allows the user to set up general mooring systems to be used throughout the array. Additionally, the x and y locations are input and the heading adjustment.
-The heading adjustment refers to a rotation of the mooring system, relative to how it is defined in the mooring_systems section. This allows the user to 
+The heading adjustment (clockwise with 0 due North) refers to a rotation of the platform. The headings of any mooring lines and cables associated with that platform are then provided in their respective sections relative to the platform heading. This allows the user to 
 easily define a single mooring system for various rotations throughout the array.
 
-Alternatively, the mooringID can be set to zero and the mooring system can be 
-input in the [array_mooring](#array-mooring) section.
+Alternatively, the mooringID can be set to zero and the each mooring line can individually be described  in the [array_mooring](#array-mooring) section.
 
 ```yaml
 array:
@@ -297,11 +297,16 @@ array:
 
 
 ### Array Mooring
-The array mooring section allows the user to input array-level mooring system details, instead of the more generalized mooring systems in mooring_systems.
+The array mooring section allows the user to input array-level mooring system details, instead of the more generalized mooring systems in [mooring_systems](#mooring_systems). It is often used for shared moorings or mooring lines connected to shared anchors, as those lines cannot be described by the [mooring_systems](#mooring_systems) section.
+
 This section inputs a list of x,y anchor positions, anchor type, and embedment depth. The anchor type links to the list in the anchor_types section.
-Additionally, a list of mooring lines can be input with specified attachments at FOWTs and anchors. If there is an anchor connected to this line, it must be listed 
+
+
+Additionally, a list of mooring lines can be input in the line_data table with specified attachments at FOWTs and anchors. 
+
+If there is an anchor connected to this line, it must be listed 
 in end A, not end B. All anchors listed in line_data end A must have a matching ID in the anchor_data table, and all FOWTs listed in line_data end A or end B 
-must have a matching ID in the array_data table. The anchor and fowt IDs must all be unique. The mooring lines each have a mooring configuration ID which links to the mooring_line_configs section. 
+must have a matching ID in the array_data table. The anchor and fowt IDs must all be unique. The mooring lines each have a mooring configuration ID which links to the [mooring line configs](#mooring-line-configurations) section. 
 There is also an option to adjust the length of the line, depending on the spacing. 
 
 ```yaml
@@ -323,16 +328,18 @@ array_mooring:
 ### Array Cables
 
 This section provides a straightforward and compact way to define the power
-cables in the array. For each end (A and B) of the cable, it specifies the
-turbine (matching and ID in the array table) or substation (matching an ID in the substation section)
-attached to, the [Top Level Cables](#top-level-cables) used, the heading 
-of the cable at the attachment of each end, any cable routing, and length adjustment. 
-A 0-degree heading aligns with North and rotates clockwise.
+cables in the array. The CableID refers to an entry in the [Top Level Cables](#top-level-cables) section. For each end (A and B) of the cable, it specifies the
+turbine (matching an ID in the [array table](#array-layout)) or substation (matching an ID in the [substation](#substations) section) it is
+attached to. 
+
+HeadingA and headingB refer to the heading of the cable at the attachment of each end, using headings relative to the heading of the platform or substation it is connected to, running clockwise. Cable routing and length adjustment information is also included.
+
 The route refers to a route specified in the [Cable Routing](#cable-routing) section.
-If there is no routing for a given cable, 'NA' may be used in its place
-The CableID refers to an entry in the [Top Level Cables](#top-level-cables) section.
+If there is no routing for a given cable, 'NA' may be used in its place.
+
+
 Additional detail related to subsections of the top level cable, and joints 
-are in the [Cables](#cables) section. 
+is in the [Cables](#cables) section. 
 
 
 ```yaml
@@ -370,6 +377,19 @@ route_cables:
 
 The substation section defines the substations used in the array. The substation key (name) must be unique 
 from the ID keys in the array layout table.
+
+```yaml
+# ----- substations -------
+
+substation:
+    substation1:
+        x_location: 1600
+        y_location: -1600 
+        zFair: -20
+        rFair: 30
+        heading: 0
+
+```
 
 ## Turbine(s)
 
@@ -435,8 +455,8 @@ anchor characteristics.
 
 This section describes the mooring systems that could be used for individual turbines and repeated throughout the array. Each mooring system contains a 
 list of mooring lines, which contains the mooring configuration ID, the heading, the anchor type, and a possible length adjustment. The 
-mooring configuration ID links to the details about the segments lengths and types in the mooring line configurations section. The heading refers to the angle of the mooring line and it rotates 
-clockwise from North. The anchor type links to details about the anchor 
+mooring configuration ID links to the details about the segments lengths and types in the [mooring line configurations](#mooring-line-configurations) section. The heading refers to the angle of the mooring line and it rotates 
+clockwise from North, relative to the heading of the platform. The anchor type links to details about the anchor 
 size and dimensions in the [anchor types section](#anchor-types). The length adjustment
 is an optional parameter that can adjust the mooring line length for a shallower or deeper depth, for example. 
 
@@ -455,16 +475,18 @@ mooring_systems:
 ### Mooring Line Configurations
 
 The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
-as the MooringConfigID in the mooring systems section. The span is specified for each configuration, which represents the distance in the x-y plane between 
-the two connection points of the line - i.e. between fairlead and anchor, or for shared lines, fairlead and fairlead. Fairlead radius and fairlead depth are specified in the [Platform](#platforms) section.
+as the MooringConfigID in the [mooring systems](#mooring-systems) section. The span is specified for each configuration, which represents the distance in the x-y plane between 
+the two connection points of the line - i.e. between fairlead and anchor, or for shared lines, fairlead and fairlead. 
+
+Fairlead radius and fairlead depth are specified in the [Platform](#platforms) section.
  Each line contains a list of sections that details the line section type and length. The line type name
-connects to information in the mooring [line section properties](#mooring-line-section-properties) if the keyword 'type' is used. If 'mooringFamily' is instead 
-specified (as in the catenary_1 example below), the mooring line properties are determined from MoorPy MooringProps values. In the latter case, the nominal diameter in m 'd_nom' must also be provided for that line section. 
+connects to information in the [mooring line section properties](#mooring-line-section-properties) if the keyword 'type' is used. If 'mooringFamily' is instead 
+specified (as in the catenary_1 example below), the mooring line properties are determined from MoorPy MoorProps values. In the latter case, the nominal diameter in [m] 'd_nom' must also be provided for that line section. 
 Additionally, before and after each line section has an optional input which can list the 
 ID of a [connector type](#mooring-connectors), such as an H-link or buoy. 
 This information allows the weight and buoyancy of the connections to be included 
 in the model, and provides clarity on the location of the connector relative to different line sections. 
-There is also a True/False options for whether the section length is adjustable. 
+There is also a True/False option for whether the section length is adjustable. 
 
 Shared or suspended lines may also have an optional 'symmetric' input which, if set to true, signifies that 
 the line is symmetric and only the first half of the line is provided in the 'sections' list. When loaded in to the project class, the mooring object will automatically be fully filled out by mirroring 
@@ -585,9 +607,9 @@ can be specified to model the drag on the component.
 
 The anchor types section lists dimensions and sometimes embedment depth for each anchor type. The anchor types section
 allows the user to input various geometric properties. All parameters are optional,
-because the applicable information depends on the anchor type. T
+because the applicable information depends on the anchor type. 
 
-he anchor types currently or in near future supported are:
+The anchor types currently or in near future supported are:
 suction_pile (suction caisson/ suction pile anchor), DEA (drag-embedment anchor), dandg_pile (drilled and grouted pile anchor), driven_pile (driven pile anchor),
 torpedo_pile (torpedo pile anchor), SEPLA (suction embedded plate anchor), DEPLA (dynamically embedded plate anchor), VLA (vertically loaded anchor) and helical_pile (helical anchor).
 
@@ -690,6 +712,7 @@ The 'type' listed in the entry is either 'static' or 'dynamic'.
 The 'cableFamily' key is used when the cable cross-sectional information 
 will be imported from the cableProps_default yaml (in which case, an area A 
 must be provided in mm^2), and the value for cableFamily must match an entry in the cableProps_default yaml.
+
 Alternatively, if the cable cross-sectional properties will be provided in the [Cable Cross Sectional Properties](#cable-cross-sectional-properties)
 section, the key 'typeID' will be used in place of 'cableFamily', and will
 refer to an entry in the Cable Cross Sectional Properties list. 
@@ -700,8 +723,7 @@ and the volume. The volume is only needed if the buoyancy module properties will
 from the cableProps_defaul yaml. As with the cable properties, the 'type' in the sections list must refer to 
 an entry in either the [Cable Appendages](#cable-appendages) section or in the cableProps_default.yaml.
 
-Static cables can have routing information listed as vertex points along the cable route, and the radius of curve. 
-Static cable burial information can also be provided.
+Routing for static cables should be defined in the [cable routing](#cable-routing) section. If routing is needed, the length is not required to be included, as it can be calculated based on the attachment points and vertices of the route in the FAModel project.
 
 Similar to mooring lines, the span refers to the end to end distance of the line in the x-y plane.
 
@@ -748,13 +770,6 @@ Similar to mooring lines, the span refers to the end to end distance of the line
         typeID: static_cable_36
         length: 2200
             
-        routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
-          - [1000, 1200, 20] 
-          - [2000, 1500, 20] 
-        
-        burial:  # optional definition of cable burial depth over its length
-            station: [0, 1]                # length along cable, normalized by first and last value
-            depth  : [0.1, 0.2]            # [m] burial depth
 ```       
     
 ### Cable Cross Sectional Properties
@@ -811,7 +826,7 @@ product. These appendages are used in the
 ### Cable Joints
 
 This section lists any cable joints that might connect cable subsections. Each entry is given 
-and identifier and parameters to describe the joint. These joints are used in the [Top Level Cables] 
+an identifier and parameters to describe the joint. These joints are used in the [Top Level Cables] 
 (#top-level-cables) section.
 ```yaml
 cable_joints:
