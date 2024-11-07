@@ -140,11 +140,11 @@ Currently, only homogeneous soils are supported by the anchor capacity models, b
           mud_soft:
             Su0 : [2.39]  # [kPa]
             k : [1.41]    # [kPa/m]
-			      depth: [0]    # [m]
+            depth: [0]    # [m]
           mud_firm:
             Su0 : [23.94] # [kPa]
             k : [2.67]    # [kPa/m]
-			      depth: [0]     # [m]
+            depth: [0]     # [m]
           rock:
             UCS : [7]     # [MPa]
             Em  : [50]    # [MPa]
