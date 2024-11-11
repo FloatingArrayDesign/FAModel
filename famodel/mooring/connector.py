@@ -55,7 +55,7 @@ class Connector(Node, dict):
 
         '''
         # create connector as a point in MoorPy system
-        ms.addPoint(1,self.r)
+        ms.addPoint(0,self.r)
         # assign this point as mpConn in the anchor class instance
         self.mpConn = ms.pointList[-1]
 

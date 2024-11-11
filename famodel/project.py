@@ -30,6 +30,7 @@ from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCab
 from famodel.cables.components import Joint
 from famodel.turbine.turbine import Turbine
 
+
 class Project():
     '''
     The overall object that defines a floating array for analysis and design 
@@ -70,6 +71,7 @@ class Project():
         self.anchorList  = {}
         self.cableList = {}  # CableSystem
         self.substationList = {}
+        self.midConnList = {} # multi-line connectors
         
         # Dictionaries of component/product properties used in the array
         self.turbineTypes = None
@@ -2267,7 +2269,7 @@ class Project():
 
         
         check = np.ones((len(self.mooringList),1))
-        # now create and attach any shared lines
+        # now create and attach any shared lines or hybrid lines attached to multilineConnectors
         for ii,i in enumerate(self.mooringList): # loop through all lines - ii is index of mooring object in dictionary, i is key (name) of mooring object
             for j in self.anchorList: # j is key (name) of anchor object
                 if i in self.anchorList[j].attachments: # check if line has already been put in ms
@@ -2288,37 +2290,23 @@ class Project():
                 self.ms.lineList.append(ssloc)
                 ssloc.number = len(self.ms.lineList)               
                 
-                # find associated platforms
-                PF = [None,None]
-                PFNum = [None,None]
-                idx = []
-                for ki,k in enumerate(self.platformList): # ki is index in dictionary, k is key (name) of platform
-                    if self.platformList[k].isAttached(self.mooringList[i],end='a'):  #i in self.platformList[k].attachments:
-                        PF[0] = self.platformList[k] # platform object
-                        PFNum[0] = ki # platform index                    
-                        # find key of mooring object in platform mooring list
-                        idx.append(i)
-                    elif self.platformList[k].isAttached(self.mooringList[i],end='b'):
-                        PF[1] = self.platformList[k]
-                        PFNum[1] = ki # platform index
-                        # find key of mooring object in platform mooring list
-                        idx.append(i)                          
-                # add fairlead point A and attach the line to it
-                self.ms.addPoint(1,ssloc.rA)
-                self.ms.pointList[-1].attachLine(ssloc.number,0)
-                # connect line end A to the body
-                self.ms.bodyList[PFNum[0]].attachPoint(len(self.ms.pointList),[ssloc.rA[0]-PF[0].r[0],ssloc.rA[1]-PF[0].r[1],ssloc.rA[2]])
-                # add fairlead point 2
-                self.ms.addPoint(1,ssloc.rB)
-                # add connector info for fairlead point
-                self.ms.pointList[-1].m = self.ms.lineList[-1].pointList[-1].m 
-                self.ms.pointList[-1].v = self.ms.lineList[-1].pointList[-1].v
-                self.ms.pointList[-1].CdA = self.ms.lineList[-1].pointList[-1].CdA
-                # attach the line to point
-                self.ms.pointList[-1].attachLine(ssloc.number,1)
-                # connect line end B to the body
-                self.ms.bodyList[PFNum[1]].attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF[1].r[0],ssloc.rB[1]-PF[1].r[1],ssloc.rB[2]])          
-        
+                # find associated platforms/ multilineConnectors
+                att = self.mooringList[i].attached_to
+                
+                # connect line ends to the body/connector
+                ends = [ssloc.rA,ssloc.rB]
+                for ki in range(0,2):
+                    if isinstance(att[ki],Platform):
+                        # add fairlead point A and attach the line to it
+                        self.ms.addPoint(1,ends[ki])
+                        self.ms.pointList[-1].attachLine(ssloc.number,ki)
+                        att[ki].body.attachPoint(len(self.ms.pointList),[ends[ki][0]-att[ki].r[0],ends[ki][1]-att[ki].r[1],ends[ki][2]])
+                    elif isinstance(att[ki],Connector):
+                        if not att[ki].mpConn:
+                            att[ki].makeMoorPyConnector(self.ms)
+                            
+                        att[ki].mpConn.attachLine(ssloc.number,ki)
+                        
         # add in cables if desired
         if cables:
             # create a body for any substations cables are connected to 
