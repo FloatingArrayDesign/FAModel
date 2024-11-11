@@ -62,9 +62,9 @@ def getSoilTypes(filename):
                 for iv,var in enumerate(var_names[1:]):
                     # convert entries to strings unless there is 
                     if entries[iv+1] == '-':
-                        soilProps[entries[0]][var] = entries[iv+1]
+                        soilProps[entries[0]][var] = [0]
                     else:
-                        soilProps[entries[0]][var] = float(entries[iv+1])
+                        soilProps[entries[0]][var] = [float(entries[iv+1])]
                 line = next(f)
     
     f.close()

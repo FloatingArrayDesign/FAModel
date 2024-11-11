@@ -1084,8 +1084,14 @@ class Project():
                         self.boundary[i,1] = float(xy[i][1])
         
         if 'seabed' in site and site['seabed']:
+            # if there's a file listed in the seabed dictionary
             if 'file' in site['seabed'] and site['seabed']['file']:
-                self.loadSoil(filename=site['seabed']['file'])
+                # without reading the file to tell whether it has soil property information listed, check to see if soil property information is given
+                if 'soil_types' in site['seabed'] and site['seabed']['soil_types']:     # if the yaml does have soil property information
+                    self.loadSoil(filename=site['seabed']['file'], yaml=site['seabed'])
+                else:       # if the yaml doesn't have soil property information, read in just the filename to get all the information out of that
+                    self.loadSoil(filename=site['seabed']['file'])
+            # if there's no file listed in the seabed dictionary, load in just the yaml information (assuming the ['x', 'y', and 'type_array'] information are there)
             else:
                 self.loadSoil(yaml=site['seabed'])
 
@@ -1265,7 +1271,7 @@ class Project():
         xs = None
         ys = None
         soil_names = None
-        if filename is not None:
+        if filename is not None:    # if the filename option was selected, then that means there is at least a grid in the file, and maybe soil type information
             if filename[-3:]=='shp':
                 raise ValueError("Geography-related operations not directly supported in Project class")
             
@@ -1274,49 +1280,66 @@ class Project():
                 # load in the grid portion of the soil input file
                 xs, ys, soil_names = sbt.readBathymetryFile(filename, dtype=str)  # read MoorDyn-style file
 
-                self.soilProps = sbt.getSoilTypes(filename)
-
-        elif filename is None:
+                soilProps = sbt.getSoilTypes(filename)     # load in the soil property information (if there is any)
+            
+            # regardless of whether there is soil type information in the file, if there is soil information in the yaml, read that in
             if yaml:
+                soilProps = yaml['soil_types']     # if there is a yaml file as input, load in the soil props that way (overwrites the other one)
+
+
+        elif filename is None:  # if the filename option was not selected
+            if yaml:            # and if there was a yaml option selected, simply read in that yaml information
                 xs = yaml['x']
                 ys = yaml['y']
                 soil_names = yaml['type_array']
-                soilProps = yaml['soil_types']          
-                
-                # check that correct soil properties are being provided for the different soil types
-                for soil in soilProps:
-                    if 'rock' in soil:
-                        if not 'UCS' in soilProps[soil] or not 'Em' in soilProps[soil]:
-                            raise ValueError('Rock soil type requires UCS and Em values')
-                    elif 'sand' in soil:
-                        if not 'phi' in soilProps[soil] or not 'gamma' in soilProps[soil]:
-                            raise ValueError('Sand soil type requires phi and gamma values')
-                    elif 'clay' in soil:
-                        if not 'Su0' in soilProps[soil] or not 'k' in soilProps[soil]:
-                            raise ValueError('Clay soil type requires Su0 and k values')
-                    elif 'mud' in soil:
-                        if not 'Su0' in soilProps[soil] or not 'k' in soilProps[soil]:
-                            raise ValueError('Mud soil type requires Su0 and k values')
-                    else:
-                        raise ValueError(f'Soil type {soil} not recognized. Soil type key must contain one of the following keywords: rock, sand, clay, mud')
-
-                
-
-                # make sure the soilProps dictionary has all the required information (should be updated later with exact properties based on anchor capacity functions)
-                # soilProps = yaml['soil_types']
-                for key,props in soilProps.items():
-                    props['gamma'] = getFromDict(props, 'gamma', shape=-1, dtype=list, default=[4.7] , index=None)
-                    props['Su0']   = getFromDict(props, 'Su0'  , shape=-1, dtype=list, default=[2.39], index=None)
-                    props['k']     = getFromDict(props, 'k'    , shape=-1, dtype=list, default=[1.41], index=None)
-                    props['alpha'] = getFromDict(props, 'alpha', shape=-1, dtype=list, default=[0.7] , index=None)
-                    props['phi']   = getFromDict(props, 'phi'  , shape=-1, dtype=list, default=[0.0] , index=None)
-                    props['UCS']   = getFromDict(props, 'UCS'  , shape=-1, dtype=list, default=[7.0] , index=None)
-                    props['Em']    = getFromDict(props, 'Em'   , shape=-1, dtype=list, default=[50.0], index=None)
-                
-                self.soilProps = soilProps
-
+                soilProps = yaml['soil_types']
+            else:               # but if there was no yaml option selected (and no file option selected) -> set default values
+                print('Warning: No soil grid nor soil properties were selected, but this function ran -> use preprogrammed default values')
+                xs = [0]
+                ys = [0]
+                soil_names = ['mud']
+                soilProps = dict(mud={'Su0':[2.39], 'k':[1.41], 'gamma':[10], 'depth':[0]},
+                                rock={'UCS':[5], 'Em':[7], 'depth':[0]})
+        
         else:
             raise ValueError("Something is wrong")
+        
+        '''
+        # check that correct soil properties are being provided for the different soil types
+        for soil in soilProps:
+            if 'rock' in soil or 'hard' in soil:
+                if not 'UCS' in soilProps[soil] or not 'Em' in soilProps[soil]:
+                    raise ValueError('Rock soil type requires UCS and Em values')
+            elif 'sand' in soil:
+                if not 'phi' in soilProps[soil] or not 'gamma' in soilProps[soil]:
+                    raise ValueError('Sand soil type requires phi and gamma values')
+            elif 'clay' in soil:
+                if not 'Su0' in soilProps[soil] or not 'k' in soilProps[soil]:
+                    raise ValueError('Clay soil type requires Su0 and k values')
+            elif 'mud' in soil or 'mud_soft':
+                if not 'Su0' in soilProps[soil] or not 'k' in soilProps[soil]:
+                    raise ValueError('Mud soil type requires Su0 and k values')
+            else:
+                raise ValueError(f'Soil type {soil} not recognized. Soil type key must contain one of the following keywords: rock, sand, clay, mud')
+        '''
+        
+        # make sure the soilProps dictionary has all the required information (should be updated later with exact properties based on anchor capacity functions)
+        # setting each soil type dictionary with all the values, just in case they need them for whatever reason - here are the default values
+        # the default types (and values) are set if there is no other information provided
+        for key,props in soilProps.items():
+            props['Su0']   = getFromDict(props, 'Su0'  , shape=-1, dtype=list, default=[2.39], index=None)
+            props['k']     = getFromDict(props, 'k'    , shape=-1, dtype=list, default=[1.41], index=None)
+            props['alpha'] = getFromDict(props, 'alpha', shape=-1, dtype=list, default=[0.7] , index=None)
+            props['gamma'] = getFromDict(props, 'gamma', shape=-1, dtype=list, default=[4.7] , index=None)
+            props['phi']   = getFromDict(props, 'phi'  , shape=-1, dtype=list, default=[0.0] , index=None)
+            props['UCS']   = getFromDict(props, 'UCS'  , shape=-1, dtype=list, default=[7.0] , index=None)
+            props['Em']    = getFromDict(props, 'Em'   , shape=-1, dtype=list, default=[50.0], index=None)
+        
+        
+        self.soilProps = soilProps
+
+
+        
         
         if xs is not None:
             self.soil_x = np.array(xs)
@@ -1980,7 +2003,7 @@ class Project():
         
 
     def plot3d(self, ax=None, figsize=(10,8), fowt=False, save=False,
-               draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True, draw_bathymetry=True):
+               draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True, draw_bathymetry=True, draw_soil=False):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2005,6 +2028,8 @@ class Project():
             fig = ax.get_figure()
 
         if draw_bathymetry:
+            if draw_soil:
+                raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time')
             # # try increasing grid density
             if len(self.grid_x)<=1:
                 pass
@@ -2045,6 +2070,25 @@ class Project():
                 ####################
                 bath = ax.plot_surface(X, Y, -self.grid_depth, rstride=1, cstride=1, **args_bath)
         
+        if draw_soil:
+            if draw_bathymetry:
+                raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time')
+            X, Y = np.meshgrid(self.soil_x, self.soil_y)
+            Z = np.ones([len(X), len(X[0])])*-10000
+            colors = np.empty_like(self.soil_names, dtype='<U16')
+            for i in range(len(self.soil_names)):
+                for j in range(len(self.soil_names[0])):
+                    if self.soil_names[i,j]=='mud':
+                        colors[i,j] = 'g'
+                    elif self.soil_names[i,j]=='hard' or self.soil_names[i,j]=='rock':
+                        colors[i,j] = 'r'
+                    else:
+                        colors[i,j] = 'w'
+            xplot = np.hstack(X)
+            yplot = np.hstack(Y)
+            zplot = np.hstack(Z)
+            cplot = np.hstack(colors)
+            ax.scatter(xplot, yplot, zplot, c=cplot, marker='o', s=50)
         
         # # also if there are rocky bits... (TEMPORARY)
         # X, Y = np.meshgrid(self.soil_x, self.soil_y)
@@ -3433,7 +3477,8 @@ Load case setup and constraint eval?
 
 if __name__ == '__main__':
 
-    
+    project = Project()
+    project.loadSoil(filename='tests/soil_sample.txt')
     # create project class instance from yaml file
     #project = Project(file='OntologySample600m.yaml')
     project = Project(file='../tests/simple_farm.yaml')

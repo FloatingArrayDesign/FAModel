@@ -328,7 +328,7 @@ def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm,
 
         
         
-def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths):
+def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths, soil=False):
     '''Write a MoorDyn/MoorPy-style bathymetry text file based on provided
     x and y grid line values and a 2D array of depth values.'''
 
@@ -343,7 +343,10 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths)
     for iy in range(len(bathYs)):
         f.write(f'{bathYs[iy]:.2f} ')
         for id in range(len(bath_depths[iy])):
-            f.write(f'{bath_depths[iy,id]:8.3f} ')
+            if soil:
+                f.write(f'{bath_depths[iy,id]} ')
+            else:
+                f.write(f'{bath_depths[iy,id]:8.3f} ')
         f.write('\n')
     f.close()
 
@@ -392,7 +395,7 @@ def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
 
 
 
-def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file):
+def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file, nrows=100, ncols=100, xbound=None, ybound=None):
     """Note: can make the outer shapely shape have 'holes' of the inner shapely shapes"""
     
     # create a GeoDataFrame of the shapefile
@@ -427,10 +430,16 @@ def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file):
     soil_polygons = [ Polygon(soil_coords[i]) for i in range(len(soil_coords)) ]
 
     # set up custom grid to store soil data
-    nrows = 100
-    ncols = 100
-    xs = np.linspace( np.min([np.min(soil_xs[i]) for i in range(len(soil_shapes))]),  np.max([np.max(soil_xs[i]) for i in range(len(soil_shapes))]),  ncols)
-    ys = np.linspace( np.min([np.min(soil_ys[i]) for i in range(len(soil_shapes))]),  np.max([np.max(soil_ys[i]) for i in range(len(soil_shapes))]),  nrows)
+    #nrows = 100
+    #ncols = 100
+    if xbound:
+        xs = np.linspace(xbound[0], xbound[-1], ncols)
+    else:
+        xs = np.linspace( np.min([np.min(soil_xs[i]) for i in range(len(soil_shapes))]),  np.max([np.max(soil_xs[i]) for i in range(len(soil_shapes))]),  ncols)
+    if ybound:
+        ys = np.linspace(ybound[0], ybound[-1], nrows)
+    else:
+        ys = np.linspace( np.min([np.min(soil_ys[i]) for i in range(len(soil_shapes))]),  np.max([np.max(soil_ys[i]) for i in range(len(soil_shapes))]),  nrows)
     soil_grid = np.zeros([len(ys), len(xs)])
 
     # for each manmade grid point, loop through all the polygons and determine whether that grid point is within the shape or not
