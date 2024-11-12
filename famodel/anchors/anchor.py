@@ -469,14 +469,14 @@ class Anchor(Node):
             self.loads['Hm'] = np.sqrt(loads[0]**2+loads[1]**2) # mudline forces in [N]
             self.loads['Vm'] = loads[2] # [N]
             self.loads['thetam'] = np.degrees(np.arctan(self.loads['Vm']/self.loads['Hm'])) # [deg]
-            self.loads['mud_load_type'] = 'current_state'
+            self.loads['mudline_load_type'] = 'current_state'
         
         # loads determined from moorpy are static
         self.loads['method'] = 'static'
         
         return(self.loads)
     
-    def getLugForces(self,mudloads=None,plot=True):
+    def getLugForces(self,mudloads=None,max_force=True,plot=True):
         '''
         Find forces on an anchor at the lug point based on the mudline forces and angles. Calls getTransferFunction script
 
@@ -498,10 +498,10 @@ class Anchor(Node):
         if not mudloads:        
             if not self.loads:
                 # get max mudline forces first
-                self.getMudlineForces(max_force=True)
+                self.getMudlineForces(max_force=max_force)
             elif not 'mudline_load_type' in self.loads:
                 raise KeyError("Loads dictionary must specify 'mudline_load_type'='current_state' or 'mudline_load_type'='max', where 'max' indicates the loads are maximum loads.")
-            elif self.loads['mudline_load_type'] != 'max':
+            elif max_force and self.loads['mudline_load_type'] != 'max':
                 # need max forces, not current state
                 self.getMudlineForces(max_force=True)
             mudloads = self.loads

@@ -2015,7 +2015,7 @@ class Project():
         
         # color map for soil plotting
         import matplotlib.cm as cm
-        from matplotlib.colors import Normalize
+        # from matplotlib.colors import Normalize
         
             
         
@@ -3116,9 +3116,9 @@ class Project():
 
         '''
         # create platform, moorings, and anchors from ms
-        ix = len(ms.bodyList)
+        ix = len(self.platformList)
         # check there is just one body
-        if ix > 1:
+        if len(ms.bodyList) > 1:
             raise Exception('This function only works with a 1 body system')
             
         # switch to subsystems if lineList doesn't already have them
@@ -3132,7 +3132,7 @@ class Project():
         mList = []
         endB = []
         count = 0
-        pfid = 'fowt'+str(ix-1)
+        pfid = 'fowt'+str(ix)
         import string
         alph = list(string.ascii_lowercase)
         for point in ms.bodyList[0].attachedP:
@@ -3161,41 +3161,41 @@ class Project():
                 else:
                     md['zAnchor'] = -self.getDepthAtLocation(rB[0],rB[1])
                     
-                # add section and connector info
-                md['sections'].append({'type':line.type})
-                md['sections'][-1]['L'] = line.L
-                md['connectors'].append({'m':point.m,'v':point.v,'Ca':point.Ca,'CdA':point.CdA})
+                # # add section and connector info
+                # md['sections'].append({'type':line.type})
+                # md['sections'][-1]['L'] = line.L
+                # md['connectors'].append({'m':point.m,'v':point.v,'Ca':point.Ca,'CdA':point.CdA})
                   
-                anline = True
-                for pt in ms.pointList:
-                    if line in pt.attached and pt != point:
-                        n_att = len(pt.attached)
-                        nextloc = np.where([x!=line for x in pt.attached])[0][0]
-                        if n_att == 1:
-                            # this is the anchor point
-                            ad = {'design':{}}
-                            ad['design']['m'] = pt.m
-                            ad['design']['v'] = pt.v
-                            ad['design']['CdA'] = pt.CdA
-                            ad['design']['Ca'] = pt.Ca
-                            if 'anchor_type' in pt.entity:
-                                ad['type'] = pt.entity['anchor_type']
-                            self.anchorList[mList[-1].id] = Anchor(dd=ad,r=pt.r,id=mList[-1].id)
-                            self.anchorList[mList[-1].id].attach(mList[-1],end=1-endB[-1])
-                            # reposition mooring and anchor
-                            mList[-1].reposition(r_center=r)
-                            zAnew = self.getDepthAtLocation(mList[-1].rA[0], 
-                                                            mList[-1].rA[1])
-                            mList[-1].rA[2] = -zAnew
-                            mList[-1].dd['zAnchor'] = -zAnew
-                            self.anchorList[mList[-1].id].r = mList[-1].rA
-                            anline = False
-                        else:
-                            # add section and connector info
-                            md['sections'].append({'type':sline.type})
-                            md['sections'][-1]['L'] = sline.L
-                            spt = ms.lineList[line-1].pointList[k]
-                            md['connectors'].append({'m':spt.m,'v':spt.v,'Ca':spt.Ca,'CdA':spt.CdA})
+                # anline = True
+                # for pt in ms.pointList:
+                #     if line in pt.attached and pt != point:
+                #         n_att = len(pt.attached)
+                #         nextloc = np.where([x!=line for x in pt.attached])[0][0]
+                #         if n_att == 1:
+                #             # this is the anchor point
+                #             ad = {'design':{}}
+                #             ad['design']['m'] = pt.m
+                #             ad['design']['v'] = pt.v
+                #             ad['design']['CdA'] = pt.CdA
+                #             ad['design']['Ca'] = pt.Ca
+                #             if 'anchor_type' in pt.entity:
+                #                 ad['type'] = pt.entity['anchor_type']
+                #             self.anchorList[mList[-1].id] = Anchor(dd=ad,r=pt.r,id=mList[-1].id)
+                #             self.anchorList[mList[-1].id].attach(mList[-1],end=1-endB[-1])
+                #             # reposition mooring and anchor
+                #             mList[-1].reposition(r_center=r)
+                #             zAnew = self.getDepthAtLocation(mList[-1].rA[0], 
+                #                                             mList[-1].rA[1])
+                #             mList[-1].rA[2] = -zAnew
+                #             mList[-1].dd['zAnchor'] = -zAnew
+                #             self.anchorList[mList[-1].id].r = mList[-1].rA
+                #             anline = False
+                #         else:
+                #             # add section and connector info
+                #             md['sections'].append({'type':sline.type})
+                #             md['sections'][-1]['L'] = sline.L
+                #             spt = ms.lineList[line-1].pointList[k]
+                #             md['connectors'].append({'m':spt.m,'v':spt.v,'Ca':spt.Ca,'CdA':spt.CdA})
                             
                             
                 
