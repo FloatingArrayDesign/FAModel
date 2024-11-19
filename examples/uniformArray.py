@@ -46,3 +46,7 @@ project.updateUniformArray(nrows, ncols, [spacing_x,spacing_y], rotation_angle, 
                            skew_y, offset_x, offset_y, heading_pattern, center=center)
 # plot again
 project.plot3d()
+
+
+project.arrayWatchCircle()
+project.plot2d()

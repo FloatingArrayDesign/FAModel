@@ -1594,7 +1594,7 @@ class Project():
         # also save in RAFT, in its MoorPy System(s)
     
     def addCablesConnections(self,connDict,cableType_def='dynamic_cable_66',oss=False,
-                             substation_r=None,id_method='location',
+                             substation_r=[None],ss_id=200,id_method='location',
                              keep_old_cables=False, connect_ss=True, 
                              cableConfig=None, configType=0):
         '''Adds cables and connects them to existing platforms/substations based on info in connDict
@@ -1634,14 +1634,14 @@ class Project():
         
         # create substation object with id 
         if oss:
-            if not substation_r:
+            if None in substation_r:
                 dd = {'r':[5000,1000]}
             else:
                 dd = {'r':substation_r}
-            self.substationList[200] = Substation(dd,id=200)
-            self.substationList[200].rFair = 58 ##### TEMPORARY #####
-            self.substationList[200].zFair = -14
-            self.substationList[200].phi = 0
+            self.substationList[ss_id] = Substation(dd,id=ss_id)
+            self.substationList[ss_id].rFair = 58 ##### TEMPORARY #####
+            self.substationList[ss_id].zFair = -14
+            self.substationList[ss_id].phi = 0
         
         # detach and delete existing cable list unless specified to keep old cables
         if keep_old_cables:
@@ -1660,7 +1660,8 @@ class Project():
             dd['cables'] = []
             # collect design dictionary info on cable
 
-            if not cableConfig:           
+            if not cableConfig:
+                dd['cables'].append({})
                 cd = dd['cables'][0]
                 cd['span'] = connDict[i]['2Dlength']
                 cd['L'] = connDict[i]['2Dlength']
@@ -1678,6 +1679,7 @@ class Project():
                     # fix units
                     cabProps['power'] = cabProps['power']*1e6
                     cd['cable_type'] = cabProps
+                    cableType = cableType_def
                     
             else:
                 # find associated cable in cableConfig dict
@@ -2035,9 +2037,9 @@ class Project():
                 pass
             else:
                 if not args_bath:
-                    cmap = cm.cividis_r
-                    args_bath = {'cmap': cmap, 'vmin':min([min(x) for x in self.grid_depth]),
-                                 'vmax': max([max(x) for x in self.grid_depth])}
+                    cmap = cm.gist_earth
+                    args_bath = {'cmap': cmap, 'vmin':min([min(x) for x in -self.grid_depth]),
+                                 'vmax': max([max(x) for x in -self.grid_depth])}
                 xs = np.linspace(min(self.grid_x),max(self.grid_x),len(self.grid_x))
                 ys = np.linspace(min(self.grid_y),max(self.grid_y),len(self.grid_y))
 
@@ -2106,7 +2108,7 @@ class Project():
             boundary_z = self.projectAlongSeabed(boundary[:,0], boundary[:,1])
             ax.plot(boundary[:,0], boundary[:,1], -boundary_z, 'k--', zorder=10, lw=1, alpha=0.7)
 
-        lw=1
+        lw=0.5
         # find max cable size as applicable
         if self.cableList:
             maxA = max([a.subcomponents[0].dd['A'] for a in self.cableList.values()])
@@ -2203,7 +2205,7 @@ class Project():
         # # # # Remove y-axis tick labels
         # # # ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
         # ax.set_zticks([])
-        # ax.set_axis_off()
+        ax.set_axis_off()
         # ax.tick_params(axis='z', labelsize=0)
         # ax.dist -= 3
         fig.tight_layout()
@@ -3313,6 +3315,127 @@ class Project():
         for i in range(len(pfinfo['mooring_headings'])):
             head = pfinfo['mooring_headings'][i]+pfinfo['platform_heading']
             md = {'span':minfo['span'],'sections':[],'connectors':[]}
+      
+    def arrayWatchCircle(self,plot=0, ang_spacing=45, RNAheight=150,
+                         shapes=True,Fth=None,SFs=True):
+        '''
+        Method to get watch circles on all platforms at once
+
+        Parameters
+        ----------
+        plot : TYPE, optional
+            DESCRIPTION. The default is 0.
+        ang_spacing : TYPE, optional
+            DESCRIPTION. The default is 45.
+        RNAheight : TYPE, optional
+            DESCRIPTION. The default is 150.
+        shapes : TYPE, optional
+            DESCRIPTION. The default is True.
+        Fth : TYPE, optional
+            DESCRIPTION. The default is None.
+        SFs : TYPE, optional
+            DESCRIPTION. The default is True.
+
+        Returns
+        -------
+        None.
+
+        '''
+        # get thrust
+        if Fth:
+            thrust = Fth
+        else:
+            thrust = 1.95e6
+            
+        # get angles to iterate over
+        angs = np.arange(0,360+ang_spacing,ang_spacing)
+        n_angs = len(angs)
+        
+        # lists to save info in       
+        minSag = [None]*len(self.cableList)
+        minCurvSF = [None]*len(self.cableList)
+        CminTenSF = [None]*len(self.cableList)
+        minTenSF = [None]*len(self.mooringList)
+        F = [None]*len(self.mooringList) 
+        x = np.zeros((len(self.platformList),n_angs))
+        y = np.zeros((len(self.platformList),n_angs))
+             
+        # apply thrust force to platforms at specified angle intervals
+        for i,ang in enumerate(angs):
+            print(ang)
+            fx = thrust*np.cos(np.radians(ang))
+            fy = thrust*np.sin(np.radians(ang))
+            
+            # add thrust force and moment to the body
+            for body in self.ms.bodyList:
+                body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                       
+            # solve equilibrium 
+            self.ms.solveEquilibrium3(DOFtype='both')
+        
+            # save info if requested
+            if SFs:
+                # get tensions on mooring line
+                for j, moor in enumerate(self.mooringList.values()):
+                    MBLA = float(moor.ss.lineList[0].type['MBL'])
+                    MBLB = float(moor.ss.lineList[-1].type['MBL'])
+                    # print(MBLA,MBLB,moor.ss.TA,moor.ss.TB,MBLA/moor.ss.TA,MBLB/moor.ss.TB,abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB))
+                    MTSF = min([abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB)])
+                    # atenMax[j], btenMax[j] = moor.updateTensions()
+                    if not minTenSF[j] or minTenSF[j]>MTSF:
+                        minTenSF[j] = deepcopy(MTSF)
+                        if not moor.shared:
+                            if isinstance(moor.attached_to[0],Anchor):
+                                # anchor attached to end A
+                                F[j] = moor.ss.fA
+                                anch = moor.attached_to[0]
+                            else:
+                                F[j] = moor.ss.fB
+                                anch = moor.attached_to[1]
+                            # save anchor load information
+                            anch.loads['Hm'] = np.sqrt(F[j][0]**2+F[j][1]**2)
+                            anch.loads['Vm'] = F[j][2]
+                            anch.loads['thetam'] = np.degrees(np.arctan(anch.loads['Vm']/anch.loads['Hm'])) #[deg]
+                            anch.loads['mudline_load_type'] = 'max'
+                                
+                # get tensions, sag, and curvature on cable
+                for j,cab in enumerate(self.cableList.values()):
+                    MBLA = cab.ss.lineList[0].type['MBL']
+                    MBLB = cab.ss.lineList[-1].type['MBL']
+                    CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])
+                    if not CminTenSF[j] or CminTenSF[j]>CMTSF:
+                        CminTenSF[j] = deepcopy(CMTSF)
+                    # CatenMax[j], CbtenMax[j] = cab.updateTensions()
+                    cab.ss.calcCurvature()
+                    mCSF = cab.ss.getMinCurvSF()
+                    if not minCurvSF[j] or minCurvSF[j]>mCSF:
+                        minCurvSF[j] = mCSF
+                    # determine number of buoyancy sections
+                    nb = len(cab.dd['buoyancy_sections'])
+                    m_s = []
+                    for k in range(0,nb):
+                        m_s.append(cab.ss.getSag(2*k))
+                    mS = min(m_s)
+                    if not minSag[j] or minSag[j]<mS:
+                        minSag[j] = deepcopy(mS)
+                        
+                
+            # save location of each platform for envelopes
+            for k, pf in enumerate(self.platformList.values()):                       
+                x[k,i] = pf.body.r6[0]     
+                y[k,i] = pf.body.r6[1]
+                    
+        for k, body in enumerate(self.platformList.values()):
+            # save motion envelope in the corect platform 
+            body.envelopes['mean'] = dict(x=x[k,:], y=y[k,:])
+        
+            if shapes:  # want to *optionally* make a shapely polygon
+                from shapely import Polygon
+                body.envelopes['mean']['shape'] = Polygon(list(zip(x[k,:],y[k,:])))
+                    
+        maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
+        return(x,y,maxVals)       
+        
+        
         
         
     def getFarmCost(self):
@@ -3369,8 +3492,10 @@ class Project():
             
         # now write the costs to a spreadsheet
         
+        # let's do a new sheet for each component type
         
-    
+        
+        return(total_cost)
     
     def updateFailureProbability(self):
         '''

@@ -122,7 +122,7 @@ class Platform(Node):
                 # reposition the cable
                 cab.reposition(headings=headings)
         
-    def mooringSystem(self,rotateBool=0,mList=None):
+    def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None):
         '''
         Create a MoorPy system for the platform based on the mooring subsystems provided in 
         the mooringList of Mooring classes and the mooring headings
@@ -153,6 +153,13 @@ class Platform(Node):
         
         # create new MoorPy system and set its depth
         self.ms = mp.System(depth=mList[0].ss.depth)
+        
+        r6 = [self.r[0],self.r[1],0,0,0,0]
+        # create body
+        if bodyInfo:
+            self.ms.addBody(0,r6,m=bodyInfo['m'],v=bodyInfo['v'],rCG=np.array(bodyInfo['rCG']),rM=np.array(bodyInfo['rM']),AWP=bodyInfo['AWP'])
+        else:
+            self.ms.addBody(0,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
         
         if rotateBool:
             # rotation
@@ -189,6 +196,8 @@ class Platform(Node):
         self.ms.initialize()
         self.ms.solveEquilibrium()
         fig,ax = self.ms.plot()
+        
+        return(self.ms)
         
         
     def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
