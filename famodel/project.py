@@ -2444,19 +2444,19 @@ class Project():
         None.
 
         '''
-        from floris.tools import FlorisInterface
+        import floris
+        from floris import FlorisModel
+
         
         # Setup FLORIS interface using base yaml file
-        self.fi = FlorisInterface(config)
+        self.flow = FlorisModel(config)
         
-        self.fi.reinitialize(layout_x=[PF.r[0] for PF in self.platformList], layout_y=[PF.r[1] for PF in self.platformList])
-        # # FLORIS inputs x y positions in m
-        # self.fi.set(layout_x=[PF.r[0] for PF in self.platformList],
-        #             layout_y=  [PF.r[1] for PF in self.platformList],
-        #                        wind_data = self.wind_rose
-        #                        )
+
+        self.flow.set(layout_x=[self.platformList[PF].r[0] for PF in self.platformList], layout_y=[self.platformList[PF].r[1] for PF in self.platformList])
+        
+
         #right now, point to FLORIS turbine yaml. eventually should connect to ontology
-        self.fi.reinitialize(turbine_type= turblist)       
+        self.flow.set(turbine_type= turblist)       
         
         #store ws and thrust data... eventually store for each turbine
         self.windSpeeds = windSpeeds
@@ -2502,7 +2502,7 @@ class Project():
             return ValueError("Wind speed outside of stored range")
         
         #FLORIS inputs the wind direction as direction wind is coming from (where the -X axis is 0)
-        self.fi.reinitialize(wind_directions = [-wd+270], wind_speeds = [ws], turbulence_intensity= ti)
+        self.flow.set(wind_directions = [-wd+270], wind_speeds = [ws], turbulence_intensities= [ti])
         
         # wind speed thrust curve for interpolation
         f = interpolate.interp1d(self.windSpeeds, self.thrustForces)
@@ -2534,21 +2534,21 @@ class Project():
             self.ms.solveEquilibrium(DOFtype='both')
 
             #update floris turbine positions and calculate wake losses
-            self.fi.reinitialize(layout_x=[body.r6[0] for body in self.ms.bodyList], layout_y=[body.r6[1] for body in self.ms.bodyList])
-            self.fi.calculate_wake()
+            self.flow.set(layout_x=[body.r6[0] for body in self.ms.bodyList], layout_y=[body.r6[1] for body in self.ms.bodyList])
+            self.flow.run()
     
           
            
             #update wind speed list for RAFT
-            ws = list(self.fi.turbine_average_velocities[0][0])
+            ws = list(self.flow.turbine_average_velocities[0])
             winds.append(ws)
             xpositions.append([body.r6[0] for body in self.ms.bodyList])
             ypositions.append([body.r6[1] for body in self.ms.bodyList])
 
 
         #return FLORIS turbine powers (in order of turbine list)
-        if min(self.fi.turbine_effective_velocities[0][0]) > cutin:
-            turbine_powers = self.fi.get_turbine_powers()[0]
+        if min(self.flow.turbine_average_velocities[0]) > cutin:
+            turbine_powers = self.flow.get_turbine_powers()[0]
 
            
         else:
@@ -2557,35 +2557,46 @@ class Project():
         
         if plotting:
             
-            # plot wakes
-            import floris.tools.visualization as wakeviz
-            horizontal_plane = self.fi.calculate_horizontal_plane(
+            import floris.layout_visualization as layoutviz
+            from floris.flow_visualization import visualize_cut_plane
+            
+            fmodel = self.flow
+            
+            # Create the plotting objects using matplotlib
+            fig, ax = plt.subplots()
+
+          
+            layoutviz.plot_turbine_points(fmodel, ax=ax)
+            layoutviz.plot_turbine_labels(fmodel, ax=ax)
+            ax.set_title("Turbine Points and Labels")
+            ax.set_xlabel('X (m)')
+            ax.set_ylabel('Y (m)')
+            
+         
+            
+            #fmodel.set(wind_speeds=[wind_spd], wind_directions=[wind_dir], turbulence_intensities=[ti])
+            horizontal_plane = fmodel.calculate_horizontal_plane(
                 x_resolution=200,
                 y_resolution=100,
                 height=90.0,
-                #yaw_angles=yaw_angles, 
             )
-    
-            y_plane = self.fi.calculate_y_plane(
-                x_resolution=200,
-                z_resolution=100,
-                crossstream_dist=0.0,
-                #yaw_angles=yaw_angles,
+            
+            # Plot the flow field with rotors
+            fig, ax = plt.subplots()
+            visualize_cut_plane(
+                horizontal_plane,
+                ax=ax,
+                label_contours=False,
+                title="Horizontal Flow with Turbine Rotors and labels",
             )
-            cross_plane = self.fi.calculate_cross_plane(
-                y_resolution=100,
-                z_resolution=100,
-                downstream_dist=630.0,
-                #yaw_angles=yaw_angles,
-            )
-    
-            # Create the plots
-            fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-            #ax_list = ax_list.flatten()
-            wakeviz.visualize_cut_plane(horizontal_plane, ax=ax)
-    
-            cmap = plt.cm.get_cmap('viridis_r')
-            self.ms.plot2d(ax = ax, Yuvec = [0,1,0])
+            ax.set_xlabel('X (m)')
+            ax.set_ylabel('Y (m)')
+            
+            # Plot the turbine rotors
+            layoutviz.plot_turbine_rotors(fmodel, ax=ax)
+            
+       
+            #self.ms.plot2d(ax = ax, Yuvec = [0,1,0])
      
             #return turbines to neutral positions **** only done if plotting - this reduces runtime for AEP calculation
             for i in range(0, nturbs):
@@ -2593,9 +2604,9 @@ class Project():
                 self.ms.bodyList[i].f6Ext = np.array([0, 0, 0, 0, 0, 0])       # apply an external force on the body 
                 
             #solve statics to find updated turbine positions
-            self.ms.initialize()
-            self.ms.solveEquilibrium(DOFtype='both')
-            self.ms.plot2d(ax = ax, Yuvec = [0,1,0], color = 'darkblue')
+            # self.ms.initialize()
+            # self.ms.solveEquilibrium(DOFtype='both')
+            # self.ms.plot2d(ax = ax, Yuvec = [0,1,0], color = 'darkblue')
         
         
         winds = np.array(winds)
