@@ -233,7 +233,7 @@ class Mooring(Edge):
         elif self.shared == 1: # set position of end A at platform end A
             self.setEndPosition(np.hstack([r_centerA - self.rad_fair*u, self.z_fair]),'a')
         
-        else: # otherwise just set the anchor position based on a set spacing
+        else: # otherwise just set the anchor position based on a set spacing (NEED TO UPDATE THE ANCHOR DEPTH AFTER!)
             self.setEndPosition(np.hstack([r_centerB + self.rad_anch*u, self.z_anch]), 'a', sink=True)
         
     
@@ -812,7 +812,7 @@ class Mooring(Edge):
                 MBL_cor = sec['MBL']
 
 
-    def getEnvelope(self,ang_spacing=45,SFs=True):
+    def getEnvelope(self,ang_spacing=45,SFs=True,eq_return=True):
         '''Computes the motion envelope of the Mooring based on the watch 
         circle(s) of what it's attached to. If those aren't already 
         calculated, this method will call the relevant getWatchCircle method.

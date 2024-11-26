@@ -203,7 +203,7 @@ class Platform(Node):
         
         
     def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
-                       shapes=True,Fth=None,SFs=True):
+                       shapes=True,Fth=None,SFs=True,eq_return=True):
         '''
         Compute watch circle of platform, as well as mooring and cable tension safety factors and 
         cable sag safety factors based on rated thrust.
@@ -222,6 +222,8 @@ class Platform(Node):
             Thrust force
         SFs : bool
             WHether or not to calculate safety factors etc for the line
+        eq_return: bool
+            Controls if the platform gets returned to equilibrium position with no forces after the watch circle is completed
         Returns
         -------
         x: list of x-coordinates for watch circle
@@ -337,10 +339,11 @@ class Platform(Node):
         if plot:
             plt.figure()
             plt.plot(x,y)
-            
-        # restore platform to equilibrium position 
-        self.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
-        ms.solveEquilibrium3(DOFtype='both')
+          
+        if eq_return:
+            # restore platform to equilibrium position 
+            self.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
+            ms.solveEquilibrium3(DOFtype='both')
         
                 
         if SFs:
@@ -415,7 +418,7 @@ class Platform(Node):
         return(anchorList)
         
 
-    def getbufferzones(self, buffer_rad=50):     
+    def getBufferZones(self, buffer_rad=50,buffType=['Anchor','Mooring','Platform']):     
         ''' Function to calculate buffer zones around mooring lines and anchors.
         
         Parameters
@@ -423,21 +426,43 @@ class Platform(Node):
         buffer_rad: Radius of buffer zones in m
                 
         '''
-        from shapely.geometry import LineString, MultiLineString, Polygon
+        from shapely.geometry import LineString, MultiLineString, Polygon, Point
         from shapely.ops import unary_union
         
         # get anchor objects connected to platform
         anchorList = self.getAnchors()
+        moorList = self.getMoorings()
         
         # Create LineString geometries and buffer them
         buffer_group = []
-        for anch in anchorList:
-            # im = 3*i + j  # global index of mooring/anchor
-            line = LineString([self.r, anchorList[anch].r[:2]])
-            #line = LineString([self.turb_coords[i,:], self.anchor_coords[im,:]])
-            buffer = line.buffer(buffer_rad)
+        if 'Anchor' in buffType:
+            for anch in anchorList:
+                # im = 3*i + j  # global index of mooring/anchor
+                #line = LineString([self.r, anchorList[anch].r[:2]])
+                ##line = LineString([self.turb_coords[i,:], self.anchor_coords[im,:]])
+                point = Point(anchorList[anch].r[0],anchorList[anch].r[1])
+                buffer = point.buffer(buffer_rad)
+                #buffer = line.buffer(buffer_rad)
+                buffer_group.append(buffer)
+        if 'Mooring' in buffType:
+            for moor in moorList:
+                if 'mean' in moor.envelopes:
+                    poly = moor.envelopes['mean']['shape']
+                    buffer = poly.buffer(buffer_rad)
+                else:
+                    line = LineString(moor.rA[:2],moor.rB[:2])
+                    buffer = line.buffer(buffer_rad)
+                    
+                buffer_group.append(buffer)
+        if 'Platform' in buffType:
+            if 'mean' in self.envelopes:
+                poly = self.envelopes['mean']['shape']
+                buffer = poly.buffer(buffer_rad)
+            else:
+                point = Point(self.r[0],self.r[1])
+                buffer = point.buffer(buffer_rad*3)
             buffer_group.append(buffer)
-        
+    
         # Combine the buffered lines connected to the same turbine into one polygon
         polygon = unary_union(buffer_group)  # Combine buffers for each turbine
         self.envelopes['buffer_zones'] = {}

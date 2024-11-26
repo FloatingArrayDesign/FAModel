@@ -559,7 +559,11 @@ class Project():
         
         
         # ----- set up dictionary for each individual mooring line, create anchor, mooring, and platform classes ----
-        
+        # make platforms first if they exist, as there may be no moorings called out
+        if arrayInfo:
+            for i in range(len(arrayInfo)):
+                # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
+                self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'])
         # check that all necessary sections of design dictionary exist
         if arrayInfo and self.lineTypes and lineConfigs:
             
@@ -570,8 +574,7 @@ class Project():
                                
             for i in range(0, len(arrayInfo)): # loop through each platform in array
                 
-                # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
-                self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'])           
+                           
                 # add fairlead radius and fairlead depth of this platform type from platform information section
                 if type(platforms) == list:
                     # get index of platform from array table
@@ -1843,9 +1846,10 @@ class Project():
                     if 'head_offset' in selected_cable:
                         headingA += np.radians(selected_cable['head_offset'])
                         headingB -= np.radians(selected_cable['head_offset'])
-    
+
                 # reposition cable
-                cab.reposition(project=self,headings=[headingA,headingB])  
+                cab.reposition(project=self,headings=[headingA,headingB])
+
                 # update lengths & spans of any static cables as needed (currently doesn't work w/routing)
                 cts = np.where([isinstance(a,StaticCable) for a in cab.subcomponents])[0]
                 for cs in cts:
@@ -1882,6 +1886,9 @@ class Project():
      
         # Handle extra keyword arguments or use default values
         figsize = kwargs.get('figsize', (8,8))  # the dimensions of the figure to be plotted
+        edgecolor = kwargs.get('env_color',[.5,0,0,.8])
+        color = kwargs.get('fenv_color',[.6,.3,.3,.6])
+        alpha = kwargs.get('alpha',0.5)
         
         
         # if axes not passed in, make a new figure
@@ -1917,16 +1924,18 @@ class Project():
         
         
         # Plot any object envelopes
+        from shapely import Point
         for platform in self.platformList.values():
-            for name, env in platform.envelopes.items():
-                ax.fill(env['x'], env['y'], edgecolor=[.5,0,0,.8], facecolor='none', linestyle='dashed', lw=0.8)
+            
+            for name, env in platform.envelopes.items():                 
+                ax.fill(env['x'], env['y'], edgecolor=edgecolor, facecolor='none', linestyle='dashed', lw=0.8, label='Platform envelope')
         
         for mooring in self.mooringList.values():
             for name, env in mooring.envelopes.items():
                 #if 'shape' in env:  # if there's a shapely object
                 #    pass  # do nothing for now...
                 #elif 'x' in env and 'y' in env:  # otherwise just use coordinates
-                ax.fill(env['x'], env['y'], color=[.6,.3,.3,.6])
+                ax.fill(env['x'], env['y'], color=color,label='Mooring envelope',alpha=alpha)
         
         
         # Plot moorings one way or another (eventually might want to give Mooring a plot method)
@@ -1944,7 +1953,7 @@ class Project():
             # get cable color
             import matplotlib.cm as cm
             cmap = cm.get_cmap('plasma_r')
-            cableSize = cable.dd['cables'][0].dd['A']
+            cableSize = int(cable.dd['cables'][0].dd['A'])
             Ccable = cmap(cableSize/1400)
             # # simple line plot for now
             # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
@@ -1957,22 +1966,22 @@ class Project():
                         # has routing  - first plot rA to sub.coordinate[0] connection
                         ax.plot([sub.rA[0],sub.coordinates[0][0]],
                                 [sub.rA[1],sub.coordinates[0][1]],':',color = Ccable,
-                                lw=0.6,label='Buried Cable'+str(cableSize)+' mm$^{2}$')
+                                lw=0.6,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                         # now plot route
                         if len(sub.coordinates) > 1:
                             for i in range(1,len(sub.coordinates)):
                                 ax.plot([sub.coordinates[i-1][0],sub.coordinates[i][0]],
                                         [sub.coordinates[i-1][1],sub.coordinates[i][1]],
-                                        ':',color=Ccable,lw=0.6,label='Buried Cable'+str(cableSize)+' mm$^{2}$')
+                                        ':',color=Ccable,lw=0.6,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                         # finally plot sub.coordinates[-1] to rB connection
                         ax.plot([sub.coordinates[-1][0],sub.rB[0]],
                                 [sub.coordinates[-1][1],sub.rB[1]],':',color=Ccable,
-                                lw=0.6,label='Buried Cable'+str(cableSize)+' mm$^{2}$')
+                                lw=0.6,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                     else:
                         # if not routing just do simple line plot
                         ax.plot([sub.rA[0],sub.rB[0]], 
                                 [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1,
-                                label='Buried Cable'+str(cableSize)+' mm$^{2}$')
+                                label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                 elif isinstance(sub,DynamicCable):
                         ax.plot([sub.rA[0],sub.rB[0]], 
                                 [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1,
@@ -1984,7 +1993,7 @@ class Project():
         # Plot platform one way or another (might want to give Platform a plot method)
         for platform in self.platformList.values():
             
-            ax.plot(platform.r[0], platform.r[1], 'k*',label='Platform')
+            ax.plot(platform.r[0], platform.r[1], 'ko',label='Platform')
             
         for substation in self.substationList.values():
             ax.plot(substation.r[0],substation.r[1],'go',label='Substation')
@@ -1997,10 +2006,10 @@ class Project():
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
         ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=4)
         if save:
-            plt.savefig('2dfarm.png', dpi=300, bbox_inches='tight')  # Adjust the dpi as needed
+            plt.savefig('2dfarm.png', dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
             
             # TODO - add ability to plot from RAFT FOWT
-            
+        return(ax)   
         
         
 
@@ -2108,7 +2117,7 @@ class Project():
             boundary_z = self.projectAlongSeabed(boundary[:,0], boundary[:,1])
             ax.plot(boundary[:,0], boundary[:,1], -boundary_z, 'k--', zorder=10, lw=1, alpha=0.7)
 
-        lw=0.5
+        lw=1 #0.5
         # find max cable size as applicable
         if self.cableList:
             maxA = max([a.subcomponents[0].dd['A'] for a in self.cableList.values()])
@@ -3328,7 +3337,7 @@ class Project():
             md = {'span':minfo['span'],'sections':[],'connectors':[]}
       
     def arrayWatchCircle(self,plot=0, ang_spacing=45, RNAheight=150,
-                         shapes=True,Fth=None,SFs=True):
+                         shapes=True,Fth=None,SFs=True,eq_return=True):
         '''
         Method to get watch circles on all platforms at once
 
@@ -3408,26 +3417,26 @@ class Project():
                             anch.loads['thetam'] = np.degrees(np.arctan(anch.loads['Vm']/anch.loads['Hm'])) #[deg]
                             anch.loads['mudline_load_type'] = 'max'
                                 
-                # get tensions, sag, and curvature on cable
-                for j,cab in enumerate(self.cableList.values()):
-                    MBLA = cab.ss.lineList[0].type['MBL']
-                    MBLB = cab.ss.lineList[-1].type['MBL']
-                    CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])
-                    if not CminTenSF[j] or CminTenSF[j]>CMTSF:
-                        CminTenSF[j] = deepcopy(CMTSF)
-                    # CatenMax[j], CbtenMax[j] = cab.updateTensions()
-                    cab.ss.calcCurvature()
-                    mCSF = cab.ss.getMinCurvSF()
-                    if not minCurvSF[j] or minCurvSF[j]>mCSF:
-                        minCurvSF[j] = mCSF
-                    # determine number of buoyancy sections
-                    nb = len(cab.dd['buoyancy_sections'])
-                    m_s = []
-                    for k in range(0,nb):
-                        m_s.append(cab.ss.getSag(2*k))
-                    mS = min(m_s)
-                    if not minSag[j] or minSag[j]<mS:
-                        minSag[j] = deepcopy(mS)
+                # # get tensions, sag, and curvature on cable
+                # for j,cab in enumerate(self.cableList.values()):
+                #     MBLA = cab.ss.lineList[0].type['MBL']
+                #     MBLB = cab.ss.lineList[-1].type['MBL']
+                #     CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])
+                #     if not CminTenSF[j] or CminTenSF[j]>CMTSF:
+                #         CminTenSF[j] = deepcopy(CMTSF)
+                #     # CatenMax[j], CbtenMax[j] = cab.updateTensions()
+                #     cab.ss.calcCurvature()
+                #     mCSF = cab.ss.getMinCurvSF()
+                #     if not minCurvSF[j] or minCurvSF[j]>mCSF:
+                #         minCurvSF[j] = mCSF
+                #     # determine number of buoyancy sections
+                #     nb = len(cab.dd['buoyancy_sections'])
+                #     m_s = []
+                #     for k in range(0,nb):
+                #         m_s.append(cab.ss.getSag(2*k))
+                #     mS = min(m_s)
+                #     if not minSag[j] or minSag[j]<mS:
+                #         minSag[j] = deepcopy(mS)
                         
                 
             # save location of each platform for envelopes
@@ -3442,8 +3451,12 @@ class Project():
             if shapes:  # want to *optionally* make a shapely polygon
                 from shapely import Polygon
                 body.envelopes['mean']['shape'] = Polygon(list(zip(x[k,:],y[k,:])))
-                    
-        maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
+            
+        for body in self.ms.bodyList:
+            body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
+        self.ms.solveEquilibrium3(DOFtype='both')  
+        maxVals = {'minTenSF':minTenSF,'maxF':F}
+        #maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
         return(x,y,maxVals)       
         
         
@@ -3507,6 +3520,58 @@ class Project():
         
         
         return(total_cost)
+    
+    def unload(self,file='project.yaml'):
+        '''
+        Function to unload information to a yaml file
+        
+        Parameters
+        ----------
+        file : str
+            File name for output yaml file
+
+        Returns
+        -------
+        None.
+
+        '''
+        # build out array table
+        arrayKeys = ['ID','turbineID','platformID','mooringID','x_location','y_location','heading_adjust']
+        arrayData = [] #np.zeros((len(arrayKeys),len(self.platformList)))
+        
+        for i,pf in enumerate(self.platformList.values()):
+            arrayData.append([pf.id,1,1,0,float(pf.r[0]),float(pf.r[1]),float(np.radians(pf.phi))])
+            
+        # build out site info
+        for key,val in self.soilProps.items():
+            for k,v in val.items():
+                v[0] = float(v[0])
+                if isinstance(v,np.ndarray):
+                    vnew = v.tolist()
+                    self.soilProps[key][k] = vnew
+                    
+        site = {}
+        if len(self.grid_x)>1:
+            site['bathymetry'] = {'x':[float(x) for x in self.grid_x],'y':[float(y) for y in self.grid_y],'depths':[[float(y) for y in x] for x in self.grid_depth]}
+        if len(self.boundary)>0:
+            site['boundaries'] = {'x_y':[[float(y) for y in x] for x in self.boundary]}
+        site['general'] = {'depth':float(self.depth),'rho_air':float(self.rho_air),
+                           'rho_water':float(self.rho_water),'mu_air':float(self.mu_air)}
+        if len(self.soil_x)>1:
+            site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
+                              'soil_types':self.soilProps} #[[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
+            
+        # put it all together
+        output = {'site':site,'array':{'keys':arrayKeys,'data':arrayData}}
+        # import json
+        # with open(file,'w') as convert_file:
+        #     convert_file.write(json.dumps(output))
+        import ruamel.yaml
+        yaml = ruamel.yaml.YAML()
+        # write out to file
+        with open(file,'w') as f:    
+            yaml.dump(output,f)
+        
     
     def updateFailureProbability(self):
         '''

@@ -103,7 +103,7 @@ array:
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
         -  [FOWT1,     1,         1,         ms3,          0,         0,          180   ]    # 2 array, shared moorings
         -  [FOWT2,     1,         1,         ms2,          1600,           0,            0   ] 
-        -  [FOWT3,     1,         1,         ms1,          0,           1656,            0   ]
+        -  [FOWT3,     1,         1,         ms1,          0,           1656,            180   ]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
         # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
@@ -128,7 +128,7 @@ array_mooring:
     line_data :
         - [ rope_shared   ,  FOWT1,  FOWT2,  270, 270, 0]
         - [ rope_1   ,  Anch1,  FOWT1, NA, 135,  0]
-        - [ rope_1   ,  Anch1,  FOWT3, NA, 225,  0]
+        - [ rope_1   ,  Anch1,  FOWT3, NA, 45,  0]
         # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
 
 
@@ -137,8 +137,8 @@ array_cables:
     keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, route, lengthAdjust]
     data:
       - [ array_cable1, FOWT1, FOWT2,  270,       270, route1, 0] 
-      - [ suspended_cable1, FOWT1, FOWT3,  180,       180, NA, 0]
-      - [ suspended_cable1, FOWT3, substation1, 90, 270, NA, 0] 
+      - [ suspended_cable1, FOWT1, FOWT3,  180,       0, NA, 0]
+      #- [ suspended_cable1, FOWT3, substation1, 90, 270, NA, 0] 
       
 # Cable routing
 route_cables:
@@ -1324,8 +1324,8 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  rope_1,   90 ,    suction_pile1,   0 ]
-          - [  rope_1,  315 ,    suction_pile1,   0 ]
+          - [  rope_1,   270 ,    suction_pile1,   0 ]
+          - [  rope_1,  135 ,    suction_pile1,   0 ]
 
     ms2:
         name: 2-line semitaut with a third shared line
