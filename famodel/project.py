@@ -2287,11 +2287,11 @@ class Project():
             for j in self.anchorList[i].attachments: # j is key (name) of mooring object in anchor i
                 # create subsystem
                 if pristineLines:
-                    self.anchorList[i].attachments[j]['obj'].createSubsystem(pristine=1)
+                    self.anchorList[i].attachments[j]['obj'].createSubsystem(pristine=1, project=self, mooringSys=self.ms)
                     # set location of subsystem for simpler coding
                     ssloc.append(self.anchorList[i].attachments[j]['obj'].ss)
                 else:
-                    self.anchorList[i].attachments[j]['obj'].createSubsystem()
+                    self.anchorList[i].attachments[j]['obj'].createSubsystem(project=self, mooringSys=self.ms)
                     # set location of subsystem for simpler coding
                     ssloc.append(self.anchorList[i].attachments[j]['obj'].ss_mod)
                 self.ms.lineList.append(ssloc[-1])
@@ -2333,9 +2333,9 @@ class Project():
                 # new shared line
                 # create subsystem for shared line
                 if hasattr(self.mooringList[i],'shared'):
-                    self.mooringList[i].createSubsystem(case=self.mooringList[i].shared,pristine=pristineLines)
+                    self.mooringList[i].createSubsystem(case=self.mooringList[i].shared,pristine=pristineLines, project=self)
                 else:
-                    self.mooringList[i].createSubsystem(case=1,pristine=pristineLines) # we doubled all symmetric lines so any shared lines should be case 1
+                    self.mooringList[i].createSubsystem(case=1,pristine=pristineLines, project=self) # we doubled all symmetric lines so any shared lines should be case 1
                 # set location of subsystem for simpler coding
                 if pristineLines:
                     ssloc = self.mooringList[i].ss

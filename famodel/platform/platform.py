@@ -122,7 +122,7 @@ class Platform(Node):
                 # reposition the cable
                 cab.reposition(headings=headings)
         
-    def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None):
+    def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None, project=None):
         '''
         Create a MoorPy system for the platform based on the mooring subsystems provided in 
         the mooringList of Mooring classes and the mooring headings
@@ -150,9 +150,24 @@ class Platform(Node):
                 if isinstance(self.attachments[i]['obj'],Mooring):
                     mList.append(self.attachments[i]['obj'])
             
+        if len(project.grid_depth) > 1:
+            # calculate the maximum anchor spacing
+            anchor_spacings = [np.linalg.norm(mooring.rA[0:2] - self.r) for mooring in mList]
+            # get the bathymetry range that is related to this platform
+            margin = 1.2
+            small_grid_x = np.linspace((self.r[0] - np.max(anchor_spacings)*margin), (self.r[0] + np.max(anchor_spacings)*margin), 10)
+            small_grid_y = np.linspace((self.r[1] - np.max(anchor_spacings)*margin), (self.r[1] + np.max(anchor_spacings)*margin), 10)
+            # interpolate the global bathymetry
+            small_grid_depths = np.zeros([len(small_grid_y), len(small_grid_x)])
+            for i,x in enumerate(small_grid_x):
+                for j,y in enumerate(small_grid_y):
+                    small_grid_depths[j,i] = project.getDepthAtLocation(x, y)
+            #self.ms = mp.System(bathymetry=dict(x=small_grid_x, y=small_grid_y, depth=small_grid_depths))
+            self.ms = mp.System(bathymetry=dict(x=project.grid_x, y=project.grid_y, depth=project.grid_depth))
         
-        # create new MoorPy system and set its depth
-        self.ms = mp.System(depth=mList[0].ss.depth)
+        else:
+            # create new MoorPy system and set its depth
+            self.ms = mp.System(depth=mList[0].ss.depth)
         
         r6 = [self.r[0],self.r[1],0,0,0,0]
         # create body
@@ -193,11 +208,11 @@ class Platform(Node):
                             # attach subsystem line to the fairlead point
                             self.ms.pointList[-1].attachLine(i,1)
                             # attach fairlead point to body
-                            self.ms.bodyList[0].attachPoint(len(self.ms.pointList),self.ms.pointList[-1].r-self.r)
+                            self.ms.bodyList[0].attachPoint(len(self.ms.pointList),self.ms.pointList[-1].r-np.append(self.r, [0]))
         # initialize and plot
         self.ms.initialize()
         self.ms.solveEquilibrium()
-        fig,ax = self.ms.plot()
+        #fig,ax = self.ms.plot()
         
         return(self.ms)
         

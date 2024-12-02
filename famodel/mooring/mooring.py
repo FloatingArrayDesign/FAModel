@@ -325,7 +325,7 @@ class Mooring(Edge):
         return(self.loads['TAmax'],self.loads['TBmax'])
     
     
-    def createSubsystem(self, case=0,pristine=True,dd=None):
+    def createSubsystem(self, case=0,pristine=True,dd=None, project=None, mooringSys=None):
         ''' Create a subsystem for a line configuration from the design dictionary
         
         Parameters
@@ -345,9 +345,15 @@ class Mooring(Edge):
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:
             dd = self.dd
-        ss=Subsystem(depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
+        ss=Subsystem(mooringSys=mooringSys, depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
                           span=dd['span'], rad_fair=self.rad_fair,
-                          z_fair=self.z_fair)
+                          z_fair=self.z_fair)#, bathymetry=dict(x=project.grid_x, y=project.grid_y, depth=project.grid_depth))    # don't necessarily need to import anymore
+        #ss.setSSBathymetry(project.grid_x, project.grid_y, project.grid_depth)
+        
+
+
+
+
         lengths = []
         types = []
         # run through each line section and collect the length and type
