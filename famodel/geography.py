@@ -118,7 +118,10 @@ def getCustomCRS(long, lat):
 def getLeaseCoords(lease_name):
 
     # read in the BOEM shapefile that contains all Wind Energy Lease Areas (can use other shapefiles for aliquots)
-    lease_areas = gpd.read_file(os.path.dirname(__file__)+'/../geography/Wind_Lease_Outlines_2_2023.shp')
+    if 'Humboldt' in lease_name or 'MorroBay' in lease_name:
+        lease_areas = gpd.read_file(os.path.dirname(__file__)+'/../geography/Wind_Lease_Outlines_2_2023.shp')
+    elif 'GulfofMaine' in lease_name:
+        lease_areas = gpd.read_file(os.path.dirname(__file__)+'/../geography/BOEM_Wind_Planning_Area_Outlines_04_29_2024.shp')
 
     # extract the lease area of interest
     if lease_name=='Humboldt_NE':
@@ -131,6 +134,8 @@ def getLeaseCoords(lease_name):
         lease_area = lease_areas.loc[lease_areas['LEASE_NUMB']=='OCS-P0564 - Provisional']
     elif lease_name=='MorroBay_E':
         lease_area = lease_areas.loc[lease_areas['LEASE_NUMB']=='OCS-P0565 - Provisional']
+    elif lease_name=='GulfofMaine_ResearchArray':
+        lease_area = lease_areas.loc[lease_areas['ADDITIONAL']=='Marine Research Array Requested Lease']
     else:
         raise ValueError(f"The lease area name '{lease_area}' is not supported yet")
     
@@ -349,6 +354,47 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths,
                 f.write(f'{bath_depths[iy,id]:8.3f} ')
         f.write('\n')
     f.close()
+
+
+
+def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows=100):
+
+    # initialize the conventional lat/long CRS
+    latlong_crs = getLatLongCRS()
+
+    # get lease area coordinates based on BOEM shapefile
+    lease_longs, lease_lats, centroid = getLeaseCoords(lease_name)
+    
+    # get the CRS about the centroid of the lease area of interest
+    custom_crs = getCustomCRS(centroid[0], centroid[1])
+    
+    # convert the lease boundary to meters
+    lease_xs, lease_ys, centroid_utm = convertLatLong2Meters(lease_longs, lease_lats, centroid, latlong_crs, custom_crs, return_centroid=True)
+
+    # get bathymetry information from a GEBCO file (or other)
+    bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry(gebco_file)
+    # convert bathymetry to meters
+    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, custom_crs, bath_ncols, bath_nrows)
+    # export to MoorPy-readable file
+    bathymetryfile = f'bathymetry_{bath_ncols}x{bath_nrows}.txt'
+    writeBathymetryFile(bathymetryfile, bath_xs, bath_ys, bath_depths)
+
+    info = {}
+    info['lease_longs'] = lease_longs
+    info['lease_lats'] = lease_lats
+    info['lease_centroid'] = centroid
+    info['lease_xs'] = lease_xs
+    info['lease_ys'] = lease_ys
+    info['bath_longs'] = bath_longs
+    info['bath_lats'] = bath_lats
+    info['bath_xs'] = bath_xs
+    info['bath_ys'] = bath_ys
+    info['bath_depths'] = bath_depths
+
+    return info
+
+
+
 
 
 def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
@@ -840,6 +886,7 @@ def projectAlongSeabed(x, y, bathXs, bathYs, bath_depths):
 
 if __name__ == '__main__':
 
+    """
     # initialize the conventional lat/long CRS
     latlong_crs = getLatLongCRS()
 
@@ -884,17 +931,17 @@ if __name__ == '__main__':
     # export to MoorPy-readable file
     bathymetryfile = 'bathymetry_large_gebco.txt'
     writeBathymetryFile(bathymetryfile, bath_xs, bath_ys, bath_depths)
+    """
 
     # plot everything
-    plot3d(lease_xs, lease_ys, bathymetryfile, area_on_bath=True, args_bath={'zlim':[-6000, 500], 'cmap': 'gist_earth'})
+    #plot3d(lease_xs, lease_ys, bathymetryfile, area_on_bath=True, args_bath={'zlim':[-6000, 500], 'cmap': 'gist_earth'})
 
 
-
-
-    # store everything in a GDF (for other plotting)
-
-    # plot everything in a matplotlib
-
+    # run example
+    __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    lease_name = 'GulfofMaine_ResearchArray'
+    gebco_file = __location__+'\\..\\geography\\gebco_2024_n44.1458_s41.4761_w-70.9497_e-66.2146.asc'
+    info = getLeaseAndBathymetryInfo(lease_name, gebco_file)
 
 
     plt.show()
