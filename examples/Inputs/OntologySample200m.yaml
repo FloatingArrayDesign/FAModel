@@ -13,10 +13,10 @@ site:
     boundaries:  # project or lease area boundary, via file or vertex list
         file:   # filename of x-y vertex coordinates [m]
         x_y:    # list of polygon vertices in order [m]
-          - [-3000, -3000]
-          - [-3000, 0]
-          - [3000, 0]
-          - [3000, -3000]
+          - [-2500, -2500]
+          - [-2500, -800] 
+          - [2000, -800]
+          - [2000, -2500]
     
     exclusions:
       - name: round example
@@ -146,7 +146,8 @@ array_cables:
     keys:  [ CableID, AttachA,  AttachB,  headingA, headingB, route, lengthAdjust]
     data:
       - [ array_cable1, FOWT1, FOWT2,  270,      270, route1, 0] 
-      - [ suspended_cable1, FOWT2, substation1,  90,  270, NA, 0] 
+      - [ array_cable1, FOWT2, substation1, 90, 270, NA, 0]
+      # - [ suspended_cable1, FOWT2, substation1,  90,  270, NA, 0] 
       
 # Cable routing for each route called out in the array_cables table
 # consider making routing in a local reference frame (reference to the rA location?)   
@@ -2483,8 +2484,8 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,  150 , drag-embedment1,   0 ]
-          - [  semitaut-poly_1,  30 ,  drag-embedment1,   0 ]
+          - [  semitaut-poly_1,  150 , suction_pile1,   0 ]
+          - [  semitaut-poly_1,  30 ,  suction_pile1,   0 ]
 
     ms2:
         name: 2-line semi-taut polyester mooring system with a third line shared

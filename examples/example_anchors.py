@@ -32,8 +32,8 @@ print('Clay suction pile cost is: ', anch.cost,'\n')
 # try suction pile with sand
 newdd = anch.dd
 newdd['soil_type'] = 'sand'
-newdd['soil_properties']['phi'] =33
-newdd['soil_properties']['Dr'] = 50
+newdd['soil_properties']['phi'] = 33
+newdd['soil_properties']['Dr'] = 70
 newdd['soil_properties']['delta'] = 25
 
 # update anchor loads at lug point (mudline load should be constant), then get anchor capacity

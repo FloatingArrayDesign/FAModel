@@ -30,16 +30,17 @@ project.getMoorPyArray(cables=1)
 project.plot3d()
 
 
-
 #%% Section 2: Project with RAFT
 print('\nCreating project with RAFT \n')
 #create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
 project = Project(file=ontology_file,raft=1)
 # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
-project.plot3d(fowt=True)
+project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False)
 
 # get location of RAFT model (stored as array property in project class)
 model = project.array
+model.mooring_currentMod = 0
+model.ms.moorMod = 0
 print('Running RAFT case')
 # run cases
 model.analyzeCases()
@@ -47,44 +48,58 @@ model.analyzeCases()
 model.plotResponses()
 model.plot()
 
+#%% FLORIS
+print('Running FLORIS')
+config_file = 'gch.yaml'
+turb_file = 'iea_15MW.yaml'
+wr = 'maine_rose.csv'
+
+project.getFLORISArray(config_file,[turb_file],[0,10.59,25],[0,1.95e6,1.9E6])
+project.getFLORISMPequilibrium(10.59,0,.06,3,150,plotting=True)
+
 
 #%% Section 3: Other capabilities
 
 #### get motion envelopes of platforms and moorings ####
 print('\nGetting motion envelopes of platforms and moorings\n')
 # loop over each platform object in the farm
-for platform in project.platformList.values():
-    # get watch circle
-    platform.getWatchCircle()
+# for platform in project.platformList.values():
+#     # get watch circle
+#     platform.getWatchCircle(ang_spacing=5)
+    
+for moor in project.mooringList.values():
+    moor.getEnvelope(ang_spacing=20)
+
 # plot motion envelopes with 2d plot
-project.plot2d()
+project.plot2d(save=True,plot_bathymetry=False)
+
+
 
 #### get anchor capacities, loads, and safety factors ####
 print('\nGetting anchor capacities, loads, and safety factors\n')
-# loop over each anchor in the farm
-capacities = []
-loads = []
-sfs = []
-for anchor in project.anchorList.values():
-    # get anchor capacity
-    anchor.getAnchorCapacity()
-    capacities.append(anchor.anchorCapacity)
-    # get anchor loads at mudline and anchor lug depth (if applicable)
-    loads.append(anchor.getLugForces())
-    # get safety factor
-    sfs.append(anchor.getFS())
+# let's look at one anchor in the farm
+
+# define anchor to analyze
+anchor = project.anchorList['FOWT2a']
+# get anchor capacity
+anchor.getAnchorCapacity()
+capacities = anchor.anchorCapacity
+# get anchor loads at mudline and anchor lug depth (if applicable)
+loads = anchor.getLugForces()
+# get safety factor
+sfs = anchor.getFS()
     
 print('\nAnchor safety factors: ',sfs)
     
 #### add marine growth to the mooring lines and cables ####
 print('\nAdding marine growth\n')
 # marine growth dictionary is read in from YAML, see Ontology ReadMe for description
-project.getMarineGrowth()
+project.getMarineGrowth(display=False)
 # moorpy system lines with marine growth are stored in the respective objects under ss_mod (pristine lines are stored under ss)
 # check the difference in nominal diameter for a given line:
 reg_line_d = project.mooringList['FOWT1a'].ss.lineList[1].type['d_nom']
 mg_line_d = project.mooringList['FOWT1a'].ss_mod.lineList[-1].type['d_nom']
 print('\nPristine line polyester nominal diameter just below surface: ',reg_line_d,' Marine growth line polyester nominal diameter just below surface: ',mg_line_d)
 
-#### 
+
 

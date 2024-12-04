@@ -2712,7 +2712,7 @@ class Project():
                 # get body hydrostatics info for MoorPy bodies
                 body.calcStatics()
                 # populate dictionary of body info to send to moorpy
-                if 'ID' in RAFTable:
+                if 'ID' in RAFTable[i]:
                     bodyInfo[RAFTable[i]['ID']] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
             # create moorpy array if it doesn't exist
             if not self.ms:
@@ -2728,7 +2728,7 @@ class Project():
         else:
             raise Exception('Platform(s) must be specified in YAML file')
             
-    def getMarineGrowth(self,mgDict_start=None,lines='all',tol=2):
+    def getMarineGrowth(self,mgDict_start=None,lines='all',tol=2,display=False):
         '''Calls the addMarineGrowth mooring object method for the chosen mooring objects
            and applies the specified marine growth thicknesses at the specified depth ranges
            for the specified marine growth densities.
@@ -2757,6 +2757,10 @@ class Project():
                 
         tol : float, optional [m]
             Tolerance for marine growth cutoff depth values. Default is 2 m.
+        display : bool, optional
+            Whether or not to print out difference between expected and actual depth of change 
+            for marine growth thicknesses
+        
         Returns
         -------
         None.
@@ -2811,7 +2815,8 @@ class Project():
                             elif (ct >= 4 and ct < 9) or abs(mcEq)>=12:
                                 # could be ping-ponging between two different things, try adding half
                                 mgDict['th'][j][k] = mgDict['th'][j][k] + 0.5*mcEq
-                    print('average difference between expected and actual change depth is: ',mcEq)
+                    if display:
+                        print('average difference between expected and actual change depth is: ',mcEq)
                 else: # there were no change depths in the line (could be the case for a shared line)
                     cEq = [0,0] # kick out of the while loop
                 ct = ct + 1 # add to counter
@@ -3560,12 +3565,101 @@ class Project():
         if len(self.soil_x)>1:
             site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
                               'soil_types':self.soilProps} #[[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
-            
+           
+        # build out array mooring section
+        arrayMoor = []
+        allconfigs = []
+        arrayAnch = []
+        anchConfigs = {}
+        anchKeys = ['ID','type','x','y','embedment']
+        lineKeys = ['MooringConfigID','end A','end B','headingA','headingB','lengthAdjust']
+        
+        for moor in self.mooringList.values():
+            newcon = True
+            newanch = True
+            # get connected objects
+            endA = moor.attached_to[0]
+            endB = moor.attached_to[1]
+            # get heading(s)
+            if not moor.shared:
+                headA = 'NA'
+                # add anchor
+                arrayAnch.append([endA, endA.dd['name'], endA.r[0], endA.r[1],0])
+                if anchConfigs:
+                    if any([endA.dd['name']==k for k in anchConfigs]):
+                        newanch = False
+                        current_anch = endA.dd['name']
+                if newanch:
+                    anchConfigs[endA.dd['name']] = dict(endA.dd['design'])
+                
+                
+            else:
+                # shared line - get end A heading
+                ang = np.pi() - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
+                headA = np.degrees(ang - endA.phi)
+            # get end B heading
+            angB = np.pi() - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
+            headB = np.degrees(angB - endB.phi)
+            # get mooring configuration
+            config = {'span':moor.span,'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
+            if allconfigs:
+                pc = np.where([config['span']==x['span'] for x in allconfigs] and [len(y['sections'])==len(config['sections']) for y in allconfigs])[0]
+                for j in pc:
+                    if all([allconfigs[j]['sections'][k]==config['sections'][k] for k in range(len(config['sections']))]):
+                        if all([allconfigs[j]['connectors'][k]==config['connectors'][k] for k in range(len(config['connectors']))]):
+                            current_config = j
+                            newcon = False
+            if newcon:
+                allconfigs.append(config)
+                current_config = len(allconfigs) - 1
+
+            arrayMoor.append([current_config,endA.id, endB.id, headA,headB,0])
+        
+            # set up mooring configs, connector and section types dictionaries
+        connTypes = {}  
+        secTypes = {}
+        mooringConfigs = {}
+        for j,conf in enumerate(allconfigs):
+            sections = []
+            for i in range(len(conf['sections'])):
+                if not conf['connectors'][i]['m'] == 0 and conf['connectors'][i]['CdA'] == 0 and conf['connectors'][i]['v'] == 0:
+                    # this is not an empty connector
+                    if not 'type' in conf['connectors'][i]:
+                        # make a new connector type
+                        connTypes[len(connTypes)] = conf['connectors'][i]
+                        ctn = len(connTypes)
+                    else:
+                        # # check if type already exists in dictionary
+                        ctn = conf['connectors'][i]['type']
+                        # if not ctn in connTypes:
+                        #     # add to dictionary
+                        connTypes[ctn] = dict(conf['connectors'][i])
+                            
+                    sections.append({'connectorType':ctn})
+                    
+                stn = conf['sections'][i]['type']['name'] # section type name
+                sections.append({'type':stn,'length':conf['sections'][i]['L']})
+                secTypes[stn] = dict(conf['sections'][i]['type'])
+            # add last connector if needed
+            if not conf['connectors'][i]['m'] == 0 and conf['connectors'][i]['CdA'] == 0 and conf['connectors'][i]['v'] == 0:
+                # this is not an empty connector
+                if not 'type' in conf['connectors'][i]:
+                    # make a new connector type
+                    connTypes[len(connTypes)] = conf['connectors'][i]
+                    ctn = len(connTypes)
+                else:
+                    ctn = conf['connectors'][i]['type']
+                    connTypes[ctn] = dict(conf['connectors'][i])
+                    
+            sections.append({'connectorType':ctn})
+            mooringConfigs[current_config] = {'name':j,'span':conf['span'],'sections':sections}
+                
         # put it all together
-        output = {'site':site,'array':{'keys':arrayKeys,'data':arrayData}}
-        # import json
-        # with open(file,'w') as convert_file:
-        #     convert_file.write(json.dumps(output))
+        output = {'site':site,'array':{'keys':arrayKeys,'data':arrayData},'mooring_line_configs':mooringConfigs,
+                  'mooring_line_types':secTypes,'mooring_connector_types':connTypes,
+                  'anchor_types':anchConfigs,'array_mooring':{'anchor_keys':anchKeys,'anchor_data':arrayAnch,
+                                                              'line_keys':lineKeys,'line_data':arrayMoor}}
+
         import ruamel.yaml
         yaml = ruamel.yaml.YAML()
         # write out to file
