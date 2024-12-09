@@ -10,7 +10,8 @@ import famodel.platform.platform
 
 class Anchor(Node):
     
-    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None,id=None,g=9.81,rho=1025):
+    def __init__(self, dd=None, ms=None, r=[0,0,0], aNum=None, id=None, 
+                 g=9.81, rho=1025):
         '''
         Parameters
         ----------
@@ -18,16 +19,22 @@ class Anchor(Node):
             Design dictionary that contains all information on an anchor for a mooring line/shared mooring
             {
                 type:
-                design:
-                    # all geometric info from yaml file
-                soil_type:
-                angle: # seabed angle 
+                design: # all geometric info from yaml file
+                     D    anchor diameter
+                     d    screw diameter (helical piles only)?
+                     L    ?
+                     L1   ?
+                     L2   ?
+                     zlug padeye z elevation ...s
+                     beta ?
+                soil_type:    <<< not design information
+                angle: # seabed angle   <<< not design information
                 cost:
                     totCost: #total cost
                     matCost: # material cost
                     instCost: # installation cost
                     decomCost: # decomissioning cost                          
-                }
+            }
         ms: system object
             MoorPy system object the anchor is in
             
