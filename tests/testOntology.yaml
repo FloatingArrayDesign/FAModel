@@ -138,7 +138,7 @@ array_cables:
     data:
       - [ array_cable1, FOWT1, FOWT2,  270,       270, route1, 0] 
       - [ suspended_cable1, FOWT1, FOWT3,  180,       0, NA, 0]
-      #- [ suspended_cable1, FOWT3, substation1, 90, 270, NA, 0] 
+      - [ suspended_cable1, FOWT3, substation1, 90, 270, NA, 0] 
       
 # Cable routing
 route_cables:

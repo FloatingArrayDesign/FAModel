@@ -74,7 +74,8 @@ class Project():
         self.midConnList = {} # multi-line connectors
         
         # Dictionaries of component/product properties used in the array
-        self.turbineTypes = None
+        self.turbineTypes = None # list of turbine designs (RAFT input file style)
+        self.platformTypes = None # list of platform designs (RAFT input file style, with rFair and zFair added)
         self.lineTypes = None
         self.anchorTypes = None
         self.cableTypes = None
@@ -566,7 +567,9 @@ class Project():
         if arrayInfo:
             for i in range(len(arrayInfo)):
                 # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
-                self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],heading=arrayInfo[i]['heading_adjust'])
+                self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],
+                                                                 r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],
+                                                                 heading=arrayInfo[i]['heading_adjust'])
         # check that all necessary sections of design dictionary exist
         if arrayInfo and self.lineTypes and lineConfigs:
             
@@ -598,7 +601,11 @@ class Project():
                     turb_dd = turbines[arrayInfo[i]['turbineID']-1]
                 else:
                     turb_dd = turbines
-                self.turbineList[turb_name] = Turbine(turb_dd,turb_name,D=turb_dd['blade']['Rtip']*2)
+                if turb_dd:
+                    blade_diameter = turb_dd['blade']['Rtip']*2
+                else:
+                    blade_diameter = None
+                self.turbineList[turb_name] = Turbine(turb_dd,turb_name,D=blade_diameter)
                 self.turbineList[turb_name].dd['type'] = arrayInfo[i]['turbineID']-1
                 # attach turbine to platform
                 self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])

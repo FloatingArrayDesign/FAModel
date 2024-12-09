@@ -9,7 +9,7 @@ from numpy.testing import assert_allclose
 
 import matplotlib.pyplot as plt
 
-from famodel import Project
+from famodel.project import Project
 
 from famodel.mooring.mooring import Mooring
 
