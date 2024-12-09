@@ -335,10 +335,12 @@ class Project():
                 platforms = {} # dictionary of platform information
                 platforms = d['platform']
                 RAFTDict['platform'] = d['platform']
+                self.platformTypes = d['platform']
         # load list of platform dictionaries into RAFT dictionary
         elif 'platforms' in d and d['platforms']:
             platforms = [] # list of dictionaries of platform information
             platforms = d['platforms']
+            self.platformTypes = d['platforms']
             RAFTDict['platforms'] = d['platforms']
             
         # ----- turbines -----
@@ -357,6 +359,7 @@ class Project():
             turbines = [] # list of dictionaries of turbine information
             turbines = d['turbines']
             RAFTDict['turbines'] = d['turbines']
+        self.turbineTypes = turbines
 
                 # I think we want to just store it as a dictionary
                 # validate it,
@@ -576,14 +579,16 @@ class Project():
                 
                            
                 # add fairlead radius and fairlead depth of this platform type from platform information section
+                # get index of platform from array table
+                pfID = arrayInfo[i]['platformID']-1
                 if type(platforms) == list:
-                    # get index of platform from array table
-                    pfID = arrayInfo[i]['platformID']-1
                     self.platformList[arrayInfo[i]['ID']].rFair = platforms[pfID]['rFair']
                     self.platformList[arrayInfo[i]['ID']].zFair = platforms[pfID]['zFair']
                 else:
                     self.platformList[arrayInfo[i]['ID']].rFair = platforms['rFair']
                     self.platformList[arrayInfo[i]['ID']].zFair = platforms['zFair']
+                # platform ID correlating to the ID in the platformTypes list
+                self.platformList[arrayInfo[i]['ID']].dd['type'] = pfID
                 # remove pre-set headings (need to append to this list so list should start off empty)
                 self.platformList[arrayInfo[i]['ID']].mooring_headings = []
                 
@@ -594,6 +599,7 @@ class Project():
                 else:
                     turb_dd = turbines
                 self.turbineList[turb_name] = Turbine(turb_dd,turb_name,D=turb_dd['blade']['Rtip']*2)
+                self.turbineList[turb_name].dd['type'] = arrayInfo[i]['turbineID']-1
                 # attach turbine to platform
                 self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])
                 
@@ -654,10 +660,8 @@ class Project():
                         
         
         # ----- set up dictionary for each shared mooring line or shared anchor, create mooring and anchor classes ----
-    
-        aNum = []
         
-        # create any shared mooring lines / lines connected to shared anchors
+        # create any shared mooring lines / lines connected to shared anchors / lines called out in arrayMooring table
         if arrayMooring:
             # get mooring line info for all lines 
             for j in range(0, len(arrayMooring)): # run through each line            
@@ -726,31 +730,31 @@ class Project():
                     mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
 
                     # check if anchor instance already exists
-                    if any(tt == 'shared_'+ arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
+                    #if any(tt == 'shared_'+ arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
+                    if any(tt == arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
                         # find anchor class instance
-                        for anch in self.anchorList:#range(0,len(self.anchorList)):
-                            if anch == 'shared_'+arrayMooring[j]['end A']:
+                        for anch in self.anchorList: #range(0,len(self.anchorList)):
+                            if anch == arrayMooring[j]['end A']:
                                 mc.attachTo(self.anchorList[anch],end='A')
 
                     else:
-                                               
                         # find location of anchor in arrayAnchor table
                         for k in range(0,len(arrayAnchor)):
                             if arrayAnchor[k]['ID'] == arrayMooring[j]['end A']:
                                 aloc = [arrayAnchor[k]['x'],arrayAnchor[k]['y']] 
-                                aNum.append(k) # get anchor row number
+                                aNum = k # get anchor row number
                                 # set line anchor type and get dictionary of anchor information
                                 lineAnch = arrayAnchor[k]['type']
-                        ad = getAnchors(lineAnch,aNum=aNum[-1]) # call method to create dictionary
+                        ad = getAnchors(lineAnch,aNum=aNum) # call method to create dictionary
                         # adjust anchor location and rA based on location of anchor
                         zAnew, nAngle = self.getDepthAtLocation(aloc[0], aloc[1], return_n=True)
                         mc.rA = [aloc[0],aloc[1],-zAnew]
                         mc.dd['zAnchor'] = -zAnew
                         mc.z_anch = -zAnew
                         # create anchor object
-                        self.anchorList['shared_'+arrayAnchor[k]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum[-1],id='shared_'+arrayAnchor[k]['ID'])
+                        self.anchorList[arrayAnchor[aNum]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum,id=arrayAnchor[aNum]['ID'])
                         # attach mooring object to anchor
-                        mc.attachTo(self.anchorList[('shared_'+arrayAnchor[k]['ID'])],end='A')
+                        mc.attachTo(self.anchorList[(arrayAnchor[aNum]['ID'])],end='A')
                   
                     # add mooring object to project mooring list
                     self.mooringList[str(PFNum[0])+alph[ind]] = mc
@@ -1060,10 +1064,11 @@ class Project():
             if 'file' in site['bathymetry'] and site['bathymetry']['file']: # make sure there was a file provided even if the key is there
                 self.loadBathymetry(site['bathymetry']['file'])
             elif 'x' in site['bathymetry'] and 'y' in site['bathymetry']:
-                xs = np.array(site['bathymetry']['x'])
-                ys = np.array(site['bathymetry']['y'])
+                self.grid_x = np.array(site['bathymetry']['x'])
+                self.grid_y = np.array(site['bathymetry']['y'])
                 self.grid_depth = np.array(site['bathymetry']['depths'])
-                self.setGrid(xs,ys)
+                # breakpoint()
+                # self.setGrid(xs,ys)
             else:
                 # assume a flat bathymetry
                 self.grid_depth  = np.array([[self.depth]])
@@ -3540,12 +3545,57 @@ class Project():
         None.
 
         '''
+        print('Unloading project to file')
         # build out array table
         arrayKeys = ['ID','turbineID','platformID','mooringID','x_location','y_location','heading_adjust']
         arrayData = [] #np.zeros((len(arrayKeys),len(self.platformList)))
+        pf_type = []
         
+        # build out platform info
         for i,pf in enumerate(self.platformList.values()):
-            arrayData.append([pf.id,1,1,0,float(pf.r[0]),float(pf.r[1]),float(np.radians(pf.phi))])
+            for att in pf.attachments.values():
+                if isinstance(att['obj'],Turbine):
+                    turbconn = att['obj']
+            arrayData.append([pf.id,turbconn.dd['type']+1,pf.dd['type']+1,0,float(pf.r[0]),float(pf.r[1]),float(np.degrees(pf.phi))])
+            pf_type.append(pf.dd['type'])
+        # get set of just platform types used in this project
+        pf_type = set(pf_type)
+        # fix any data type issues
+        for j in range(len(pf_type)):
+            for key,val in self.platformTypes[j].items():
+                if isinstance(val,np.float64):
+                    valnew = float(val)
+                    self.platformTypes[j][key] = valnew
+        # figure out keys
+        if len(pf_type) > 1:
+            pfkey = 'platforms'
+            pfTypes = [self.platformTypes[x] for x in pf_type]
+        else:
+            pfkey = 'platform'
+            pfTypes = self.platformTypes[list(pf_type)[0]]
+
+         
+        # build out turbine info
+        turb_type = []
+        for i,turb in enumerate(self.turbineList.values()):
+            turb_type.append(turb.dd['type'])
+        # get set of just turbine types used in this project
+        turb_type = set(turb_type)
+        # fix any data type issues
+        for j in range(len(turb_type)):
+            for key,val in self.turbineTypes[j].items():
+                if isinstance(val,np.float64):
+                    valnew = float(val)
+                    self.turbineTypes[j][key] = valnew
+        # figure out keys
+        if len(turb_type)> 1:
+            turbkey = 'turbines'
+            turbTypes = [self.turbineTypes[x] for x in turb_type]
+        else:
+            turbkey = 'turbine'
+            turbTypes = self.turbineTypes[list(turb_type)[0]]
+        
+
             
         # build out site info
         for key,val in self.soilProps.items():
@@ -3560,13 +3610,14 @@ class Project():
             site['bathymetry'] = {'x':[float(x) for x in self.grid_x],'y':[float(y) for y in self.grid_y],'depths':[[float(y) for y in x] for x in self.grid_depth]}
         if len(self.boundary)>0:
             site['boundaries'] = {'x_y':[[float(y) for y in x] for x in self.boundary]}
-        site['general'] = {'depth':float(self.depth),'rho_air':float(self.rho_air),
+        site['general'] = {'water_depth':float(self.depth),'rho_air':float(self.rho_air),
                            'rho_water':float(self.rho_water),'mu_air':float(self.mu_air)}
         if len(self.soil_x)>1:
             site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
                               'soil_types':self.soilProps} #[[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
-           
-        # build out array mooring section
+         
+            
+        # build out array mooring and array anchor section
         arrayMoor = []
         allconfigs = []
         arrayAnch = []
@@ -3584,81 +3635,92 @@ class Project():
             if not moor.shared:
                 headA = 'NA'
                 # add anchor
-                arrayAnch.append([endA, endA.dd['name'], endA.r[0], endA.r[1],0])
+                arrayAnch.append([endA.id, endA.dd['name'], float(endA.r[0]), float(endA.r[1]),0])
                 if anchConfigs:
                     if any([endA.dd['name']==k for k in anchConfigs]):
                         newanch = False
                         current_anch = endA.dd['name']
                 if newanch:
                     anchConfigs[endA.dd['name']] = dict(endA.dd['design'])
-                
-                
+            
             else:
                 # shared line - get end A heading
-                ang = np.pi() - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
-                headA = np.degrees(ang - endA.phi)
+                ang = np.pi/2 - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
+                headA = float(np.degrees(ang - endA.phi))
+                
             # get end B heading
-            angB = np.pi() - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
+            angB = np.pi/2 - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
             headB = np.degrees(angB - endB.phi)
+            
             # get mooring configuration
-            config = {'span':moor.span,'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
+            config = {'span':float(moor.dd['span']),'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
+            
+            # check if an existing mooring configuration matches the current configuration
             if allconfigs:
                 pc = np.where([config['span']==x['span'] for x in allconfigs] and [len(y['sections'])==len(config['sections']) for y in allconfigs])[0]
                 for j in pc:
                     if all([allconfigs[j]['sections'][k]==config['sections'][k] for k in range(len(config['sections']))]):
                         if all([allconfigs[j]['connectors'][k]==config['connectors'][k] for k in range(len(config['connectors']))]):
-                            current_config = j
+                            current_config = int(j)
                             newcon = False
             if newcon:
                 allconfigs.append(config)
-                current_config = len(allconfigs) - 1
+                current_config = int(len(allconfigs) - 1)
 
-            arrayMoor.append([current_config,endA.id, endB.id, headA,headB,0])
-        
-            # set up mooring configs, connector and section types dictionaries
+            arrayMoor.append([current_config,endA.id, endB.id, headA,float(headB),int(0)])
+
+        # set up mooring configs, connector and section types dictionaries
         connTypes = {}  
         secTypes = {}
         mooringConfigs = {}
         for j,conf in enumerate(allconfigs):
             sections = []
+            # iterate through sections
             for i in range(len(conf['sections'])):
+                # add connector if it isn't empty
                 if not conf['connectors'][i]['m'] == 0 and conf['connectors'][i]['CdA'] == 0 and conf['connectors'][i]['v'] == 0:
                     # this is not an empty connector
                     if not 'type' in conf['connectors'][i]:
                         # make a new connector type
-                        connTypes[len(connTypes)] = conf['connectors'][i]
-                        ctn = len(connTypes)
+                        connTypes[int(len(connTypes))] = conf['connectors'][i]
+                        ctn = int(len(connTypes)) # connector type name
                     else:
-                        # # check if type already exists in dictionary
                         ctn = conf['connectors'][i]['type']
-                        # if not ctn in connTypes:
-                        #     # add to dictionary
                         connTypes[ctn] = dict(conf['connectors'][i])
                             
                     sections.append({'connectorType':ctn})
-                    
+                # add section info
                 stn = conf['sections'][i]['type']['name'] # section type name
-                sections.append({'type':stn,'length':conf['sections'][i]['L']})
+                sections.append({'type':stn,'length':float(conf['sections'][i]['L'])})
                 secTypes[stn] = dict(conf['sections'][i]['type'])
+                for key,val in secTypes[stn].items():
+                    if isinstance(val,np.float64):
+                        valnew = float(val)
+                        secTypes[stn][key] = valnew
             # add last connector if needed
-            if not conf['connectors'][i]['m'] == 0 and conf['connectors'][i]['CdA'] == 0 and conf['connectors'][i]['v'] == 0:
+            if not conf['connectors'][i+1]['m'] == 0 and conf['connectors'][i+1]['CdA'] == 0 and conf['connectors'][i+1]['v'] == 0:
                 # this is not an empty connector
-                if not 'type' in conf['connectors'][i]:
+                if not 'type' in conf['connectors'][i+1]:
                     # make a new connector type
-                    connTypes[len(connTypes)] = conf['connectors'][i]
-                    ctn = len(connTypes)
+                    connTypes[len(connTypes)] = conf['connectors'][i+1]
+                    ctn = int(len(connTypes))
                 else:
-                    ctn = conf['connectors'][i]['type']
-                    connTypes[ctn] = dict(conf['connectors'][i])
-                    
-            sections.append({'connectorType':ctn})
-            mooringConfigs[current_config] = {'name':j,'span':conf['span'],'sections':sections}
-                
-        # put it all together
-        output = {'site':site,'array':{'keys':arrayKeys,'data':arrayData},'mooring_line_configs':mooringConfigs,
-                  'mooring_line_types':secTypes,'mooring_connector_types':connTypes,
-                  'anchor_types':anchConfigs,'array_mooring':{'anchor_keys':anchKeys,'anchor_data':arrayAnch,
-                                                              'line_keys':lineKeys,'line_data':arrayMoor}}
+                    ctn = conf['connectors'][i+1]['type']
+                    connTypes[ctn] = dict(conf['connectors'][i+1])    
+                sections.append({'connectorType':ctn})
+            # put mooring config dictionary together
+            mooringConfigs[j] = {'name':int(j),'span':float(conf['span']),'sections':sections}
+         
+        # create master output dictionary for yaml
+        output = {'site':site, 'array':{'keys':arrayKeys,'data':arrayData}, 
+                  'mooring_line_configs':mooringConfigs,
+                  'mooring_line_types':secTypes, 
+                  'mooring_connector_types':connTypes,
+                  pfkey:pfTypes, 
+                  turbkey:turbTypes, 
+                  'anchor_types':anchConfigs,
+                  'array_mooring':{'anchor_keys':anchKeys, 'anchor_data':arrayAnch,
+                                   'line_keys':lineKeys, 'line_data':arrayMoor}}
 
         import ruamel.yaml
         yaml = ruamel.yaml.YAML()
