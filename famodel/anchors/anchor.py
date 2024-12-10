@@ -18,19 +18,21 @@ class Anchor(Node):
         dd: dictionary
             Design dictionary that contains all information on an anchor for a mooring line/shared mooring
             {
-                type:
-                design: # all geometric info from yaml file
-                     D    anchor diameter
-                     d    screw diameter (helical piles only)?
-                     L    ?
-                     L1   ?
-                     L2   ?
-                     zlug padeye z elevation ...s
-                     beta ?
+                type:   # anchor type (plate,suction_pile,torpedo_pile,helical_pile,driven_pile,dandg_pile)
+                design: # all geometric info from yaml file, only need to include info relevant to your anchor type
+                     A    plate anchor area
+                     D    anchor diameter (or helix diameter for helical piles)
+                     D1   torpedo anchor wing diameter
+                     D2   torpedo anchor shaft diameter
+                     d    helical pile shaft diameter 
+                     L    pile anchor length
+                     L1   torpedo anchor wing length 
+                     L2   torpedo anchor shaft length
+                     zlug padeye z elevation (+ down into the soil)
+                     beta angle of plate anchor after keying (optional)
                 soil_type:    <<< not design information
                 angle: # seabed angle   <<< not design information
                 cost:
-                    totCost: #total cost
                     matCost: # material cost
                     instCost: # installation cost
                     decomCost: # decomissioning cost                          
@@ -40,6 +42,15 @@ class Anchor(Node):
             
         r: list
             Location of anchor in x,y,z
+            
+        aNum: int
+            entry number in project.anchorList dictionary (may remove...)
+        id: str/int
+            unique id of this object
+        g: float
+            acceleration due to gravity in m/s^2
+        rho: float
+            density of water in kg/m^3
         '''
         # Initialize as a node
         Node.__init__(self,id)

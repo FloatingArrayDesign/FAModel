@@ -18,16 +18,6 @@ site:
           - [3000, 3000]
           - [3000, -3000]
     
-    exclusions:
-      - name: round example
-        x_y_r:
-          - [x1, y1, r1] 
-      
-      - name: polygon example with sharp corners (radius ommitted)
-        x_y_r:
-            -[x1, y1]
-            -[x2, y2]
-    
     bathymetry:
         file:   './bathymetry200m_sample.txt'
     
@@ -91,7 +81,6 @@ array:
     keys : [ID, turbineID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
         -  [FOWT1,     1,         1,         ms1,          -1600,         -1600,          180   ]    # 2 array, shared moorings
-        -  [FOWT2,     2,         1,         ms1,          0,           -1600,            0   ] 
         # -  [FOWT3,     1,         1,         ms3,          1600,           -1600,            0   ]
         # -  [FOWT4,     1,         2,         ms4,          -1600,          0,            0   ]
         # -  [FOWT5,     1,         1,         ms5,          0,              0,            45   ]
@@ -169,7 +158,7 @@ turbines:
     Rhub        : 3.97       # hub radius [m]
     precone     : 4.0        # [deg]
     shaft_tilt  : 6.0        # [deg]
-    overhang    : 12.0313    # [m]
+    overhang    : -12.0313    # [m]
     aeroMod     : 1          # 0 aerodynamics off; 1 aerodynamics on
 
     
@@ -1221,7 +1210,7 @@ turbines:
     Rhub        : 3.97       # hub radius [m]
     precone     : 4.0        # [deg]
     shaft_tilt  : 6.0        # [deg]
-    overhang    : 12.0313    # [m]
+    overhang    : -12.0313    # [m]
     aeroMod     : 1          # 0 aerodynamics off; 1 aerodynamics on
 
     

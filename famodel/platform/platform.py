@@ -257,17 +257,20 @@ class Platform(Node):
         cables = [] # list of cables attached
         
         # find turbines, cables, and mooorings attached to platform
+        moorings = self.getMoorings().values()
+        cables = self.getCables().values()
+        anchors = self.getAnchors().values()
         for i in self.attachments:
             if isinstance(self.attachments[i]['obj'],Turbine):
                 turbine = self.attachments[i]['obj']
-            elif isinstance(self.attachments[i]['obj'],Mooring):
-                moorings.append(self.attachments[i]['obj'])
-            elif isinstance(self.attachments[i]['obj'],Cable):
-                # find cable subcomponent attached to this cable
-                if self.attachments[i]['end'] =='a' or 'A':
-                    cables.append(self.attachments[i]['obj'].subcomponents[0])
-                elif self.attachments[i]['end'] == 'b' or 'B':
-                    cables.append(self.attachments[i]['obj'].subcomponents[-1])
+        #     elif isinstance(self.attachments[i]['obj'],Mooring):
+        #         moorings.append(self.attachments[i]['obj'])
+        #     elif isinstance(self.attachments[i]['obj'],Cable):
+        #         # find cable subcomponent attached to this cable
+        #         if self.attachments[i]['end'] =='a' or 'A':
+        #             cables.append(self.attachments[i]['obj'].subcomponents[0])
+        #         elif self.attachments[i]['end'] == 'b' or 'B':
+        #             cables.append(self.attachments[i]['obj'].subcomponents[-1])
         
         if Fth:
             thrust = Fth

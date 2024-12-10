@@ -128,9 +128,10 @@ class Mooring(Edge):
         self.rho = rho
         self.g = g
         
-        # Dictionaries for addition information
+        # Dictionaries for additional information
         self.envelopes = {}  # 2D motion envelope, buffers, etc.
         self.loads = {}
+        self.safety_factors = {}
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
@@ -818,7 +819,7 @@ class Mooring(Edge):
                 MBL_cor = sec['MBL']
 
 
-    def getEnvelope(self,ang_spacing=45,SFs=True,eq_return=True):
+    def getEnvelope(self,ang_spacing=45,SFs=True):
         '''Computes the motion envelope of the Mooring based on the watch 
         circle(s) of what it's attached to. If those aren't already 
         calculated, this method will call the relevant getWatchCircle method.
@@ -847,7 +848,6 @@ class Mooring(Edge):
             
             # Only consider a watch circle if it's attached to a platform
             if isinstance(att, Platform):
-                print('Found a platform')
                 
                 # If no watch circle saved, compute it 
                 if not 'mean' in att.envelopes:  
@@ -862,8 +862,6 @@ class Mooring(Edge):
             # Otherwise add a single point (e.g. for an anchor)
             else:
                 pts.append((att.r[0], att.r[1]))
-                
-        # reset platform to equilibrium 
         
         # Convert to shapely polygon, then get convex hull
         poly = sh.Polygon(pts)  # make polygon object

@@ -445,7 +445,7 @@ class Project():
                     # lt = self.lineTypes[lc['type']] # set location for code clarity and brevity later
                     # set up sub-dictionaries that will contain info on the line type
                     m_config['sections'].append({'type':lt})# {'name':str(ct)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA'])}})
-                    m_config['sections'][ct]['type']['name'] = str(ct)+'_'+lt['name']
+                    m_config['sections'][ct]['type']['name'] = str(ct)+'_'+str(lt['name'])
                     # make EA a float not a string
                     m_config['sections'][ct]['type']['EA'] = float(lt['EA'])  
                     # set line length
@@ -2026,7 +2026,8 @@ class Project():
         
 
     def plot3d(self, ax=None, figsize=(10,8), fowt=False, save=False,
-               draw_boundary=True, boundary_on_bath=True, args_bath={}, draw_axes=True, draw_bathymetry=True, draw_soil=False):
+               draw_boundary=True, boundary_on_bath=True, args_bath={}, 
+               draw_axes=True, draw_bathymetry=True, draw_soil=False, colorbar=True):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2034,6 +2035,10 @@ class Project():
         Parameters
         ----------
         ...
+        
+        Returns
+        -------
+        ax : figure axes
         '''
         
         # color map for soil plotting
@@ -2059,8 +2064,12 @@ class Project():
             else:
                 if not args_bath:
                     cmap = cm.gist_earth
+                    # set vmax based on bathymetry, if > 0 set max = 0
+                    vmax = max([max(x) for x in -self.grid_depth])
+                    if vmax > 0:
+                        vmax = 0
                     args_bath = {'cmap': cmap, 'vmin':min([min(x) for x in -self.grid_depth]),
-                                 'vmax': max([max(x) for x in -self.grid_depth])}
+                                 'vmax': vmax}
                 xs = np.linspace(min(self.grid_x),max(self.grid_x),len(self.grid_x))
                 ys = np.linspace(min(self.grid_y),max(self.grid_y),len(self.grid_y))
 
@@ -2092,6 +2101,8 @@ class Project():
                 # args_bath = {'color':'#C8A2C8'}
                 ####################
                 bath = ax.plot_surface(X, Y, -self.grid_depth, rstride=1, cstride=1, **args_bath)
+                if colorbar:
+                    fig.colorbar(bath,ax=ax,shrink=0.5,aspect=10)
         
         if draw_soil:
             if draw_bathymetry:
@@ -2241,6 +2252,8 @@ class Project():
             
             # Increase the resolution when saving the plot
             plt.savefig(output_filename, dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
+            
+        return(ax)
         
        
     def getMoorPyArray(self,bodyInfo=None,plt=0, pristineLines=True,cables=0):
@@ -3353,36 +3366,38 @@ class Project():
             head = pfinfo['mooring_headings'][i]+pfinfo['platform_heading']
             md = {'span':minfo['span'],'sections':[],'connectors':[]}
       
-    def arrayWatchCircle(self,plot=0, ang_spacing=45, RNAheight=150,
-                         shapes=True,Fth=None,SFs=True,eq_return=True):
+    def arrayWatchCircle(self,plot=False, ang_spacing=45, RNAheight=150,
+                         shapes=True,thrust=1.95e6,SFs=True,moor_envelopes=True):
         '''
         Method to get watch circles on all platforms at once
 
         Parameters
         ----------
-        plot : TYPE, optional
-            DESCRIPTION. The default is 0.
-        ang_spacing : TYPE, optional
-            DESCRIPTION. The default is 45.
-        RNAheight : TYPE, optional
-            DESCRIPTION. The default is 150.
-        shapes : TYPE, optional
-            DESCRIPTION. The default is True.
-        Fth : TYPE, optional
-            DESCRIPTION. The default is None.
-        SFs : TYPE, optional
-            DESCRIPTION. The default is True.
+        plot : bool, optional
+            Controls whether to plot watch circles at the end. The default is False.
+        ang_spacing : int/float, optional
+            Spacing between angles to check the platform offsets at. The default is 45.
+        RNAheight : int/float, optional
+            Height of RNA from mean sea level. The default is 150.
+        shapes : bool, optional
+            Controls whether to create shapely objects. The default is True.
+        thrust : float, optional
+            Thrust force on turbine. The default is 1.95e6 (thrust on IEA 15 MW reference
+                                                            turbine at rated wind speed.
+        SFs : bool, optional
+            Controls whether to output safety factors of moorings and cables,
+            and calculate anchor loads. The default is True.
 
         Returns
         -------
-        None.
+        x : np.array
+            matrix of platform x-locations for watch circles
+        y : np.array
+            matrix of platform y-locations for watch circles
+        maxVals : dict
+            dictionary of safety factors for mooring line tensions for each turbine
 
         '''
-        # get thrust
-        if Fth:
-            thrust = Fth
-        else:
-            thrust = 1.95e6
             
         # get angles to iterate over
         angs = np.arange(0,360+ang_spacing,ang_spacing)
@@ -3393,13 +3408,13 @@ class Project():
         minCurvSF = [None]*len(self.cableList)
         CminTenSF = [None]*len(self.cableList)
         minTenSF = [None]*len(self.mooringList)
-        F = [None]*len(self.mooringList) 
+        F = [None]*len(self.anchorList) 
         x = np.zeros((len(self.platformList),n_angs))
         y = np.zeros((len(self.platformList),n_angs))
              
         # apply thrust force to platforms at specified angle intervals
         for i,ang in enumerate(angs):
-            print(ang)
+            print('Analyzing platform offsets at angle ',ang)
             fx = thrust*np.cos(np.radians(ang))
             fy = thrust*np.sin(np.radians(ang))
             
@@ -3411,6 +3426,28 @@ class Project():
         
             # save info if requested
             if SFs:
+                # get loads on anchors (may be shared)
+                for j,anch in enumerate(self.anchorList.values()):
+                    atts = [att['obj'] for att in anch.attachments.values()]
+                    F1 = [None]*len(atts)
+                    for jj,moor in enumerate(atts):
+                        if isinstance(moor.attached_to[0],Anchor):
+                            # anchor attached to end A
+                            F1[jj] = moor.ss.fA
+                        else:
+                            F1[jj] = moor.ss.fB
+                    # add up all tensions on anchor in each direction (x,y,z)
+                    F2 = [sum([a[0] for a in F1]),sum([a[1] for a in F1]),sum([a[2] for a in F1])]
+                    H = np.hypot(F2[0],F2[1]) # horizontal force
+                    T = np.sqrt(F2[0]**2+F2[1]**2+F2[2]**2) # total tension force
+                    if not F[j] or T>np.sqrt(F[j][0]**2+F[j][1]**2+F[j][2]**2):
+                        F[j] = F2 # max load on anchor                         
+                        # save anchor load information
+                        anch.loads['Hm'] = H
+                        anch.loads['Vm'] = F[j][2]
+                        anch.loads['thetam'] = np.degrees(np.arctan(anch.loads['Vm']/anch.loads['Hm'])) #[deg]
+                        anch.loads['mudline_load_type'] = 'max'
+                            
                 # get tensions on mooring line
                 for j, moor in enumerate(self.mooringList.values()):
                     MBLA = float(moor.ss.lineList[0].type['MBL'])
@@ -3420,49 +3457,54 @@ class Project():
                     # atenMax[j], btenMax[j] = moor.updateTensions()
                     if not minTenSF[j] or minTenSF[j]>MTSF:
                         minTenSF[j] = deepcopy(MTSF)
-                        if not moor.shared:
-                            if isinstance(moor.attached_to[0],Anchor):
-                                # anchor attached to end A
-                                F[j] = moor.ss.fA
-                                anch = moor.attached_to[0]
-                            else:
-                                F[j] = moor.ss.fB
-                                anch = moor.attached_to[1]
-                            # save anchor load information
-                            anch.loads['Hm'] = np.sqrt(F[j][0]**2+F[j][1]**2)
-                            anch.loads['Vm'] = F[j][2]
-                            anch.loads['thetam'] = np.degrees(np.arctan(anch.loads['Vm']/anch.loads['Hm'])) #[deg]
-                            anch.loads['mudline_load_type'] = 'max'
+                        moor.loads['TA'] = moor.ss.TA
+                        moor.loads['TB'] = moor.ss.TB
+                        moor.loads['info'] = 'determined from arrayWatchCircle()'
+                        moor.safety_factors['tension'] = minTenSF[j]
+                        
                                 
-                # # get tensions, sag, and curvature on cable
-                # for j,cab in enumerate(self.cableList.values()):
-                #     MBLA = cab.ss.lineList[0].type['MBL']
-                #     MBLB = cab.ss.lineList[-1].type['MBL']
-                #     CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])
-                #     if not CminTenSF[j] or CminTenSF[j]>CMTSF:
-                #         CminTenSF[j] = deepcopy(CMTSF)
-                #     # CatenMax[j], CbtenMax[j] = cab.updateTensions()
-                #     cab.ss.calcCurvature()
-                #     mCSF = cab.ss.getMinCurvSF()
-                #     if not minCurvSF[j] or minCurvSF[j]>mCSF:
-                #         minCurvSF[j] = mCSF
-                #     # determine number of buoyancy sections
-                #     nb = len(cab.dd['buoyancy_sections'])
-                #     m_s = []
-                #     for k in range(0,nb):
-                #         m_s.append(cab.ss.getSag(2*k))
-                #     mS = min(m_s)
-                #     if not minSag[j] or minSag[j]<mS:
-                #         minSag[j] = deepcopy(mS)
+                # get tensions and curvature on cables
+                for j,cab in enumerate(self.cableList.values()):
+                    dcs = [a for a in cab.subcomponents if isinstance(a,DynamicCable)] # dynamic cables in this cable 
+                    ndc = len(dcs) # number of dynamic cable objects in this single cable object
+                    CminTenSF[j] = [None]*ndc
+                    minCurvSF[j] = [None]*ndc
+                    minSag[j] = [None]*ndc
+                    for jj,dc in enumerate(dcs):               
+                        MBLA = dc.ss.lineList[0].type['MBL']
+                        MBLB = dc.ss.lineList[-1].type['MBL']
+                        CMTSF = min([abs(MBLA/dc.ss.TA),abs(MBLB/dc.ss.TB)])
+                        if not CminTenSF[j][jj] or CminTenSF[j][jj]>CMTSF:
+                            CminTenSF[j][jj] = deepcopy(CMTSF)
+                            dc.loads['TA'] = dc.ss.TA
+                            dc.loads['TB'] = dc.ss.TB
+                            dc.loads['info'] = 'determined from arrayWatchCircle()'
+                            dc.safety_factors['tension'] = CminTenSF[j][jj]
+                        # CatenMax[j], CbtenMax[j] = cab.updateTensions()
+                        dc.ss.calcCurvature()
+                        mCSF = dc.ss.getMinCurvSF()
+                        if not minCurvSF[j][jj] or minCurvSF[j][jj]>mCSF:
+                            minCurvSF[j][jj] = mCSF
+                            dc.safety_factors['curvature'] = minCurvSF[j][jj]
+                        # # determine number of buoyancy sections
+                        # nb = len(dc.dd['buoyancy_sections'])
+                        # m_s = []
+                        # for k in range(0,nb):
+                        #     m_s.append(dc.ss.getSag(2*k))
+                        # mS = min(m_s)
+                        # if not minSag[j][jj] or minSag[j][jj]<mS:
+                        #     minSag[j][jj] = deepcopy(mS)
+                        #     dc.
                         
                 
             # save location of each platform for envelopes
             for k, pf in enumerate(self.platformList.values()):                       
                 x[k,i] = pf.body.r6[0]     
                 y[k,i] = pf.body.r6[1]
+                
                     
         for k, body in enumerate(self.platformList.values()):
-            # save motion envelope in the corect platform 
+            # save motion envelope in the correct platform 
             body.envelopes['mean'] = dict(x=x[k,:], y=y[k,:])
         
             if shapes:  # want to *optionally* make a shapely polygon
@@ -3472,9 +3514,16 @@ class Project():
         for body in self.ms.bodyList:
             body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
         self.ms.solveEquilibrium3(DOFtype='both')  
-        maxVals = {'minTenSF':minTenSF,'maxF':F}
-        #maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
-        return(x,y,maxVals)       
+        
+        if moor_envelopes:
+            for moor in self.mooringList.values():
+                moor.getEnvelope()
+        
+        if SFs:
+            maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
+            return(x,y,maxVals)     
+        else:
+            return(x,y)
         
         
         
@@ -3533,7 +3582,7 @@ class Project():
             
         # now write the costs to a spreadsheet
         
-        # let's do a new sheet for each component type
+        # let's do a new sheet for each component type and one overview sheet
         
         
         return(total_cost)
@@ -3702,6 +3751,9 @@ class Project():
                 secTypes[stn] = dict(conf['sections'][i]['type'])
                 for key,val in secTypes[stn].items():
                     if isinstance(val,np.float64):
+                        valnew = float(val)
+                        secTypes[stn][key] = valnew
+                    elif isinstance(val,np.str_):
                         valnew = float(val)
                         secTypes[stn][key] = valnew
             # add last connector if needed

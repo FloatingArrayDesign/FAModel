@@ -9,6 +9,7 @@ The examples are described below:
 This example shows how to make an FAModel project from a yaml file. The sample shows various possibilities for mooring and anchoring including shared moorings and shared anchors. It also shows some functionalities of FAModel including:
 - integration with MoorPy
 - integration with RAFT
+- integration with FLORIS for AEP calculations
 - adding marine growth to moorings and cables
 - calculating capacity, loads, and safety factors on an anchor
 - determining the watch circle of a platform, with maximum tensions and minimum safety factors for all mooring lines and cables attached to the platform
@@ -17,13 +18,17 @@ This example shows how to make an FAModel project from a yaml file. The sample s
     - boundaries 
     - mooring lines, cables (including routing), platforms, and substations
     - motion envelopes for mooring lines and platforms
-- plotting the 3d plan view of a farm, including: 
+- plotting the 3d view of a farm, including: 
     - bathymetry
     - boundaries
     - mooring lines, platforms, and substations
     - dynamic cables
     - static cables, including burial depth and routing
-    
+
+
+## Uniform Array Example
+This example shows how to easily make a uniform array from a yaml file, without requiring the input of the exact locations for each turbine. 
+
 ## Duplicate Platform Example
 This example shows how to "copy" a platform object and its connected moorings and anchors, and reposition the copied platform to the location of your choice.
 

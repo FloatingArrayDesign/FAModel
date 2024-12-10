@@ -102,8 +102,8 @@ site:
         keys: [thickness, lowerRange, upperRange, density]
         data:   #  (m)       (m)          (m)     (kg/m^3)
         - [0.00,-200,-170, 1325]
-        - [0.05,-170,-40, 1325]
-        - [0.10,-40,0, 1325]
+        - [0.01,-170,-40, 1325]
+        - [0.05,-40,0, 1325]
         buoys: [0.1,0.1]
 # ----- Array-level inputs -----
 
@@ -191,7 +191,7 @@ turbines:
     Rhub        : 3.97       # hub radius [m]
     precone     : 4.0        # [deg]
     shaft_tilt  : 6.0        # [deg]
-    overhang    : 12.0313    # [m]
+    overhang    : -12.0313    # [m]
     aeroMod     : 1          # 0 aerodynamics off; 1 aerodynamics on
 
     
@@ -1243,7 +1243,7 @@ turbines:
     Rhub        : 3.97       # hub radius [m]
     precone     : 4.0        # [deg]
     shaft_tilt  : 6.0        # [deg]
-    overhang    : 12.0313    # [m]
+    overhang    : -12.0313    # [m]
     aeroMod     : 1          # 0 aerodynamics off; 1 aerodynamics on
 
     
