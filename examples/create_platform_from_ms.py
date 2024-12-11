@@ -12,6 +12,7 @@ include a body after loading the moordyn file.
 from famodel.project import Project
 import moorpy as mp
 import os
+import matplotlib.pyplot as plt
 
 #### INPUTS ####
 input_directory = 'Inputs/' # relative location of directory for input files (yaml, bath files, etc)
@@ -43,3 +44,4 @@ project.addPlatformMS(ms, r=new_pf_loc)
 
 # get new moorpy array and plot
 project.getMoorPyArray(plt=1)
+plt.show()

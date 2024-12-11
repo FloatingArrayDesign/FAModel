@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 from famodel.cables.cable import Cable
 from famodel.anchors.anchor import Anchor
+from famodel.cables.cable import DynamicCable
 
 class Platform(Node):
     '''
@@ -150,7 +151,7 @@ class Platform(Node):
                 if isinstance(self.attachments[i]['obj'],Mooring):
                     mList.append(self.attachments[i]['obj'])
             
-        if len(project.grid_depth) > 1:
+        if project and len(project.grid_depth) > 1:
             # calculate the maximum anchor spacing
             anchor_spacings = [np.linalg.norm(mooring.rA[0:2] - self.r) for mooring in mList]
             # get the bathymetry range that is related to this platform
@@ -255,10 +256,13 @@ class Platform(Node):
         
         moorings = [] # list of mooring lines attached
         cables = [] # list of cables attached
+        dcs = []
         
         # find turbines, cables, and mooorings attached to platform
         moorings = self.getMoorings().values()
         cables = self.getCables().values()
+        for i,cab in enumerate(cables):
+            dcs.extend([sub for sub in cab.subcomponents if isinstance(sub,DynamicCable)])
         anchors = self.getAnchors().values()
         for i in self.attachments:
             if isinstance(self.attachments[i]['obj'],Turbine):
@@ -289,13 +293,13 @@ class Platform(Node):
         # atenMax = np.zeros((len(moorings),1))
         # CbtenMax = np.zeros((len(cables),1))
         # CatenMax = np.zeros((len(cables),1))
-        minSag = [None]*len(cables)
-        minCurvSF = [None]*len(cables)
-        CminTenSF = [None]*len(cables)
+        minSag = [None]*len(dcs)
+        minCurvSF = [None]*len(dcs)
+        CminTenSF = [None]*len(dcs)
         minTenSF = [None]*len(moorings)
         F = [None]*len(moorings)
         for ang in range(0, 360+ang_spacing, ang_spacing):
-            print(ang)
+            print('Analyzing offset at angle ',ang)
             fx = thrust*np.cos(np.radians(ang))
             fy = thrust*np.sin(np.radians(ang))
             
@@ -321,7 +325,7 @@ class Platform(Node):
                                 F[j] = moor.ss.fA
                 
                 # get tensions, sag, and curvature on cable
-                for j,cab in enumerate(cables):
+                for j,cab in enumerate(dcs):
                     MBLA = cab.ss.lineList[0].type['MBL']
                     MBLB = cab.ss.lineList[-1].type['MBL']
                     CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])

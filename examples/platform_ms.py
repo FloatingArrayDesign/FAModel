@@ -18,7 +18,7 @@ os.chdir(input_dir)
 project = Project(file=yaml_file)
 
 # create a moorpy system for a single platform
-project.platformList['fowt0'].mooringSystem()
+project.platformList['fowt0'].mooringSystem(project=project)
 
 # save location
 ms = project.platformList['fowt0'].ms

@@ -6,6 +6,7 @@ Example on how to make a project class and fill in manually rather than using a 
 from famodel import Project
 import os
 import moorpy as mp
+import matplotlib.pyplot as plt
 
 ### INPUTS ###
 inputfolder = './Inputs/'
@@ -52,6 +53,7 @@ project.loadBoundary(filename=boundfile)
 # create moorpy system and plot
 project.getMoorPyArray()
 project.plot3d()
+plt.show()
 
 
 

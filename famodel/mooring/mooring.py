@@ -7,6 +7,7 @@ from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge
 
+
 class Mooring(Edge):
     '''
     Class for a floating array mooring line (anchored or shared).

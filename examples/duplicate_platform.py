@@ -6,6 +6,7 @@ shared anchors
 """
 from famodel.project import Project
 import os
+import matplotlib.pyplot as plt
 
 #### INPUTS ####
 input_directory = 'Inputs/' # relative location of directory for input files (yaml, bath files, etc)
@@ -20,7 +21,7 @@ os.chdir(input_directory)
 project = Project(file=filename)
 
 # plot the system for comparison later
-project.getMoorPyArray(plt=1)
+project.plot3d()
 
 # now choose a platform to replicate
 rep_pf = project.platformList[rep_pf_name]
@@ -33,3 +34,4 @@ project.getMoorPyArray()
 
 # plot the new system
 project.plot3d()
+plt.show()

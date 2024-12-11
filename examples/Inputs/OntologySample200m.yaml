@@ -104,7 +104,7 @@ site:
         - [0.00,-200,-170, 1325]
         - [0.01,-170,-40, 1325]
         - [0.05,-40,0, 1325]
-        buoys: [0.1,0.1]
+        buoys: [0.01,0.01]
 # ----- Array-level inputs -----
 
 # Wind turbine array layout
@@ -2492,8 +2492,8 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  semitaut-poly_1,  150 ,    driven_pile1,   0 ]
-          - [  semitaut-poly_1,  30 ,    driven_pile1,   0 ]
+          - [  semitaut-poly_1,  150 ,    drag-embedment1,   0 ]
+          - [  semitaut-poly_1,  30 ,    drag-embedment1,   0 ]
 
 
 # Mooring line configurations
