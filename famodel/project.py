@@ -743,6 +743,9 @@ class Project():
                         for anch in self.anchorList: #range(0,len(self.anchorList)):
                             if anch == arrayMooring[j]['end A']:
                                 mc.attachTo(self.anchorList[anch],end='A')
+                                mc.rA = self.anchorList[anch].r
+                                mc.dd['zAnchor'] = -zAnew
+                                mc.z_anch = -zAnew
 
                     else:
                         # find location of anchor in arrayAnchor table
@@ -2386,6 +2389,9 @@ class Project():
                             att[ki].makeMoorPyConnector(self.ms)
                             
                         att[ki].mpConn.attachLine(ssloc.number,ki)
+                    elif att[ki] == None:
+                        # this end is unattached
+                        pass
                         
         # add in cables if desired
         if cables:
@@ -2396,8 +2402,12 @@ class Project():
                     self.ms.addBody(1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
                     sub.body = self.ms.bodyList[-1]
             for i in self.cableList:
+                            
                 # determine if suspended cable or not - having a static cable as a subcomponent means this is not a suspended cable
                 for j,comp in enumerate(self.cableList[i].subcomponents):
+                    # # check for all attachments (may be failurs enacted preventing all attachments)
+                    # if isinstance(comp,Edge):
+                    #     attach = [att != None for att in comp.attached_to] 
                     # don't make a subsystem for a joint - make a point                   
                     if isinstance(comp,Joint):
                         if not comp.mpConn:
@@ -2415,26 +2425,28 @@ class Project():
                         ssloc.number = len(self.ms.lineList)+1 
                         # add subsystem to line list
                         self.ms.lineList.append(ssloc)
-
                         
-                        if j==0: # attach each end to correct bodies
+                        # attach each end to correct bodies
+                        attach = comp.attached_to #                                 
+                        
+                        if j==0 and attach[0]: # only attach if cable is attached to something
                             self.ms.addPoint(1,ssloc.rA)
                             self.ms.pointList[-1].attachLine(ssloc.number,0)
                             body = comp.attached_to[0].body
                             body.attachPoint(len(self.ms.pointList),[ssloc.rA[0]-body.r6[0],ssloc.rA[1]-body.r6[1],ssloc.rA[2]])
-                        else:
+                        elif attach[0]:
                             # connect to joint at end A
                             if not comp.attached_to[0].mpConn:
                                 comp.attached_to[0].makeMoorPyConnector(self.ms)
                             joint = comp.attached_to[0].mpConn
                             joint.attachLine(ssloc.number,0)
                             
-                        if j==len(self.cableList[i].subcomponents)-1: # last subcomponent could be first subcomponent
+                        if j==len(self.cableList[i].subcomponents)-1 and attach[1]: # last subcomponent could be first subcomponent
                             self.ms.addPoint(1,ssloc.rB)
                             self.ms.pointList[-1].attachLine(ssloc.number,1)
                             body = comp.attached_to[-1].body
                             body.attachPoint(len(self.ms.pointList),[ssloc.rB[0]-body.r6[0],ssloc.rB[1]-body.r6[1],ssloc.rB[2]])
-                        else:
+                        elif attach[1]:
                             # connect to joint at end B
                             if not comp.attached_to[-1].mpConn:
                                 comp.attached_to[-1].makeMoorPyConnector(self.ms)
@@ -3457,8 +3469,8 @@ class Project():
                     # atenMax[j], btenMax[j] = moor.updateTensions()
                     if not minTenSF[j] or minTenSF[j]>MTSF:
                         minTenSF[j] = deepcopy(MTSF)
-                        moor.loads['TA'] = moor.ss.TA
-                        moor.loads['TB'] = moor.ss.TB
+                        moor.loads['TAmax'] = moor.ss.TA
+                        moor.loads['TBmax'] = moor.ss.TB
                         moor.loads['info'] = 'determined from arrayWatchCircle()'
                         moor.safety_factors['tension'] = minTenSF[j]
                         
@@ -3476,8 +3488,8 @@ class Project():
                         CMTSF = min([abs(MBLA/dc.ss.TA),abs(MBLB/dc.ss.TB)])
                         if not CminTenSF[j][jj] or CminTenSF[j][jj]>CMTSF:
                             CminTenSF[j][jj] = deepcopy(CMTSF)
-                            dc.loads['TA'] = dc.ss.TA
-                            dc.loads['TB'] = dc.ss.TB
+                            dc.loads['TAmax'] = dc.ss.TA
+                            dc.loads['TBmax'] = dc.ss.TB
                             dc.loads['info'] = 'determined from arrayWatchCircle()'
                             dc.safety_factors['tension'] = CminTenSF[j][jj]
                         # CatenMax[j], CbtenMax[j] = cab.updateTensions()

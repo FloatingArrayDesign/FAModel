@@ -456,7 +456,7 @@ class DynamicCable(Edge):
         types = []
         
         # If no buoyancy sections, it's just one section of the bare cable
-        if not 'buoyancy_sections' in dd:
+        if not 'buoyancy_sections' in dd or not dd['buoyancy_sections']:
             #self.dd['sections'].append({'type':self.cableType,'length':self.L})
             types.append(cableType)
             lengths.append(self.L) 
@@ -589,12 +589,10 @@ class DynamicCable(Edge):
         #     point.v = self.dd['connectors'][i]['v']
         #     point.CdA = self.dd['connectors'][i]['CdA']
         # solve the system
+        
         ss.initialize()
-        try:
-            ss.staticSolve(maxIter = 5000)
-        except:
-            breakpoint()
-        #breakpoint()
+        ss.staticSolve(maxIter = 5000)
+
         
         # save it in the object
         if pristine:

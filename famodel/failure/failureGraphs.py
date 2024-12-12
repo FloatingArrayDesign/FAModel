@@ -625,6 +625,7 @@ class failureGraph():
             Sting (name) of failure we would like to enact
         '''
         if failure not in list(self.G.nodes):
+            print('could not find failure')
             return
         
         # --- Sections to be finished (but not by Emma) ---
@@ -662,14 +663,21 @@ class failureGraph():
         # --- Working sections ---
         # Detach line from platform
         if self.G.nodes[failure]['failure'].lower() in ['chain', 'wire rope', 'synthetic rope', 'clump weights or floats', 'connectors', 'dynamic cable', 'terminations']:
-            failure_obj = self.G.nodes[failure]['obj'][0].part_of
-            if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
+            # Leah edit: streamline logic and some small fixes
+            #if 'termination' or 'cable' in failure.lower():
+            failure_obj = self.G.nodes[failure]['obj'][0].subcomponents[0]
             failure_obj.detachFrom('b')
-            if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0].subcomponents[0]
-            elif 'cable' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
-            # if not failure_obj.attached_to[-1]:
-            #     failure_obj.attached_to = failure_obj.attached_to[:-1]
-            # if 'moor' in str(type(failure_obj)): self.Array.ms.disconnectLineEnd(lineID=failure_obj.ss.number, endB=1)
+            
+            
+            
+            # failure_obj = self.G.nodes[failure]['obj'][0].part_of
+            # if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
+            # failure_obj.detachFrom('b')
+            # if 'termination' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0].subcomponents[0]
+            # elif 'cable' in failure.lower(): failure_obj = self.G.nodes[failure]['obj'][0]
+            # # if not failure_obj.attached_to[-1]:
+            # #     failure_obj.attached_to = failure_obj.attached_to[:-1]
+            # # if 'moor' in str(type(failure_obj)): self.Array.ms.disconnectLineEnd(lineID=failure_obj.ss.number, endB=1)
             self.Array.ms.disconnectLineEnd(lineID=failure_obj.ss.number, endB=1)
             # print(failure_obj.attached_to)
             # self.Array.getMoorPyArray(cables = 1, pristineLines=1)
@@ -677,7 +685,11 @@ class failureGraph():
         # Detach cable at joint
         if self.G.nodes[failure]['failure'].lower() in ['offshore joints']:
             failure_obj = self.G.nodes[failure]['obj'][0]
-            failure_obj.detach(failure_obj.attachments[failure_obj.attachments.keys[0]], 'a')
+            # Leah edit: find actual joint and detach. Right now assuming first joint
+            joint_to_detach = np.where(isinstance(failure_obj.subcomponents,dict))[0][0]
+            end = np.where(failure_obj.subcomponents[joint_to_detach-1].attached_to==failure__obj.subcomponents[joint_to_detach])
+            failure_obj.subcomponents[joint_to_detach].detach(failure_obj.subcomponents[joint_to_detach-1],end=end)
+            
         
         # Anchor becomes a free point
         if 'anchor' in self.G.nodes[failure]['failure'].lower() and not('tether' in self.G.nodes[failure]['failure'].lower()):
@@ -701,18 +713,24 @@ class failureGraph():
         if 'buoyancy' in self.G.nodes[failure]['failure'].lower():
             all_buoys = True #bool('y' in input('Would you like to change all buoy sections? (y/n) '))
             names = []
-            # Find buoyancy sections of cable
-            for i in range(len(self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'])):
-                if 'buoy' in self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type']['name'].lower(): 
-                    names.append(i)
-            if not all_buoys: names = [names[0]]
-            # Replace buoyancy section(s) with regular section
-            for i in names:
-                new_type = self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i-1]['type']
-                self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type'] = new_type
-        # self.Array.getMoorPyArray(cables=1, pristineLines=1)
+            ##Leah Update: just remove buoyancy sections
+            for sub in self.G.nodes[failure]['obj'][0].subcomponents:
+                if not isinstance(sub,dict) and 'buoyancy_sections' in sub.dd:
+                    sub.dd['buoyancy_sections'] = {}
+                    
+            # # Find buoyancy sections of cable
+            # for i in range(len(self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'])):
+            #     if 'buoy' in self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type']['name'].lower(): 
+            #         names.append(i)
+            # if not all_buoys: names = [names[0]]
+            # # Replace buoyancy section(s) with regular section
+            # for i in names:
+            #     new_type = self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i-1]['type']
+            #     self.G.nodes[failure]['obj'][0].subcomponents[0].dd['sections'][i]['type'] = new_type
+        self.Array.getMoorPyArray(cables=1, pristineLines=1)
         self.Array.ms.initialize()
         self.Array.ms.solveEquilibrium()
+        breakpoint()
         return
 
     
@@ -759,7 +777,7 @@ class failureGraph():
         failure : string
             Name of failure we would like to enact
         '''        
-        print("Starting effects check...'", child.replace('\n',' '))
+        print("Starting effects check...", child.replace('\n',' '))
         results = 'no results'
 
         # Check platform angles
@@ -791,8 +809,9 @@ class failureGraph():
 
         # Check watch circle
         elif 'drift' in child.lower() or 'clashing' in child.lower():
-            output = self.G.nodes[child]['obj'][0].getWatchCircle()
-            results = np.hstack((np.array(output[0]), np.array(output[1])))
+            #output = self.G.nodes[child]['obj'][0].getWatchCircle()
+            output = self.G.nodes[child]['obj'][0].envelopes['mean']
+            results = np.hstack((np.array(output['x']), np.array(output['y'])))
             # results = 'WATCH CIRCLE STILL NOT WORKING'
 
         # Check loads on turbine
@@ -801,8 +820,10 @@ class failureGraph():
 
         # Check if tensions exceed MBL or connector MBL?
         elif ('moor' in child.lower() and 'loads' in child.lower()) or 'nonfunctional' in child.lower():
-            self.G.nodes[child]['obj'][0].updateTensions()
-            results = [self.G.nodes[child]['obj'][0].loads['TAmax'], self.G.nodes[child]['obj'][0].loads['TBmax']]
+            # Leah update: get safety factors from dictionary instead of calcing from tensions
+            results = [self.G.nodes[child]['obj'][0].safety_factors['tension']]
+            # self.G.nodes[child]['obj'][0].updateTensions()
+            # results = [self.G.nodes[child]['obj'][0].loads['TAmax'], self.G.nodes[child]['obj'][0].loads['TBmax']]
 
             # ---------------- or ----------------
             # results = self.G.nodes[child]['obj'][0].ss.getTen(-1)
@@ -811,7 +832,9 @@ class failureGraph():
         # Check if vertical tension for DEA, check if tensions exceed MBL
         elif 'anchor drag' in child.lower():
             anchor_obj = self.G.nodes[child]['obj'][0]
-            anchor_obj.attachments[list(self.G.nodes[child]['obj'][0].attachments.keys())[0]]['obj'].updateTensions()
+            # Leah update: get anchor capacity
+            anchor_obj.getAnchorCapacity()
+            # anchor_obj.attachments[list(self.G.nodes[child]['obj'][0].attachments.keys())[0]]['obj'].updateTensions()
             results = self.G.nodes[child]['obj'][0].loads
 
             # ---------------- or ----------------
@@ -821,21 +844,26 @@ class failureGraph():
         # Check if cable sag,hog,etc are within limits
         elif ('profile' in child.lower() or 'load' in child.lower()) and 'cable' in child.lower():
             results = []
-            # Get platform(s) connected to cable
-            for platform in self.G.nodes[child]['obj'][0].attached_to:
-                    if 'platform' in str(type(platform)):
-                        cables = []
-                        # Determine which index the cable is in
-                        for attachment in platform.attachments:
-                                if 'cable' in str(type(platform.attachments[attachment]['obj'])).lower(): cables.append(platform.attachments[attachment]['obj'])
-                        cable_index = np.where(np.array(cables) == self.G.nodes[child]['obj'][0])[0][0]
-                        # Get the watch circle from the platform, which gives us the min curve and min sag of the array cable
-                        a,b,c = platform.getWatchCircle(self.Array.ms)
-                        results.append(c['minCurvSF'][cable_index])
-                        results.append(c['minSag'][cable_index])
+            # Leah edit: just pull safety factor from dynamic cable 
+            for sub in self.G.nodes[child]['obj'][0].subcomponents: 
+                if not isinstance(sub,dict) and 'buoyancy_sections' in sub.dd:
+                    results.append(sub.safety_factors['curvature'])
+            # # Get platform(s) connected to cable
+            # for platform in self.G.nodes[child]['obj'][0].attached_to:
+            #         if 'platform' in str(type(platform)):
+            #             cables = []
+            #             # Determine which index the cable is in
+            #             for attachment in platform.attachments:
+            #                     if 'cable' in str(type(platform.attachments[attachment]['obj'])).lower(): cables.append(platform.attachments[attachment]['obj'])
+            #             cable_index = np.where(np.array(cables) == self.G.nodes[child]['obj'][0])[0][0]
+            #             # Get the watch circle from the platform, which gives us the min curve and min sag of the array cable
+            #             a,b,c = platform.getWatchCircle(self.Array.ms)
+                        
+            #             results.append(c['minCurvSF'][cable_index])
+            #             results.append(c['minSag'][cable_index])
         # Plotting code - feel free to uncomment
-        # self.Array.plot2d()
-        # plt.show()
+        self.Array.plot2d()
+        plt.show()
         return results
     
 
@@ -891,28 +919,36 @@ class failureGraph():
             self.enact_failures(node)
 
             # Reevaluate state of FOWT
+            self.Array.array.ms.moorMod = 0
+            self.Array.array.mooring_currentMod = 0
             self.Array.array.solveStatics(case=0) # Solve statics in RAFT
             self.Array.ms.solveEquilibrium() # Solve equilibruim in MoorPy
-            for platform in self.Array.platformList:
-                self.Array.platformList[platform].getWatchCircle() # Update/get watch circles for each platform
+            ## Leah update: change to full array watch circle
+            self.Array.arrayWatchCircle() # saves loads for moorings, cables, anchors in respective dictionaries
+            # for platform in self.Array.platformList:
+            #     self.Array.platformList[platform].getWatchCircle() # Update/get watch circles for each platform
 
             # Check ending state of failure effects
             for child in children: 
                 results_after.update({child: self.get_effects_identifiers(child)})
                 
                 # Identify if tensions are above MBL
+                #### Leah edits: grab safety factors, anchor capacities instead of MBLs
                 if (('moor' in child.lower() and 'loads' in child.lower()) or 'nonfunctional' in child.lower()) or 'anchor drag' in child.lower():
                     if ('moor' in child.lower() and 'loads' in child.lower()) or 'nonfunctional' in child.lower():
-                        MBL = self.G.nodes[child]['obj'][0].dd['sections'][0]['type']['MBL']
+                        safety_factor = self.G.nodes[child]['obj'][0].safety_factors['tension']
+                        # MBL = self.G.nodes[child]['obj'][0].dd['sections'][0]['type']['MBL']
                     elif 'anchor drag' in child.lower():
-                        moor_line = self.G.nodes[child]['obj'][0].attachments[list(self.G.nodes[child]['obj'][0].attachments.keys())[0]]
-                        MBL = moor_line.dd['sections'][0]['type']['MBL']
-                    if 'e' in MBL:
-                        MBL_info = MBL.split('e')
-                        MBL = float(MBL_info[0]) ** int(MBL_info[1])
-                    else: MBL = float(MBL)
+                        safety_factor = self.G.nodes[child]['obj'][0].getFS
+                        # moor_line = self.G.nodes[child]['obj'][0].attachments[list(self.G.nodes[child]['obj'][0].attachments.keys())[0]]
+                        # MBL = moor_line.dd['sections'][0]['type']['MBL']
+                    # if 'e' in MBL:
+                    #     MBL_info = MBL.split('e')
+                    #     MBL = float(MBL_info[0]) ** int(MBL_info[1])
+                    # else: MBL = float(MBL)
 
-                    if results_after[child][0] > MBL or results_after[child][1] > MBL:
+                    # if results_after[child][0] > MBL or results_after[child][1] > MBL:
+                    if any([x < 1 for x in safety_factor.values()]):
                         observed_effects.append(child)
                         new_failure_modes = self.choose_new_failure_mode(child)
                         for nfm in new_failure_modes:
@@ -920,6 +956,7 @@ class failureGraph():
                         if len(new_failure_modes) > 1: print("Effect found -", child.replace('\n', ' '))
                     if child in list(self.G.nodes):
                         self.G.remove_node(child)
+                ####
 
                 # If the angle of roll is greater than 180 degrees (or pi in radians), then the turbine capsized
                 elif 'capsize' in child.lower():

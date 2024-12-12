@@ -219,7 +219,7 @@ class Platform(Node):
         
         
     def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
-                       shapes=True,Fth=None,SFs=True,eq_return=True):
+                       shapes=True,Fth=None,SFs=True):
         '''
         Compute watch circle of platform, as well as mooring and cable tension safety factors and 
         cable sag safety factors based on rated thrust.
@@ -238,8 +238,7 @@ class Platform(Node):
             Thrust force
         SFs : bool
             WHether or not to calculate safety factors etc for the line
-        eq_return: bool
-            Controls if the platform gets returned to equilibrium position with no forces after the watch circle is completed
+
         Returns
         -------
         x: list of x-coordinates for watch circle
@@ -337,13 +336,14 @@ class Platform(Node):
                     if not minCurvSF[j] or minCurvSF[j]>mCSF:
                         minCurvSF[j] = mCSF
                     # determine number of buoyancy sections
-                    nb = len(cab.dd['buoyancy_sections'])
-                    m_s = []
-                    for k in range(0,nb):
-                        m_s.append(cab.ss.getSag(2*k))
-                    mS = min(m_s)
-                    if not minSag[j] or minSag[j]<mS:
-                        minSag[j] = deepcopy(mS)
+                    if 'buoyancy_sections' in cab.dd and cab.dd['buoyancy_sections']:
+                        nb = len(cab.dd['buoyancy_sections'])
+                        m_s = []
+                        for k in range(0,nb):
+                            m_s.append(cab.ss.getSag(2*k))
+                        mS = min(m_s)
+                        if not minSag[j] or minSag[j]<mS:
+                            minSag[j] = deepcopy(mS)
         
             x.append(self.body.r6[0])       
             y.append(self.body.r6[1])
@@ -362,10 +362,9 @@ class Platform(Node):
             plt.figure()
             plt.plot(x,y)
           
-        if eq_return:
-            # restore platform to equilibrium position 
-            self.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
-            ms.solveEquilibrium3(DOFtype='both')
+        # restore platform to equilibrium position 
+        self.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
+        ms.solveEquilibrium3(DOFtype='both')
         
                 
         if SFs:
