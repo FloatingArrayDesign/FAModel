@@ -2030,7 +2030,8 @@ class Project():
 
     def plot3d(self, ax=None, figsize=(10,8), fowt=False, save=False,
                draw_boundary=True, boundary_on_bath=True, args_bath={}, 
-               draw_axes=True, draw_bathymetry=True, draw_soil=False, colorbar=True):
+               draw_axes=True, draw_bathymetry=True, draw_soil=False,
+               colorbar=True, boundary_only=False):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2073,13 +2074,31 @@ class Project():
                         vmax = 0
                     args_bath = {'cmap': cmap, 'vmin':min([min(x) for x in -self.grid_depth]),
                                  'vmax': vmax}
-                xs = np.linspace(min(self.grid_x),max(self.grid_x),len(self.grid_x))
-                ys = np.linspace(min(self.grid_y),max(self.grid_y),len(self.grid_y))
+                
+                if boundary_only:   # if you only want to plot the bathymetry that's underneath the boundary, rather than the whole file
+                    boundary = np.vstack([self.boundary, self.boundary[0,:]])
+                    xs = np.linspace(min(boundary[:,0]),max(boundary[:,0]),len(boundary[:,0]))
+                    ys = np.linspace(min(boundary[:,1]),max(boundary[:,1]),len(boundary[:,1]))
 
-                self.setGrid(xs, ys)
-        
-                # plot the bathymetry in matplotlib using a plot_surface
-                X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+                    self.setGrid(xs, ys)
+            
+                    # plot the bathymetry in matplotlib using a plot_surface
+                    X, Y = np.meshgrid(xs, ys)  # 2D mesh of seabed grid
+
+                    plot_depths = np.zeros([len(ys), len(xs)])
+                    for i in range(len(ys)):
+                        for j in range(len(xs)):
+                            plot_depths[i,j], nvec = self.getDepthAtLocation(xs[j], ys[i])
+
+                else:
+                    xs = np.linspace(min(self.grid_x),max(self.grid_x),len(self.grid_x))
+                    ys = np.linspace(min(self.grid_y),max(self.grid_y),len(self.grid_y))
+
+                    self.setGrid(xs, ys)
+            
+                    # plot the bathymetry in matplotlib using a plot_surface
+                    X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+                    plot_depths = -self.grid_depth
                 '''
                 # interpolate soil rockyness factor onto this grid
                 xs = self.grid_x
@@ -2103,7 +2122,7 @@ class Project():
                 # from matplotlib import cm
                 # args_bath = {'color':'#C8A2C8'}
                 ####################
-                bath = ax.plot_surface(X, Y, -self.grid_depth, rstride=1, cstride=1, **args_bath)
+                bath = ax.plot_surface(X, Y, plot_depths, rstride=1, cstride=1, **args_bath)
                 if colorbar:
                     fig.colorbar(bath,ax=ax,shrink=0.5,aspect=10)
         
