@@ -13,10 +13,10 @@ site:
     boundaries:  # project or lease area boundary, via file or vertex list
         file:   # filename of x-y vertex coordinates [m]
         x_y:    # list of polygon vertices in order [m]
-          - [-3000, 0]
-          - [-3000, 10000]
-          - [7000, 10000]
-          - [7000, 0]
+          - [-2000, -2000]
+          - [-2000, 8000]
+          - [8000, 8000]
+          - [8000, -2000]
     
     exclusions:
       - name: round example

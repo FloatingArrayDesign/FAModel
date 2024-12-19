@@ -755,9 +755,61 @@ class Anchor(Node):
                 
         return(geom,fs)
                 
+    def getSuctionSize(self,D,L,loads=None,minfs={'Ha':1.6,'Va':2},inc_pct=10):
+        '''
+        
+
+        Parameters
+        ----------
+        startGeom : dict
+            Dictionary of required geometric values to start with. These will be increased by
+            inc_pct for each run of the while loop
+        loads : TYPE, optional
+            DESCRIPTION. The default is None.
+        inc_pct : float
+            Percent to increase the geometric properties by in each iteration of the while loop
+
+        Returns
+        -------
+        None.
+
+        '''
+        anchType = self.dd['type']
+        if not loads:
+            loads = self.loads
             
+        if not 'Ha' in loads:
+            loads = self.getLugForces(mudloads=loads)
+           
+        loads['Ha'] = minfs['Ha']*loads['Ha']
+        loads['Va'] = minfs['Va']*loads['Va']
+                   
+        if not 'zlug' in self.dd['design']:
+            self.dd['design']['zlug'] = (2/3)*L
             
-             
+        # Define the objective function: Minimize |UC - 1| (aim for UC to be 1)
+        def objective(vars):
+            D, L = vars
+            self.dd['design']['D'] = D
+            self.dd['design']['L'] = L
+            self.dd['design']['zlug'] = (2/3)*L
+            results = self.getAnchorCapacity(plot=False)
+            return abs(results['UC'] - 1)  
+        
+        # Initial guess for D and L
+        initial_guess = [D, L]       # Input values for D and L
+        
+        # Bounds for D and L (adjust as needed)
+        bounds = [(1, 5), (5, 50)]   # Bounds for D and L
+        
+        # Run the optimization to find D and L that satisfy UC close to 1
+        solution = minimize(objective, initial_guess, bounds=bounds)
+        
+        # Extract the optimized values of D and L
+        self.dd['design']['D'], self.dd['design']['L'] = solution.x
+        self.dd['design']['zlug'] = (2/3)*self.dd['design']['L'] 
+        results = self.getAnchorCapacity(plot=False)    
+          
        
             
         # # check if anchor loads are available
