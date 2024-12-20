@@ -686,8 +686,12 @@ class Anchor(Node):
         keyFail = True
         # check if mass info is available
         if not self.mass:
-            # need mass - call capacity functions
-            self.getAnchorCapacity(plot=False)
+            if 'soil_properties' in self.dd:               
+                # need mass - call capacity functions
+                self.getAnchorCapacity(plot=False)
+            else:
+                print('Soil properties needed to calculate anchor mass for cost. Setting cost to 0.')
+                self.mass = 0
             
         # sort by type of anchor
         for Ckey,Cval in matCostDict.items():
@@ -722,6 +726,29 @@ class Anchor(Node):
         None.
 
         '''
+        def fs_check(fs,minfs):
+            '''
+            Checks if all fs > minfs
+
+            Parameters
+            ----------
+            fs : dict
+                factors of safety
+            minfs : dict
+                minimum factors of safety
+
+            Returns
+            -------
+            result: bool
+                True if all fs > minfs, else False
+
+            '''
+            if fs['Ha'] > minfs['Ha'] and fs['Va'] > minfs['Va']:
+                return(True)
+            else:
+                return(False)
+            
+        
         anchType = self.dd['type']
         if not loads:
             loads = self.loads
@@ -742,14 +769,28 @@ class Anchor(Node):
                 geom[cKey]*=2
             self.getAnchorCapacity(loads=loads,plot=False)
         fs = self.getFS(loads=loads)
+        # check if it's already over the minimum factor of safety
+        last_fs = fs_check(fs,minfs)
+        signswitch = False
+        if last_fs:
+            # reduce sizing to below fs so we can increase slowly later
+            while last_fs:
+                for cKey in startGeom.keys():
+                    geom[cKey] *= .75
+                    self.getAnchorCapacity(loads=loads,plot=False)
+        
             
-        while fs['Ha'] < minfs['Ha'] or fs['Va'] < minfs['Va']:
+            
+        while not last_fs:
             
             for cKey in startGeom.keys():
                 geom[cKey] *= (1+inc_pct/100)
                 
             self.getAnchorCapacity(loads=loads,plot=False)
             fs = self.getFS(loads=loads)
+            last_fs = fs_check(fs,minfs)
+            
+
             
                 
                 

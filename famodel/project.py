@@ -709,7 +709,7 @@ class Project():
                     mc = (Mooring(dd=m_config, id=str(PFNum[1])+'-'+str(PFNum[0])))
                     mc.shared = 1
                     # reposition both ends
-                    mc.reposition(r_center=[self.platformList[PFNum[1]].r,self.platformList[PFNum[0]].r],heading=headingB)
+                    mc.reposition(r_center=[self.platformList[PFNum[1]].r,self.platformList[PFNum[0]].r],heading=headingB,project=self)
 
                     # add mooring object to project mooring list           
                     self.mooringList[str(PFNum[1])+'-'+str(PFNum[0])] = mc
@@ -1657,7 +1657,7 @@ class Project():
             else:
                 dd = {'r':substation_r}
             self.substationList[ss_id] = Substation(dd,id=ss_id)
-            self.substationList[ss_id].rFair = 58 ##### TEMPORARY #####
+            self.substationList[ss_id].rFair = 5 ##### TEMPORARY #####
             self.substationList[ss_id].zFair = -14
             self.substationList[ss_id].phi = 0
         
@@ -1776,8 +1776,8 @@ class Project():
        
                     # add routing if necessary
                     if dd['cables'][j]['type']=='static':
+                        cd['routing'] = []
                         if len(connDict[i]['coordinates'])>2:
-                            cd['routing'] = []
                             for coord in connDict[i]['coordinates'][1:-1]:
                                 cd['routing'].append(coord)
                         cableType = 'static_cable_'+cableType_def[-2:]
@@ -1798,7 +1798,7 @@ class Project():
             dd['name'] = cableType
 
             
-            if connDict[i]['cable_id']>=100 and not oss and not connect_ss:
+            if connDict[i]['cable_id']>=100 and not connect_ss:
                 # this is a substation, and we don't want to connect to it
                 attachCable = 0
             else:
@@ -1808,9 +1808,8 @@ class Project():
                 # create cable object
                 cab = Cable(cableType+str(i+lcab),d=dd)
                 self.cableList[cab.id] = cab
-              
                 # update upstream turbines property
-                cab.upstream_turb_count = connDict[i]['upstream_turb_count']
+                cab.upstream_turb_count = getFromDict(connDict[i],'upstream_turb_count',default=0)
                 
                 # attach to platforms/substations
                 for pf in self.platformList.values():
@@ -1850,29 +1849,109 @@ class Project():
                             substation.r = connDict[i]['coordinates'][-1]
                 
                 # attach cable
-                cab.attachTo(attA,end='A')
-                cab.attachTo(attB,end='B')
+                cab.attachTo(attA,end='a')
+                cab.attachTo(attB,end='b')
     
                 # get heading of cable from attached object coordinates
                 
                 headingA = np.radians(90) - np.arctan2((connDict[i]['coordinates'][1][0]-connDict[i]['coordinates'][0][0]),(connDict[i]['coordinates'][1][1]-connDict[i]['coordinates'][0][1]))
                 headingB = np.radians(90) - np.arctan2((connDict[i]['coordinates'][-2][0]-connDict[i]['coordinates'][-1][0]),(connDict[i]['coordinates'][-2][1]-connDict[i]['coordinates'][-1][1]))
+                
                 if cableConfig:
                     if 'head_offset' in selected_cable:
                         headingA += np.radians(selected_cable['head_offset'])
                         headingB -= np.radians(selected_cable['head_offset'])
+                    
+                def check_headings(m_headings,c_heading,rad_buff):
+                    # convert negative headings to positive headings
+                    for i,mh in enumerate(m_headings):
+                        if mh<0:
+                            #breakpoint()
+                            m_headings[i] = 2*np.pi + mh
+                    ang_diff = m_headings - c_heading
+                    inds_to_fix = np.where([round(abs(angd),8)<round(rad_buff,8) for angd in ang_diff])[0]
+                    return(m_headings[inds_to_fix])
+                    
+                        
+                def head_adjust(att,heading,rad_buff=np.radians(30)):
+                    '''
+                    function to adjust heading of cable based on angle buffer from mooring lines
 
+                    Parameters
+                    ----------
+                    att : object
+                        object to attach to
+                    heading : float
+                        Cable heading at attachment to att.
+                    rad_buff : float
+                        Buffer angle in radians
+
+                    Returns
+                    -------
+                    heading : float
+                        New cable heading
+
+                    '''
+                    if heading<0:
+                        headnew = np.pi*2 + heading
+                    else:
+                        headnew = heading
+                    #breakpoint()
+                    if hasattr(att,'mooring_headings'):                       
+                        # collect list of interfering mooring headings
+                        attheadings = np.pi/2 - (att.mooring_headings + att.phi)
+                        interfere_h = check_headings(attheadings,headnew,rad_buff)
+                        # breakpoint()
+                        if interfere_h:
+                            # breakpoint()
+                            ang_diffs = [headnew-mhead for mhead in interfere_h]
+                            for ang_diff in ang_diffs:
+                                headnew = headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))
+                                interfere_hi = check_headings(attheadings,headnew,rad_buff)
+                                for i in interfere_hi:
+                                    # try rotating 30 degrees other way
+                                    headnew = i - np.sign(ang_diff)*rad_buff
+                                    # re-check offsets
+                                    interfere_hij = check_headings(attheadings,headnew,rad_buff)
+                                    if not interfere_hij:
+                                        return(headnew)
+                                    
+                    
+                    
+                    return(headnew)
+
+                # adjust heading if too close to moorings
+                rad_buff = np.radians(30)
+                headingA = head_adjust(attA,headingA,rad_buff=rad_buff)
+                headingB = head_adjust(attB,headingB,rad_buff=rad_buff)
+                heads = [headingA,headingB]
                 # reposition cable
-                cab.reposition(project=self,headings=[headingA,headingB])
-
-                # update lengths & spans of any static cables as needed (currently doesn't work w/routing)
+                cab.reposition(project=self,headings=[headingA,headingB],rad_fair=[5,5])
+                # add routing for static cable to continue along adjusted heading for total of 500m (inluding dynamic cable sapn)
+                if len(cab.subcomponents)>1:
+                    inds = [0,-1]
+                    for ii,ind in enumerate(inds):
+                        if cab.subcomponents[ind].span < 500:
+                            spandiff = 500 - cab.subcomponents[ind].span
+                            ind_of_stat = 2-4*ii # 2 for end A, -2 for end B -- relative loc of static cable compared to dynamic cable
+                            stat_cable = cab.subcomponents[ind+ind_of_stat]
+                            # get new coordinate routing point
+                            stat_cable_end = stat_cable.rA if ind==0 else stat_cable.rB
+                            coord = [stat_cable_end[0] + np.cos(heads[ii])*spandiff,
+                                     stat_cable_end[1] + np.sin(heads[ii])*spandiff]
+                            # append it to static cable object coordinates
+                            stat_cable.coordinates.append(coord)
+                
+                # update lengths & spans of any static cables as needed
                 cts = np.where([isinstance(a,StaticCable) for a in cab.subcomponents])[0]
                 for cs in cts:
-                    if not 'L' in cab.subcomponents[cs].dd:
-                        cab.subcomponents[cs].getLength()
+                    # update routing
+                    cab.subcomponents[cs].updateRouting() # also updates static and general cable lengths
+                #     if not 'L' in cab.subcomponents[cs].dd:                      
+                #         cab.subcomponents[cs].getLength()
 
-                # update full cable L (in case the static cable L was updated)
-                cab.getL() 
+                # # update full cable L (in case the static cable L was updated)
+                # cab.getL() 
                 
 
                  
@@ -1981,17 +2060,17 @@ class Project():
                         # has routing  - first plot rA to sub.coordinate[0] connection
                         ax.plot([sub.rA[0],sub.coordinates[0][0]],
                                 [sub.rA[1],sub.coordinates[0][1]],':',color = Ccable,
-                                lw=0.6,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                                lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                         # now plot route
                         if len(sub.coordinates) > 1:
                             for i in range(1,len(sub.coordinates)):
                                 ax.plot([sub.coordinates[i-1][0],sub.coordinates[i][0]],
                                         [sub.coordinates[i-1][1],sub.coordinates[i][1]],
-                                        ':',color=Ccable,lw=0.6,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                                        ':',color=Ccable,lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                         # finally plot sub.coordinates[-1] to rB connection
                         ax.plot([sub.coordinates[-1][0],sub.rB[0]],
                                 [sub.coordinates[-1][1],sub.rB[1]],':',color=Ccable,
-                                lw=0.6,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                                lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                     else:
                         # if not routing just do simple line plot
                         ax.plot([sub.rA[0],sub.rB[0]], 
@@ -2420,8 +2499,7 @@ class Project():
                     r6 = [sub.r[0],sub.r[1],0,0,0,0]
                     self.ms.addBody(1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
                     sub.body = self.ms.bodyList[-1]
-            for i in self.cableList:
-                            
+            for i in self.cableList:           
                 # determine if suspended cable or not - having a static cable as a subcomponent means this is not a suspended cable
                 for j,comp in enumerate(self.cableList[i].subcomponents):
                     # # check for all attachments (may be failurs enacted preventing all attachments)
@@ -2434,7 +2512,7 @@ class Project():
                     elif isinstance(comp,StaticCable):
                         # don't make a subsystem for a static cable (yet...)
                         pass
-                    else:
+                    elif isinstance(comp,DynamicCable):
                         # create subsystem for dynamic cable
                         comp.createSubsystem(pristine=pristineLines)
                         if pristineLines:                           
@@ -2453,7 +2531,7 @@ class Project():
                             self.ms.pointList[-1].attachLine(ssloc.number,0)
                             body = comp.attached_to[0].body
                             body.attachPoint(len(self.ms.pointList),[ssloc.rA[0]-body.r6[0],ssloc.rA[1]-body.r6[1],ssloc.rA[2]])
-                        elif attach[0]:
+                        elif isinstance(attach[0],Joint):
                             # connect to joint at end A
                             if not comp.attached_to[0].mpConn:
                                 comp.attached_to[0].makeMoorPyConnector(self.ms)
@@ -2465,7 +2543,7 @@ class Project():
                             self.ms.pointList[-1].attachLine(ssloc.number,1)
                             body = comp.attached_to[-1].body
                             body.attachPoint(len(self.ms.pointList),[ssloc.rB[0]-body.r6[0],ssloc.rB[1]-body.r6[1],ssloc.rB[2]])
-                        elif attach[1]:
+                        elif isinstance(attach[1],Joint):
                             # connect to joint at end B
                             if not comp.attached_to[-1].mpConn:
                                 comp.attached_to[-1].makeMoorPyConnector(self.ms)
@@ -3152,7 +3230,7 @@ class Project():
                 self.anchorList[newa.id] = newa
                 # attach anchor to mooring
                 newm.attachTo(newa,end=1-endB)
-                newm.reposition(r_center=r)
+                newm.reposition(r_center=r,project=self)
                 zAnew, nAngle = self.getDepthAtLocation(newm.rA[0], newm.rA[1], return_n=True)
                 newm.rA[2] = -zAnew
                 newm.dd['zAnchor'] = -zAnew
@@ -3172,7 +3250,7 @@ class Project():
                 pf2.detach(att['obj'],att['end'])
         
         # reposition platform as needed
-        pf2.setPosition(r,heading=heading)
+        pf2.setPosition(r,heading=heading,project=self)
  
         
         
@@ -3310,7 +3388,7 @@ class Project():
                             self.anchorList[mList[-1].id] = Anchor(dd=ad,r=pt.r,id=mList[-1].id)
                             self.anchorList[mList[-1].id].attach(mList[-1],end=1-endB[-1])
                             # reposition mooring and anchor
-                            mList[-1].reposition(r_center=r)
+                            mList[-1].reposition(r_center=r,project=self)
                             zAnew = self.getDepthAtLocation(mList[-1].rA[0], 
                                                             mList[-1].rA[1])
                             mList[-1].rA[2] = -zAnew
@@ -3559,7 +3637,7 @@ class Project():
         
         
         
-    def getFarmCost(self):
+    def getArrayCost(self):
         '''
         Function to sum all available costs for the array components and produce a 
         spreadsheet with itemized costs for each component.
@@ -3577,46 +3655,60 @@ class Project():
         turbine_costs = {}
         substation_costs = {}
         # anchors
+        anch_cost = 0
         for anch in self.anchorList.values():
-            total_cost += anch.getCost()
+            anch_cost += anch.getCost()
+            
             anch_costs[anch.id] = anch.cost
         # maxrows_anch = max([len(anch.cost) for anch in self.anchorList.values()])
-        headings_anch = set([anch.cost.keys() for anch in self.anchorList.values()])
+        #headings_anch = set([anch.cost.keys() for anch in self.anchorList.values()])
         # platforms
+        pf_cost = 0
         for pf in self.platformList.values():
             if pf.cost:
-                total_cost += sum(pf.cost.values())
+                pf_cost += sum(pf.cost.values())
             pf_costs[pf.id] = pf.cost
         # maxrows_pf = max([len(pf.cost) for pf in self.platformList.values()])
         # moorings
+        moor_cost = 0
         for moor in self.mooringList.values():
-            total_cost += moor.getCost()
+            moor_cost += moor.getCost()
             mooring_costs[moor.id] = moor.cost
         # maxrows_moor = max([len(moor.cost) for moor in self.mooringList.values()])
         # cables
+        cab_cost = 0
         for cab in self.cableList.values():
-            total_cost += cab.getCost()
+            cab_cost += cab.getCost()
             cable_costs[cab.id] = cab.cost
         # maxrows_cab = max([len(cab.cost) for cab in self.cableList.values()])
         # turbine
+        turb_cost = 0
         for turb in self.turbineList.values():
             if turb.cost:
-                total_cost += sum(turb.cost.values())
+                turb_cost += sum(turb.cost.values())
             turbine_costs[turb.id] = turb.cost
         # maxrows_turb = max([len(turb.cost) for turb in self.turbineList.values()])
         # substation
+        oss_cost = 0
         for oss in self.substationList.values():
             if oss.cost:
-                total_cost += sum(oss.cost.values())
+                oss_cost += sum(oss.cost.values())
             substation_costs[oss.id] = oss.cost
+            
+        # add up total cost
+        total_cost = anch_cost + pf_cost + moor_cost + cab_cost + turb_cost + oss_cost
         # maxrows_oss = max([len(oss.cost) for oss in self.substationList.values()])
             
         # now write the costs to a spreadsheet
         
         # let's do a new sheet for each component type and one overview sheet
+        # for now let's write out a dictionary
+        cost_dict = {'total cost':total_cost,'cable cost':cab_cost,
+                     'anchor cost':anch_cost, 'pf cost':pf_cost,
+                     'moor cost':moor_cost,'turbine cost':turb_cost,
+                     'substation cost':oss_cost}
         
-        
-        return(total_cost)
+        return(cost_dict)
     
     def unload(self,file='project.yaml'):
         '''
@@ -3785,7 +3877,7 @@ class Project():
                         valnew = float(val)
                         secTypes[stn][key] = valnew
                     elif isinstance(val,np.str_):
-                        valnew = float(val)
+                        valnew = str(val)
                         secTypes[stn][key] = valnew
             # add last connector if needed
             if not conf['connectors'][i+1]['m'] == 0 and conf['connectors'][i+1]['CdA'] == 0 and conf['connectors'][i+1]['v'] == 0:

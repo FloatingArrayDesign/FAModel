@@ -28,35 +28,35 @@ project.plot2d()
 project.plot3d(fowt=True)
 
 
-# #%% Update uniform array - edits in progress
-# print('\nUpdating uniform array shape\n')
-# # inputs for updateUniformArray
-# nrows = 5 # number of rows (total # of platforms should be same as input file)
-# ncols = 5 # number of columns
-# spacing_x = 1700 # spacing between columns
-# spacing_y = 1600 # spacing between rows
-# rotation_angle = 10 # angle to rotate the entire grid
-# skew_x = 5 # skew angle in x direction
-# skew_y = 5 # skew angle in y-direction
-# heading_pattern = [[0,180,0,180,0],[180,0,180,0,180]] # heading pattern. Length of outer list is # of rows it takes to repeat 
-# # the pattern, length of inner list is either 1 (for all same heading in the row) or the # of platforms in a row
-# offset_x = 600 # offset from boundary in x direction
-# offset_y = 1500 # offset from boundary in y direction
-# center = [0,0] # center point of array
+#%% Update uniform array - edits in progress
+print('\nUpdating uniform array shape\n')
+# inputs for updateUniformArray
+nrows = 5 # number of rows (total # of platforms should be same as input file)
+ncols = 5 # number of columns
+spacing_x = 1700 # spacing between columns
+spacing_y = 1600 # spacing between rows
+rotation_angle = 10 # angle to rotate the entire grid
+skew_x = 5 # skew angle in x direction
+skew_y = 5 # skew angle in y-direction
+heading_pattern = [[0,180,0,180,0],[180,0,180,0,180]] # heading pattern. Length of outer list is # of rows it takes to repeat 
+# the pattern, length of inner list is either 1 (for all same heading in the row) or the # of platforms in a row
+offset_x = 600 # offset from boundary in x direction
+offset_y = 1500 # offset from boundary in y direction
+center = [0,0] # center point of array
 
-# # call function to update array
-# project.updateUniformArray(nrows, ncols, [spacing_x,spacing_y], rotation_angle, skew_x,
-#                            skew_y, offset_x, offset_y, heading_pattern, center=center)
+# call function to update array
+project.updateUniformArray(nrows, ncols, [spacing_x,spacing_y], rotation_angle, skew_x,
+                            skew_y, offset_x, offset_y, heading_pattern, center=center)
 
-# model = project.array # this is the RAFT model!!
-# # update platform locations and headings in RAFT
-# for i,body in enumerate(model.fowtList):
-#     # set position
-#     pf_heading = project.platformList['fowt'+str(i)].phi
-#     body.setPosition([project.platformList['fowt'+str(i)].r[0],project.platformList['fowt'+str(i)].r[1],0,0,0,pf_heading])
-#     body.heading_adjust = np.degrees(project.platformList['fowt'+str(i)].phi)
-# # plot again
-# project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False)
+model = project.array # this is the RAFT model!!
+# update platform locations and headings in RAFT
+for i,body in enumerate(model.fowtList):
+    # set position
+    pf_heading = project.platformList['fowt'+str(i)].phi
+    body.setPosition([project.platformList['fowt'+str(i)].r[0],project.platformList['fowt'+str(i)].r[1],0,0,0,pf_heading])
+    body.heading_adjust = np.degrees(project.platformList['fowt'+str(i)].phi)
+# plot again
+project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False)
 
 #%% Run RAFT
 print('\nRunning RAFT Case\n')

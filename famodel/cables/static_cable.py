@@ -20,7 +20,7 @@ class StaticCable(Edge):
     def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
                  rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81, L=2000,A=0,conductorSize=None, 
-                 type='static',voltage=66,powerRating=None,cable_type=None,routing=None,
+                 type='static',voltage=66,powerRating=None,cable_type=None,routing=[],
                  burial=None,zAnchor=None,**kwargs):
         '''
         Parameters
@@ -51,18 +51,8 @@ class StaticCable(Edge):
         # Nonzero radius wraps around the vertex at that radius.
         self.coordinates = routing
         if routing:
-            self.x = [coord[0] for coord in self.coordinates]#[]  # cable route vertex global x coordinate [m]
-            self.y = [coord[1] for coord in self.coordinates]#[]  # cable route vertex global y coordinate [m]
-            # Check if radius available
-            if len(self.coordinates[0]) <= 2:
-                self.r = []  # cable route vertex corner radius [m]
-                self.burial = []
-            elif len(self.coordinates[0]) == 3:
-                self.burial = [coord[2] for coord in self.coordinates] # cable route depth at coordinates
-                self.r = []
-            elif len(self.coordinates[0]) == 4:
-                self.burial = [coord[2] for coord in self.coordinates] # cable route depth at coordinates
-                self.r = [coord[3] for coord in self.coordinates]  # cable route vertex corner radius [m]
+            # call function to update routing variables
+            self.updateRouting()
         
         # Dictionaries for addition information
         self.loads = {}
@@ -74,29 +64,30 @@ class StaticCable(Edge):
     def getLength(self):
         '''Compute the length of the cable based on the end point locations 
         (rA, rB) and any routing information (self.x, self.y. self.rad).'''
-        
         # get some calculations from Stein's arc-shaped work on IProTech geometry
         # >>> calcs here <<<
+        def get_length_between_points(coord1,coord2):
+            valx = coord1[0] - coord2[0]
+            valy = coord1[1] - coord2[1]
+            return(np.hypot(valx,valy))
         
         L = 0
         
-        if not hasattr(self,'x'): 
+        if not hasattr(self,'x') or not self.x: 
             # there is not routing here, assume straight line between ends
-            vals = np.array(self.rB)-np.array(self.rA)
-            L += np.hypot(vals[0],vals[1])
+            L += get_length_between_points(self.rB,self.rA)
             
         else:
             # get L from rA to first point
-            vals = np.array((self.x[0],self.y[0]) - np.array(self.rA[0:2]))
-            L += np.hypot(vals[0],vals[1])
+            L += get_length_between_points([self.x[0],self.y[0]],self.rA[0:2])
             # get L from rB to last point
-            vals = np.array((self.x[-1],self.y[-1])) - np.array((self.rB[0:2]))
-            L += np.hypot(vals[0],vals[1])
+            L += get_length_between_points([self.x[-1],self.y[-1]],self.rB[0:2])
             
+            # get L between coordinate points
             if len(self.x)>1:
-                for i,x in enumerate(self.x):
-                    vals = np.array((self.x[i+1],self.y[i+1])) - np.array((x,self.y[i]))                   
-                    L += np.hypot(vals[0],vals[1])
+                for i in range(len(self.x)-1):                
+                    L += get_length_between_points([self.x[i+1],self.y[i+1]],
+                                                   [self.x[i],self.y[i]])
                 
         self.L = L                            
         
@@ -171,6 +162,46 @@ class StaticCable(Edge):
         
         # calculate cable length (discretized approach for now)
     
+    def updateRouting(self,coords=None):
+        '''
+        Updates routing parameters based on passed in coordinates or existing coordinates
+
+        Parameters
+        ----------
+        coords : list, optional
+            List of xy coordinates (and potentially burial and radius) for routing
+
+        Returns
+        -------
+        None.
+
+        '''
+        if coords:
+            self.coordinates = coords
+           
+        if self.coordinates:
+            self.x = [coord[0] for coord in self.coordinates]  # cable route vertex global x coordinate [m]
+            self.y = [coord[1] for coord in self.coordinates]  # cable route vertex global y coordinate [m]
+            # Check if radius available
+            if len(self.coordinates[0]) <= 2:
+                self.r = []  # cable route vertex corner radius [m]
+                self.burial = []
+            elif len(self.coordinates[0]) == 3:
+                self.burial = [coord[2] for coord in self.coordinates] # cable route depth at coordinates
+                self.r = []
+            elif len(self.coordinates[0]) == 4:
+                self.burial = [coord[2] for coord in self.coordinates] # cable route depth at coordinates
+                self.r = [coord[3] for coord in self.coordinates]  # cable route vertex corner radius [m]
+                
+        # update static cable length
+        self.getLength()
+        # update overall cable length
+        overall_cable = self.part_of
+        if overall_cable:
+            overall_cable.getL()
+        
+            
+        
     
     def checkCableExclusions(self, cable):
         '''Checks whether a cable crosses over any exclusions

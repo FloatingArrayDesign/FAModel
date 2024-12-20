@@ -121,7 +121,7 @@ class Platform(Node):
                 headings = [cab.subcomponents[0].headingA + self.phi, cab.subcomponents[-1].headingB + self.phi]
                 
                 # reposition the cable
-                cab.reposition(headings=headings)
+                cab.reposition(headings=headings,project=project)
         
     def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None, project=None):
         '''

@@ -236,6 +236,9 @@ class Mooring(Edge):
             self.setEndPosition(np.hstack([r_centerA - self.rad_fair*u, self.z_fair]),'a')
         
         else: # otherwise just set the anchor position based on a set spacing (NEED TO UPDATE THE ANCHOR DEPTH AFTER!)
+            xy_loc = r_centerB + self.rad_anch*u
+            if project:
+                self.dd['zAnchor'] = project.getDepthAtLocation(xy_loc[0],xy_loc[1])
             self.setEndPosition(np.hstack([r_centerB + self.rad_anch*u, self.z_anch]), 'a', sink=True)
         
     
@@ -257,12 +260,16 @@ class Mooring(Edge):
             self.rA = np.array(r)
             
             if self.ss:
+                if self.rA[2]<-self.ss.depth:
+                    self.ss.depth = -self.rA[2]
                 self.ss.setEndPosition(self.rA, False, sink=sink)
             
         elif end in ['b', 'B', 1]:
             self.rB = np.array(r)
             
             if self.ss:
+                if self.rB[2]<-self.ss.depth:
+                    self.ss.depth = -self.rB[2]
                 self.ss.setEndPosition(self.rB, True, sink=sink)
                 
         else:
@@ -291,7 +298,11 @@ class Mooring(Edge):
         conn_cost = 0
         if self.ss and from_ss:
             for line in self.ss.lineList:
-                line_cost += line.getCost()
+                try:
+                    line_cost += line.getCost()
+                except:
+                    line_cost += 0
+                    print('Could not find line cost for',self.id)
         else:
             for sub in self.subcomponents:
                 if isinstance(sub,Section):
@@ -347,6 +358,7 @@ class Mooring(Edge):
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:
             dd = self.dd
+
         ss=Subsystem(mooringSys=mooringSys, depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
                           span=dd['span'], rad_fair=self.rad_fair,
                           z_fair=self.z_fair)#, bathymetry=dict(x=project.grid_x, y=project.grid_y, depth=project.grid_depth))    # don't necessarily need to import anymore

@@ -105,15 +105,14 @@ class Cable(Edge):
         self.y = []
         self.r = []
         
-        self.L = 0  # total length (to be computed) [m]
-        for i in self.dd['cables']: # self.subcomponents:
-            self.L += i.L
+        # get cable length
+        self.getL()
             
         
         # failure probability
         self.failure_probability = {}
         
-    def reposition(self,headings=None,project=None):
+    def reposition(self,headings=None,project=None,rad_fair=[]):
         '''
         Repositions the cable based on headings of the end subcomponents and the locations of attached nodes
 
@@ -125,6 +124,10 @@ class Cable(Edge):
         project : FAModel project object, optional
             FAModel project object associated with this cable, only used if 
             the end points of cable sections in the middle need to be set as well.
+        rad_fair : list, optional
+            fairlead radius of node connected on each end of the cable (list should be length 2)
+            If not provided, the fairlead radius will be determined from the attached nodes' listed
+            fairlead radius
 
         Returns
         -------
@@ -138,9 +141,13 @@ class Cable(Edge):
         else:
             headingA = headings[0]
             headingB = headings[1]
+        if not rad_fair:
+            rad_fair = []
+            rad_fair.append(self.attached_to[0].rFair)
+            rad_fair.append(self.attached_to[1].rFair)
         # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
-        Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*self.attached_to[0].rFair, self.attached_to[0].r[1]+np.sin(headingA)*self.attached_to[0].rFair, self.attached_to[0].zFair]
-        Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*self.attached_to[1].rFair, self.attached_to[1].r[1]+np.sin(headingB)*self.attached_to[1].rFair, self.attached_to[1].zFair]
+        Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rad_fair[0], self.attached_to[0].r[1]+np.sin(headingA)*rad_fair[0], self.attached_to[0].zFair]
+        Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*rad_fair[1], self.attached_to[1].r[1]+np.sin(headingB)*rad_fair[1], self.attached_to[1].zFair]
         self.subcomponents[0].rA = Aloc; self.rA = Aloc
         self.subcomponents[-1].rB = Bloc; self.rB = Bloc
         
@@ -177,38 +184,7 @@ class Cable(Edge):
                         self.subcomponents[i-1]['r'] = sub.rA
                         # set the rB of the previous cable section (likely a static cable)
                         self.subcomponents[i-2].rB = self.subcomponents[i].rA
-                    
-        
-    # def setJointLoc(self,joint):
-    #     '''Estimates joint location if they are not provided in yaml based on heading, span, and rA of cable before it
-
-    #     Parameters
-    #     ----------
-    #     joint : int
-    #         Index in subcomponents list of relevant joint
-
-    #     Returns
-    #     -------
-    #     None.
-
-    #     '''
-    #     from famodel.project import Project
-        
-    #     # if joint closer to end A, use end A heading + platform A phi
-    #     if len(self.subcomponents)/2 > joint+1:
-    #         heading = self.subcomponents[0].headingA - self.attached_to[0].phi
-    #         jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
-    #         jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
-    #         #depth = self.subcomponents[joint].r[2]
-    #         self.subcomponents[joint]['r'] = [jLocX,jLocY]
-    #     # if joint closer to end B, use opposite of (end B heading + platform B phi)
-    #     else:
-    #         heading = np.pi + self.subcomponents[-1].headingB - self.attached_to[1].phi
-    #         jLocX = self.subcomponents[joint-1].span*np.cos(heading)+self.subcomponents[joint-1].rA[0]
-    #         jLocY = self.subcomponents[joint-1].span*np.sin(heading)+self.subcomponents[joint-1].rA[1]
-    #         #depth = self.subcomponents[joint].r[2]
-    #         self.subcomponents[joint]['r'] = [jLocX,jLocY]
-    #     return(jLocX,jLocY)     
+    
     
     def getCost(self):
         '''
