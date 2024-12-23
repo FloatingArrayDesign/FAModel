@@ -110,7 +110,7 @@ class Platform(Node):
                 heading_i = self.mooring_headings[count] + self.phi
                 # Reposition the whole Mooring
                 self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
-                                
+                
                 count += 1
                 
             if isinstance(self.attachments[att]['obj'], Cable):
@@ -122,7 +122,8 @@ class Platform(Node):
                 
                 # reposition the cable
                 cab.reposition(headings=headings,project=project)
-        
+    
+    
     def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None, project=None):
         '''
         Create a MoorPy system for the platform based on the mooring subsystems provided in 

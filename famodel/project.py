@@ -86,13 +86,13 @@ class Project():
         self.lon0  = lon  # longitude of site reference point [deg]
         self.g = 9.81
 
-        # Project boundary (list of x,y coordinate pairs [m])
+        # Project boundary (vertical stack of x,y coordinate pairs [m])
         self.boundary = np.zeros([0,2])
         
         # Seabed grid
-        self.grid_x      = np.array([2200])
-        self.grid_y      = np.array([200])
-        self.grid_depth  = np.array([[depth]])  # depth at each grid point
+        self.grid_x      = np.array([0])  # coordinates of x grid lines [m]
+        self.grid_y      = np.array([0])  # coordinates of y grid lines [m]
+        self.grid_depth  = np.array([[depth]])  # depth at each grid point [iy, ix]
         self.depth = depth
         
         self.seabed_type = 'clay'  # switch of which soil property set to use ('clay', 'sand', or 'rock')
@@ -1154,7 +1154,7 @@ class Project():
         '''
         
         # Create a new depth matrix with interpolated values from the original
-        depths = np.zeros([len(ys), len(xs)])
+        depths = np.zeros([len(ys), len(xs)])  # note: indices are iy, ix
         for i in range(len(ys)):
             for j in range(len(xs)):
                 depths[i,j], nvec = sbt.getDepthFromBathymetry(xs[j], ys[i], 
@@ -1543,7 +1543,6 @@ class Project():
         
         Parameters
         ----------
-
         filename : path
             path/name of file containing bathymetry data (format TBD)
         '''
@@ -1551,15 +1550,47 @@ class Project():
         # load data from file
         Xs, Ys = sbt.processBoundary(filename, self.lat0, self.lon0)
         
+        self.setBoundary(Xs, Ys)
+
+
+    def setBoundary(self, Xs, Ys):
+        '''Set the boundaries of the project based on x-y polygon vertices.'''
+        
         # check compatibility with project grid size
         
         # save as project boundaries
         self.boundary = np.vstack([[Xs[i],Ys[i]] for i in range(len(Xs))])
         # self.boundary = np.vstack([Xs, Ys])
         
+        # if the boundary doesn't repeat the first vertex at the end, add it
+        if not all(self.boundary[0,:] == self.boundary[-1,:]):
+            self.boundary = np.vstack([self.boundary, self.boundary[0,:]])
+        
         # figure out masking to exclude grid data outside the project boundary
+    
+    
+    def trimGrids(self, buffer=100):
+        '''Trims bathymetry and soil grid information that is outside the
+        project boundaries, for faster execution and plotting.'''
         
+        # boundary extents
+        xmin = np.min(self.boundary[:,0]) - buffer
+        xmax = np.max(self.boundary[:,0]) + buffer
+        ymin = np.min(self.boundary[:,1]) - buffer
+        ymax = np.max(self.boundary[:,1]) + buffer
         
+        # figure out indices to trim at
+        i_x1 = np.max(np.argmax(self.grid_x > xmin) - 1, 0)  # start x index
+        i_y1 = np.max(np.argmax(self.grid_y > ymin) - 1, 0)  # start y index
+        i_x2 = np.max(np.argmin(self.grid_x < xmax) + 1, 0)  # end x index+1
+        i_y2 = np.max(np.argmin(self.grid_y < ymax) + 1, 0)  # end y index+1
+        
+        # trim things
+        self.grid_x     = self.grid_x    [i_x1:i_x2]
+        self.grid_y     = self.grid_y    [i_y1:i_y2]
+        self.grid_depth = self.grid_depth[i_y1:i_y2, i_x1:i_x2]
+    
+    
     def loadBathymetry(self, filename, interpolate=False):
         '''
         Load bathymetry information from an input file (format TBD), convert to
@@ -2006,8 +2037,7 @@ class Project():
                     cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)')
                     
         if plot_boundary:
-            boundary = np.vstack([self.boundary, self.boundary[0,:]])
-            ax.plot(boundary[:,0], boundary[:,1], 'b-.',label='Lease Boundary')
+            ax.plot(self.boundary[:,0], self.boundary[:,1], 'b-.',label='Lease Boundary')
             
         
         # Seabed ground/soil type (to update)
@@ -2154,6 +2184,7 @@ class Project():
                     args_bath = {'cmap': cmap, 'vmin':min([min(x) for x in -self.grid_depth]),
                                  'vmax': vmax}
                 
+                # >>> below code sections seem to do unnecessary interpolation and regridding... >>>
                 if boundary_only:   # if you only want to plot the bathymetry that's underneath the boundary, rather than the whole file
                     boundary = np.vstack([self.boundary, self.boundary[0,:]])
                     xs = np.linspace(min(boundary[:,0]),max(boundary[:,0]),len(boundary[:,0]))
@@ -2231,15 +2262,15 @@ class Project():
         
         # plot the project boundary
         if draw_boundary:
-            boundary = np.vstack([self.boundary, self.boundary[0,:]])
-            ax.plot(boundary[:,0], boundary[:,1], np.zeros(boundary.shape[0]), 
-                    'b--', zorder=100, lw=1, alpha=0.5)
+            ax.plot(self.boundary[:,0], self.boundary[:,1], 
+                    np.zeros(self.boundary.shape[0]), 
+                    'b--', zorder=100, lw=0.5, alpha=0.5)
             
         # plot the projection of the boundary on the seabed, if desired
         if boundary_on_bath:
-            boundary = np.vstack([self.boundary, self.boundary[0,:]])
-            boundary_z = self.projectAlongSeabed(boundary[:,0], boundary[:,1])
-            ax.plot(boundary[:,0], boundary[:,1], -boundary_z, 'k--', zorder=10, lw=1, alpha=0.7)
+            boundary_z = -self.projectAlongSeabed(self.boundary[:,0], self.boundary[:,1])
+            ax.plot(self.boundary[:,0], self.boundary[:,1], boundary_z, 
+                    'k--', zorder=10, lw=0.5, alpha=0.7)
 
         lw=1 #0.5
         # find max cable size as applicable

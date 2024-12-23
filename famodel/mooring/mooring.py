@@ -186,7 +186,8 @@ class Mooring(Edge):
     
     
     
-    def reposition(self, r_center=None, heading=None, project=None, degrees=False, **kwargs):
+    def reposition(self, r_center=None, heading=None, project=None, 
+                   degrees=False, **kwargs):
         '''Adjusts mooring position based on changed platform location or
         heading. It can call a custom "adjuster" function if one is
         provided. Otherwise it will just update the end positions.
@@ -241,6 +242,9 @@ class Mooring(Edge):
                 self.dd['zAnchor'] = project.getDepthAtLocation(xy_loc[0],xy_loc[1])
             self.setEndPosition(np.hstack([r_centerB + self.rad_anch*u, self.z_anch]), 'a', sink=True)
         
+        # Update the mooring profile given the repositioned ends
+        if self.ss:
+            self.ss.staticSolve()
     
     
     def setEndPosition(self, r, end, sink=False):
