@@ -647,7 +647,7 @@ class Project():
                         zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
                         mc.rA[2] = -zAnew
                         mc.dd['zAnchor'] = -zAnew
-                        mc.z_anch = -zAnew
+                        #mc.z_anch = -zAnew
                         
                         # set anchor info
                         lineAnch = mySys[j]['anchorType'] # get the anchor type for the line
@@ -745,7 +745,7 @@ class Project():
                                 mc.attachTo(self.anchorList[anch],end='A')
                                 mc.rA = self.anchorList[anch].r
                                 mc.dd['zAnchor'] = -zAnew
-                                mc.z_anch = -zAnew
+                                #mc.z_anch = -zAnew
 
                     else:
                         # find location of anchor in arrayAnchor table
@@ -760,7 +760,7 @@ class Project():
                         zAnew, nAngle = self.getDepthAtLocation(aloc[0], aloc[1], return_n=True)
                         mc.rA = [aloc[0],aloc[1],-zAnew]
                         mc.dd['zAnchor'] = -zAnew
-                        mc.z_anch = -zAnew
+                        #mc.z_anch = -zAnew
                         # create anchor object
                         self.anchorList[arrayAnchor[aNum]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum,id=arrayAnchor[aNum]['ID'])
                         # attach mooring object to anchor
@@ -3551,6 +3551,9 @@ class Project():
         F = [None]*len(self.anchorList) 
         x = np.zeros((len(self.platformList),n_angs))
         y = np.zeros((len(self.platformList),n_angs))
+        
+        if not self.ms:
+            self.getMoorPyArray()
              
         # apply thrust force to platforms at specified angle intervals
         for i,ang in enumerate(angs):
@@ -3610,22 +3613,23 @@ class Project():
                     CminTenSF[j] = [None]*ndc
                     minCurvSF[j] = [None]*ndc
                     minSag[j] = [None]*ndc
-                    for jj,dc in enumerate(dcs):               
-                        MBLA = dc.ss.lineList[0].type['MBL']
-                        MBLB = dc.ss.lineList[-1].type['MBL']
-                        CMTSF = min([abs(MBLA/dc.ss.TA),abs(MBLB/dc.ss.TB)])
-                        if not CminTenSF[j][jj] or CminTenSF[j][jj]>CMTSF:
-                            CminTenSF[j][jj] = deepcopy(CMTSF)
-                            dc.loads['TAmax'] = dc.ss.TA
-                            dc.loads['TBmax'] = dc.ss.TB
-                            dc.loads['info'] = 'determined from arrayWatchCircle()'
-                            dc.safety_factors['tension'] = CminTenSF[j][jj]
-                        # CatenMax[j], CbtenMax[j] = cab.updateTensions()
-                        dc.ss.calcCurvature()
-                        mCSF = dc.ss.getMinCurvSF()
-                        if not minCurvSF[j][jj] or minCurvSF[j][jj]>mCSF:
-                            minCurvSF[j][jj] = mCSF
-                            dc.safety_factors['curvature'] = minCurvSF[j][jj]
+                    if dcs[0].ss:
+                        for jj,dc in enumerate(dcs):               
+                            MBLA = dc.ss.lineList[0].type['MBL']
+                            MBLB = dc.ss.lineList[-1].type['MBL']
+                            CMTSF = min([abs(MBLA/dc.ss.TA),abs(MBLB/dc.ss.TB)])
+                            if not CminTenSF[j][jj] or CminTenSF[j][jj]>CMTSF:
+                                CminTenSF[j][jj] = deepcopy(CMTSF)
+                                dc.loads['TAmax'] = dc.ss.TA
+                                dc.loads['TBmax'] = dc.ss.TB
+                                dc.loads['info'] = 'determined from arrayWatchCircle()'
+                                dc.safety_factors['tension'] = CminTenSF[j][jj]
+                            # CatenMax[j], CbtenMax[j] = cab.updateTensions()
+                            dc.ss.calcCurvature()
+                            mCSF = dc.ss.getMinCurvSF()
+                            if not minCurvSF[j][jj] or minCurvSF[j][jj]>mCSF:
+                                minCurvSF[j][jj] = mCSF
+                                dc.safety_factors['curvature'] = minCurvSF[j][jj]
                         # # determine number of buoyancy sections
                         # nb = len(dc.dd['buoyancy_sections'])
                         # m_s = []

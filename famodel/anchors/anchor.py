@@ -457,7 +457,7 @@ class Anchor(Node):
             
         return(results)
             
-    def getMudlineForces(self, max_force=False,lines_only=False, seabed=True, xyz=False):   
+    def getMudlineForces(self, max_force=False,lines_only=False, seabed=True, xyz=False,project=None):   
         '''Find forces on anchor at mudline using the platform.getWatchCircle method or MoorPy Point.getForces method. 
         Optionally, get forces at anchor lug location with getTransferLoad function in capacity_loads.py.
         Stores in loads dictionary
@@ -475,12 +475,16 @@ class Anchor(Node):
         '''
         Platform = famodel.platform.platform.Platform
         if max_force:
-            # find platform associated with this anchor
-            for att in self.attachments.values():
-                if isinstance(att['obj'],Mooring):
-                    for attM in att['obj'].attached_to:
-                        if isinstance(attM,Platform):
-                            locx,locy,maxVals = attM.getWatchCircle()
+            if project:
+                # get watch circle of platform(s)
+                project.arrayWatchCircle()
+            else:
+                # find platform associated with this anchor
+                for att in self.attachments.values():
+                    if isinstance(att['obj'],Mooring):
+                        for attM in att['obj'].attached_to:
+                            if isinstance(attM,Platform):
+                                locx,locy,maxVals = attM.getWatchCircle()
         # call getForces method from moorpy point object
         else:
             loads = self.mpAnchor.getForces(lines_only=lines_only, seabed=seabed, xyz=xyz)
@@ -541,8 +545,13 @@ class Anchor(Node):
                 for att in self.attachments.values():
                     if isinstance(att['obj'],Mooring):
                         mtype = att['obj'].dd['sections'][0]['type']['material']
-                        md = att['obj'].dd['sections'][0]['type']['d_nom']
-                        mw = att['obj'].dd['sections'][0]['type']['w']
+                        if not 'chain' in mtype:
+                            print('No chain on seafloor, setting Ta=Tm')
+                            nolugload = True
+                            break
+                        else:
+                            md = att['obj'].dd['sections'][0]['type']['d_nom']
+                            mw = att['obj'].dd['sections'][0]['type']['w']
                 soil = self.dd['soil_type']
                 ground_conds = self.dd['soil_properties']
                 # update soil conds as needed to be homogeneous
@@ -555,7 +564,7 @@ class Anchor(Node):
                             ground_conds[key] = prop[0]
                             
                 Tm =  np.sqrt(mudloads['Hm']**2+mudloads['Vm']**2) # [N]
-                if 'clay' in soil or 'mud' in soil:
+                if 'clay' in soil or 'mud' in soil and not nolugload:
                     # Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, w=None
                     try:
                         loadresults = getTransferLoad(Tm/1000,mudloads['thetam'],
@@ -567,7 +576,7 @@ class Anchor(Node):
                         print(e)
                         print('Unable to get loads at anchor lug location. Setting Ta = Tm')
                         nolugload = True
-                elif 'sand' in soil:
+                elif 'sand' in soil and not nolugload:
                         soil = 'sand'
                         try:
                             loadresults = getTransferLoad(Tm/1000, self.loads['thetam'], 
@@ -581,7 +590,7 @@ class Anchor(Node):
                             print(e)
                             print('Unable to get loads at anchor lug location. Setting Ta = Tm')
                             nolugload = True
-                elif 'rock' in soil:
+                elif 'rock' in soil and not nolugload:
                     raise ValueError('zlug should be <= 0 for rock.')
                     
                 # if loadresults['V']<0:
@@ -796,25 +805,29 @@ class Anchor(Node):
                 
         return(geom,fs)
                 
-    def getSuctionSize(self,D,L,loads=None,minfs={'Ha':1.6,'Va':2},inc_pct=10):
+    def getSuctionSize(self,D,L,loads=None,minfs={'Ha':1.6,'Va':2},LD_con=5):
         '''
         
 
         Parameters
         ----------
-        startGeom : dict
-            Dictionary of required geometric values to start with. These will be increased by
-            inc_pct for each run of the while loop
+        D : float
+            Diameter of suction bucket
+        L : float
+            Length of suction bucket
         loads : TYPE, optional
             DESCRIPTION. The default is None.
-        inc_pct : float
-            Percent to increase the geometric properties by in each iteration of the while loop
+        minfs : dict,optoinal
+            Minimum factors of safety in horizontal and vertical directions
+        LD_con : float
+            Constraint for L/D parameter
 
         Returns
         -------
         None.
 
         '''
+        from scipy.optimize import minimize
         anchType = self.dd['type']
         if not loads:
             loads = self.loads
@@ -837,14 +850,27 @@ class Anchor(Node):
             results = self.getAnchorCapacity(plot=False)
             return abs(results['UC'] - 1)  
         
+        def conFun(vars,LD_con):
+            D, L = vars
+            if L/D >= LD_con:
+                conval = -1 
+            else:
+                conval = 1 
+            
+            return(conval)
+        
         # Initial guess for D and L
         initial_guess = [D, L]       # Input values for D and L
         
         # Bounds for D and L (adjust as needed)
         bounds = [(1, 5), (5, 50)]   # Bounds for D and L
         
+        # constraints
+        constraints = [{'type':'ineq','fun':conFun,'args':(LD_con,)}]
+        
         # Run the optimization to find D and L that satisfy UC close to 1
-        solution = minimize(objective, initial_guess, bounds=bounds)
+        solution = minimize(objective, initial_guess, bounds=bounds,method="COBYLA",
+                            constraints=constraints)
         
         # Extract the optimized values of D and L
         self.dd['design']['D'], self.dd['design']['L'] = solution.x

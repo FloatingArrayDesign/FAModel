@@ -167,9 +167,11 @@ class Platform(Node):
             #self.ms = mp.System(bathymetry=dict(x=small_grid_x, y=small_grid_y, depth=small_grid_depths))
             self.ms = mp.System(bathymetry=dict(x=project.grid_x, y=project.grid_y, depth=project.grid_depth))
         
-        else:
+        elif mList[0].ss:
             # create new MoorPy system and set its depth
             self.ms = mp.System(depth=mList[0].ss.depth)
+        else:
+            self.ms = mp.System(depth=mList[0].z_anch)
         
         r6 = [self.r[0],self.r[1],0,0,0,0]
         # create body
@@ -189,24 +191,28 @@ class Platform(Node):
             
             if type(self.attachments[attID]['obj']) == Mooring:
                 mooring = self.attachments[attID]['obj']
-                ssloc = mooring.ss
+                if mooring.ss:
+                    ssloc = mooring.ss
+                else:
+                    ssloc = mooring.createSubsystem()
                 
                 if ssloc:  # only proceed it's not None
                     # add subsystem as a line to the linelist
                     self.ms.lineList.append(ssloc)
-                    ssloc.number = i
+                    ssloc.number = i+1
                     for att in mooring.attached_to:
                         if isinstance(att,Anchor):
                             # check whether a moorpy anchor object exists for this mooring line
-                            if not att.mpAnchor:
-                                # create anchor moorpy object
-                                att.makeMoorPyAnchor()
-                            # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
-                            self.ms.pointList.append(att.mpAnchor) # anchor
+                            # if not att.mpAnchor:
+                            # create anchor moorpy object
+                            att.makeMoorPyAnchor(self.ms)
+                            # else:
+                            #     # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
+                            #     self.ms.pointList.append(att.mpAnchor) # anchor
                             # attach subsystem line to the anchor point
                             self.ms.pointList[-1].attachLine(i,0)
                             # add fairlead point as a coupled point
-                            self.ms.addPoint(-1,ssloc.rB)
+                            self.ms.addPoint(1,ssloc.rB)
                             # attach subsystem line to the fairlead point
                             self.ms.pointList[-1].attachLine(i,1)
                             # attach fairlead point to body
@@ -220,7 +226,7 @@ class Platform(Node):
         
         
     def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
-                       shapes=True,Fth=None,SFs=True):
+                       shapes=True,Fth=None,SFs=True,ms=None):
         '''
         Compute watch circle of platform, as well as mooring and cable tension safety factors and 
         cable sag safety factors based on rated thrust.
@@ -247,10 +253,16 @@ class Platform(Node):
         maxVals: dictionary of minimum safety factors for line tension, cable tension and cable curvature, and the minimum sag of cables
 
         '''
-        self.body.type = -1
-        ms = self.body.sys  # work with the mooring system the body is part of
+        if not ms:
+            self.body.type = -1
+            ms = self.body.sys  # work with the mooring system the body is part of
+            body = self.body
+        else:
+            body = ms.bodyList[0]
+            body.type = -1
         ms.initialize()
-        
+        ms.solveEquilibrium()
+
         x = []
         y = []
         
@@ -303,7 +315,7 @@ class Platform(Node):
             fx = thrust*np.cos(np.radians(ang))
             fy = thrust*np.sin(np.radians(ang))
             
-            self.body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                       
+            body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                       
             
             ms.solveEquilibrium3(DOFtype='both')                        # equilibrate (specify 'both' to enable both free and coupled DOFs)
             
@@ -346,8 +358,8 @@ class Platform(Node):
                         if not minSag[j] or minSag[j]<mS:
                             minSag[j] = deepcopy(mS)
         
-            x.append(self.body.r6[0])       
-            y.append(self.body.r6[1])
+            x.append(body.r6[0])       
+            y.append(body.r6[1])
         
         # Convert to np array and save in object envelope
         x = np.array(x)
@@ -364,7 +376,7 @@ class Platform(Node):
             plt.plot(x,y)
           
         # restore platform to equilibrium position 
-        self.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
+        body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
         ms.solveEquilibrium3(DOFtype='both')
         
                 
