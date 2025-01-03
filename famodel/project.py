@@ -16,7 +16,6 @@ except:
     pass
 
 #from shapely.geometry import Point, Polygon, LineString
-from famodel.anchors.anchor_capacity import anchorCapacity
 from famodel.seabed import seabed_tools as sbt
 from famodel.mooring.mooring import Mooring
 from famodel.platform.platform import Platform
@@ -1572,18 +1571,24 @@ class Project():
     def trimGrids(self, buffer=100):
         '''Trims bathymetry and soil grid information that is outside the
         project boundaries, for faster execution and plotting.'''
-        
+
         # boundary extents
         xmin = np.min(self.boundary[:,0]) - buffer
         xmax = np.max(self.boundary[:,0]) + buffer
         ymin = np.min(self.boundary[:,1]) - buffer
         ymax = np.max(self.boundary[:,1]) + buffer
         
-        # figure out indices to trim at
-        i_x1 = np.max(np.argmax(self.grid_x > xmin) - 1, 0)  # start x index
-        i_y1 = np.max(np.argmax(self.grid_y > ymin) - 1, 0)  # start y index
-        i_x2 = np.max(np.argmin(self.grid_x < xmax) + 1, 0)  # end x index+1
-        i_y2 = np.max(np.argmin(self.grid_y < ymax) + 1, 0)  # end y index+1
+        # figure out indices to trim at if needed
+        i_x1 = np.max((np.argmax(self.grid_x > xmin) - 1, 0))  # start x index
+        i_y1 = np.max((np.argmax(self.grid_y > ymin) - 1, 0))  # start y index
+        if xmax < np.max(self.grid_x):           
+            i_x2 = np.max((np.argmin(self.grid_x < xmax) + 1, 0))  # end x index+1
+        else:
+            i_x2 = len(self.grid_x)
+        if ymax < np.max(self.grid_y):           
+            i_y2 = np.max((np.argmin(self.grid_y < ymax) + 1, 0))  # end y index+1
+        else:
+            i_y2 = len(self.grid_y)
         
         # trim things
         self.grid_x     = self.grid_x    [i_x1:i_x2]
@@ -3846,7 +3851,7 @@ class Project():
             endA = moor.attached_to[0]
             endB = moor.attached_to[1]
             # get heading(s)
-            if not moor.shared:
+            if not moor.shared and type(endA) != Connector:
                 headA = 'NA'
                 # add anchor
                 arrayAnch.append([endA.id, endA.dd['name'], float(endA.r[0]), float(endA.r[1]),0])
@@ -3856,16 +3861,27 @@ class Project():
                         current_anch = endA.dd['name']
                 if newanch:
                     anchConfigs[endA.dd['name']] = dict(endA.dd['design'])
+            elif type(endA)==Connector:
+                # get connector info & store like anchors
+                pass
             
             else:
                 # shared line - get end A heading
-                ang = np.pi/2 - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
-                headA = float(np.degrees(ang - endA.phi))
+                relloc = np.array(endA.r) - np.array(moor.rA)
+                fairleadA = np.where(endA.fairleads[ii] == relloc[ii] for ii in range(3))
+                # ang = np.pi/2 - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
+                # headA = float(np.degrees(ang - endA.phi))
                 
             # get end B heading
-            angB = np.pi/2 - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
-            headB = np.degrees(angB - endB.phi)
-            
+            # angB = np.pi/2 - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
+            # headB = np.degrees(angB - endB.phi)
+
+            if type(endB)==Connector:
+                # get connector info & store like anchors
+                pass
+            else:
+                relloc = np.array(endB.r) - np.array(moor.rB)
+                fairleadB = np.where(endB.fairlead[ii] == relloc[ii] for ii in range(3))
             # get mooring configuration
             config = {'span':float(moor.dd['span']),'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
             
@@ -3881,7 +3897,8 @@ class Project():
                 allconfigs.append(config)
                 current_config = int(len(allconfigs) - 1)
 
-            arrayMoor.append([current_config,endA.id, endB.id, headA,float(headB),int(0)])
+            # arrayMoor.append([current_config,endA.id, endB.id, headA,float(headB),int(0)])
+            arrayMoor.append([current_config,endA.id, endB.id, fairleadA,fairleadB,int(0)])
 
         # set up mooring configs, connector and section types dictionaries
         connTypes = {}  
