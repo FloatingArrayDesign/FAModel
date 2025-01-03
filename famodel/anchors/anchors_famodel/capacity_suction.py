@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 #from famodel.anchors.capacity_load import getAnchorLoad
-from famodel.anchors.capacity_load import getAnchorLoadDNV
+#from famodel.anchors.anchors_famodel.capacity_load import getTransferLoad
 
 def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi=None, Dr=None, plot=True):
     
