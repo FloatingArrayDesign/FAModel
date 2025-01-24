@@ -98,9 +98,10 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     
     # deal with the source (is it a dictionary, or reading in a new yaml?)
     if not source==None:
-        cableProps = loadCableProps(source)
         if not cableProps==None:
             print('Warning: both cableProps and source arguments were passed to getLineProps. cableProps will be ignored.')
+        cableProps = loadCableProps(source)
+        
         
     # raise an error if the cable_type isn't in the source dictionary
     if not cable_type in cableProps:

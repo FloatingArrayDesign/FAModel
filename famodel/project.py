@@ -360,7 +360,6 @@ class Project():
             turbines = d['turbines']
             RAFTDict['turbines'] = d['turbines']
         self.turbineTypes = turbines
-
                 # I think we want to just store it as a dictionary
                 # validate it,
                 # then have it available for use when making Mooring objects and subsystems
@@ -593,7 +592,6 @@ class Project():
                 self.platformList[arrayInfo[i]['ID']].dd['type'] = pfID
                 # remove pre-set headings (need to append to this list so list should start off empty)
                 self.platformList[arrayInfo[i]['ID']].mooring_headings = []
-                
                 # create turbine instance
                 turb_name = str(arrayInfo[i]['turbineID'])+str(i)
                 if isinstance(turbines,list):
@@ -604,6 +602,7 @@ class Project():
                     blade_diameter = turb_dd['blade']['Rtip']*2
                 else:
                     blade_diameter = None
+
                 self.turbineList[turb_name] = Turbine(turb_dd,turb_name,D=blade_diameter)
                 self.turbineList[turb_name].dd['type'] = arrayInfo[i]['turbineID']-1
                 # attach turbine to platform
@@ -2034,7 +2033,7 @@ class Project():
                 num_levels = 100  # Adjust this value as needed
                 X, Y = np.meshgrid(self.grid_x, self.grid_y)
                 
-                contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=0, vmax=1000)
+                contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
                 #contourf.norm.autoscale([0,1])
                 #contourf.set_clim(0, 1000)
             
@@ -2078,12 +2077,14 @@ class Project():
                         [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5)
         
         # Plot cables one way or another (eventually might want to give Mooring a plot method)
+        if self.cableList:
+            maxcableSize = max([cab.dd['cables'][0].dd['A'] for cab in self.cableList.values()])
         for cable in self.cableList.values():
             # get cable color
             import matplotlib.cm as cm
             cmap = cm.get_cmap('plasma_r')
             cableSize = int(cable.dd['cables'][0].dd['A'])
-            Ccable = cmap(cableSize/1400)
+            Ccable = cmap(cableSize/(1.1*maxcableSize))
             # # simple line plot for now
             # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
             #         [cable.subcomponents[0].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
@@ -3765,6 +3766,49 @@ class Project():
 
         '''
         print('Unloading project to file')
+        def cleanDataTypes(info):
+            
+            def fixType(val):
+                if 'str' in type(val).__name__:
+                    valnew = str(val)
+                elif 'float' in type(val).__name__:
+                    valnew = float(val)
+                elif 'int' in type(val).__name__:
+                    valnew = int(val)
+                else:
+                    valnew = val
+                #print(valnew)
+                return(valnew)
+            
+            def gothroughdict(dat):
+                for key,value in dat.items():
+                    #dat[key] = fixType(value)
+                    if isinstance(value,dict):
+                        value = gothroughdict(value)
+                    elif isinstance(value,list):
+                        value = gothroughlist(value)
+                    elif 'array' in type(value).__name__:
+                        value = value.tolist()
+                        value = gothroughlist(value)
+                    dat[key] = fixType(value)
+                return(dat)
+                        
+            def gothroughlist(dat):
+                for i,value in enumerate(dat):
+                    #dat[i] = fixType(value)
+                    if isinstance(value,dict):
+                        value = gothroughdict(value)
+                    elif isinstance(value,list):
+                        value = gothroughlist(value)
+                    elif 'array' in type(value).__name__:
+                        value = value.tolist()
+                        value = gothroughlist(value)
+                    dat[i] = fixType(value)
+                return(dat)
+            info = gothroughdict(info)            
+            return(info)
+                
+                   
         # build out array table
         arrayKeys = ['ID','turbineID','platformID','mooringID','x_location','y_location','heading_adjust']
         arrayData = [] #np.zeros((len(arrayKeys),len(self.platformList)))
@@ -3780,11 +3824,12 @@ class Project():
         # get set of just platform types used in this project
         pf_type = set(pf_type)
         # fix any data type issues
-        for j in range(len(pf_type)):
-            for key,val in self.platformTypes[j].items():
-                if isinstance(val,np.float64):
-                    valnew = float(val)
-                    self.platformTypes[j][key] = valnew
+        # for j in range(len(pf_type)):
+        #     cleanDataTypes(self.platformTypes[j])
+            # for key,val in self.platformTypes[j].items():
+            #     if isinstance(val,np.float64):
+            #         valnew = float(val)
+            #         self.platformTypes[j][key] = valnew
         # figure out keys
         if len(pf_type) > 1:
             pfkey = 'platforms'
@@ -3793,19 +3838,16 @@ class Project():
             pfkey = 'platform'
             pfTypes = self.platformTypes[list(pf_type)[0]]
 
-         
         # build out turbine info
         turb_type = []
         for i,turb in enumerate(self.turbineList.values()):
             turb_type.append(turb.dd['type'])
         # get set of just turbine types used in this project
+
         turb_type = set(turb_type)
-        # fix any data type issues
-        for j in range(len(turb_type)):
-            for key,val in self.turbineTypes[j].items():
-                if isinstance(val,np.float64):
-                    valnew = float(val)
-                    self.turbineTypes[j][key] = valnew
+        # # fix any data type issues
+        # for j in range(len(turb_type)):
+        #     cleanDataTypes(self.turbineTypes[j])
         # figure out keys
         if len(turb_type)> 1:
             turbkey = 'turbines'
@@ -3817,23 +3859,26 @@ class Project():
 
             
         # build out site info
-        for key,val in self.soilProps.items():
-            for k,v in val.items():
-                v[0] = float(v[0])
-                if isinstance(v,np.ndarray):
-                    vnew = v.tolist()
-                    self.soilProps[key][k] = vnew
-                    
         site = {}
+        if hasattr(self,'soilProps'):
+        #     for key,val in self.soilProps.items():
+        #         for k,v in val.items():
+        #             v[0] = float(v[0])
+        #             if isinstance(v,np.ndarray):
+        #                 vnew = v.tolist()
+        #                 self.soilProps[key][k] = vnew
+                        
+            if len(self.soil_x)>1:
+                site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
+                                  'soil_types':self.soilProps} #[[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
+                    
         if len(self.grid_x)>1:
             site['bathymetry'] = {'x':[float(x) for x in self.grid_x],'y':[float(y) for y in self.grid_y],'depths':[[float(y) for y in x] for x in self.grid_depth]}
         if len(self.boundary)>0:
             site['boundaries'] = {'x_y':[[float(y) for y in x] for x in self.boundary]}
         site['general'] = {'water_depth':float(self.depth),'rho_air':float(self.rho_air),
                            'rho_water':float(self.rho_water),'mu_air':float(self.mu_air)}
-        if len(self.soil_x)>1:
-            site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
-                              'soil_types':self.soilProps} #[[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
+        
          
             
         # build out array mooring and array anchor section
@@ -3867,21 +3912,21 @@ class Project():
             
             else:
                 # shared line - get end A heading
-                relloc = np.array(endA.r) - np.array(moor.rA)
-                fairleadA = np.where(endA.fairleads[ii] == relloc[ii] for ii in range(3))
-                # ang = np.pi/2 - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
-                # headA = float(np.degrees(ang - endA.phi))
+                # relloc = np.array(endA.r) - np.array(moor.rA)
+                # fairleadA = np.where(endA.fairleads[ii] == relloc[ii] for ii in range(3))
+                ang = np.pi/2 - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
+                headA = float(np.degrees(ang - endA.phi))
                 
             # get end B heading
-            # angB = np.pi/2 - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
-            # headB = np.degrees(angB - endB.phi)
+            angB = np.pi/2 - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
+            headB = np.degrees(angB - endB.phi)
 
-            if type(endB)==Connector:
-                # get connector info & store like anchors
-                pass
-            else:
-                relloc = np.array(endB.r) - np.array(moor.rB)
-                fairleadB = np.where(endB.fairlead[ii] == relloc[ii] for ii in range(3))
+            # if type(endB)==Connector:
+            #     # get connector info & store like anchors
+            #     pass
+            # else:
+            #     relloc = np.array(endB.r) - np.array(moor.rB)
+            #     fairleadB = np.where(endB.fairlead[ii] == relloc[ii] for ii in range(3))
             # get mooring configuration
             config = {'span':float(moor.dd['span']),'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
             
@@ -3891,59 +3936,78 @@ class Project():
                 for j in pc:
                     if all([allconfigs[j]['sections'][k]==config['sections'][k] for k in range(len(config['sections']))]):
                         if all([allconfigs[j]['connectors'][k]==config['connectors'][k] for k in range(len(config['connectors']))]):
-                            current_config = int(j)
+                            current_config = str(j)
                             newcon = False
             if newcon:
                 allconfigs.append(config)
-                current_config = int(len(allconfigs) - 1)
+                current_config = str(len(allconfigs) - 1)
 
-            # arrayMoor.append([current_config,endA.id, endB.id, headA,float(headB),int(0)])
-            arrayMoor.append([current_config,endA.id, endB.id, fairleadA,fairleadB,int(0)])
+            arrayMoor.append([current_config,endA.id, endB.id, headA,headB,int(0)])
+            # arrayMoor.append([current_config,endA.id, endB.id, fairleadA,fairleadB,int(0)])
 
         # set up mooring configs, connector and section types dictionaries
         connTypes = {}  
         secTypes = {}
         mooringConfigs = {}
+        sIdx = 0
+        sUnique = []
         for j,conf in enumerate(allconfigs):
             sections = []
             # iterate through sections
             for i in range(len(conf['sections'])):
                 # add connector if it isn't empty
-                if not conf['connectors'][i]['m'] == 0 and conf['connectors'][i]['CdA'] == 0 and conf['connectors'][i]['v'] == 0:
+                if not conf['connectors'][i]['m'] == 0 and not conf['connectors'][i]['CdA'] == 0 and not conf['connectors'][i]['v'] == 0:
                     # this is not an empty connector
                     if not 'type' in conf['connectors'][i]:
                         # make a new connector type
-                        connTypes[int(len(connTypes))] = conf['connectors'][i]
-                        ctn = int(len(connTypes)) # connector type name
+                        #conf['connectors'][i] = cleanDataTypes(conf['connectors'][i])
+                        connTypes[str(int(len(connTypes)))] = dict(conf['connectors'][i])
+                        ctn = str(int(len(connTypes))) # connector type name
                     else:
-                        ctn = conf['connectors'][i]['type']
+                        ctn = str(conf['connectors'][i]['type'])
                         connTypes[ctn] = dict(conf['connectors'][i])
                             
                     sections.append({'connectorType':ctn})
                 # add section info
-                stn = conf['sections'][i]['type']['name'] # section type name
+                stm = conf['sections'][i]['type']['material'] # section type material
+                stw = conf['sections'][i]['type']['w']        # section type weight
+
+                sKey = (stm, stw)
+                if sKey not in sUnique:
+                    sUnique.append(sKey)
+                    conf['sections'][i]['type']['name'] = sIdx
+                    stn = conf['sections'][i]['type']['name'] # section type name
+                    secTypes[stn] = dict(conf['sections'][i]['type'])
+                    #secTypes[stn] = cleanDataTypes(secTypes[stn])
+                    sIdx += 1
+                    
+                stn = sUnique.index(sKey)
                 sections.append({'type':stn,'length':float(conf['sections'][i]['L'])})
-                secTypes[stn] = dict(conf['sections'][i]['type'])
-                for key,val in secTypes[stn].items():
-                    if isinstance(val,np.float64):
-                        valnew = float(val)
-                        secTypes[stn][key] = valnew
-                    elif isinstance(val,np.str_):
-                        valnew = str(val)
-                        secTypes[stn][key] = valnew
+                # stn = conf['sections'][i]['type']['name'] # section type name
+                # sections.append({'type':stn,'length':float(conf['sections'][i]['L'])})
+                # secTypes[stn] = dict(conf['sections'][i]['type'])
+                # secTypes[stn] = cleanDataTypes(secTypes[stn])
+                # for key,val in secTypes[stn].items():
+                #     if isinstance(val,np.float64):
+                #         valnew = float(val)
+                #         secTypes[stn][key] = valnew
+                #     elif isinstance(val,np.str_):
+                #         valnew = str(val)
+                #         secTypes[stn][key] = valnew
             # add last connector if needed
             if not conf['connectors'][i+1]['m'] == 0 and conf['connectors'][i+1]['CdA'] == 0 and conf['connectors'][i+1]['v'] == 0:
                 # this is not an empty connector
                 if not 'type' in conf['connectors'][i+1]:
                     # make a new connector type
-                    connTypes[len(connTypes)] = conf['connectors'][i+1]
-                    ctn = int(len(connTypes))
+                    #conf['connectors'][i+1] = cleanDataTypes(conf['connectors'][i+1])
+                    connTypes[str(len(connTypes))] = conf['connectors'][i+1]
+                    ctn = str(int(len(connTypes)))
                 else:
                     ctn = conf['connectors'][i+1]['type']
                     connTypes[ctn] = dict(conf['connectors'][i+1])    
                 sections.append({'connectorType':ctn})
             # put mooring config dictionary together
-            mooringConfigs[j] = {'name':int(j),'span':float(conf['span']),'sections':sections}
+            mooringConfigs[str(j)] = {'name':str(j),'span':float(conf['span']),'sections':sections}
          
         # create master output dictionary for yaml
         output = {'site':site, 'array':{'keys':arrayKeys,'data':arrayData}, 
@@ -3956,6 +4020,7 @@ class Project():
                   'array_mooring':{'anchor_keys':anchKeys, 'anchor_data':arrayAnch,
                                    'line_keys':lineKeys, 'line_data':arrayMoor}}
 
+        output = cleanDataTypes(output)
         import ruamel.yaml
         yaml = ruamel.yaml.YAML()
         # write out to file

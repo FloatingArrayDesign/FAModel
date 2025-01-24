@@ -805,7 +805,7 @@ class Anchor(Node):
                 
         return(geom,fs)
                 
-    def getSuctionSize(self,D,L,loads=None,minfs={'Ha':1.6,'Va':2},LD_con=5):
+    def getSuctionSize(self,D,L,loads=None,minfs={'Ha':1.6,'Va':2},LD_con=[4,8]):
         '''
         
 
@@ -852,10 +852,10 @@ class Anchor(Node):
         
         def conFun(vars,LD_con):
             D, L = vars
-            if L/D >= LD_con:
-                conval = -1 
-            else:
+            if L/D >= LD_con[0] and L/D <= LD_con[1]:
                 conval = 1 
+            else:
+                conval = -1 
             
             return(conval)
         

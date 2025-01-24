@@ -274,7 +274,7 @@ class Platform(Node):
         moorings = self.getMoorings().values()
         cables = self.getCables().values()
         for i,cab in enumerate(cables):
-            dcs.extend([sub for sub in cab.subcomponents if isinstance(sub,DynamicCable)])
+            dcs.extend([sub for sub in cab.subcomponents if sub.ss])
         anchors = self.getAnchors().values()
         for i in self.attachments:
             if isinstance(self.attachments[i]['obj'],Turbine):

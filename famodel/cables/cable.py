@@ -143,6 +143,7 @@ class Cable(Edge):
             headingB = headings[1]
         if not rad_fair:
             rad_fair = []
+            rad_fair = [self.attached_to[x].rFair if self.attached_to[x].rFair else 58 for x in range(2)]
             rad_fair.append(self.attached_to[0].rFair)
             rad_fair.append(self.attached_to[1].rFair)
         # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
