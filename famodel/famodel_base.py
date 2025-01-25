@@ -22,7 +22,7 @@ object reference, type, and any relative offset...
 Linear assemblies of edges and nodes can be grouped into a higher-level
 edge object. This allows mooring line sections and connectors to be 
 part of an overall mooring line object, which is itself an edge. These 
-relationships are tracked with sub_edge and sub_node lists in the 
+relationships are tracked with subcomponents lists in the 
 higher-level Edge object, and part_of entries in the lower-level node or edge
 objects. 
 
@@ -82,7 +82,6 @@ class Node():
             raise Exception('Provided object is not an Edge or Node.')  
         
         # See if it's attached (might be a higher-level edge)
-        # if object2.id in self.attachments:
         if object2.id in self.attachments:
         
             if isinstance(object2, Node):  # if it's a node, it's simple
@@ -120,36 +119,23 @@ class Node():
         else:
             raise Exception('Provided object is not an Edge or Node.')  
         
-        
         # Make sure it's not already attached (note this doesn't distinguish end A/B)
         if object2.id in self.attachments:
             raise Exception(f"Object {object.id} is already attached to {self.id}")
-            
-            
-        # Attach the object (might be a higher-level edge)
-        if isinstance(object2, Node):
+        
+        # Attach the object
+        if isinstance(object2, Node):  # (object is a node)
             self.attachments[object2.id] = dict(obj=object2, id=object2.id, 
                                             r_rel=np.array(r_rel), type='node')
-            #object2._attach_to(self)  # tell it it's attached to this Node
-            object2.attachments[self.id] = dict(obj=self,id=self.id,r_rel=np.array(r_rel),type='node')
+            object2._attach_to(self)  # tell it it's attached to this Node
             
-        elif isinstance(object2, Edge):
+        elif isinstance(object2, Edge):  # (object is an edge)
             self.attachments[object2.id] = dict(obj=object2, id=object2.id, 
                                             r_rel=np.array(r_rel), type='edge', 
                                             end=['a', 'b'][i_end])
+                                            
             object2._attach_to(self, i_end)  # tell it it's attached to this Node
-            '''
-            if end in ['a', 'A', 0]:
-                new_entry['end'] = 'a'
-                object._attach_to(self, 0)
-            
-            elif end in ['b', 'B', 1]:
-                new_entry['end'] = 'b'
-                object._attach_to(self, 1)
-            
-            else:
-                raise Exception('End A or B must be specified when attaching an edge.')
-            '''
+        
         else:
             raise Exception('Unrecognized object type')
     
@@ -185,41 +171,28 @@ class Node():
             i_end = endToIndex(end, estr='when detaching an edge from a node.')
             
             object._detach_from(i_end)
-            '''
-            if end in ['a', 'A', 0]:
-                object._detach_from(0)
-            
-            elif end in ['b', 'B', 1]:
-                object._detach_from(1)
-            
-            else:
-                raise Exception('End A or B must be specified when detaching an edge.')
-            '''
+        
         else:
             raise Exception('Provided object is not an Edge or Node.')
-        
-        
+    
 
-    def _attach_to(self, object,sub=0):
+    def _attach_to(self, object):
         '''Internal method to update the Node's attached_to registry when
-        requested by a node.
+        requested by a node. With an error check.
         
         Parameters
         ----------
         object
             The Node object to attach to.
-        sub
-            Boolean to mark if this node is subordinately attached to the object
         '''
-        if not sub:
-            if isinstance(object, Node):
-                raise Exception('Node objects can only be attached subordinately to Node objects.')
+
         # Make sure it's not already attached to something else
         if self.attached_to:  # True if populated, False if empty dict
             # self.detach() # commented out because I don't think this would work for shared anchors
             # could optionally have a warning or error here
             print(f'Warning: node {self.id} is attached to 2 objects')
-        
+            breakpoint()
+            print("fix up this scenario in the code somewhere...")
                 
         # Add it to the attached_to registry
         self.attached_to = object
@@ -334,27 +307,7 @@ class Edge():
             return query.isAttached(self, end=end)
         else:
             raise Exception('Edges can only be attached to Nodes.')
-        
-        '''
-        # old version where query can be a reference to the object itself, or the object ID.
-        # If query is a reference to an object, get its ID
-        if isinstance(query, Node) or isinstance(query, Edge):
-            id = query.id
-        else:
-            id = query
-        
-        if end == None:
-             answer = bool(id == self.attached_to[0]['id'] or id == self.attached_to[1]['id'])
-        else:
-            if end in ['a', 'A', 0]:
-                answer = bool(id == self.attached_to[0]['id'])
-            elif end in ['b', 'B', 1]:
-                answer = bool(id == self.attached_to[1]['id'])
-            else:
-                raise Exception("If an 'end' parameter is provided, it must be one of a,b,A,B,0,1,False,True.")
-        '''
-        # return answer 
-        
+    
     
     def attachTo(self, object, r_rel=[0,0], end=None):
         '''Attach an end of this edge to some node.
@@ -383,29 +336,6 @@ class Edge():
         # Tell the Node in question to initiate the attachment 
         # (this will also call self._attach_to)
         object.attach(self, r_rel=r_rel, end=i_end)
-        
-        '''
-        # Add it to the attachment registry
-        new_entry = dict(ref=object, r_rel=np.array(r_rel))
-        
-        # Handle attachment type and the end if applicable
-        if type(object) == Node:
-            new_entry['type'] = 'Node'
-            
-        elif type(object) == Edge:
-            new_entry['type'] = 'Edge'
-            if not end:
-                raise Exception('End A or B must be specified when attaching an edge.')
-            if end.lower() in ['a', 'b']:
-                new_entry['end'] = end.lower()
-            else:
-                raise Exception('End A or B must be specified when attaching an edge.')
-        else:
-            raise Exception('Provided object is not an Edge or Node.')
-        
-        # Since things have worked, add it to the list
-        self.attachments[object['id']] = new_entry
-        '''
     
     
     def _attach_to(self, object, end):
@@ -429,27 +359,16 @@ class Edge():
         self.attached_to[i_end] = object
         
         # Recursively attach any subcomponent at the end
-        if len(self.subcomponents) > 0:
+        if len(self.subcomponents) > 0:  # this edge has subcomponents
             subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
             
-            if isinstance(subcon, Node):
-                # will be attaching a node to a node, tell _attach_to it is attaching the subcon as a subordinate node we don't throw an error
-                #print(f'attaching {object.id} to {subcon.id}')
-                subcon._attach_to(object,sub=1)
-                # object._attach_to(subcon,sub=1)
+            if isinstance(subcon, Node): # if the end subcomponent is a node
+                subcon._attach_to(object)
                 
-            elif isinstance(subcon, Edge):
-                #print(f'attaching {object.id} to {subcon.id}')
+            elif isinstance(subcon, Edge): # if it's an edge
                 subcon._attach_to(object, i_end)
-                # object._attach_to(subcon)
-            
-        '''
-        if end:
-            self.sub_edges[-1]._attach_to(object, end)
-        else:
-            self.sub_edges[0]._attach_to(object, end)
-        '''
-        
+    
+    
     def detachFrom(self, end):
         '''Detach the specified end of the edge from whatever it's attached to.
         
@@ -506,8 +425,10 @@ class Edge():
         '''Adds a sequences of nodes and edges (alternating) as subcomponents
         of this edge. It also connects the sequence in the process.'''
         
-        
+        # Attach the sequency of nodes and edges to each other
         assemble(items)
+        
+        # Store them as subcomponents of this edge
         self.subcomponents = items
         for item in items:
             item.part_of = self
@@ -532,16 +453,7 @@ class Edge():
             supe = self.part_of  # shorthand for the super edge
             if supe.subcomponents[-i_end] == self:  # if we're at an end of supe
                 return supe.getTopLevelEdge(i_end), i_end  # return supe, and which end
-            
-            '''
-            supe = self.part_of  # shorthand for the super edge
-            if end:
-                if supe.sub_edges[-1] == self:  # if we're at super end B
-                    return supe.getTopLevelEdge(end)
-            else:  # end A
-                if supe.sub_edges[0] == self:  # if we're at super end A
-                    return supe.getTopLevelEdge(end)
-            '''
+        
         else:
             return self, i_end  # if not part of something bigger, just return self
     
@@ -578,9 +490,10 @@ class Edge():
         # to this object...
 
 
+
 # general functions
 
-def are_attached(object1, object2):
+def areAttached(object1, object2):
     '''Check if two objects are attached to each other.
     If both are nodes, checks if one is in the attached list of the other.
     If both are edges, checks if both are attached to the same node.
@@ -597,7 +510,7 @@ def detach(object1, object2):
     
 def attach(self, object1, object2, r_rel=[0,0], end=None):#end1=None, end2=None):
     '''Attached 1 to object2, as long as the object types are compatible.
-    Ends can to be specified if either object is an end type, otherwise
+    Ends can to be specified if either object is an edge type, otherwise
     if not specified then an available end will be connected.
     '''
     
