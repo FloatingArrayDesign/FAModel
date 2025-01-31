@@ -26,6 +26,23 @@ relationships are tracked with subcomponents lists in the
 higher-level Edge object, and part_of entries in the lower-level node or edge
 objects. 
 
+NEW:
+Edge subcomponents can now be in any arrangement
+The subcomponent(s) at the end of an edge can attach to the node
+the edge is attached to, or a sub-node of the node. 
+If the super-edge end is attached to a node, 
+the sub-objects could be automatically attached to the node, or
+left to be manually attached <<<<< which one??
+If a super-edge is disconnected, the sub-objects should be disconnected, right?
+
+Is there some overriding logic of the above??
+
+How do we identify/track the sub-objects?
+How do we identify/track the attacheble end sub-objets?
+Dicts???
+
+
+
 '''
 
 class Node():
@@ -94,7 +111,7 @@ class Node():
                     return False
         else:
             return False
-        
+    
     
     def attach(self, object, r_rel=[0,0], end=None):
         '''Attach something to this node.
@@ -216,7 +233,7 @@ class Node():
             supe = self.part_of  # shorthand for the super edge
             if supe.subcomponents[0] == self:  # if this node is at end A of supe
                 return supe.getTopLevelEdge(0)  # return supe, and which end
-            elif supe.subcomponents[-1] == self:  # if this node is at end B of supe
+    >>        elif supe.subcomponents[-1] == self:  # if this node is at end B of supe
                 return supe.getTopLevelEdge(1)
         else:
             return self, -1  # if not part of something bigger, just return self
@@ -283,7 +300,7 @@ class Edge():
         # Some attributes related to super-edges used to group things
         self.part_of = None  # whether this object is part of an Edge group
         
-        self.subcomponents = []  # chain of edges and nodes that make up this edge 
+        self.subcomponents = {}  # chain of edges and nodes that make up this edge 
         # (e.g. sections of a mooring line, and connetors between them)
        
         whole = True  # false if there are sub edges/nodes that aren't connected
@@ -360,7 +377,7 @@ class Edge():
         
         # Recursively attach any subcomponent at the end
         if len(self.subcomponents) > 0:  # this edge has subcomponents
-            subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
+ >>           subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
             
             if isinstance(subcon, Node): # if the end subcomponent is a node
                 subcon._attach_to(object)
@@ -388,7 +405,7 @@ class Edge():
     def _detach_from(self, end):
         '''Internal method to update the edge's attached_to registry when
         requested by a node. In nested edges, expects to be called for the
-        highest-level on first, then it will recursively call any lower ones.
+        highest-level one first, then it will recursively call any lower ones.
         
         Parameters
         ----------
@@ -401,7 +418,7 @@ class Edge():
         
         # Recursively detach the ends of any sub-edges
         if len(self.subcomponents) > 0:
-            subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
+  >>          subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
             
             if isinstance(subcon, Node):
                 subcon._detach_from()
@@ -422,14 +439,18 @@ class Edge():
     
     
     def addSubcomponents(self, items):
-        '''Adds a sequences of nodes and edges (alternating) as subcomponents
-        of this edge. It also connects the sequence in the process.'''
+        '''If items is a list: Adds a sequences of nodes and edges 
+        (alternating) as subcomponents of this edge. It also connects 
+        the sequence in the process, and saves it as a dict rather than list.
+        
+        If times is a dict: Adds them, assuming they are already assembled.
+        '''
         
         # Attach the sequency of nodes and edges to each other
         assemble(items)
         
-        # Store them as subcomponents of this edge
-        self.subcomponents = items
+        # Store them as subcomponents of this edge, as a dict 0:N
+        self.subcomponents = dict(enumerate(items))
         for item in items:
             item.part_of = self
         
@@ -451,7 +472,7 @@ class Edge():
         
         if self.part_of:  # if part of something higher
             supe = self.part_of  # shorthand for the super edge
-            if supe.subcomponents[-i_end] == self:  # if we're at an end of supe
+  >>          if supe.subcomponents[-i_end] == self:  # if we're at an end of supe
                 return supe.getTopLevelEdge(i_end), i_end  # return supe, and which end
         
         else:
@@ -483,6 +504,253 @@ class Edge():
         '''Detach the point from anything it's attached to, then delete the 
         object (if such a thing is possible?).'''
         
+        self.detachFrom(0)  # detach end A
+        self.detachFrom(1)  # detach end B
+        
+        # next step would just be to separately remove any other references
+        # to this object...
+
+
+
+class Poly():
+    '''A base class for objects that run between two OR MORE Node-type objects.
+
+    It has attached_to dictionaries for ends 0-N, with entries formatted as:
+    id  : { 'ref' : object ) # simply a reference to the object it's attached to
+    
+    With a Poly, end is no longer A/B (0/1) but instead 0:N where N is the 
+    number of exposed ends of the poly.
+    
+    >>>>
+    For grouped/multilevel edges, connections are stored at the highest level
+    in the nodes they are attached to. But each edge object will store what it's
+    attached to in its attached_to dict, even though that's repeated info between
+    the levels.
+    In general, edge methods will worry about their internal subcomponents, but won't
+    "look up" to see if they are part of something bigger. Except getTopLevelEdge(). <<<< revise
+    '''
+
+    def __init__(self, id):
+        
+        self.id = id  # id number or string, used as the key when attached to things
+        
+        self.attached_to = [None, None]  # whether either end [A, B] of this object is bound to another object
+        
+        # End locations
+        self.r = [[0,0]]
+        
+        # Some attributes related to super-polies used to group things
+        self.part_of = None  # whether this object is part of a Poly group
+        
+        self.subcomponents = []  # collection of edges and nodes that make up this Poly
+       
+        whole = True  # false if there are sub edges/nodes that aren't connected
+    
+    
+    def isAttachedTo(self, query, end=None):
+        '''Checks if this poly is attached to the Node object 'query'.
+        It uses the node's isAttached method since that will also check
+        if this poly in question is part of a higher-level poly that 
+        might be what is stored in the attachments list.
+        
+        Parameters
+        ----------
+        query
+            The Node we might be attached to.
+        end
+            Which end of the poly being asked about, 0:N.
+        '''
+        
+        if isinstance(query, Node):  # call the node's method; it's easy
+            return query.isAttached(self, end=end)
+        else:
+            raise Exception('Polies can only be attached to Nodes.')
+    
+    
+    def attachTo(self, object, r_rel=[0,0], end=None):
+        '''Attach an end of this poly to some node.
+        
+        Parameters
+        ----------
+        object
+            The Node object to attach to.
+        r_rel : list
+            x and y coordinates of the attachment point [m].
+        end
+            Which end of the line is being attached, 0:N.
+        '''
+        
+        # Determine which end to attach
+        if end == None:
+            raise Exception("Poly end must be given...)
+        else:
+            i_end = int(end) # <<>> endToIndex(end, estr='when attaching an edge to something.')
+        
+        # Make sure this end isn't already attached to something
+        if self.attached_to[i_end]:
+            self.detachFrom(end=i_end)
+        
+        # Tell the Node in question to initiate the attachment 
+        # (this will also call self._attach_to)
+        object.attach(self, r_rel=r_rel, end=i_end)
+    
+    
+    def _attach_to(self, object, end):
+        '''Internal method to update the poly's attached_to registry when
+        requested by a node. In nested polies, expects to be called for the
+        highest-level one first, then it will recursively call any lower ones.
+        
+        Parameters
+        ----------
+        object
+            The Node object to attach to.
+        end
+            Which end of the Poly is being attached, 0:N.
+        '''
+        i_end = endToIndex(end) # <<< (all these are redundant for polies?) <<<
+        
+        if not isinstance(object, Node):
+            raise Exception('Poly objects can only be attached to Node objects.')
+        
+        # Add it to the attached_to registry
+        self.attached_to[i_end] = object
+        
+        # Recursively attach any subcomponent at the end
+        if len(self.subcomponents) > 0:
+            subcon = self.subcomponents[-i_end]
+            
+            if isinstance(subcon, Node): # if the end subcomponent is a node
+                subcon._attach_to(object)
+                
+            elif isinstance(subcon, Edge): # if it's an edge
+                subcon._attach_to(object, i_end)
+    
+    
+    def detachFrom(self, end):
+        '''Detach the specified end of the poly from whatever it's attached to.
+        
+        Parameters
+        ----------
+        end
+            Which end of the line is being dettached, 'a' or 'b'.
+        '''
+        # Determine which end to detach
+        #i_end = endToIndex(end, estr='when detaching a poly.')
+        
+        # Tell the Node the end is attached to to initiate detachment 
+        # (this will then also call self._detach_from)
+        self.attached_to[i_end].detach(self, end=i_end)
+        
+        
+    def _detach_from(self, end):
+        '''Internal method to update the poly's attached_to registry when
+        requested by a node. In nested polies, expects to be called for the
+        highest-level one first, then it will recursively call any lower ones.
+        
+        Parameters
+        ----------
+        end
+            Which end of the line is being detached, a-false, b-true.
+        '''
+        i_end = endToIndex(end)
+        # Delete the attachment(s) of the edge end (there should only be one)
+        self.attached_to[i_end] = None
+        
+        # Recursively detach the ends of any sub-edges
+        
+        >>> need to figure out which subcomponent would correspond to the requested end of the poly <<<
+        
+        if len(self.subcomponents) > 0:
+            subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
+            
+            if isinstance(subcon, Node):
+                subcon._detach_from()
+                
+            elif isinstance(subcon, Edge):
+                subcon._detach_from(i_end)
+        
+        '''
+        if self.sub_edges:
+            if end:
+                self.sub_edges[-1]._detach_from(end)
+            else:
+                self.sub_edges[0]._detach_from(end)
+        '''
+        # could add a check that if it isn't the highest left edge and if it 
+        # isn't called from another edge's _detach_from method, then error, 
+        # or go up a level...
+    
+    
+    def addSubcomponents(self, items):
+        '''Adds a collection of nodes and edges as subcomponents of this Poly.
+        These subcomponents should already be attached to each other.'''
+        
+        # >>> check if the items are already assembled? <<<
+        
+        # Store and register them as subcomponents of this Poly
+        self.subcomponents = items
+        for item in items:
+            item.part_of = self
+        
+        # Make sure the subcomponents ends are connected appropriately
+        # to whatever this Edge might be attached to
+        if self.attached_to[0]:
+            self._attach_to(self.attached_to[0], 0)
+        if self.attached_to[1]:
+            self._attach_to(self.attached_to[1], 1)
+        
+    
+    def getTopLevelEdge(self, end):
+        '''If this edge is part of a higher-level edge group, and the request
+        corresponds to an end of that higher-level group, return the higher edge,
+        otherwise return this same object. Can be recursive. 
+        A similar method exists for nodes.'''
+        >>>
+        i_end = endToIndex(end)
+        
+        if self.part_of:  # if part of something higher
+            supe = self.part_of  # shorthand for the super edge
+            if supe.subcomponents[-i_end] == self:  # if we're at an end of supe
+                return supe.getTopLevelEdge(i_end), i_end  # return supe, and which end
+            
+            '''
+            supe = self.part_of  # shorthand for the super edge
+            if end:
+                if supe.sub_edges[-1] == self:  # if we're at super end B
+                    return supe.getTopLevelEdge(end)
+            else:  # end A
+                if supe.sub_edges[0] == self:  # if we're at super end A
+                    return supe.getTopLevelEdge(end)
+            '''
+        else:
+            return self, i_end  # if not part of something bigger, just return self
+    
+    
+    def setEndPosition(self, r, end):
+        '''Set the position of an end of the edge. This method should only be
+        called by a Node's setPosition method if the edge end is attached to
+        the node.
+        
+        Parameters
+        ----------
+        r : list
+            x and y coordinates to set the end at [m].
+        end
+            Which end of the edge is being positioned, 'a' or 'b'.
+        '''
+        >>>
+        if end in ['a', 'A', 0]:
+            self.rA = np.array(r)
+        elif end in ['b', 'B', 1]:
+            self.rB = np.array(r)
+        else:
+            raise Exception('End A or B must be specified with either the letter, 0/1, or False/True.')
+
+
+    def delete(self):
+        '''Detach the point from anything it's attached to, then delete the 
+        object (if such a thing is possible?).'''
+        >>>>
         self.detachFrom(0)  # detach end A
         self.detachFrom(1)  # detach end B
         
