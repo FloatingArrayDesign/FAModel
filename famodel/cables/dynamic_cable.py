@@ -212,6 +212,8 @@ class DynamicCable(Edge):
                 if self.shared == 2 and i == 0:
                     # adjust halfLs to be full Ls (half of the total buoyant segment length)
                     halfLs = Ls 
+                else:
+                    halfLs = Ls/2
             
             
             # update properties of the corresponding Subsystem Line
@@ -789,6 +791,7 @@ class DynamicCable(Edge):
             d_ve_old = []
             cd = []
             cdAx = []
+            ca = []
             d_nom_old = []
             ve_nom_adjust = []
                                                 
@@ -836,11 +839,15 @@ class DynamicCable(Edge):
                 if 'Cd' in st[linekey]:
                     cd.append(st[linekey]['Cd'])
                 else:
-                    cd.append(2)
+                    cd.append(1.2)
                 if 'CdAx' in st[linekey]:
                     cdAx.append(st[linekey]['CdAx'])
                 else:
-                    cdAx.append(0.5)
+                    cdAx.append(0)
+                if 'CA' in st[linekey]:
+                    ca.append(st[linekey]['CA'])
+                else:
+                    ca.append(1.0)
                 if LThick[j] == 0:
                     nd[j]['type'] = deepcopy(st[linekey])
                     #nd[j]['type']['name'] = j
@@ -899,8 +906,9 @@ class DynamicCable(Edge):
                     
                     # calculate new increased drag coefficient from marine growth
                     # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
-                    ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
-                    ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
+                    ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(d_nom_old[j]/ndt['d_vol']))
+                    ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(d_nom_old[j]/ndt['d_vol']))
+                    ndt['Ca'] =  float(ca[j]*ve_nom_adjust[j]*(d_nom_old[j]/ndt['d_vol'])**2)
                     
                     # add line details to dictionary
                     ndt['name'] = oldLine.lineTypes[linekey]['name']
@@ -915,6 +923,7 @@ class DynamicCable(Edge):
                         ndt['EAd'] = oldLine.lineTypes[linekey]['EAd']
                     if 'EI' in oldLine.lineTypes[linekey]:
                         ndt['EI'] = oldLine.lineTypes[linekey]['EI']
+                    
                 # add lengths                 
                 nd[j]['length'] = Lengths[j]
             
@@ -986,58 +995,58 @@ class DynamicCable(Edge):
             newsections.extend(sections1)
             newsections.extend(deepcopy(self.dd['sections']))
             self.dd['sections'] = newsections
+        #else:
+        oldbs = self.dd['buoyancy_sections']
+        # get half length
+        halfL = self.dd['length']
+        # double dd['length']
+        self.dd['length'] = halfL*2 
+        
+        if oldbs[0]['L_mid'] == 0:
+            # ends on a buoyancy section
+            endB = 1 
         else:
-            oldbs = self.dd['buoyancy_sections']
-            # get half length
-            halfL = self.dd['length']
-            # double dd['length']
-            self.dd['length'] = halfL*2 
-            
-            if oldbs[0]['L_mid'] == 0:
-                # ends on a buoyancy section
-                endB = 1 
-            else:
-                # ends on a bare cable section
-                endB = 0
-            
-            
-            bs = []
-            if endB:
-                # update buoyancy sections
-                # add in all pre-mirrored buoyancy sections (start from end instead of middle)
-                for k in range(len(oldbs)-1,-1,-1):
-                    bs.append(deepcopy(oldbs[k]))
-                    # update L_mid - change coordinates to x starting from end A
-                    bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
-                    if k == 0:
-                        N0 = bs[-1]['N_modules']
-                        # double middle buoyancy section length while keeping buoyancy the same - spacing needs to be changed by
-                        # (2N0-2)/(2N0-1)*sp0 where sp0 is old spacing, N0 is old # of buoyancy sections 
-                        bs[-1]['spacing'] = bs[-1]['spacing']*(2*N0-2)/(2*N0-1)
-                        # double number of modules to double the buoyancy
-                        bs[-1]['N_modules'] = N0*2
-                        
-                # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
-                for k in range(1,len(oldbs)):
-                    bs.append(deepcopy(oldbs[k]))
-                    # update L_mid - change coordinates to x starting from end A
-                    bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
-            else:     
-                # update buoyancy sections
-                # add in all pre-mirrored buoyancy sections (start from end instead of middle)
-                for k in range(len(oldbs)-1,-1,-1):     
-                    bs.append(deepcopy(oldbs[k]))
-                    # update L_mid - change coordinates to x starting from end A
-                    bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
-                # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
-                for k in range(0,len(oldbs)):
-                    bs.append(deepcopy(oldbs[k]))
-                    # update L_mid - change coordinates to x starting from end A, and push L_mid up by bsEnd (length of bare cable middle section pre-mirroring)
-                    bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
-                
+            # ends on a bare cable section
+            endB = 0
+        
+        
+        bs = []
+        if endB:
+            # update buoyancy sections
+            # add in all pre-mirrored buoyancy sections (start from end instead of middle)
+            for k in range(len(oldbs)-1,-1,-1):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
+                if k == 0:
+                    N0 = bs[-1]['N_modules']
+                    # double middle buoyancy section length while keeping buoyancy the same - spacing needs to be changed by
+                    # (2N0-2)/(2N0-1)*sp0 where sp0 is old spacing, N0 is old # of buoyancy sections 
+                    bs[-1]['spacing'] = bs[-1]['spacing']*(2*N0-2)/(2*N0-1)
+                    # double number of modules to double the buoyancy
+                    bs[-1]['N_modules'] = N0*2
                     
+            # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
+            for k in range(1,len(oldbs)):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
+        else:     
+            # update buoyancy sections
+            # add in all pre-mirrored buoyancy sections (start from end instead of middle)
+            for k in range(len(oldbs)-1,-1,-1):     
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
+            # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
+            for k in range(0,len(oldbs)):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A, and push L_mid up by bsEnd (length of bare cable middle section pre-mirroring)
+                bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
+            
                 
-            self.dd['buoyancy_sections'] = bs
+            
+        self.dd['buoyancy_sections'] = bs
         # reset length
         self.L = self.L*2
         # # reset rA to -span and assume same z fairlead as rB

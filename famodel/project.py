@@ -398,7 +398,7 @@ class Project():
                 mProps = getLineProps(mCon['d_nom']*1000,mCon['mooringFamily'],lineProps=lineprops)
                 dd = mProps
                 dd['name'] = mCon['mooringFamily']
-                dd['d_nom'] = mProps['input_d']
+                dd['d_nom'] = mProps['d_nom']
             elif 'type' in mCon and not mCon['type'] in d['mooring_line_types']:
                 raise Exception(f'Type {mCon["type"]} provided in mooring_line_config {mCon} is not found in mooring_line_types section. Check for errors.')
 
