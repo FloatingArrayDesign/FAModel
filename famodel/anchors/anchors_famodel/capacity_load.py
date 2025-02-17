@@ -75,7 +75,7 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, gamma, Su0, k):
     
     return resultsLoad
 
-def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, gamma=None, phi= None, delta=None, w=None, plot=True):
+def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, gamma=None, phi= None, delta=None, w=None, plot=False):
 
     
     '''Calculate the transfer load from the mudline to the main padeye elevation using the DNV standards.
