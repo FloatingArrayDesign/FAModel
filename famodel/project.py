@@ -2735,7 +2735,7 @@ class Project():
         # return the mooring system   
         return(self.ms)
 
-    def getFLORISArray(self, config, turblist, windSpeeds, thrustForces):
+    def getFLORISArray(self, config, turblist, windSpeeds = [], thrustForces = []):
         '''
         Sets up FLORIS interface and stores thrust/windspeed curve
 
@@ -2761,13 +2761,21 @@ class Project():
         
         # Setup FLORIS interface using base yaml file
         self.flow = FlorisModel(config)
-        
 
-        self.flow.set(layout_x=[self.platformList[PF].r[0] for PF in self.platformList], layout_y=[self.platformList[PF].r[1] for PF in self.platformList])
-        
+
+        x = []
+        y = []
+        for pf in self.platformList.values():
+                if pf.entity == 'FOWT':
+                    x.append(pf.r[0])
+                    y.append(pf.r[1])
+        self.flow.set(layout_x=x, layout_y=y)
 
         #right now, point to FLORIS turbine yaml. eventually should connect to ontology
         self.flow.set(turbine_type= turblist)       
+        self.flow.reset_operation() # Remove any previously applied yaw angles
+       # Since we are changing the turbine type, make a matching change to the reference wind height
+        self.flow.assign_hub_height_to_ref_height()
         
         #store ws and thrust data... eventually store for each turbine
         self.windSpeeds = windSpeeds
