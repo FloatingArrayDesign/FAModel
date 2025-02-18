@@ -223,6 +223,8 @@ class Cable(Edge):
         '''
         L = 0
         for cab in self.dd['cables']:
+            if isinstance(cab,StaticCable):
+                cab.getLength()
             L += cab.L
             
         self.L = L

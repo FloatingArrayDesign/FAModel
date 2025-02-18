@@ -47,6 +47,7 @@ class DynamicCable(Edge):
         # Store the cable type properties dict here for easy access (temporary - may be an inconsistent coding choice)
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
         # ^^^ curiuos if we can simplify this
+        self.voltage = self.dd['voltage']
         
         # Save some constants for use when computing buoyancy module stuff
         self.d0 = self.cableType['d_vol']  # diameter of bare dynamic cable
@@ -1055,6 +1056,38 @@ class DynamicCable(Edge):
         # call createSubsystem function if asked to
         if create_ss:
             self.createSubsystem(case=1,pristine=1)
+
+    def adjustCableForDepth(initial_z,final_z=None):
+        ''''
+        Function to adjust the dynamic cable length for a different depth. 
+        Specifically for non-suspended cables
+        Should not be used for extreme depth changes.
+
+        Parameters
+        ----------
+        initial_z : float
+            Initial depth the cable was designed for
+        final_z : float, optional
+            New depth to adjust the length for
+
+        '''
+        if not final_z:
+            # find which end is on the sea floor
+            end_bottom = self.rA if self.rA[2] < self.rB[2] else self.rB
+            final_z = end_bottom[2]
+        
+        depth_diff = final_z-initial_z
+
+        # adjust the top length (adjust total length)
+        self.L += depth_diff
+        self.z_anch = final_z
+
+
+
+
+
+
+
         
         '''
         # determine if given sections ends on a buoyancy section or a regular section

@@ -599,6 +599,11 @@ class Project():
                     self.turbineList[turb_name].dd['type'] = arrayInfo[i]['turbineID']-1
                     # attach turbine to platform
                     self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])
+                    self.platformList[arrayInfo[i]['ID']].entity = 'FOWT'
+                else:
+                    # for now, assume it's an OSS (To be changed!!)
+                    self.platformList[arrayInfo[i]['ID']].entity = 'OSS'
+                    
                 
                 if mSystems and not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
                     m_s = arrayInfo[i]['mooringID'] # get mooring system ID
@@ -782,7 +787,7 @@ class Project():
                     topside_info = d['substation'][k]['design']
                 else:
                     topside_info = {}
-                dd = {'design':topside_info}
+                dd = {'design':topside_info,'r':self.platformList[pfID].r}
                 self.substationList[subID] = Substation(dd, subID)
                 # attach substation to platform
                 self.platformList[pfID].attach(self.substationList[subID])
@@ -807,6 +812,7 @@ class Project():
             if 'typeID' in cabType and cabType['typeID'] in d['cable_types']:
                 dd = d['cable_types'][cabType['typeID']]
                 dd['name'] = cabType['typeID']
+                dd['voltage'] = cabType['voltage']
                 if 'd_vol' in dd:
                     d_vol = dd['d_vol']
                 else:
@@ -823,6 +829,7 @@ class Project():
                 cabProps['power'] = cabProps['power']*1e6
                 dd = cabProps
                 dd['name'] = cabType['cableFamily']
+                dd['voltage'] = cabType['voltage']
             elif 'typeID' in cabType and not cabType['typeID'] in d['cable_types']:
                 raise Exception(f'TypeID {cabType["typeID"]} provided in cable_config {cabType} is not found in cable_types section. Check for errors.')
 
@@ -863,8 +870,10 @@ class Project():
             cC = cable_configs[cabSection['type']]
             
             if cabSection['type'] in d['cable_configs']:
-                cCondd['span'] = cC['span']
-                cCondd['L'] = cC['length']
+                if 'span' in cC:
+                    cCondd['span'] = cC['span']
+                if 'length' in cC:
+                    cCondd['L'] = cC['length']
                 cCondd['A'] = getFromDict(cC,'A',default=0)
                 cCondd['type'] = cC['type']
                 cCondd['powerRating'] = getFromDict(cC,'powerRating',default=0)
@@ -913,15 +922,15 @@ class Project():
                             cabSection = cableInfo[cable]['sections'][j]
                             # check for routing in this cable section
                             if route:
-                                if route[0]['cable_configID'] in cabSection.values():
+                                if route['cable_configID'] in cabSection.values():
                                     # add routing
                                     routing = []
                                     # process any joints
-                                    for f in range(0,len(route[0]['routing'])):
-                                        if isinstance(route[0]['routing'][f],str):
+                                    for f in range(0,len(route['routing'])):
+                                        if isinstance(route['routing'][f],str):
                                             pass
                                         else:
-                                            routing.append(route[0]['routing'][f])
+                                            routing.append(route['routing'][f])
                                 else:
                                     routing = None
                                             
@@ -1738,6 +1747,7 @@ class Project():
                 cd['z_anch'] = -selected_cable['depth']
                 # cd['cable_type'] = cableConfig['cableTypes'][selected_cable['sections'][j]] # assign info in selected cable section dict to cd
                 cd['A'] = selected_cable['A']
+                cd['voltage'] = cableType_def[-2:]
 
                 
                 # add joints as needed (empty for now)
@@ -1778,6 +1788,7 @@ class Project():
                 cd['span'] = connDict[i]['2Dlength']
                 cd['L'] = connDict[i]['2Dlength']
                 cd['A'] = connDict[i]['A_min_con']
+                cd['voltage'] = cableType_def[-2:]
                 
                 # add routing if necessary
                 if len(connDict[i]['coordinates'])>2:
@@ -3903,7 +3914,7 @@ class Project():
                     valnew = str(val)
                 elif 'float' in type(val).__name__:
                     valnew = float(val)
-                elif 'int' in type(val).__name__:
+                elif 'int' in type(val).__name__ and not 'Joint' in type(val).__name__:
                     valnew = int(val)
                 else:
                     valnew = val
@@ -4078,7 +4089,6 @@ class Project():
                     # this is not an empty connector
                     if not 'type' in conf['connectors'][i]:
                         # make a new connector type
-                        #conf['connectors'][i] = cleanDataTypes(conf['connectors'][i])
                         connTypes[str(int(len(connTypes)))] = dict(conf['connectors'][i])
                         ctn = str(int(len(connTypes))) # connector type name
                     else:
@@ -4127,18 +4137,145 @@ class Project():
                 if isinstance(att,Platform):
                     pfid = att.id
                     substation[oss.id]['arrayID'] = pfid
+                    
+        # cables setup
+        arrayCables = []
+        arrayCableKeys = ['CableID','AttachA','AttachB','headingA','headingB','route','lengthAdjust']
+        routes = {}
+        jointTypes = {}
+        cableTypes = {}
+        cableConfigs = {}
+        cables = {}
+        cIdx = 0
+        cUnique = []
+        bUnique = []
+        bIdx = 0
+        buoyTypes = {}
+        jUnique = []
+        jIdx = 0
+        for jj,cab in enumerate(self.cableList.values()):
+            endA = cab.attached_to[0]
+            endB = cab.attached_to[1]
+            angA = np.pi/2 - np.arctan2(cab.subcomponents[0].rB[1]-cab.rA[1],cab.subcomponents[0].rB[0]-cab.rA[0])
+            headA = float(np.degrees(angA - endA.phi))
+            angB = np.pi/2 - np.arctan2(cab.subcomponents[-1].rA[1]-cab.rB[1],cab.subcomponents[-1].rA[0]-cab.rB[0])
+            headB = float(np.degrees(angB - endB.phi))
+            coords = []
+            currentCable = []
+            
+            for sub in cab.subcomponents:
+                currentConfig = {}
+                if isinstance(sub,Joint):
+                    if 'm' in sub or 'v' in sub and (sub['m']!=0 or sub['v']!=0):
+                        jKey = (getFromDict(sub,'m',default=0),getFromDict(sub,'v',default=0))
+                        if not jKey in jUnique:
+                            jUnique.append(jKey)
+                            jtn = 'joint_'+str(jIdx)
+                            jointTypes[jtn] = dict(deepcopy(sub))
+                            if sub['r']:
+                                jointTypes[jtn].pop('r')
+                            jIdx += 1
+                        else:
+                            jtd = deepcopy(sub)
+                            if 'r' in sub:
+                                jtd.pop('r')
+                            jtn = [key for key,val in jointTypes.items() if val==jtd][0]
+                        currentCable.append({'connectorType':jtn})
+                else:
+                    # pull out cable config and compare it to existing cableConfigs
+                    ct = sub.dd['type'] # static or dynamic
+                    ctw = sub.dd['cable_type']['w']
+                    ctA = sub.dd['cable_type']['A'] 
+                    cKey = (ctw,ctA)
+                    ctf = False; ctk = 'cable'; ctv = ct+'_cable_'+str(cIdx)
+                    # check if made with getCableProps (then we can skip writing out cable type info)
+                    if 'notes' in sub.dd['cable_type']:
+                        if 'made with getCableProps' in sub.dd['cable_type']['notes']:
+                            ctk = 'cableFamily'
+                            ctv = ct+'_cable_'+str(sub.voltage)
+                            ctf = True
+                    # check if cable type has already been written
+                    if not cKey in cUnique and not ctf:
+                        cUnique.append(cKey)                        
+                        ctn = sub.dd['cable_type']['name']
+                        cableTypes[ctn] = sub.dd['cable_type']
+                        cIdx += 1
+                    if isinstance(sub,StaticCable):
+                        
+                        # create current cable config dictionary
+                        currentConfig = {'type':'static',ctk:ctv,'voltage':sub.voltage}
+                        if ctf:
+                            currentConfig['A'] = ctA # need to add A if using getCableProps
+                        # check if current cable config already exists in cable configs dictionary
+                        if currentConfig in cableConfigs.values():
+                            ccn = [key for key,val in cableConfigs.items() if val==currentConfig][0] # get cable config key
+                        else:
+                            # create new cable config entry in dictionary
+                            ccn = 'static_'+str(len(cableConfigs))
+                            cableConfigs[ccn] = currentConfig
+                        # check for routing coordinates
+                        if hasattr(sub,'coordinates'):
+                            coords.extend(sub.coordinates)
+                            route = 'route'+str(jj)
+                            routes[route] = {'cable_configID':ccn,'routing':['joint',coords,'joint']}
+                        currentCable.append({'type':ccn})
+                    elif isinstance(sub,DynamicCable):
+                        # collect buoyancy sections info if applicable
+                        bs = []
+                        if 'buoyancy_sections' in sub.dd:
+                            for b in sub.dd['buoyancy_sections']:
+                                btw = b['module_props']['w']; btv = b['module_props']['volume']
+                                if not (btw,btv) in bUnique:
+                                    btn = 'buoy_'+str(bIdx)
+                                    bUnique.append((btw,btv))
+                                    bIdx += 1
+                                    buoyTypes[btn] = b['module_props']
+                                else:
+                                    bid = np.where(bUnique == (btw,btv))[0]
+                                    btn = 'buoy_'+str(bid)
+                                bs.append({'L_mid':b['L_mid'],'N_modules':b['N_modules'],
+                                          'spacing':b['spacing'],'V':b['module_props']['volume'],
+                                          'type':btn})
+                        # create current cable config dictionary
+                        currentConfig = {'type':'dynamic',ctk:ctv,'length':sub.L,'sections':bs}
+                        # check if current cable config already exists in cable configs dictionary
+                        if currentConfig in cableConfigs.values():
+                            ccn = [key for key,val in cableConfigs.items() if val==currentConfig][0] # get cable config key
+                        else:
+                            # create new cable config entry in dictionary
+                            ccn = 'dynamic_'+str(len(cableConfigs))
+                            cableConfigs[ccn] = currentConfig
+                        currentCable.append({'type':ccn})
+            if not coords:
+                route = 'NA'
+                
+            if currentCable in cables.values():
+                cid = [key for key,val in cables.items() if val == currentCable][0]
+            else:
+                # create new cable entry in dictionary
+                cid = 'array_cable'+str(len(cables))
+                cables['array_cable'+str(len(cables))] = {'sections':currentCable}
+            arrayCables.append([cid,endA.id,endB.id,headA,headB,route,0])
+            
+            
+        
+        
+            
          
         # create master output dictionary for yaml
         output = {'site':site, 'array':{'keys':arrayKeys,'data':arrayData}, 
-                  'mooring_line_configs':mooringConfigs,
-                  'mooring_line_types':secTypes, 
-                  'mooring_connector_types':connTypes,
                   pfkey:pfTypes, 
                   turbkey:turbTypes, 
                   'substations':substation,
-                  'anchor_types':anchConfigs,
                   'array_mooring':{'anchor_keys':anchKeys, 'anchor_data':arrayAnch,
-                                   'line_keys':lineKeys, 'line_data':arrayMoor}}
+                                   'line_keys':lineKeys, 'line_data':arrayMoor},
+                  'route_cables':routes,'array_cables':{'keys':arrayCableKeys,'data':arrayCables},
+                  'mooring_line_configs':mooringConfigs,
+                  'mooring_line_types':secTypes, 
+                  'mooring_connector_types':connTypes,
+                  'anchor_types':anchConfigs,
+                  'cables':cables,'cable_configs':cableConfigs,'cable_types':cableTypes, 
+                  'cable_appendages':buoyTypes,'cable_joints':jointTypes}
 
         output = cleanDataTypes(output)
         import ruamel.yaml

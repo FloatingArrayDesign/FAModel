@@ -68,10 +68,10 @@ def test_create_components():
     project = Project(file='tests/testOntology.yaml',raft=0)
        
     # check number of mooring lines
-    assert len(project.mooringList) == 8
+    assert len(project.mooringList) == 11
     
     # check number of anchors
-    assert len(project.anchorList) == 6
+    assert len(project.anchorList) == 9
     
     # check number of cables
     assert len(project.cableList) == 3
@@ -83,7 +83,7 @@ def test_create_components():
     assert len(project.substationList) == 1
     
     # check number of platforms
-    assert len(project.platformList) == 3
+    assert len(project.platformList) == 4
     
 def test_check_connections():
     project = Project(file='tests/testOntology.yaml',raft=0)
@@ -91,7 +91,7 @@ def test_check_connections():
     for i,anch in enumerate(project.anchorList.values()):
         
         # check last anchor is a shared anchor:
-        if i == 5:
+        if i == 8:
             assert len(anch.attachments) == 2
             
         # check anchor is attached to a mooring line and mooring line is attached to the anchor
@@ -106,7 +106,7 @@ def test_check_connections():
     for i, pf in enumerate(project.platformList.values()):
         
         # check number of things connected to platform
-        if i == 1:
+        if i == 1 or i == 3:
             assert len(pf.attachments) == 5 # 3 lines, 1 turbine, 1 cable 
         else:
             assert len(pf.attachments) == 6 # 3 lines, 1 turbine, 2 cables

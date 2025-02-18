@@ -104,6 +104,7 @@ array:
         -  [FOWT1,     1,         1,         ms3,          0,         0,          180   ]    # 2 array, shared moorings
         -  [FOWT2,     1,         1,         ms2,          1600,           0,            0   ] 
         -  [FOWT3,     1,         1,         ms1,          0,           1656,            180   ]
+        -  [OSS1,       0,         1,         ms4,          1600,        1600,             0]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
         # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
@@ -138,27 +139,23 @@ array_cables:
     data:
       - [ array_cable1, FOWT1, FOWT2,  270,       270, route1, 0] 
       - [ suspended_cable1, FOWT1, FOWT3,  180,       0, NA, 0]
-      - [ suspended_cable1, FOWT3, substation1, 90, 270, NA, 0] 
+      - [ suspended_cable1, FOWT3, OSS1, 90, 270, NA, 0] 
       
 # Cable routing
 route_cables:
     route1: 
-      - cable_configID: static_1
-        routing:
-          - joint 
-          - [700,150,10,50] # [x (m), y (m), embedment depth (m), radius (m)]
-          - [900,150,15,50]
-          - joint
+      cable_configID: static_1
+      routing:
+        - joint 
+        - [700,150,10,50] # [x (m), y (m), embedment depth (m), radius (m)]
+        - [900,150,15,50]
+        - joint
 
 # ----- substations -------
 
 substation:
     substation1:
-        x_location: 1600
-        y_location: 1600 
-        zFair: -20
-        rFair: 30
-        heading: 0
+        arrayID: OSS1
 
 
 # ----- turbines and platforms -----
@@ -1341,6 +1338,16 @@ mooring_systems:
         keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
           - [  rope_1,  45 ,    suction_pile1,   0 ]
+
+    ms4:
+        name: 3 line taut poly mooring system
+
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  rope_1,   45 ,    suction_pile1,   0 ]
+          - [  rope_1,  135 ,    suction_pile1,   0 ]
+          - [  rope_1,   270 ,    suction_pile1,   0 ]
+
 
 # Mooring line configurations
 mooring_line_configs:

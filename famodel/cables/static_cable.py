@@ -30,6 +30,7 @@ class StaticCable(Edge):
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this dynamic cable
         self.dd = dd
+        self.voltage = dd['voltage']
         
         self.n_sec = 1
         
@@ -37,7 +38,7 @@ class StaticCable(Edge):
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
 
         # cable length
-        self.L = L
+        self.getLength
 
         # end point absolute coordinates, to be set later
         self.rA = rA
@@ -88,7 +89,6 @@ class StaticCable(Edge):
                 for i in range(len(self.x)-1):                
                     L += get_length_between_points([self.x[i+1],self.y[i+1]],
                                                    [self.x[i],self.y[i]])
-                
         self.L = L                            
         
         return self.L
