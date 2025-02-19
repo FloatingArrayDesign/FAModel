@@ -4292,7 +4292,48 @@ class Project():
         with open(file,'w') as f:    
             yaml.dump(output,f)
         
-    
+    def extractFarmInfo(self, cmax=5, fmax=10/6, Cmeander=1.9):
+        '''
+        Function to extract farm-level information required to create FAST.Farm case simulations. [Under developement]:
+
+        Parameters
+        ----------
+        cmax : float, optional
+            maximum blade chord (m)
+        fmax: maximum excitation frequency (Hz)
+        Cmeander: Meandering constant (-)
+        
+        Returns
+        -------
+        wts : dict
+            General farm-level information needed for FAST.Farm from project class
+        yaw_init : list 
+            initial yaw offset values (for not it's set as just the platform orientation adjusted for rotational convention variation between FAM and FF)
+        '''      
+
+
+        # ----------- Extract Wind Farm Data
+        wts = {}
+        i = 0
+        yaw_init = np.zeros((1, len(self.platformList.items())))
+        for _, pf in self.platformList.items():
+            x, y, z   = pf.body.r6[0], pf.body.r6[1], pf.body.r6[2]
+            phi       = float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
+            phi       = (phi + 180) % 360 - 180  # Shift range to -180 to 180
+            for att in pf.attachments.values():
+                if isinstance(att['obj'],Turbine):
+                    D    = 240   # att['obj'].D         (assuming 15MW)
+                    zhub = att['obj'].dd['hHub']
+                
+            wts[i] = {
+                'x': x, 'y': y, 'z': z, 'phi': phi, 'D': D, 'zhub': zhub, 
+                'cmax': cmax, 'fmax': fmax, 'Cmeander': Cmeander
+                }
+            yaw_init[0, i] = phi
+            i += 1
+
+        return wts, yaw_init
+        
     def updateFailureProbability(self):
         '''
         Function to populate (or update) failure probability dictionaries in each object 
