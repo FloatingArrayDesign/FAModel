@@ -142,10 +142,8 @@ class Cable(Edge):
             headingA = headings[0]
             headingB = headings[1]
         if not rad_fair:
-            rad_fair = []
             rad_fair = [self.attached_to[x].rFair if self.attached_to[x].rFair else 58 for x in range(2)]
-            rad_fair.append(self.attached_to[0].rFair)
-            rad_fair.append(self.attached_to[1].rFair)
+
         # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
         Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rad_fair[0], self.attached_to[0].r[1]+np.sin(headingA)*rad_fair[0], self.attached_to[0].zFair]
         Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*rad_fair[1], self.attached_to[1].r[1]+np.sin(headingB)*rad_fair[1], self.attached_to[1].zFair]

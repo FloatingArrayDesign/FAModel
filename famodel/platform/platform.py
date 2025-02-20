@@ -48,14 +48,10 @@ class Platform(Node):
         
         self.n_mooring = len(mooring_headings) # number of mooring lines
         
-        self.endB = {} # dictionary with key as mooring object names and values of booleans (one for each mooring line) describing whether platform is connected to end B of the line (important for shared lines)
-        # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
-        # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
+        self.entity = None # describes what type of platform this is/what its topside carries (for floating wind turbine, entity = 'FOWT', for substation, entity = 'OSS')
         
         self.rc = None # optional [row,col] information in array (useful in updateUniformArray etc.)
-        # >>> replace these with the Node attachments dict? <<<
-        # self.mooringList = {}  # dictionary to be filled by references to Mooring objects
-        # self.anchorList = {} # dictionary of references to anchor objects connected to this platform
+
         
         # Dictionaries for addition information
         self.envelopes = {}  # 2D motion envelope, buffers, etc. Each entry is a dict with x,y or shape

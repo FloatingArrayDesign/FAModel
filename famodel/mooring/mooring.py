@@ -187,7 +187,7 @@ class Mooring(Edge):
     
     
     def reposition(self, r_center=None, heading=None, project=None, 
-                   degrees=False, **kwargs):
+                   degrees=False, rad_fair=[], **kwargs):
         '''Adjusts mooring position based on changed platform location or
         heading. It can call a custom "adjuster" function if one is
         provided. Otherwise it will just update the end positions.
@@ -204,6 +204,10 @@ class Mooring(Edge):
         project : FAModel Project, optional
             A Project-type object for site-specific information used in custom
             mooring line adjustment functions (mooring.adjuster).
+        rad_fair : list, optional
+            fairlead radius of node connected on each end of the mooring line (list should be length 2)
+            If not provided, the fairlead radius will be determined from the attached nodes' listed
+            fairlead radius (or, if it's an anchor, 0)
         **kwargs : dict
             Additional arguments passed through to the designer function.
         '''
@@ -225,8 +229,12 @@ class Mooring(Edge):
         else:
             r_centerB = np.array(r_center)[:2]
             
+        # create fairlead radius list for end A and end B if needed
+        if not rad_fair:
+            rad_fair = [self.attached_to[x].rFair if (hasattr(self.attached_to[x],'rFair') and self.attached_to[x].rFair) else 0 for x in range(2)]
+            
         # Set the updated end B location
-        self.setEndPosition(np.hstack([r_centerB + self.rad_fair*u, self.z_fair]), 'b')
+        self.setEndPosition(np.hstack([r_centerB + rad_fair[1]*u, self.z_fair]), 'b')
         
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
@@ -234,7 +242,7 @@ class Mooring(Edge):
             self.adjuster(self, r_centerB, u, project=project, **kwargs)
             
         elif self.shared == 1: # set position of end A at platform end A
-            self.setEndPosition(np.hstack([r_centerA - self.rad_fair*u, self.z_fair]),'a')
+            self.setEndPosition(np.hstack([r_centerA - rad_fair[0]*u, self.z_fair]),'a')
         
         else: # otherwise just set the anchor position based on a set spacing (NEED TO UPDATE THE ANCHOR DEPTH AFTER!)
             xy_loc = r_centerB + self.rad_anch*u

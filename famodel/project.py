@@ -634,21 +634,10 @@ class Project():
                         
                         # create mooring class instance as part of mooring list in the project class instance
                         mc = (Mooring(dd=m_config, id=str(arrayInfo[i]['ID'])+alph[j]))
-                        # mc.rA = [m_config['span']+m_config['rad_fair'],0,m_config['zAnchor']]
-                        # mc.rB = [m_config['rad_fair'],0,m_config['z_fair']]
-                        # adjust end positions based on platform location and mooring and platform headings
-                        mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, project=self)
-                        # adjust anchor z location and rA based on location of anchor
-                        zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
-                        mc.rA[2] = -zAnew
-                        mc.dd['zAnchor'] = -zAnew
-                        #mc.z_anch = -zAnew
-                        
+
                         # set anchor info
                         lineAnch = mySys[j]['anchorType'] # get the anchor type for the line
                         ad = getAnchors(lineAnch, mc=mc) # call method to create anchor dictionary
-                        ad['angle'] = nAngle
-                        
                         # add anchor class instance to anchorList in project class
                         self.anchorList[str(arrayInfo[i]['ID'])+alph[j]] = (Anchor(dd=ad, r=mc.rA, id=str(arrayInfo[i]['ID'])+alph[j]))
                         # add mooring class instance to mooringlist in project class
@@ -656,6 +645,15 @@ class Project():
                         # attach mooring object to anchor and platform
                         mc.attachTo(self.anchorList[str(arrayInfo[i]['ID'])+alph[j]],end='A')
                         mc.attachTo(self.platformList[arrayInfo[i]['ID']],end='B')
+                        
+                        # adjust mooring end positions based on platform location and mooring and platform headings, adjust anchor position
+                        mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, project=self)
+                        # adjust anchor z location and rA based on location of anchor
+                        zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
+                        mc.rA[2] = -zAnew
+                        mc.dd['zAnchor'] = -zAnew
+                        #mc.z_anch = -zAnew
+                
                         
                         # update counter
                         mct += 1
@@ -703,14 +701,15 @@ class Project():
                     # create mooring class instance
                     mc = (Mooring(dd=m_config, id=str(PFNum[1])+'-'+str(PFNum[0])))
                     mc.shared = 1
-                    # reposition both ends
-                    mc.reposition(r_center=[self.platformList[PFNum[1]].r,self.platformList[PFNum[0]].r],heading=headingB,project=self)
 
                     # add mooring object to project mooring list           
                     self.mooringList[str(PFNum[1])+'-'+str(PFNum[0])] = mc
                     # attach mooring object to platforms
                     mc.attachTo(self.platformList[PFNum[0]],end='B')
                     mc.attachTo(self.platformList[PFNum[1]],end='A')
+                    
+                    # reposition both ends
+                    mc.reposition(r_center=[self.platformList[PFNum[1]].r,self.platformList[PFNum[0]].r],heading=headingB,project=self)
 
                 elif any(ids['ID'] == arrayMooring[j]['end A'] for ids in arrayAnchor): # end A is an anchor
                     # get ID of platform connected to line
@@ -728,8 +727,6 @@ class Project():
                     mc = (Mooring(dd=m_config, id=str(PFNum[0])+alph[ind]))
                     mc.rA = [m_config['span']+self.platformList[PFNum[0]].rFair,0,m_config['zAnchor']]
                     mc.rB = [self.platformList[PFNum[0]].rFair,0,self.platformList[PFNum[0]].zFair]
-                    # adjust end positions based on platform location and mooring and platform heading
-                    mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
 
                     # check if anchor instance already exists
                     #if any(tt == 'shared_'+ arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
@@ -738,9 +735,6 @@ class Project():
                         for anch in self.anchorList: #range(0,len(self.anchorList)):
                             if anch == arrayMooring[j]['end A']:
                                 mc.attachTo(self.anchorList[anch],end='A')
-                                mc.rA = self.anchorList[anch].r
-                                mc.dd['zAnchor'] = -zAnew
-                                #mc.z_anch = -zAnew
 
                     else:
                         # find location of anchor in arrayAnchor table
@@ -751,10 +745,6 @@ class Project():
                                 # set line anchor type and get dictionary of anchor information
                                 lineAnch = arrayAnchor[k]['type']
                         ad = getAnchors(lineAnch,aNum=aNum) # call method to create dictionary
-                        # adjust anchor location and rA based on location of anchor
-                        zAnew, nAngle = self.getDepthAtLocation(aloc[0], aloc[1], return_n=True)
-                        mc.rA = [aloc[0],aloc[1],-zAnew]
-                        mc.dd['zAnchor'] = -zAnew
                         #mc.z_anch = -zAnew
                         # create anchor object
                         self.anchorList[arrayAnchor[aNum]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum,id=arrayAnchor[aNum]['ID'])
@@ -765,6 +755,13 @@ class Project():
                     self.mooringList[str(PFNum[0])+alph[ind]] = mc
                     # attach mooring object to platform
                     mc.attachTo(self.platformList[PFNum[0]],end='B')
+                    
+                    # adjust end positions based on platform location and mooring and platform heading, adjust anchor depth
+                    mc.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
+                    # adjust anchor location and rA based on location of anchor
+                    zAnew, nAngle = self.getDepthAtLocation(aloc[0], aloc[1], return_n=True)
+                    mc.rA = [aloc[0],aloc[1],-zAnew]
+                    mc.dd['zAnchor'] = -zAnew
 
                 else: # error in input
                     raise Exception(f"end A input in array_mooring line_data table line '{j}' must be either an ID from the anchor_data table (to specify an anchor) or an ID from the array table (to specify a FOWT).")
@@ -829,7 +826,7 @@ class Project():
                 cabProps['power'] = cabProps['power']*1e6
                 dd = cabProps
                 dd['name'] = cabType['cableFamily']
-                dd['voltage'] = cabType['voltage']
+                dd['voltage'] = cabProps['voltage']
             elif 'typeID' in cabType and not cabType['typeID'] in d['cable_types']:
                 raise Exception(f'TypeID {cabType["typeID"]} provided in cable_config {cabType} is not found in cable_types section. Check for errors.')
 
@@ -1000,21 +997,21 @@ class Project():
                 
                         
                 # connect cable to platform/substation
-                if 'substations' in d and arrayCableInfo[i]['AttachA'] in d['substations']:
-                    for j in range(0,len(arrayInfo)):
-                        if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
-                            raise Exception('Substation name must be different from platform ID')
-                    self.cableList[cable+str(i)].attachTo(self.substationList[arrayCableInfo[i]['AttachA']],end='A')
+                # if 'substations' in d and arrayCableInfo[i]['AttachA'] in d['substations']:
+                #     for j in range(0,len(arrayInfo)):
+                #         if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
+                #             raise Exception('Substation name must be different from platform ID')
+                #     self.cableList[cable+str(i)].attachTo(self.substationList[arrayCableInfo[i]['AttachA']],end='A')
                 for j in range(0,len(arrayInfo)):
                     if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
                         # connect to platform
                         self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='A')
                     
-                if 'substations' in d and arrayCableInfo[i]['AttachB'] in d['substations']:
-                    for j in range(0,len(arrayInfo)):
-                        if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
-                            raise Exception('Substation name must be different from platform ID')
-                    self.cableList[cable+str(i)].attachTo(self.substationList[arrayCableInfo[i]['AttachB']],end='B')
+                # if 'substations' in d and arrayCableInfo[i]['AttachB'] in d['substations']:
+                #     for j in range(0,len(arrayInfo)):
+                #         if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
+                #             raise Exception('Substation name must be different from platform ID')
+                #     self.cableList[cable+str(i)].attachTo(self.substationList[arrayCableInfo[i]['AttachB']],end='B')
                 for j in range(0,len(arrayInfo)):
                     if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
                         # connect to platform

@@ -130,6 +130,7 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     # Electrical properties
     power = ctd['P_A_coefs'][0] * A**(ctd['P_A_coefs'][1])  # cable rated power capacity [MW]
     resistance = ctd['R_A_coefs'][0]/A
+    voltage = ctd['kV']
     
     # Set up a main identifier for the cable type unless one is provided
     if name=="":
@@ -142,7 +143,7 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     # save dictionary (diameter converted to m)
     lineType = dict(name=typestring, d=d/1000, m=mass, EA=EA, EI=EI, w=w,
                     MBL=MBL, MBR=MBR, A=A, power=power, resistance=resistance,
-                    cost=cost, notes=notes)
+                    voltage=voltage, cost=cost, notes=notes)
     
     lineType.update(kwargs)   # add any custom arguments provided in the call to the lineType's dictionary
           
