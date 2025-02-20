@@ -47,7 +47,7 @@ class DynamicCable(Edge):
         # Store the cable type properties dict here for easy access (temporary - may be an inconsistent coding choice)
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
         # ^^^ curiuos if we can simplify this
-        self.voltage = self.dd['voltage']
+        self.voltage = self.dd['cable_type']['voltage']
         
         # Save some constants for use when computing buoyancy module stuff
         self.d0 = self.cableType['d_vol']  # diameter of bare dynamic cable
