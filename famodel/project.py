@@ -600,7 +600,7 @@ class Project():
                     # attach turbine to platform
                     self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])
                     self.platformList[arrayInfo[i]['ID']].entity = 'FOWT'
-                elif arrayInfo[i]['turbineID'] == 0: # no TopSide (buoy)
+                elif arrayInfo[i]['turbineID'] < 0: # (buoy)
                     self.platformList[arrayInfo[i]['ID']].entity = 'buoy'
                 else:
                     # for now, assume it's an OSS (To be changed!!)
