@@ -602,6 +602,7 @@ class Project():
                     self.platformList[arrayInfo[i]['ID']].entity = 'FOWT'
                 elif arrayInfo[i]['turbineID'] == 0: # no TopSide (buoy)
                     self.platformList[arrayInfo[i]['ID']].entity = 'buoy'
+                else:
                     # for now, assume it's an OSS (To be changed!!)
                     self.platformList[arrayInfo[i]['ID']].entity = 'OSS'
                     
@@ -2568,7 +2569,7 @@ class Project():
             # use bodyInfo dictionary to create moorpy body if given
             if bodyInfo:
                 self.ms.addBody(-1,r6,m=bodyInfo[body]['m'],v=bodyInfo[body]['v'],rCG=np.array(bodyInfo[body]['rCG']),rM=np.array(bodyInfo[body]['rM']),AWP=bodyInfo[body]['AWP'])
-            elif dd:
+            elif 'm' in dd and 'v' in dd:
                 self.ms.addBody(-1, r6,m=PF.dd['m'],v=PF.dd['v'])
             elif not bodyInfo and wflag == 0: # default to UMaine VolturnUS-S design hydrostatics info
                 print('No hydrostatics information given, so default body hydrostatics from UMaine VolturnUS-S will be used.')
