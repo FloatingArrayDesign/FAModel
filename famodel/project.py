@@ -600,7 +600,8 @@ class Project():
                     # attach turbine to platform
                     self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])
                     self.platformList[arrayInfo[i]['ID']].entity = 'FOWT'
-                else:
+                elif arrayInfo[i]['turbineID'] == 0: # no TopSide (buoy)
+                    self.platformList[arrayInfo[i]['ID']].entity = 'buoy'
                     # for now, assume it's an OSS (To be changed!!)
                     self.platformList[arrayInfo[i]['ID']].entity = 'OSS'
                     
@@ -747,6 +748,7 @@ class Project():
                         ad = getAnchors(lineAnch,aNum=aNum) # call method to create dictionary
                         #mc.z_anch = -zAnew
                         # create anchor object
+                        zAnew = self.getDepthAtLocation(aloc[0], aloc[1])
                         self.anchorList[arrayAnchor[aNum]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum,id=arrayAnchor[aNum]['ID'])
                         # attach mooring object to anchor
                         mc.attachTo(self.anchorList[(arrayAnchor[aNum]['ID'])],end='A')
@@ -2560,11 +2562,14 @@ class Project():
         wflag = 0 # warning flag has not yet been printed (prevent multiple printings of same hydrostatics warning)
         for i,body in enumerate(self.platformList): # make all the bodies up front - i is index in dictionary, body is key (name of platform)
             PF = self.platformList[body]
+            dd = getattr(PF, 'dd', None)  # Check if there is a design dictionary for this body
             # add a moorpy body at the correct location
             r6 = [PF.r[0],PF.r[1],0,0,0,0]
             # use bodyInfo dictionary to create moorpy body if given
             if bodyInfo:
                 self.ms.addBody(-1,r6,m=bodyInfo[body]['m'],v=bodyInfo[body]['v'],rCG=np.array(bodyInfo[body]['rCG']),rM=np.array(bodyInfo[body]['rM']),AWP=bodyInfo[body]['AWP'])
+            elif dd:
+                self.ms.addBody(-1, r6,m=PF.dd['m'],v=PF.dd['v'])
             elif not bodyInfo and wflag == 0: # default to UMaine VolturnUS-S design hydrostatics info
                 print('No hydrostatics information given, so default body hydrostatics from UMaine VolturnUS-S will be used.')
                 wflag = 1
