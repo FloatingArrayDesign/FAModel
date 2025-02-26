@@ -4100,7 +4100,7 @@ class Project():
                     # this is not an empty connector
                     if not 'type' in conf['connectors'][i]:
                         # make a new connector type
-                        connTypes[str(int(len(connTypes)))] = dict(conf['connectors'][i])
+                        connTypes[str(int(len(connTypes))+1)] = dict(conf['connectors'][i])
                         ctn = str(int(len(connTypes))) # connector type name
                     else:
                         ctn = str(conf['connectors'][i]['type'])
