@@ -747,9 +747,9 @@ class Project():
                                 # set line anchor type and get dictionary of anchor information
                                 lineAnch = arrayAnchor[k]['type']
                         ad = getAnchors(lineAnch,aNum=aNum) # call method to create dictionary
-                        #mc.z_anch = -zAnew
                         # create anchor object
                         zAnew = self.getDepthAtLocation(aloc[0], aloc[1])
+                        mc.z_anch = -zAnew
                         self.anchorList[arrayAnchor[aNum]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum,id=arrayAnchor[aNum]['ID'])
                         # attach mooring object to anchor
                         mc.attachTo(self.anchorList[(arrayAnchor[aNum]['ID'])],end='A')
