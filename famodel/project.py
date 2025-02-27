@@ -4318,7 +4318,7 @@ class Project():
         yaw_init = np.zeros((1, len(self.platformList.items())))
         for _, pf in self.platformList.items():
             x, y, z   = pf.body.r6[0], pf.body.r6[1], pf.body.r6[2]
-            phi       = float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
+            phi       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
             phi       = (phi + 180) % 360 - 180  # Shift range to -180 to 180
             for att in pf.attachments.values():
                 if isinstance(att['obj'],Turbine):
@@ -4329,11 +4329,59 @@ class Project():
                 'x': x, 'y': y, 'z': z, 'phi': phi, 'D': D, 'zhub': zhub, 
                 'cmax': cmax, 'fmax': fmax, 'Cmeander': Cmeander
                 }
-            yaw_init[0, i] = phi
+            yaw_init[0, i] = -phi
             i += 1
 
+        # store farm-level wind turbine information
+        self.wts = wts
+
         return wts, yaw_init
+    
+    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True):
+        '''
+        Function to create FFarm-compatible MoorDyn input file:
+
+        Parameters
+        ----------
+        filename : str
+            Name of the MoorDyn output file (.dat)
+        unrotateTurbines: bool, optional
+            A flag to unrotate turbine (body) objects when passing it to MoorPy unload function [FFarm takes fairlead points in the local-unrotated reference frame]
+        renameBody: bool, optional
+            A flag to rename `Body` objects in the output MD file into `Turbine` to be compatible with FFarm. 
         
+        '''          
+        from moorpy.helpers import subsystem2Line    
+        
+        # convert SS to lines
+        ms_temp = deepcopy(self.ms)  # copy to avoid affecting self.ms
+        lineCount = len(ms_temp.lineList)
+        for _ in range(lineCount):
+            subsystem2Line(ms_temp, 0)
+        
+        # Unrotate turbines if needed
+        if unrotateTurbines:
+            if self.wts:
+                phiV = [wt['phi'] for wt in self.wts.values()]  # [180, 0] # to unrotate the platforms when unloading MoorDyn
+            else:
+                raise ValueError("wts is empty. Please run project.extractFarmInfo first before extracting MoorDyn")
+        else:
+            phiV = None
+        
+        ms_temp.unload(fileName=filename, phiV=phiV)
+        
+        # rename Body to Turbine if needed
+        if renameBody:
+            # Rename Body to Turbine:
+            with open(filename, 'r') as file:
+                filedata = file.read()
+
+                filedata = filedata.replace('Body', 'Turbine')
+                with open(filename, 'w') as file:
+                    file.write(filedata)
+
+                file.close()       
+
     def updateFailureProbability(self):
         '''
         Function to populate (or update) failure probability dictionaries in each object 
