@@ -29,6 +29,9 @@ from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCab
 from famodel.cables.components import Joint
 from famodel.turbine.turbine import Turbine
 
+# Import select required helper functions
+from famodel.helpers import check_headings, head_adjust
+
 
 class Project():
     '''
@@ -1977,102 +1980,6 @@ class Project():
                         headingA += np.radians(selected_cable['head_offset'])
                         headingB -= np.radians(selected_cable['head_offset'])
                     
-                def check_headings(m_headings,c_heading,rad_buff):
-                    # convert negative headings to positive headings
-                    for i,mh in enumerate(m_headings):
-                        if mh<0:
-                            #breakpoint()
-                            m_headings[i] = 2*np.pi + mh
-                    ang_diff = m_headings - c_heading
-                    inds_to_fix = np.where([round(abs(angd),8)<round(rad_buff,8) for angd in ang_diff])[0]
-                    if len(inds_to_fix)>0:
-                        return([m_headings[ind] for ind in inds_to_fix])
-                    else:
-                        return([])
-                    
-                        
-                def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
-                    '''
-                    function to adjust heading of cable based on angle buffer from mooring lines
-    
-                    Parameters
-                    ----------
-                    att : list
-                        list of objects to attach to. 1 object if only concerned about the attached object associated with that side
-                    heading : float
-                        Cable heading at attachment to att.
-                    rad_buff : float
-                        Buffer angle in radians
-    
-                    Returns
-                    -------
-                    heading : float
-                        New cable heading
-    
-                    '''
-                    if heading<0:
-                        headnew = np.pi*2 + heading
-                    else:
-                        headnew = heading
-                    #breakpoint()
-                    attheadings = []
-                    flipheads = False # whether to flip headings ( for if you are looking at mooring headings of platform on the other end)
-                    for at in att:
-                        if flipheads:
-                            atmh = at.mooring_headings + at.phi + np.pi
-                            for j,a in enumerate(atmh):
-                                # keep everything under 2pi angle
-                                if a>2*np.pi:
-                                    atmh[j] = a-2*np.pi
-                        else:
-                            atmh = at.mooring_headings + at.phi
-                        attheadings.extend(np.pi/2 - atmh)
-                        flipheads = True
-                    # if hasattr(att,'mooring_headings'):                       
-                    #     # collect list of interfering mooring headings
-                    #     attheadings = np.pi/2 - (att.mooring_headings + att.phi)
-                    interfere_h = check_headings(attheadings,headnew,rad_buff)
-                    # if the headings interfere, adjust them by angle buffer
-                    # if interfere_h:
-                        # breakpoint()
-                        #ang_diffs = [headnew-mhead for mhead in interfere_h] # difference between cable heading and mooring headings for mooring headings that interfere with buffer
-                        # for ang_diff in ang_diffs:
-                        #     headnew = headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
-                        #     interfere_hi = check_headings(attheadings,headnew,rad_buff)
-                            
-                        #     for i in interfere_hi:
-                        #         # try rotating 30 degrees other way
-                        #         headnew = heading - np.sign(ang_diff)*rad_buff*endA_dir
-                        #         # re-check offsets
-                        #         interfere_hij = check_headings(attheadings,headnew,rad_buff)
-                        #         if not interfere_hij:
-                        #             return(headnew)
-                        #         else:
-                        #             # cut buffer in half and try again
-                        #             newbuff = rad_buff/2
-                        #             headnew = heading - np.sign(ang_diff)*newbuff
-                        #             return(headnew)
-                    for mhead in interfere_h:
-                        ang_diff_dir = np.sign(headnew - mhead)
-                        headnew = mhead + rad_buff*endA_dir*ang_diff_dir #headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
-                        interfere_hi = check_headings(attheadings,headnew,rad_buff)
-                        
-                        for i in interfere_hi:
-                            # try rotating other way
-                            headnew = mhead - rad_buff*endA_dir*ang_diff_dir
-                            # re-check offsets
-                            interfere_hij = check_headings(attheadings,headnew,rad_buff)
-                            if not interfere_hij:
-                                return(headnew)
-                            else:
-                                # cut buffer in half and try again
-                                newbuff = rad_buff/2
-                                headnew = mhead - newbuff*endA_dir*ang_diff_dir
-                                return(headnew)
-                                    
-                    
-                    
-                    return(headnew)
     
                 # adjust heading if too close to moorings
                 rad_buff = np.radians(heading_buffer)

@@ -498,7 +498,7 @@ class Anchor(Node):
         
         return(self.loads)
     
-    def getLugForces(self,mudloads=None,max_force=True,plot=True):
+    def getLugForces(self, mudloads=None, max_force=True, plot=False):
         '''
         Find forces on an anchor at the lug point based on the mudline forces and angles. Calls getTransferFunction script
 

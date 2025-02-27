@@ -292,11 +292,6 @@ class Cable(Edge):
             for i,bs in enumerate(sub.dd['buoyancy_sections']):
                 bs['L_mid'] = bs['L_mid'] + addL*(i+addS)
                 
-            
-                
-                    
-                    
-                    
-                
-        
+
+
         
