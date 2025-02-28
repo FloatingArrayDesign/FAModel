@@ -4337,7 +4337,7 @@ class Project():
 
         return wts, yaw_init
     
-    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True):
+    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True, removeBody=True, MDoptionsDict={}):
         '''
         Function to create FFarm-compatible MoorDyn input file:
 
@@ -4349,7 +4349,10 @@ class Project():
             A flag to unrotate turbine (body) objects when passing it to MoorPy unload function [FFarm takes fairlead points in the local-unrotated reference frame]
         renameBody: bool, optional
             A flag to rename `Body` objects in the output MD file into `Turbine` to be compatible with FFarm. 
-        
+        removeBody: boo., optional
+            A flag to remove 'Body' objects in the Bodies list in the output MD file to be compatible with FFarm.
+        MDoptionsDict: dictionary, optional
+            MoorDyn Options. If not given, default options are considered.            
         '''          
         from moorpy.helpers import subsystem2Line    
         
@@ -4368,19 +4371,44 @@ class Project():
         else:
             phiV = None
         
-        ms_temp.unload(fileName=filename, phiV=phiV)
+        ms_temp.unload(fileName=filename, phiV=phiV, MDoptionsDict=MDoptionsDict)
         
         # rename Body to Turbine if needed
         if renameBody:
             # Rename Body to Turbine:
-            with open(filename, 'r') as file:
-                filedata = file.read()
+            with open(filename, 'r') as f:
+                filedata = f.read()
 
                 filedata = filedata.replace('Body', 'Turbine')
-                with open(filename, 'w') as file:
-                    file.write(filedata)
+                with open(filename, 'w') as f:
+                    f.write(filedata)
 
-                file.close()       
+                f.close()       
+        
+        if removeBody:
+            with open(filename, 'r') as f:
+                lines = f.readlines()
+
+            newLines = []
+            skipCount = 0
+
+            for i, line in enumerate(lines):
+                if '---' in line and ('BODIES' in line.upper() or 'BODY LIST' in line.upper() or 'BODY PROPERTIES' in line.upper()):
+                    newLines.append(line)
+                    newLines.append(next(iter(lines[i+1:])))  # Append 2 lines
+                    newLines.append(next(iter(lines[i+2:]))) 
+
+                    skipCount = 2 + len(self.platformList)  # Skip the number of platforms and the already appended lines above
+                    continue
+
+                if skipCount > 0:
+                    skipCount -= 1
+                else:
+                    newLines.append(line)
+
+            with open(filename, 'w') as f:
+                f.writelines(newLines)
+           
 
     def updateFailureProbability(self):
         '''
