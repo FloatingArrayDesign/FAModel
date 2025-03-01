@@ -10,7 +10,7 @@ import os
 os.chdir('./Inputs/')
 
 # set yaml file location and name
-ontology_file = 'OntologySample200m.yaml'
+ontology_file = 'OntologySample200m_noshared.yaml'
 
 # create project class
 project = Project(file=ontology_file)
@@ -38,7 +38,8 @@ newdd['soil_properties']['delta'] = 25
 
 # update anchor loads at lug point (mudline load should be constant), then get anchor capacity
 anch.getLugForces()
-anch.getAnchorCapacity()
+anch.getSize(startGeom=anch.dd['design'])
+# anch.getAnchorCapacity()
 anch.getCost()
 print('\nSand suction pile capacity is: ',anch.anchorCapacity,' N')
 print('Sand suction pile safety factor is: ',anch.getFS())

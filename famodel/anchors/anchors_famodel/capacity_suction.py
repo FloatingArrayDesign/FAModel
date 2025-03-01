@@ -194,7 +194,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
         resultsSuction['UC'] = UC[0]                # Unity check in clay
     elif soil_type == 'sand':
         resultsSuction['UC'] = UC                   # Unity check in sand
-    resultsSuction['Weight Pile'] = Wp              # Dry weight of the suction pile (kN)
+    resultsSuction['Weight'] = Wp              # Dry weight of the suction pile (kN)
     resultsSuction['Weight Soil'] = Ws              # Submerged weight of the soil plug (kN)
     resultsSuction['t'] = t                         # Pile thikness in [m]
     
@@ -291,7 +291,7 @@ def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
     resultsSuctionSimp['Horizontal max.'] = Hmax    # Capacity at specified loading angle
     resultsSuctionSimp['Vertical max.'] = Vmax      # Capacity at specified loading angle
     resultsSuctionSimp['UC'] = UC                   # Unity check
-    resultsSuctionSimp['Weight Pile'] = Wp          # in kN
+    resultsSuctionSimp['Weight'] = Wp          # Pile weight in kN
     resultsSuctionSimp['Weight Soil'] = Ws          # in kN
     resultsSuctionSimp['t'] = t
     

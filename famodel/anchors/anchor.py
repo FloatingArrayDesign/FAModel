@@ -442,13 +442,7 @@ class Anchor(Node):
             if 'Horizontal max.' in results:
                 self.anchorCapacity['Ha_max'] = results['Horizontal max.']*1000 # [N]
             self.anchorCapacity['Va_max'] = results['Vertical max.']*1000 # [N]
-            
-        if 'dandg' in anchType or 'driven' in anchType or 'helical' in anchType or 'torpedo' in anchType: 
-            self.mass = results['Pile weight']*1000/self.g # mass in [kg]
-        elif 'plate' in anchType or 'DEA' in anchType or 'SEPLA' in anchType or 'DEPLA' in anchType or 'VLA' in anchType:
-            self.mass = results['Plate weight']*1000/self.g # mass in [kg]
-        elif 'suction' in anchType:
-            self.mass = results['Weight Pile']*1000/self.g # mass in [kg]
+        self.mass = results['Weight']*1000/self.g # mass in [kg]
             
         # add on extra for drag-embedment anchors (flukes)
         if 'DEA' in anchType:
@@ -716,94 +710,94 @@ class Anchor(Node):
         return(sum(self.cost.values()))
 
            
-    def getSize(self,startGeom,loads=None,minfs={'Ha':1.8,'Va':1.8},inc_pct=10):
-        '''
+    # def getSize(self,startGeom,loads=None,minfs={'Ha':1.8,'Va':1.8},inc_pct=10):
+    #     '''
         
 
-        Parameters
-        ----------
-        startGeom : dict
-            Dictionary of required geometric values to start with. These will be increased by
-            inc_pct for each run of the while loop
-        loads : TYPE, optional
-            DESCRIPTION. The default is None.
-        inc_pct : float
-            Percent to increase the geometric properties by in each iteration of the while loop
+    #     Parameters
+    #     ----------
+    #     startGeom : dict
+    #         Dictionary of required geometric values to start with. These will be increased by
+    #         inc_pct for each run of the while loop
+    #     loads : TYPE, optional
+    #         DESCRIPTION. The default is None.
+    #     inc_pct : float
+    #         Percent to increase the geometric properties by in each iteration of the while loop
 
-        Returns
-        -------
-        None.
+    #     Returns
+    #     -------
+    #     None.
 
-        '''
-        def fs_check(fs,minfs):
-            '''
-            Checks if all fs > minfs
+    #     '''
+    #     def fs_check(fs,minfs):
+    #         '''
+    #         Checks if all fs > minfs
 
-            Parameters
-            ----------
-            fs : dict
-                factors of safety
-            minfs : dict
-                minimum factors of safety
+    #         Parameters
+    #         ----------
+    #         fs : dict
+    #             factors of safety
+    #         minfs : dict
+    #             minimum factors of safety
 
-            Returns
-            -------
-            result: bool
-                True if all fs > minfs, else False
+    #         Returns
+    #         -------
+    #         result: bool
+    #             True if all fs > minfs, else False
 
-            '''
-            if fs['Ha'] > minfs['Ha'] and fs['Va'] > minfs['Va']:
-                return(True)
-            else:
-                return(False)
+    #         '''
+    #         if fs['Ha'] > minfs['Ha'] and fs['Va'] > minfs['Va']:
+    #             return(True)
+    #         else:
+    #             return(False)
             
         
-        anchType = self.dd['type']
-        if not loads:
-            loads = self.loads
+    #     anchType = self.dd['type']
+    #     if not loads:
+    #         loads = self.loads
             
-        if not 'Ha' in loads:
-            self.getLugForces(mudloads=loads)
+    #     if not 'Ha' in loads:
+    #         self.getLugForces(mudloads=loads)
             
-        if not 'zlug' in self.dd['design']:
-            self.dd['design']['zlug'] = 0
+    #     if not 'zlug' in self.dd['design']:
+    #         self.dd['design']['zlug'] = 0
         
-        geom = self.dd['design']
-        geom.update(startGeom)
+    #     geom = self.dd['design']
+    #     geom.update(startGeom)
 
-        try:
-            self.getAnchorCapacity(loads=loads,plot=False)
-        except:
-            for cKey in startGeom.keys():
-                geom[cKey]*=2
-            self.getAnchorCapacity(loads=loads,plot=False)
-        fs = self.getFS(loads=loads)
-        # check if it's already over the minimum factor of safety
-        last_fs = fs_check(fs,minfs)
-        signswitch = False
-        if last_fs:
-            # reduce sizing to below fs so we can increase slowly later
-            while last_fs:
-                for cKey in startGeom.keys():
-                    geom[cKey] *= .75
-                    self.getAnchorCapacity(loads=loads,plot=False)
+    #     try:
+    #         self.getAnchorCapacity(loads=loads,plot=False)
+    #     except:
+    #         for cKey in startGeom.keys():
+    #             geom[cKey]*=2
+    #         self.getAnchorCapacity(loads=loads,plot=False)
+    #     fs = self.getFS(loads=loads)
+    #     # check if it's already over the minimum factor of safety
+    #     last_fs = fs_check(fs,minfs)
+    #     signswitch = False
+    #     if last_fs:
+    #         # reduce sizing to below fs so we can increase slowly later
+    #         while last_fs:
+    #             for cKey in startGeom.keys():
+    #                 geom[cKey] *= .75
+    #                 self.getAnchorCapacity(loads=loads,plot=False)
         
             
             
-        while not last_fs:
+    #     while not last_fs:
             
-            for cKey in startGeom.keys():
-                geom[cKey] *= (1+inc_pct/100)
+    #         for cKey in startGeom.keys():
+    #             geom[cKey] *= (1+inc_pct/100)
                 
-            self.getAnchorCapacity(loads=loads,plot=False)
-            fs = self.getFS(loads=loads)
-            last_fs = fs_check(fs,minfs)
+    #         self.getAnchorCapacity(loads=loads,plot=False)
+    #         fs = self.getFS(loads=loads)
+    #         last_fs = fs_check(fs,minfs)
             
 
             
                 
                 
-        return(geom,fs)
+    #     return(geom,fs)
                 
     def getSuctionSize(self,D,L,loads=None,minfs={'Ha':1.6,'Va':2},LD_con=[4,8]):
         '''
@@ -815,8 +809,8 @@ class Anchor(Node):
             Diameter of suction bucket
         L : float
             Length of suction bucket
-        loads : TYPE, optional
-            DESCRIPTION. The default is None.
+        loads : dict, optional
+            Dictionary of maximum anchor loads in horizontal and vertical directions. The default is None.
         minfs : dict,optoinal
             Minimum factors of safety in horizontal and vertical directions
         LD_con : float
@@ -870,14 +864,116 @@ class Anchor(Node):
         
         # Run the optimization to find D and L that satisfy UC close to 1
         solution = minimize(objective, initial_guess, bounds=bounds,method="COBYLA",
-                            constraints=constraints)
+                            constraints=constraints,options={'rhobeg':0.1, 'catol':0.001})
         
         # Extract the optimized values of D and L
         self.dd['design']['D'], self.dd['design']['L'] = solution.x
         self.dd['design']['zlug'] = (2/3)*self.dd['design']['L'] 
         results = self.getAnchorCapacity(plot=False)    
           
-       
+
+    def getSize(self,startGeom,loads=None,minfs={'Ha':1.6,'Va':2},LD_con=[4,8]):
+        '''
+        
+    
+        Parameters
+        ----------
+        startGeom: dict
+            starting guess geometry
+        loads : dict, optional
+            Dictionary of maximum anchor loads in horizontal and vertical directions. The default is None.
+        minfs : dict,optoinal
+            Minimum factors of safety in horizontal and vertical directions
+        LD_con : float
+            Constraint for L/D parameter
+    
+        Returns
+        -------
+        None.
+    
+        '''
+        from scipy.optimize import minimize
+        anchType = self.dd['type']
+        if not loads:
+            loads = self.loads
+            
+        if not 'Ha' in loads:
+            loads = self.getLugForces(mudloads=loads)
+           
+        # loads['Ha'] = minfs['Ha']*loads['Ha']
+        # loads['Va'] = minfs['Va']*loads['Va']
+        print('start geometry: ',startGeom)
+        # apply initial guess geometry
+        self.dd['design'].update(startGeom)
+                   
+        if not 'zlug' in self.dd['design']:
+            if 'suction' in anchType:
+                self.dd['design']['zlug'] = (2/3)*startGeom['L']
+            else:
+                self.dd['design']['zlug'] = 0
+
+            
+        # Define the objective function: Minimize weight of anchor (cost is dependent on weight)
+        def objective(vars,geomKeys):
+            newGeom = dict(zip(geomKeys,vars))
+            self.dd['design'].update(newGeom)
+            if 'suction' in self.dd['type']:
+                self.dd['design']['zlug'] = (2/3)*newGeom['L']
+            results = self.getAnchorCapacity(plot=False)
+            
+            return(results['Weight'])
+        
+        # constraint for suction bucket sizing only. May add more constraints for other anchors in the future...
+        def conFun_suction(vars,LD_con,geomKeys):
+            newGeom = dict(zip(geomKeys,vars))
+            if newGeom['L']/newGeom['D'] >= LD_con[0] and newGeom['L']/newGeom['D'] <= LD_con[1]:
+                conval = 1 
+            else:
+                conval = -1 
+            
+            return(conval)
+        # constraint to ensure FS > minimum required FS (or unity check > 1 for suction buckets)
+        def conFun(vars,minfs):
+            conval = 1
+            if 'suction' in self.dd['type']:
+                results = self.getAnchorCapacity(plot=False)
+                if results['UC'] < 1:
+                    conval = -1
+            else:
+                FS = self.getFS()
+                for key,val in FS.items():
+                    if val/minfs[key]<1:
+                        conval = -1
+            return(conval)
+        
+        # Initial guess for geometry
+        if 'type' in startGeom:
+            startGeom.pop('type')
+        initial_guess = [val for val in startGeom.values()]       # Input values for geometry
+        geomKeys = [key for key in startGeom.keys()]
+        
+        # Bounds and constraints
+        if 'suction' in anchType:
+            # bounds = [(1, 7), (5, 50),()]   # Bounds for D and L
+            # constraints
+            constraints = [{'type':'ineq','fun':conFun_suction,'args':(LD_con,geomKeys)},
+                           {'type':'ineq','fun':conFun,'args':(minfs,)}]
+        else:
+            # bounds = None
+            constraints = ({'type':'ineq','fun':conFun,'args':(minfs,)})
+        
+        # Run the optimization to find sizing that satisfy UC close to 1
+        print('optimizing anchor size')
+        solution = minimize(objective, initial_guess, args=(geomKeys,), method="COBYLA",
+                            constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
+        
+        # Extract the optimized values of geometry
+        endGeom = dict(zip(geomKeys,solution.x))
+        print('End geometry: ',endGeom)
+        self.dd['design'].update(endGeom)
+        if 'suction' in anchType:
+            self.dd['design']['zlug'] = (2/3)*self.dd['design']['L'] 
+        results = self.getAnchorCapacity(plot=False)            
             
         # # check if anchor loads are available
         # if not self.loads:
