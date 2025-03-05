@@ -4318,24 +4318,24 @@ class Project():
         yaw_init = np.zeros((1, len(self.platformList.items())))
         for _, pf in self.platformList.items():
             x, y, z   = pf.body.r6[0], pf.body.r6[1], pf.body.r6[2]
-            phi       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
-            phi       = (phi + 180) % 360 - 180  # Shift range to -180 to 180
+            phi_deg       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
+            phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
             for att in pf.attachments.values():
                 if isinstance(att['obj'],Turbine):
                     D    = 240   # att['obj'].D         (assuming 15MW)
                     zhub = att['obj'].dd['hHub']
                 
             wts[i] = {
-                'x': x, 'y': y, 'z': z, 'phi': phi, 'D': D, 'zhub': zhub, 
+                'x': x, 'y': y, 'z': z, 'phi_deg': phi_deg, 'D': D, 'zhub': zhub, 
                 'cmax': cmax, 'fmax': fmax, 'Cmeander': Cmeander
                 }
-            yaw_init[0, i] = -phi
+            yaw_init[0, i] = -phi_deg
             i += 1
 
         # store farm-level wind turbine information
         self.wts = wts
 
-        return wts, yaw_init
+        return wts, yaw_init  
     
     def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True, removeBody=True, MDoptionsDict={}):
         '''
@@ -4365,7 +4365,7 @@ class Project():
         # Unrotate turbines if needed
         if unrotateTurbines:
             if self.wts:
-                phiV = [wt['phi'] for wt in self.wts.values()]  # [180, 0] # to unrotate the platforms when unloading MoorDyn
+                phiV = [wt['phi_deg'] for wt in self.wts.values()]  # to unrotate the platforms when unloading MoorDyn
             else:
                 raise ValueError("wts is empty. Please run project.extractFarmInfo first before extracting MoorDyn")
         else:
