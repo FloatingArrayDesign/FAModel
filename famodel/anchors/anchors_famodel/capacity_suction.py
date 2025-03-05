@@ -174,7 +174,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
     X = Hmax*x; Y = Vmax*y
     if plot:
         plt.plot(X, Y, color = 'b')
-        plt.plot(H, V, color = 'r')
+        plt.plot(H, V, '*', color = 'r')
             
         # Set labels and title
         plt.xlabel('Horizontal capacity [kN]')
