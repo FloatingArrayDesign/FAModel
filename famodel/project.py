@@ -2568,7 +2568,11 @@ class Project():
             r6 = [PF.r[0],PF.r[1],0,0,0,0]
             # use bodyInfo dictionary to create moorpy body if given
             if bodyInfo:
-                self.ms.addBody(-1,r6,m=bodyInfo[body]['m'],v=bodyInfo[body]['v'],rCG=np.array(bodyInfo[body]['rCG']),rM=np.array(bodyInfo[body]['rM']),AWP=bodyInfo[body]['AWP'])
+                if not PF.entity=="FOWT":
+                    r6[2] = bodyInfo[body]['rCG'][-1]
+                    self.ms.addBody(-1,r6,m=bodyInfo[body]['m'],v=bodyInfo[body]['v'],rCG=np.array(bodyInfo[body]['rCG']),rM=np.array(bodyInfo[body]['rM']),AWP=bodyInfo[body]['AWP'])
+                else:
+                    self.ms.addBody(-1,r6,m=bodyInfo[body]['m'],v=bodyInfo[body]['v'],rCG=np.array(bodyInfo[body]['rCG']),rM=np.array(bodyInfo[body]['rM']),AWP=bodyInfo[body]['AWP'])
             elif 'm' in dd and 'v' in dd:
                 self.ms.addBody(-1, r6,m=PF.dd['m'],v=PF.dd['v'])
             elif not bodyInfo and wflag == 0: # default to UMaine VolturnUS-S design hydrostatics info
@@ -3712,19 +3716,23 @@ class Project():
         
         if not self.ms:
             self.getMoorPyArray()
-             
+
+            
         # apply thrust force to platforms at specified angle intervals
         for i,ang in enumerate(angs):
             print('Analyzing platform offsets at angle ',ang)
             fx = thrust*np.cos(np.radians(ang))
             fy = thrust*np.sin(np.radians(ang))
-            
+               
             # add thrust force and moment to the body
-            for body in self.ms.bodyList:
-                body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                       
+            for pf in self.platformList.values():
+                if pf.entity.upper() == 'FOWT':
+                    pf.body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                                       
+            
             # solve equilibrium 
             self.ms.solveEquilibrium3(DOFtype='both')
-        
+            self.ms.plot(draw_seabed=False)
+            plt.show()    
             # save info if requested
             if SFs:
                 # get loads on anchors (may be shared)
@@ -4129,7 +4137,7 @@ class Project():
                 if not 'type' in conf['connectors'][i+1]:
                     # make a new connector type
                     #conf['connectors'][i+1] = cleanDataTypes(conf['connectors'][i+1])
-                    connTypes[str(len(connTypes))] = conf['connectors'][i+1]
+                    connTypes[str(len(connTypes))] = dict(conf['connectors'][i+1])
                     ctn = str(int(len(connTypes)))
                 else:
                     ctn = conf['connectors'][i+1]['type']
