@@ -634,6 +634,8 @@ class Anchor(Node):
             Dictionary of safety factors (often horizontal and vertical load SFs, but could be displacement SFs (drilled and grouted/driven piles))
         acceptance : dict
             Dictionary of bools that state whether the FS>=acceptance_crit for each load
+        acceptance_margin : dict
+            Dictionary of difference between FS and acceptance criteria for each load type
         
 
         '''
@@ -647,6 +649,7 @@ class Anchor(Node):
         # look for load dictionary key in capacity dictionary
         FS = {}
         acceptance = {}
+        acceptance_margin = {}
         for Lkey,Lval in loads.items():
             for Ckey,Cval in self.anchorCapacity.items():
                 if Lkey in Ckey:
@@ -655,10 +658,14 @@ class Anchor(Node):
                     else:
                         FS[Lkey] = Cval/Lval
                     if acceptance_crit and Lkey in acceptance_crit:
-                        acceptance[Lkey] = acceptance_crit[Lkey]<=FS[Lkey]
+                        if Lval == 0:
+                            acceptance[Lkey] = True
+                        else:
+                            acceptance[Lkey] = acceptance_crit[Lkey]<=FS[Lkey]
+                            acceptance_margin[Lkey] = FS[Lkey] - acceptance_crit[Lkey]
                     
         if acceptance_crit:
-            return(FS,acceptance[Lkey])
+            return(FS,acceptance,acceptance_margin)
         else:
             return(FS)
             
@@ -787,20 +794,30 @@ class Anchor(Node):
    
 
     def getSize(self, geom, geomKeys, geomBounds=None, loads=None, minfs={'Ha':1.6,'Va':2}, 
-                LD_con=[4,8], bounds=None, fix_zlug=False, plot=False):
+                LD_con=[4,8], fix_zlug=False, FSdiff_max=None, plot=False):
         '''
         
     
         Parameters
         ----------
-        startGeom: dict
-            starting guess geometry
+        geom: list
+            starting guess geometry values
+        geomKeys : list
+            List of keys that match the geom list values i.e. 'L','D','zlug'
+        geomBounds : list,optional
+            List of upper and lower bounds for each geometry value. 
+            Each entry should be a tuple of upper and lower bounds for each geometry i.e. [(5,10),(10,20)]
         loads : dict, optional
-            Dictionary of maximum anchor loads in horizontal and vertical directions. The default is None.
-        minfs : dict,optoinal
+            Dictionary of maximum anchor loads in horizontal and vertical directions (not including factor of safety). The default is None.
+        minfs : dict,optional
             Minimum factors of safety in horizontal and vertical directions
         LD_con : float
             Constraint for L/D parameter
+        fix_zlug : bool
+            Boolean to decide if zlug should be altered as geometric values are altered. 
+            True = fixed zlug, False = zlug may be changed
+        plot : bool
+            Boolean controls if capacity plots are generated or not for the final configuration
     
         Returns
         -------
@@ -817,6 +834,7 @@ class Anchor(Node):
                 self.dd['design']['zlug'] = (2/3)*newGeom['L']
             # get results
             results = self.getAnchorCapacity(loads=input_loads, plot=False)
+                
             return(results['Weight'])
         
         # constraint for suction bucket sizing only. May add more constraints for other anchors in the future...
@@ -893,9 +911,13 @@ class Anchor(Node):
                 self.dd['design']['zlug'] = 0
         
         # if zlug is fixed, remove it from design variables
-        if fix_zlug and 'zlug' in startGeom:
+        if fix_zlug and 'zlug' in geomKeys:
+            zlug_loc = np.where('zlug' in geomKeys)[0][0]
             startGeom.pop('zlug')
             geomKeys.remove('zlug')
+            geom.pop(zlug_loc)
+            if geomBounds:
+                geomBounds.pop(zlug_loc)
         
         # Initial guess for geometry
         initial_guess = geom  # [val for val in startGeom.values()]       # Input values for geometry
@@ -916,13 +938,51 @@ class Anchor(Node):
         
         # Run the optimization to find sizing that satisfy UC close to 1
         print('optimizing anchor size')
+        
         if not geomBounds:
             solution = minimize(objective, initial_guess, args=(geomKeys, input_loads, fix_zlug), method="COBYLA",
-                                constraints=constraints, options={'disp':True, 'rhobeg':0.1, 'catol':0.001})
+                                constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
         else:
             solution = minimize(objective, initial_guess, args=(geomKeys, input_loads, fix_zlug), method="COBYLA",
                                 constraints=constraints, bounds=geomBounds, 
                                 options={'rhobeg':0.1, 'catol':0.001})
+        
+        FS, acceptance, FSdiff = self.getFS(acceptance_crit=minfs)
+        
+        # adjust starting value if you're far off from the acceptance criteria (in either direction)
+        if FSdiff_max:
+            count = 0
+            while count<10 and (np.any([abs(FSdiff[key])>FSdiff_max[key] for key in FSdiff.keys()]) or np.any([diff<0 for diff in FSdiff.values()])):
+                if np.any([diff<.05 for diff in FSdiff.values()] and np.all([diff>=0 for diff in FSdiff.values()])):
+                    # exit loop if you're as close as can be on one of the FS even if other is above diff requirements UNLESS an FS is below minimum reqiured FS
+                    break
+                print('Factor of Safety not close enough to minimum factor of safety, trying again with adjusted initial guess.')
+
+                # calculate new percent difference of FS from min fs
+                diffPCT = [FSdiff[key]/FS[key] for key in FSdiff]
+                # create adjustment coefficient based on this or .25, whichever is lower
+                adjust_coeff = np.min([np.min(diffPCT),0.25])
+                # adjust initial guess values by adjustment coefficient
+                for i,val in enumerate(initial_guess):
+                    initial_guess[i] = val - val*adjust_coeff
+                # update zlug for suction buckets as needed to be 2/3L
+                if 'suction' in anchType and not fix_zlug:
+                    zlug_loc = geomKeys.index('zlug')
+                    L_loc = geomKeys.index('L')
+                    initial_guess[zlug_loc] = (2/3)*initial_guess[L_loc]
+
+                print('new initial guess',initial_guess)
+                # re-run optimization
+                if not geomBounds:
+                    solution = minimize(objective, initial_guess, args=(geomKeys, input_loads, fix_zlug), method="COBYLA",
+                                        constraints=constraints, options={'disp':True, 'rhobeg':0.1, 'catol':0.0001})
+                else:
+                    solution = minimize(objective, initial_guess, args=(geomKeys, input_loads, fix_zlug), method="COBYLA",
+                                        constraints=constraints, bounds=geomBounds, 
+                                        options={'rhobeg':0.1, 'catol':0.001,'maxiter':400})
+                # re-determine FS and diff from minFS
+                FS, acceptance, FSdiff = self.getFS(acceptance_crit=minfs)  
+                count += 1
         
         # Extract the optimized values of geometry
         endGeom = dict(zip(geomKeys,solution.x))

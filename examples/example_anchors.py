@@ -32,10 +32,11 @@ loads_with_FS = {'Ha':anch.loads['Ha']*minfs['Ha'],'Va':anch.loads['Va']*minfs['
 anch.getAnchorCapacity(loads=loads_with_FS) # loads are used in capacity calculation, so let's send in the loads with factor of safety applied
 
 # get anchor cost
-startGeom = [10,2,9.32]
+startGeom = [15,2,9.32]
 geomKeys = ['L','D','zlug']
 geomBounds = [(5, 50), (1, 7), (3.3,16.7)]
-anch.getSize(startGeom,geomKeys,geomBounds,minfs=minfs,plot=True)
+FSDiff_max = {'Ha':5,'Va':5}
+anch.getSize(startGeom,geomKeys,geomBounds,minfs=minfs,FSdiff_max=FSDiff_max, plot=True)
 anch.getCost()
 print('\nClay suction pile capacity is: ',anch.anchorCapacity)
 print('Clay suction pile safety factor is: ',anch.getFS())
@@ -61,8 +62,8 @@ newdd['type'] = 'DEA'
 newdd['design'] = {'type':'DEA','A':20,'zlug':20,'beta':10}
 newdd['soil_type'] = 'clay'
 
-startGeom = [10]
-geomKeys = ['A']
+startGeom = [10,20]
+geomKeys = ['A','zlug']
 
 anch.getLugForces()
 anch.getAnchorCapacity(loads=loads_with_FS)
