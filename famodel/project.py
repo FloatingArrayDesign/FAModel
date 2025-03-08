@@ -545,7 +545,9 @@ class Project():
                         for anch in self.anchorList: #range(0,len(self.anchorList)):
                             if anch == arrayMooring[j]['end A']:
                                 mc.attachTo(self.anchorList[anch],end='A')
-
+                                mc.rA[-1] = self.anchorList[anch].r[-1]
+                                mc.dd['zAnchor'] = self.anchorList[anch].r[-1]
+                                mc.z_anch = self.anchorList[anch].r[-1]
                     else:
                         # find location of anchor in arrayAnchor table
                         for k in range(0,len(arrayAnchor)):
@@ -561,7 +563,9 @@ class Project():
                         self.anchorList[arrayAnchor[aNum]['ID']] = Anchor(dd=ad, r=[aloc[0],aloc[1],-zAnew], aNum=aNum,id=arrayAnchor[aNum]['ID'])
                         # attach mooring object to anchor
                         mc.attachTo(self.anchorList[(arrayAnchor[aNum]['ID'])],end='A')
-                  
+                        mc.rA = [aloc[0],aloc[1],-zAnew]
+                        mc.dd['zAnchor'] = -zAnew
+                        mc.z_anch = -zAnew
                     # add mooring object to project mooring list
                     self.mooringList[str(PFNum[0])+alph[ind]] = mc
                     # attach mooring object to platform
@@ -3533,7 +3537,7 @@ class Project():
                     if not 'type' in conf['connectors'][i]:
                         # make a new connector type
                         connTypes[str(int(len(connTypes)))] = dict(conf['connectors'][i])
-                        ctn = str(int(len(connTypes))) # connector type name
+                        ctn = str(int(len(connTypes)-1)) # connector type name
                     else:
                         ctn = str(conf['connectors'][i]['type'])
                         connTypes[ctn] = dict(conf['connectors'][i])
@@ -3562,7 +3566,7 @@ class Project():
                     # make a new connector type
                     #conf['connectors'][i+1] = cleanDataTypes(conf['connectors'][i+1])
                     connTypes[str(len(connTypes))] = conf['connectors'][i+1]
-                    ctn = str(int(len(connTypes)))
+                    ctn = str(int(len(connTypes)-1))
                 else:
                     ctn = conf['connectors'][i+1]['type']
                     connTypes[ctn] = dict(conf['connectors'][i+1])    
