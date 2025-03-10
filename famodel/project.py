@@ -3731,7 +3731,124 @@ class Project():
         with open(file,'w') as f:    
             yaml.dump(output,f)
         
+    def extractFarmInfo(self, cmax=5, fmax=10/6, Cmeander=1.9):
+        '''
+        Function to extract farm-level information required to create FAST.Farm case simulations. [Under developement]:
+
+        Parameters
+        ----------
+        cmax : float, optional
+            maximum blade chord (m)
+        fmax: maximum excitation frequency (Hz)
+        Cmeander: Meandering constant (-)
+        
+        Returns
+        -------
+        wts : dict
+            General farm-level information needed for FAST.Farm from project class
+        yaw_init : list 
+            initial yaw offset values (for not it's set as just the platform orientation adjusted for rotational convention variation between FAM and FF)
+        '''      
+
+
+        # ----------- Extract Wind Farm Data
+        wts = {}
+        i = 0
+        yaw_init = np.zeros((1, len(self.platformList.items())))
+        for _, pf in self.platformList.items():
+            x, y, z   = pf.body.r6[0], pf.body.r6[1], pf.body.r6[2]
+            phi_deg       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
+            phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
+            for att in pf.attachments.values():
+                if isinstance(att['obj'],Turbine):
+                    D    = 240   # att['obj'].D         (assuming 15MW)
+                    zhub = att['obj'].dd['hHub']
+                
+            wts[i] = {
+                'x': x, 'y': y, 'z': z, 'phi_deg': phi_deg, 'D': D, 'zhub': zhub, 
+                'cmax': cmax, 'fmax': fmax, 'Cmeander': Cmeander
+                }
+            yaw_init[0, i] = -phi_deg
+            i += 1
+
+        # store farm-level wind turbine information
+        self.wts = wts
+
+        return wts, yaw_init  
     
+    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True, removeBody=True, MDoptionsDict={}):
+        '''
+        Function to create FFarm-compatible MoorDyn input file:
+
+        Parameters
+        ----------
+        filename : str
+            Name of the MoorDyn output file (.dat)
+        unrotateTurbines: bool, optional
+            A flag to unrotate turbine (body) objects when passing it to MoorPy unload function [FFarm takes fairlead points in the local-unrotated reference frame]
+        renameBody: bool, optional
+            A flag to rename `Body` objects in the output MD file into `Turbine` to be compatible with FFarm. 
+        removeBody: boo., optional
+            A flag to remove 'Body' objects in the Bodies list in the output MD file to be compatible with FFarm.
+        MDoptionsDict: dictionary, optional
+            MoorDyn Options. If not given, default options are considered.            
+        '''          
+        from moorpy.helpers import subsystem2Line    
+        
+        # convert SS to lines
+        ms_temp = deepcopy(self.ms)  # copy to avoid affecting self.ms
+        lineCount = len(ms_temp.lineList)
+        for _ in range(lineCount):
+            subsystem2Line(ms_temp, 0)
+        
+        # Unrotate turbines if needed
+        if unrotateTurbines:
+            if self.wts:
+                phiV = [wt['phi_deg'] for wt in self.wts.values()]  # to unrotate the platforms when unloading MoorDyn
+            else:
+                raise ValueError("wts is empty. Please run project.extractFarmInfo first before extracting MoorDyn")
+        else:
+            phiV = None
+        
+        ms_temp.unload(fileName=filename, phiV=phiV, MDoptionsDict=MDoptionsDict)
+        
+        # rename Body to Turbine if needed
+        if renameBody:
+            # Rename Body to Turbine:
+            with open(filename, 'r') as f:
+                filedata = f.read()
+
+                filedata = filedata.replace('Body', 'Turbine')
+                with open(filename, 'w') as f:
+                    f.write(filedata)
+
+                f.close()       
+        
+        if removeBody:
+            with open(filename, 'r') as f:
+                lines = f.readlines()
+
+            newLines = []
+            skipCount = 0
+
+            for i, line in enumerate(lines):
+                if '---' in line and ('BODIES' in line.upper() or 'BODY LIST' in line.upper() or 'BODY PROPERTIES' in line.upper()):
+                    newLines.append(line)
+                    newLines.append(next(iter(lines[i+1:])))  # Append 2 lines
+                    newLines.append(next(iter(lines[i+2:]))) 
+
+                    skipCount = 2 + len(self.platformList)  # Skip the number of platforms and the already appended lines above
+                    continue
+
+                if skipCount > 0:
+                    skipCount -= 1
+                else:
+                    newLines.append(line)
+
+            with open(filename, 'w') as f:
+                f.writelines(newLines)
+           
+
     def updateFailureProbability(self):
         '''
         Function to populate (or update) failure probability dictionaries in each object 
