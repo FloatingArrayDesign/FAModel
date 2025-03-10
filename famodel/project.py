@@ -3137,8 +3137,8 @@ class Project():
             md = {'span':minfo['span'],'sections':[],'connectors':[]}
       
     def arrayWatchCircle(self,plot=False, ang_spacing=45, RNAheight=150,
-                         shapes=True,thrust=1.95e6,SFs=True,moor_envelopes=True,
-                         DAF=1):
+                         shapes=True,thrust=1.95e6,SFs=True,moor_envelopes=True, 
+                         moor_seabed_disturbance=False, DAF=1):
         '''
         Method to get watch circles on all platforms at once
 
@@ -3188,6 +3188,7 @@ class Project():
         x = np.zeros((len(self.platformList),n_angs))
         y = np.zeros((len(self.platformList),n_angs))
         
+        lBots = np.zeros(len(self.mooringList))  # initialize for maximum laid length per mooring
         if not self.ms:
             self.getMoorPyArray()
              
@@ -3202,7 +3203,6 @@ class Project():
                 body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                       
             # solve equilibrium 
             self.ms.solveEquilibrium3(DOFtype='both')
-        
             # save info if requested
             if SFs:
                 # get loads on anchors (may be shared)
@@ -3240,7 +3240,13 @@ class Project():
                         moor.loads['TBmax'] = moor.ss.TB*DAF
                         moor.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
                         moor.safety_factors['tension'] = minTenSF[j]
-                        
+                    
+                    # store max. laid length of the mooring lines
+                    if moor_seabed_disturbance:
+                        lBot = 0
+                        for line in moor.ss.lineList:
+                            lBot += line.LBot
+                        lBots[j] = max(lBots[j], lBot)
                                 
                 # get tensions and curvature on cables
                 for j,cab in enumerate(self.cableList.values()):
@@ -3299,6 +3305,23 @@ class Project():
             for moor in self.mooringList.values():
                 moor.getEnvelope()
         
+        # estimate seabed disturbance from lines dragging on the seabed: assuming circular watch circles, use maximum offset and maximum laid length of the line.
+        if moor_seabed_disturbance:
+            for j, moor in enumerate(self.mooringList.values()):
+                # compute maximum offset of the attached platform
+                Rmaxx = 0
+                for att in moor.attached_to:
+                    if isinstance(att, Platform): # not sure if I also have to check the topside of that platform to make sure it's FOWT - Rudy.
+                        cntr = att.r
+                        x_cntr = att.envelopes['mean']['x'] - cntr[0]
+                        y_cntr = att.envelopes['mean']['y'] - cntr[1]
+                        R = np.sqrt(x_cntr**2 + y_cntr**2)
+                        Rmax = max(R)
+                        Rmaxx = max([Rmaxx, Rmax])
+                
+                # compute disturbed area from the laid length 
+                moor.disturbedSeabedArea += (lBots[j]**2 * Rmaxx)/(moor.rad_anch)
+                            
         if SFs:
             maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
             return(x,y,maxVals)     
