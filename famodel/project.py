@@ -641,11 +641,12 @@ class Project():
                     else:
                         # this is a suspended cable - add headingB
                         Acondd['headingB'] = np.radians(90-cab['headingB'])
-                        
+                    
+                    rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
+                    Acondd['rJTube'] = rJTubeA
                     dd['cables'].append(Acondd)
                     # get conductor area to send in for static cable
                     A = Acondd['A']
-                    rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
                     
                 if stat_cab:    
                     # add static cable
@@ -660,12 +661,14 @@ class Project():
                                                       cable_types, cable_appendages,
                                                       self.depth, rho_water=self.rho_water, 
                                                       g=self.g)
+                    
+                    rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
+                    Bcondd['rJTube'] = rJTubeB
                     # add heading for end A to this cable
                     Bcondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
                     dd['cables'].append(Bcondd)
                     # add joint (even if empty)
                     dd['joints'].append(jBcondd)
-                    rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
                     
 
                     
@@ -721,11 +724,12 @@ class Project():
                        
                     # add headingA
                     Acondd['headingA'] = np.radians(90-cab['endA']['heading'])
+                    rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
+                    Acondd['rJTube'] = rJTubeA
                     # append to cables list
                     dd['cables'].append(Acondd)
                     
                     A = dyn_cable_configs[dyn_cabA]['A']
-                    rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
                     
                     
                 # load in static cable design incl. routing and burial
@@ -750,12 +754,14 @@ class Project():
                                                       g=self.g)
                     # add headingB
                     Bcondd['headingB'] = np.radians(90-cab['endB']['heading'])
+                    
+                    rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
+                    Bcondd['rJTube'] = rJTubeB
                     # append to cables list
                     dd['cables'].append(Bcondd)
                     # append to joints list
                     dd['joints'].append(jBcondd)
                     
-                    rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
                     
                 # cable ID
                 cableID = cab['name'] + str(len(self.cableList))
@@ -3611,10 +3617,8 @@ class Project():
         cables = []
         cableTypes = {}
         cableConfigs = {}
-        cIdx = 0
         cUnique = []
         bUnique = []
-        bIdx = 0
         appendageTypes = {}
         jUnique = []
         jIdx = 0
@@ -3626,47 +3630,35 @@ class Project():
             angB = np.pi/2 - np.arctan2(cab.subcomponents[-1].rA[1]-cab.rB[1],cab.subcomponents[-1].rA[0]-cab.rB[0])
             headB = float(np.degrees(angB - endB.phi))
             coords = []
-            statcab = None
+            statcab = 'None'
             dynCabs = [None,None]
             burial = None
             
             for kk,sub in enumerate(cab.subcomponents):
                 currentConfig = {}
-                # if isinstance(sub,Joint):
-                #     if 'm' in sub or 'v' in sub and (sub['m']!=0 or sub['v']!=0):
-                #         jKey = (getFromDict(sub,'m',default=0),getFromDict(sub,'v',default=0))
-                #         if not jKey in jUnique:
-                #             jUnique.append(jKey)
-                #             jtn = 'joint_'+str(jIdx)
-                #             appendageTypes[jtn] = dict(deepcopy(sub))
-                #             if sub['r']:
-                #                 appendageTypes[jtn].pop('r')
-                #             jIdx += 1
-                #         else:
-                #             jtd = deepcopy(sub)
-                #             if 'r' in sub:
-                #                 jtd.pop('r')
-                #             jtn = [key for key,val in appendageTypes.items() if val==jtd][0]
                     
                 if isinstance(sub,StaticCable):
                     # pull out cable config and compare it to existing cableConfigs
                     ctw = sub.dd['cable_type']['w']
                     ctA = sub.dd['cable_type']['A'] 
                     cKey = (ctw,ctA)
-                    ctf = False; ctv = 'static_cable_'+str(cIdx)
+                    ctf = False
                     # check if made with getCableProps (then we can skip writing out cable type info)
                     if 'notes' in sub.dd['cable_type']:
                         if 'made with getCableProps' in sub.dd['cable_type']['notes']:
                             ctk = 'cableFamily'
-                            ctv = 'static_cable_'+str(sub.voltage)
+                            ctn = 'static_cable_'+str(int(sub.voltage))
                             ctf = True
                     
                     # create current cable config dictionary
-                    if not cKey in cUnique and not ctf:
-                        cUnique.append(cKey)                        
-                        ctv = sub.dd['cable_type']['name'] if not ctv in cableTypes.keys() else 'stat_cab_'+str(len(cUnique))
-                        cableTypes[ctv] = sub.dd['cable_type']
-                        cIdx += 1
+                    if not ctf:
+                        if not cKey in cUnique:
+                            cUnique.append(cKey)                        
+                            ctn = 'stat_cab_'+str(len(cUnique)-1)
+                            cableTypes[ctn] = sub.dd['cable_type']
+                        else:
+                            cIdx = cUnique.index(cKey)
+                            ctn = 'stat_cab_'+str(cIdx)
                     
 
                     
@@ -3677,39 +3669,42 @@ class Project():
                     if hasattr(sub,'burial'):
                         burial = sub.burial
                         
-                    statcab = ctv
+                    statcab = ctn
 
                         
                 elif isinstance(sub,DynamicCable):
                     # pull out cable config and compare it to existing cableConfigs
                     ct = sub.dd['type'] # static or dynamic
                     ctw = sub.dd['cable_type']['w']
-                    ctA = sub.dd['cable_type']['A'] 
+                    ctA = sub.dd['A'] 
                     cKey = (ctw,ctA)
-                    ctf = False; ctk = 'cable_type'; ctv = ct+'_cable_'+str(cIdx)
+                    ctf = False; ctk = 'cable_type'
                     # check if made with getCableProps (then we can skip writing out cable type info)
                     if 'notes' in sub.dd['cable_type']:
                         if 'made with getCableProps' in sub.dd['cable_type']['notes']:
-                            ctv = ct+'_cable_'+str(sub.voltage)
+                            ctn = ct+'_cable_'+str(int(sub.voltage))
                             ctf = True
                     # check if cable type has already been written
-                    if not cKey in cUnique and not ctf:
-                        cUnique.append(cKey)                        
-                        ctn = sub.dd['cable_type']['name']
-                        cableTypes[ctn] = sub.dd['cable_type']
-                        cIdx += 1
+                    if not ctf:
+                        if not cKey in cUnique:
+                            cUnique.append(cKey)                        
+                            ctn = 'dyn_cab_'+str(len(cUnique)-1)
+                            cableTypes[ctn] = sub.dd['cable_type']
+                        else:
+                            cIdx = cUnique.index(cKey)
+                            ctn = 'dyn_cab_'+str(cIdx)
                     # collect buoyancy sections info if applicable
                     bs = []
                     if 'buoyancy_sections' in sub.dd:
                         for b in sub.dd['buoyancy_sections']:
                             btw = b['module_props']['w']; btv = b['module_props']['volume']
                             if not (btw,btv) in bUnique:
-                                btn = 'buoy_'+str(bIdx)
                                 bUnique.append((btw,btv))
-                                bIdx += 1
+                                btn = 'buoy_'+str(len(bUnique)-1)
                                 appendageTypes[btn] = b['module_props']
+                                appendageTypes[btn]['type'] = 'buoy'
                             else:
-                                bid = np.where(bUnique == (btw,btv))[0]
+                                bid = bUnique.index((btw,btv))
                                 btn = 'buoy_'+str(bid)
                             bs.append({'L_mid':b['L_mid'],'N_modules':b['N_modules'],
                                       'spacing':b['spacing'],'V':b['module_props']['volume'],
@@ -3719,30 +3714,33 @@ class Project():
                             pass # UPDATE TO PULL OUT APPENDAGE INFO AND STORE
                             
                     # grab joint info
-                    prevpost = [cab.subcomponents[kk-1],cab.subcomponents[kk+1]]
-                    jsub = [isinstance(ssc,Joint) for ssc in prevpost]
-                    if any(jsub):
-                        sc = np.where(jsub)[0][0]
+                    if kk == 0 and len(cab.subcomponents)>1:
+                        sc = cab.subcomponents[kk+1] 
+                    else:
+                        sc = cab.subcomponents[kk-1]
+                    jsub = isinstance(sc,Joint)
+                    if jsub:
                         # grab joint info and add
-                        if 'm' in prevpost[sc] or 'v' in prevpost[sc] and (prevpost[sc]['m']!=0 or prevpost[sc]['v']!=0):
-                            jKey = (getFromDict(prevpost[sc],'m',default=0),getFromDict(prevpost[sc],'v',default=0))
+                        if 'm' in sc or 'v' in sc and (sc['m']!=0 or sc['v']!=0):
+                            jKey = (getFromDict(sc,'m',default=0),getFromDict(sc,'v',default=0))
                             if not jKey in jUnique:
                                 jUnique.append(jKey)
-                                jtn = 'joint_'+str(jIdx)
-                                appendageTypes[jtn] = dict(deepcopy(prevpost[sc]))
-                                if prevpost[sc]['r']:
+                                jtn = 'joint_'+str(len(jUnique)-1)
+                                appendageTypes[jtn] = dict(deepcopy(sc))
+                                appendageTypes[jtn]['type'] = 'joint'
+                                if 'r' in sc:
                                     appendageTypes[jtn].pop('r')
-                                jIdx += 1
                             else:
-                                jtd = deepcopy(prevpost[sc])
-                                if 'r' in prevpost[sc]:
+                                jtd = deepcopy(sc)
+                                if 'r' in sc:
                                     jtd.pop('r')
-                                jtn = [key for key,val in appendageTypes.items() if val==jtd][0]
+                                jIdx = jUnique.index(jKey)
+                                jtn = 'joint_'+str(jIdx)
                             bs.append({'type':jtn})
                     # create current cable config dictionary
-                    currentConfig = {ctk:ctv,'A':ctA,'rJTube':sub.dd['rJTube'],
+                    currentConfig = {ctk:ctn,'A':ctA,'rJTube':sub.dd['rJTube'],
                                      'span':sub.dd['span'],'length':sub.L,
-                                     'voltage':sub.dd['voltage'],'sections':bs}
+                                     'voltage':sub.dd['cable_type']['voltage'],'sections':bs}
                     # check if current cable config already exists in cable configs dictionary
                     if currentConfig in cableConfigs.values():
                         ccn = [key for key,val in cableConfigs.items() if val==currentConfig][0] # get cable config key
@@ -3768,10 +3766,8 @@ class Project():
                         'heading':headB,
                         'dynamicID':dynCabs[1] if dynCabs[1] else 'None'}
             
-            cables.append({'name':cid,'endA':endAdict,'endB':endBdict})
+            cables.append({'name':cid,'endA':endAdict,'endB':endBdict,'type':statcab})
             
-            if statcab:
-                cables[-1]['type'] = statcab
             if route:
                 cables[-1]['routing_x_y_r'] = coords
             if burial:

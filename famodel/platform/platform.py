@@ -213,7 +213,7 @@ class Platform(Node):
                             # attach subsystem line to the fairlead point
                             self.ms.pointList[-1].attachLine(i,1)
                             # attach fairlead point to body
-                            self.ms.bodyList[0].attachPoint(len(self.ms.pointList),self.ms.pointList[-1].r-np.append(self.r, [0]))
+                            self.ms.bodyList[0].attachPoint(len(self.ms.pointList),self.ms.pointList[-1].r-np.append(self.r[:2], [0]))
         # initialize and plot
         self.ms.initialize()
         self.ms.solveEquilibrium()

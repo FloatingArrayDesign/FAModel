@@ -15,6 +15,8 @@ class Substation(Node):
         
         Node.__init__(self, id)  # initialize Edge base class
         
+        self.dd = dd
+        
         # cost dictionary
         self.cost = {}
         # dictionary of failure probability
