@@ -15,13 +15,6 @@ class Substation(Node):
         
         Node.__init__(self, id)  # initialize Edge base class
         
-        # get location of subsystem
-        self.r = dd['r']
-        self.phi = None
-        self.rFair = None
-        self.zFair = None
-        self.point = None
-        
         # cost dictionary
         self.cost = {}
         # dictionary of failure probability

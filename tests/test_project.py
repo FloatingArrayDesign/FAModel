@@ -77,10 +77,7 @@ def test_create_components():
     assert len(project.cableList) == 3
     
     # check number of turbines
-    assert len(project.turbineList) == 3
-    
-    # check number of substations
-    assert len(project.substationList) == 1
+    assert len(project.turbineList) == 4
     
     # check number of platforms
     assert len(project.platformList) == 4
@@ -116,19 +113,19 @@ def test_headings_repositioning():
     # check angles and repositioning for regular mooring line and shared mooring line, reg cable and suspended cable
     assert_allclose(np.hstack((project.mooringList['FOWT1a'].rA,project.mooringList['FOWT1-FOWT2'].rA)),
                     np.hstack(([-828.637,-828.637,-600],[40.5,0,-20])),rtol=0,atol=0.5)
-    assert_allclose(np.hstack((project.cableList['array_cable10'].subcomponents[0].rB,project.cableList['suspended_cable11'].subcomponents[0].rB)),
+    assert_allclose(np.hstack((project.cableList['array_cable12'].subcomponents[0].rB,project.cableList['cable0'].subcomponents[0].rB)),
                     np.hstack(([640.5,0,-600],[0,1615.5,-20])),rtol=0,atol=0.5)
     
 def test_marine_growth():
     project = Project(file='tests/testOntology.yaml',raft=0)
     # check correct mg gets added to specified mooring lines and cables for ss_mod
-    project.getMarineGrowth(lines=['FOWT1a',['suspended_cable11',0]])
+    project.getMarineGrowth(lines=['FOWT1a',['cable0',0]])
     # pull out a mooring line and a cable to check
     Moor = project.mooringList['FOWT1a'].ss.lineList[1].type['d_nom']
     mgMoor = project.mooringList['FOWT1a'].ss_mod.lineList[2].type['d_nom']
     
-    Cab = project.cableList['suspended_cable11'].subcomponents[0].ss.lineList[0].type['d_vol']
-    mgCab = project.cableList['suspended_cable11'].subcomponents[0].ss_mod.lineList[0].type['d_vol']
+    Cab = project.cableList['cable0'].subcomponents[0].ss.lineList[0].type['d_vol']
+    mgCab = project.cableList['cable0'].subcomponents[0].ss_mod.lineList[0].type['d_vol']
     
     assert_allclose(np.hstack((mgMoor,mgCab)),np.hstack((Moor+0.1,Cab+0.4)),rtol=0,atol=0.05)
     

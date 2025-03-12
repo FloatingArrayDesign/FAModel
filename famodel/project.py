@@ -28,9 +28,12 @@ from famodel.cables.static_cable import StaticCable
 from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCableProps,loadBuoyProps
 from famodel.cables.components import Joint
 from famodel.turbine.turbine import Turbine
+from famodel.famodel_base import Node
 
 # Import select required helper functions
-from famodel.helpers import check_headings, head_adjust, getCableDD, getCables, getMoorings, getAnchors, getFromDict, cleanDataTypes, getCableDesign
+from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
+                            getMoorings, getAnchors, getFromDict, cleanDataTypes, 
+                            getStaticCables, getCableDesign)
 
 
 class Project():
@@ -174,7 +177,7 @@ class Project():
             NorthStart = ua['north_start']
             xSpacing = ua['spacing_x']
             ySpacing = ua['spacing_y']
-            turbID = ua['turbineID'] 
+            topID = ua['topsideID'] 
             pfID = ua['platformID']
             moorID = ua['mooringID']
             pfhead = ua['heading_adjust']
@@ -190,7 +193,7 @@ class Project():
             outy = np.hstack(ylocs)
 
             for i in range(ua['n_rows']*ua['n_cols']):
-                arrayInfo.append({'ID':'fowt'+str(i), 'turbineID':turbID, 'platformID':pfID,
+                arrayInfo.append({'ID':'fowt'+str(i), 'topsideID':topID, 'platformID':pfID,
                                   'mooringID':moorID, 'x_location':outx[i], 'y_location':outy[i],
                                   'heading_adjust':pfhead})
             
@@ -216,16 +219,18 @@ class Project():
         # ----- cables info -----
         cableInfo = {}
         if 'cables' in d and d['cables']:
+            
+            cableInfo = d['cables']
         
-            for ci in d['cables']:
-                for k, v in d['cables'].items():
-                    cableInfo[k] = v
+            # for ci in d['cables']:
+            #     for k, v in d['cables'].items():
+            #         cableInfo[k] = v
 
         # ----- cable configurations -----
-        cable_configs = {}
-        if 'cable_configs' in d and d['cable_configs']:
-            for k, v in d['cable_configs'].items():
-                cable_configs[k] = v
+        dyn_cable_configs = {}
+        if 'dynamic_cable_configs' in d and d['dynamic_cable_configs']:
+            for k, v in d['dynamic_cable_configs'].items():
+                dyn_cable_configs[k] = v
                 
         # ----- cable types -----
         cable_types = {}
@@ -246,7 +251,7 @@ class Project():
         if 'array_mooring' in d and d['array_mooring']:
             # for mooring lines: save a list of dictionaries from each row in the data section
             if 'line_data' in d['array_mooring']:
-                if d['array_mooring']['line_data']:                    
+                if d['array_mooring']['line_data']:      
                     arrayMooring = [dict(zip(d['array_mooring']['line_keys'], row)) for row in d['array_mooring']['line_data']]
             # for anchors: save a list of dictionaries from each row in the data section
             if 'anchor_data' in d['array_mooring']:
@@ -329,48 +334,54 @@ class Project():
             elif type(d['platform']) is list and len(d['platform'])>1:
                 raise Exception("'platform' section keyword must be changed to 'platforms' if multiple platforms are listed")
             else:
-                platforms = {} # dictionary of platform information
-                platforms = d['platform']
+                platforms = [] # dictionary of platform information
+                platforms.append(d['platform'])
                 RAFTDict['platform'] = d['platform']
                 self.platformTypes = d['platform']
         # load list of platform dictionaries into RAFT dictionary
         elif 'platforms' in d and d['platforms']:
             platforms = [] # list of dictionaries of platform information
-            platforms = d['platforms']
+            platforms.extend(d['platforms'])
             self.platformTypes = d['platforms']
             RAFTDict['platforms'] = d['platforms']
             
-        # ----- turbines -----
-        if 'turbine' in d and d['turbine']:
-            # check that there is only one turbine
-            if 'turbines' in d and d['turbines']:
-                raise Exception("Cannot read in items for both 'turbines' and 'turbine' keywords. Use either 'turbine' keyword for one platform or 'turbines' keyword for a list of platforms.")
-            elif type(d['turbine']) is list and len(d['turbine'])>1:
-                raise Exception("'turbine' section keyword must be changed to 'turbines' if multiple turbines are listed")
-            else:
-                turbines = {} # dictionary of turbine information
-                turbines = d['turbine']
-                RAFTDict['turbine'] = d['turbine']
-        # load list of turbine dictionaries into RAFT dictionary
-        elif 'turbines' in d and d['turbines']:
-            turbines = [] # list of dictionaries of turbine information
-            turbines = d['turbines']
-            RAFTDict['turbines'] = d['turbines']
+        # ----- turbines & topsides -----
+        turbines = []
+        substations = []
+        if 'topsides' in d and d['topsides']:
+            topsides = d['topsides']
+            for ts in d['topsides']:
+                if 'TURBINE' in ts['type'].upper():
+                    turbines.append(ts)
+                elif 'SUBSTATION' in ts['type'].upper():
+                    substations.append(ts)
+                    
         self.turbineTypes = turbines
-                # I think we want to just store it as a dictionary
-                # validate it,
-                # then have it available for use when making Mooring objects and subsystems  
-        
         # ----- set up dictionary for each individual mooring line, create anchor, mooring, and platform classes ----
         # make platforms first if they exist, as there may be no moorings called out
         if arrayInfo:
             for i in range(len(arrayInfo)):
                 # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
-                self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],
-                                                                 r=[arrayInfo[i]['x_location'],arrayInfo[i]['y_location']],
-                                                                 heading=arrayInfo[i]['heading_adjust'])
+                if 'z_location' in arrayInfo[i]:
+                    self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],
+                                                                     r=[arrayInfo[i]['x_location'],
+                                                                        arrayInfo[i]['y_location'],
+                                                                        arrayInfo[i]['z_location']],
+                                                                     heading=arrayInfo[i]['heading_adjust'])
+                elif 'z_location' in platforms[arrayInfo[i]['platformID']-1]:
+                    self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],
+                                                                     r=[arrayInfo[i]['x_location'],
+                                                                        arrayInfo[i]['y_location'],
+                                                                        platforms[arrayInfo[i]['platformID']]['z_location']],
+                                                                     heading=arrayInfo[i]['heading_adjust'])
+                else: # assume 0 depth
+                    self.platformList[arrayInfo[i]['ID']] = Platform(arrayInfo[i]['ID'],
+                                                                     r=[arrayInfo[i]['x_location'],
+                                                                        arrayInfo[i]['y_location'],
+                                                                        0],
+                                                                     heading=arrayInfo[i]['heading_adjust'])
         # check that all necessary sections of design dictionary exist
-        if arrayInfo and self.lineTypes and lineConfigs:
+        if arrayInfo and lineConfigs:
             
             mct = 0 # counter for number of mooring lines
             # set up a list of the alphabet for assigning names purposes
@@ -393,26 +404,35 @@ class Project():
                 self.platformList[arrayInfo[i]['ID']].dd['type'] = pfID
                 # remove pre-set headings (need to append to this list so list should start off empty)
                 self.platformList[arrayInfo[i]['ID']].mooring_headings = []
-                # create turbine instance as needed
-                if arrayInfo[i]['turbineID'] > 0:
-                    turb_name = str(arrayInfo[i]['turbineID'])+str(i)
-                    if isinstance(turbines,list):
-                        turb_dd = turbines[arrayInfo[i]['turbineID']-1]
+                entity = platforms[pfID]['type']
+                # create topside instance as needed
+                if arrayInfo[i]['topsideID'] > 0:
+                    # create topside design dictionary
+                    if isinstance(topsides,list):
+                        topside_dd = topsides[arrayInfo[i]['topsideID']-1]
                     else:
-                        turb_dd = turbines
-                    if turb_dd:
-                        blade_diameter = turb_dd['blade']['Rtip']*2
+                        topside_dd = topsides
+                    # determine what type of topside it is
+                    # create topside object and attach to platform as needed
+                    if entity.upper() == 'FOWT':
+                        topside_name = 'T'+str(arrayInfo[i]['topsideID'])+'_'+str(i)
+                        blade_diameter = topside_dd['blade']['Rtip']*2
+                        self.turbineList[topside_name] = Turbine(topside_dd,topside_name,D=blade_diameter)
+                        self.turbineList[topside_name].dd['type'] = arrayInfo[i]['topsideID']-1
+                        self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[topside_name])
+                        
+                    elif entity.upper() == 'SUBSTATION':
+                        topside_name = 'S'+str(arrayInfo[i]['topsideID'])+'_'+str(i)
+                        self.substationList[topside_name] = Substation(topside_dd, topside_name)
+                        self.platformList[arrayInfo[i]['ID']].attach(self.substationList[topside_name]) 
                     else:
-                        blade_diameter = None
-    
-                    self.turbineList[turb_name] = Turbine(turb_dd,turb_name,D=blade_diameter)
-                    self.turbineList[turb_name].dd['type'] = arrayInfo[i]['turbineID']-1
-                    # attach turbine to platform
-                    self.platformList[arrayInfo[i]['ID']].attach(self.turbineList[turb_name])
-                    self.platformList[arrayInfo[i]['ID']].entity = 'FOWT'
-                else:
-                    # for now, assume it's an OSS (To be changed!!)
-                    self.platformList[arrayInfo[i]['ID']].entity = 'OSS'
+                        # unknown topside - just create a basic node to attach to platform
+                        topside_name = 'X'+str(arrayInfo[i]['topsideID'])+'_'+str(i)
+                        node = Node(topside_name)
+                        self.platformList[arrayInfo[i]['ID']].attach(node)
+
+                # assign the topside type as the associated platform's entity
+                self.platformList[arrayInfo[i]['ID']].entity = entity
                     
                 
                 if mSystems and not arrayInfo[i]['mooringID'] == 0: #if not fully shared mooring on this platform
@@ -449,17 +469,22 @@ class Project():
                         lineAnch = mySys[j]['anchorType'] # get the anchor type for the line
                         ad = getAnchors(lineAnch, arrayAnchor, self, mc=mc) # call method to create anchor dictionary
                         # add anchor class instance to anchorList in project class
-                        self.anchorList[str(arrayInfo[i]['ID'])+alph[j]] = (Anchor(dd=ad, r=mc.rA, id=str(arrayInfo[i]['ID'])+alph[j]))
+                        name = str(arrayInfo[i]['ID'])+alph[j]
+                        self.anchorList[name] = (Anchor(dd=ad, r=mc.rA, id=name))
                         # add mooring class instance to mooringlist in project class
-                        self.mooringList[str(arrayInfo[i]['ID'])+alph[j]] = mc
+                        self.mooringList[name] = mc
                         # attach mooring object to anchor and platform
-                        mc.attachTo(self.anchorList[str(arrayInfo[i]['ID'])+alph[j]],end='A')
+                        mc.attachTo(self.anchorList[name],end='A')
                         mc.attachTo(self.platformList[arrayInfo[i]['ID']],end='B')
                         
                         # adjust mooring end positions based on platform location and mooring and platform headings, adjust anchor position
-                        mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, project=self)
+                        mc.reposition(r_center=self.platformList[arrayInfo[i]['ID']].r, 
+                                      heading=headings[j]+self.platformList[arrayInfo[i]['ID']].phi, 
+                                      project=self)
                         # adjust anchor z location and rA based on location of anchor
-                        zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], mc.rA[1], return_n=True)
+                        zAnew, nAngle = self.getDepthAtLocation(mc.rA[0], 
+                                                                mc.rA[1], 
+                                                                return_n=True)
                         mc.rA[2] = -zAnew
                         mc.dd['zAnchor'] = -zAnew
                         #mc.z_anch = -zAnew
@@ -479,19 +504,19 @@ class Project():
                 PFNum = [] # platform ID(s) connected to the mooring line
                 
                 # Error check for putting an anchor (or something else) at end B
-                if not any(ids['ID'] == arrayMooring[j]['end B'] for ids in arrayInfo):
+                if not any(ids['ID'] == arrayMooring[j]['endB'] for ids in arrayInfo):
                     raise Exception("Input for end B must match an ID from the array table.")
-                if any(ids['ID'] == arrayMooring[j]['end B'] for ids in arrayAnchor):
+                if any(ids['ID'] == arrayMooring[j]['endB'] for ids in arrayAnchor):
                     raise Exception(f"input for end B of line_data table row '{j}' in array_mooring must be an ID for a FOWT from the array table. Any anchors should be listed as end A.")
                 # Make sure no anchor IDs in arrayAnchor table are the same as IDs in array table
                 for k in range(0,len(arrayInfo)):
                     if any(ids['ID'] == arrayInfo[k] for ids in arrayAnchor):
                         raise Exception(f"ID for array table row {k} must be different from any ID in anchor_data table in array_mooring section")
                 # determine if end A is an anchor or a platform
-                if any(ids['ID'] == arrayMooring[j]['end A'] for ids in arrayInfo): # shared mooring line (no anchor)
+                if any(ids['ID'] == arrayMooring[j]['endA'] for ids in arrayInfo): # shared mooring line (no anchor)
                     # get ID of platforms connected to line
-                    PFNum.append(arrayMooring[j]['end B'])
-                    PFNum.append(arrayMooring[j]['end A'])
+                    PFNum.append(arrayMooring[j]['endB'])
+                    PFNum.append(arrayMooring[j]['endA'])
                     # find row in array table associated with these platform IDs and set locations
                     for k in range(0, len(arrayInfo)):
                         if arrayInfo[k]['ID'] == PFNum[0]:
@@ -521,9 +546,9 @@ class Project():
                     # reposition both ends
                     mc.reposition(r_center=[self.platformList[PFNum[1]].r,self.platformList[PFNum[0]].r],heading=headingB,project=self)
 
-                elif any(ids['ID'] == arrayMooring[j]['end A'] for ids in arrayAnchor): # end A is an anchor
+                elif any(ids['ID'] == arrayMooring[j]['endA'] for ids in arrayAnchor): # end A is an anchor
                     # get ID of platform connected to line
-                    PFNum.append(arrayMooring[j]['end B'])
+                    PFNum.append(arrayMooring[j]['endB'])
                     for k in range(0,len(arrayInfo)):
                         if arrayInfo[k]['ID'] == PFNum[0]:
                             Bnum = k
@@ -540,10 +565,10 @@ class Project():
 
                     # check if anchor instance already exists
                     #if any(tt == 'shared_'+ arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
-                    if any(tt == arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
+                    if any(tt == arrayMooring[j]['endA'] for tt in self.anchorList): # anchor name exists already in list
                         # find anchor class instance
                         for anch in self.anchorList: #range(0,len(self.anchorList)):
-                            if anch == arrayMooring[j]['end A']:
+                            if anch == arrayMooring[j]['endA']:
                                 mc.attachTo(self.anchorList[anch],end='A')
                                 mc.rA[-1] = self.anchorList[anch].r[-1]
                                 mc.dd['zAnchor'] = self.anchorList[anch].r[-1]
@@ -551,7 +576,7 @@ class Project():
                     else:
                         # find location of anchor in arrayAnchor table
                         for k in range(0,len(arrayAnchor)):
-                            if arrayAnchor[k]['ID'] == arrayMooring[j]['end A']:
+                            if arrayAnchor[k]['ID'] == arrayMooring[j]['endA']:
                                 aloc = [arrayAnchor[k]['x'],arrayAnchor[k]['y']] 
                                 aNum = k # get anchor row number
                                 # set line anchor type and get dictionary of anchor information
@@ -588,166 +613,186 @@ class Project():
                     
                 # increment counter
                 mct += 1
-        
-        # ----- substation -----
-        if 'substation' in d and d['substation']:
-            # create substation design dictionary and object for each substation
-            for k in d['substation'].keys():
-                subID = k
-                pfID = d['substation'][k]['arrayID']
-                if 'design' in d['substation'][k]:
-                    topside_info = d['substation'][k]['design']
-                else:
-                    topside_info = {}
-                dd = {'design':topside_info,'r':self.platformList[pfID].r}
-                self.substationList[subID] = Substation(dd, subID)
-                # attach substation to platform
-                self.platformList[pfID].attach(self.substationList[subID])
-        
+                
         # ===== load Cables ======
         
-        # load in array cables
+        # load in array cables from table (no routing, assume dynamic-static-dynamic or dynamic suspended setup)
         if arrayCableInfo:
-            cabLast = 0
-            routing = []
             for i,cab in enumerate(arrayCableInfo):
+                A=None
+                rJTubeA = None; rJTubeB = None
                 # create design dictionary for subsea cable
                 dd = {'cables':[],'joints':[]}
-                # get sections of the subsea cable 
-                cable = arrayCableInfo[i]['CableID']
-                # check if routing exists for this cable
-                if arrayCableInfo[i]['route'].upper() == 'NA' or arrayCableInfo[i]['route'].upper() == 'NONE':
-                    route = None
-                else:
-                    route = d['route_cables'][arrayCableInfo[i]['route']] #arrayCableInfo[i]['route']
-                if cable in cableInfo:
-                    if len(cableInfo[cable]['sections'])>1:
-                        for j in range(0,len(cableInfo[cable]['sections'])):
-                            cabSection = cableInfo[cable]['sections'][j]
-                            # check for routing in this cable section
-                            if route:
-                                if route['cable_configID'] in cabSection.values():
-                                    # add routing
-                                    routing = []
-                                    # process any joints
-                                    for f in range(0,len(route['routing'])):
-                                        if isinstance(route['routing'][f],str):
-                                            pass
-                                        else:
-                                            routing.append(route['routing'][f])
-                                else:
-                                    routing = None
-                                            
-                            if cabLast: # last item was a cable, next should be a connector
-                                if 'type' in cabSection:
-                                    # no joint connecting 2 cables - add an empty joint to list
-                                    dd['joints'].append({}) 
-                                    # now get the sections of the cable configuration and put in dictionary
-                                    cCondd = getCables(cabSection, cable_configs,
-                                                       cable_types, cable_appendages, 
-                                                       self.depth, self.rho_water, self.g)
-                                    
-                                    if j == 0:
-                                        # add heading for end A to this cable
-                                        cCondd['headingA'] = np.radians(90-arrayCableInfo[i]['headingA'])
-                                    elif j == len(cableInfo[cable]['sections']-1):
-                                        # add heading for end B to this cable
-                                        cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
-                                    dd['cables'].append(cCondd)
-                                    if routing:
-                                        cCondd['routing'] = routing
-                                elif 'connectorType' in cabSection:
-                                    dd['joints'].append(d['cable_joints'][cabSection['connectorType']])
-                                    dd['joints'][-1]['type'] = cabSection['connectorType']
+                
+                # build out specified sections
+                dyn_cabA = cab['DynCableA'] if not 'NONE' in cab['DynCableA'].upper() else None
+                dyn_cabB = cab['DynCableB'] if not 'NONE' in cab['DynCableB'].upper() else None
+                stat_cab = cab['cableType'] if not 'NONE' in cab['cableType'].upper() else None
 
-                                    cabLast = 0
-                                else:
-                                    # unsupported input
-                                    raise Exception('Invalid section type keyword. Must be either type or connectorType')
-                            else:
-                                # last item was a connector
-                                if 'type' in cabSection:
-                                    cCondd = getCables(cabSection, cable_configs,
-                                                       cable_types, cable_appendages, 
-                                                       self.depth, self.rho_water, self.g)
-                                    if j == 0:
-                                        # add heading for end A to this cable
-                                        cCondd['headingA'] = np.radians(90-arrayCableInfo[i]['headingA'])
-                                    elif j == len(cableInfo[cable]['sections'])-1:
-                                        # add heading for end B to this cable
-                                        cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
-                                    cabLast = 1
-                                    dd['cables'].append(cCondd)
-                                    if routing:
-                                        cCondd['routing'] = routing
-                                elif 'connectorType' in cabSection:
-                                    raise Exception('Cannot have two connectors in a row')
-                                else:
-                                    # unsupported input
-                                    raise Exception('Invalid section type keyword. Must be either type or connectorType')
-                            
+                if dyn_cabA:
+                    dyn_cab = cab['DynCableA']
+                    Acondd, jAcondd = getDynamicCables(dyn_cable_configs[dyn_cab],
+                                       cable_types, cable_appendages, 
+                                       self.depth, rho_water=self.rho_water, g=self.g)
+                    Acondd['headingA'] = np.radians(90-cab['headingA'])
+                    # only add a joint if there's a cable section after this
+                    if stat_cab or dyn_cabB: 
+                        dd['joints'].append(jAcondd)
                     else:
-                        # just a simple one line cable (no joints)
-                        cabSection = cableInfo[cable]['sections'][0]
-                        cCondd = getCables(cabSection, cable_configs,
-                                           cable_types, cable_appendages, 
-                                           self.depth, self.rho_water, self.g)
-                        cCondd['headingA'] = np.radians(90-arrayCableInfo[i]['headingA'])
-                        cCondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
-                        if route:
-                            if cabSection in route:
-                                # add routing (no joints to process)
-                                cCondd['routing'] = route[cabSection]
-                        dd['cables'].append(cCondd)
+                        # this is a suspended cable - add headingB
+                        Acondd['headingB'] = np.radians(90-cab['headingB'])
                         
-                else:
-                    raise Exception(f'Cable configuration {cable} not found')
-
-                            
-                
-                # create subsea cable object
-                self.cableList[cable+str(i)] = Cable(cable+str(i),d=dd)
-                
-                        
-                # connect cable to platform/substation
-                # if 'substations' in d and arrayCableInfo[i]['AttachA'] in d['substations']:
-                #     for j in range(0,len(arrayInfo)):
-                #         if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
-                #             raise Exception('Substation name must be different from platform ID')
-                #     self.cableList[cable+str(i)].attachTo(self.substationList[arrayCableInfo[i]['AttachA']],end='A')
-                for j in range(0,len(arrayInfo)):
-                    if arrayCableInfo[i]['AttachA'] == arrayInfo[j]['ID']:
-                        # connect to platform
-                        self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='A')
+                    dd['cables'].append(Acondd)
+                    # get conductor area to send in for static cable
+                    A = Acondd['A']
+                    rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
                     
-                # if 'substations' in d and arrayCableInfo[i]['AttachB'] in d['substations']:
-                #     for j in range(0,len(arrayInfo)):
-                #         if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
-                #             raise Exception('Substation name must be different from platform ID')
-                #     self.cableList[cable+str(i)].attachTo(self.substationList[arrayCableInfo[i]['AttachB']],end='B')
-                for j in range(0,len(arrayInfo)):
-                    if arrayCableInfo[i]['AttachB'] == arrayInfo[j]['ID']:
-                        # connect to platform
-                        self.cableList[cable+str(i)].attachTo(self.platformList[arrayInfo[j]['ID']],end='B')                            
+                if stat_cab:    
+                    # add static cable
+                    dd['cables'].append(getStaticCables(stat_cab, cable_types, 
+                                                        rho_water=self.rho_water, 
+                                                        g=self.g, A=A))
+                    
+                if dyn_cabB:
+                    # assume dynamic-static-dynamic configuration
+                    dyn_cabB = cab['DynCableB']
+                    Bcondd, jBcondd = getDynamicCables(dyn_cable_configs[dyn_cabB],
+                                                      cable_types, cable_appendages,
+                                                      self.depth, rho_water=self.rho_water, 
+                                                      g=self.g)
+                    # add heading for end A to this cable
+                    Bcondd['headingB'] = np.radians(90-arrayCableInfo[i]['headingB'])
+                    dd['cables'].append(Bcondd)
+                    # add joint (even if empty)
+                    dd['joints'].append(jBcondd)
+                    rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
+                    
+
+                    
+                # create subsea cable object
+                cableID = 'cable'+str(len(self.cableList))
+                self.cableList[cableID] = Cable(cableID,d=dd)
+                # attach ends
+                if cab['AttachA'] in self.platformList.keys():
+                    # connect to platform
+                    self.cableList[cableID].attachTo(self.platformList[cab['AttachA']],end='A')
+                elif cab['AttachA'] in cable_appendages:
+                    pass
+                else:
+                    raise Exception(f'AttachA {arrayCableInfo[i]["AttachA"]} for array cable {i} does not match any platforms or appendages.')
+                if cab['AttachB'] in self.platformList.keys():
+                    # connect to platform
+                    self.cableList[cableID].attachTo(self.platformList[cab['AttachB']],end='B')
+                elif cab['AttachB'] in cable_appendages:
+                    pass     
+                else:
+                    raise Exception(f'AttachB {arrayCableInfo[i]["AttachB"]} for array cable {i} does not match any platforms or appendages.')
+                  
+                # reposition the cable
+                self.cableList[cableID].reposition(project=self, rad_fair=[rJTubeA,rJTubeB]) 
+                        
+        # create any cables from cables section (this is a more descriptive cable format that may have routing etc)           
+        if cableInfo:
+            
+            for cab in cableInfo:
                 
-                self.cableList[cable+str(i)].reposition(project=self)          
+                rJTubeA = None; rJTubeB = None
+                
+                # create design dictionary for subsea cable
+                dd = {'cables':[],'joints':[]}
+
+                # pull out cable sections (some may be 'NONE')
+                dyn_cabA = cab['endA']['dynamicID'] if not 'NONE' in cab['endA']['dynamicID'].upper() else None
+                dyn_cabB = cab['endB']['dynamicID'] if not 'NONE' in cab['endB']['dynamicID'].upper() else None
+                stat_cab = cab['type'] if not 'NONE' in cab['type'].upper() else None                       
+                
+                # load in end A cable section type
+                if dyn_cabA:
+                    Acondd, jAcondd = getDynamicCables(dyn_cable_configs[dyn_cabA],
+                                                      cable_types, cable_appendages,
+                                                      self.depth, rho_water=self.rho_water, 
+                                                      g=self.g)
+                    # only add a joint if there's a cable section after this
+                    if stat_cab or dyn_cabB: 
+                        dd['joints'].append(jAcondd)
+                    else:
+                        # this is a suspended cable - add headingB
+                        Acondd['headingB'] = np.radians(90-cab['endB']['heading'])
+                       
+                    # add headingA
+                    Acondd['headingA'] = np.radians(90-cab['endA']['heading'])
+                    # append to cables list
+                    dd['cables'].append(Acondd)
+                    
+                    A = dyn_cable_configs[dyn_cabA]['A']
+                    rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
+                    
+                    
+                # load in static cable design incl. routing and burial
+                if stat_cab:
+                    statcondd = getStaticCables(stat_cab, cable_types, 
+                                                rho_water=self.rho_water, 
+                                                g=self.g, A=A)
+                    # load in any routing / burial
+                    if 'routing_x_y_r' in cab and cab['routing_x_y_r']:
+                        statcondd['routing'] = cab['routing_x_y_r']
+                        
+                    if 'burial' in cab and cab['burial']:
+                        statcondd['burial'] = cab['burial']
+                        
+                    dd['cables'].append(statcondd)
+                    
+                # load in end B cable section type
+                if dyn_cabB:
+                    Bcondd, jBcondd = getDynamicCables(dyn_cable_configs[dyn_cabB],
+                                                      cable_types, cable_appendages,
+                                                      self.depth, rho_water=self.rho_water,
+                                                      g=self.g)
+                    # add headingB
+                    Bcondd['headingB'] = np.radians(90-cab['endB']['heading'])
+                    # append to cables list
+                    dd['cables'].append(Bcondd)
+                    # append to joints list
+                    dd['joints'].append(jBcondd)
+                    
+                    rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
+                    
+                # cable ID
+                cableID = cab['name'] + str(len(self.cableList))
+                # create cable object
+                self.cableList[cableID] = Cable(cableID,d=dd)
+                
+                # attach end A
+                if cab['endA']['attachID'] in self.platformList.keys():
+                    # connect to platform
+                    self.cableList[cableID].attachTo(self.platformList[cab['endA']['attachID']],end='A')
+                elif cab['endA']['attachID'] in cable_appendages:
+                    pass
+                else:
+                    raise Exception(f"AttachA {cab['endA']['attachID']} for cable {cab['name']} does not match any platforms or appendages.") 
+                # attach end B  
+                if cab['endB']['attachID'] in self.platformList.keys():
+                    # connect to platform
+                    self.cableList[cableID].attachTo(self.platformList[cab['endB']['attachID']],end='B')
+                elif cab['endB']['attachID'] in cable_appendages:
+                    pass
+                else:
+                    raise Exception(f"AttachB {cab['endB']['attachID']} for cable {cab['name']} does not match any platforms or appendages.")
+                
+                # reposition the cable
+                self.cableList[cableID].reposition(project=self, rad_fair=[rJTubeA,rJTubeB])       
         
         
         # ===== load RAFT model parts =====
         # load info into RAFT dictionary and create RAFT model
         if raft:
             # load turbine dictionary into RAFT dictionary
-            if 'turbine' in d and d['turbine']:            
-                # check that there is only one turbine
-                if 'turbines' in d and d['turbines']:
-                    raise Exception("Cannot read in items for both 'turbines' and 'turbine' keywords. Use either 'turbine' keyword for one turbine or 'turbines' keyword for a list of turbines.")
-                elif type(d['turbine']) is list and len(d['turbine'])>1:
-                    raise Exception("'turbine' section keyword must be changed to 'turbines' if multiple turbines are listed")
-                else:
-                    RAFTDict['turbine'] = d['turbine']
+            nt = len(self.turbineTypes)
+            if nt==1:            
+                RAFTDict['turbine'] = self.turbineTypes[0]
             # load list of turbine dictionaries into RAFT dictionary
-            elif 'turbines' in d and d['turbines']:
-                RAFTDict['turbines'] = d['turbines']
+            else:
+                RAFTDict['turbines'] = self.turbineTypes
             
             # load global RAFT settings into RAFT dictionary
             if 'RAFT_settings' in d['site'] and d['site']['RAFT_settings']:
@@ -770,8 +815,9 @@ class Project():
     
             # create RAFT model if necessary components exist
             if 'platforms' in RAFTDict or 'platform' in RAFTDict:
-                if 'turbine' in RAFTDict or 'turbines' in RAFTDict:
+
                     self.getRAFT(RAFTDict,pristine=1)
+                    
 
         
         
@@ -1481,24 +1527,26 @@ class Project():
                 for pf in self.platformList.values():
                     if id_method == 'location':
                         # find platform associated with ends
-                        if np.allclose(pf.r,connDict[i]['coordinates'][0],atol=.01): 
+                        if np.allclose(pf.r[:2],connDict[i]['coordinates'][0],atol=.01): 
                             attA = pf
-                        elif np.allclose(pf.r,connDict[i]['coordinates'][-1],atol=.01):
+                        elif np.allclose(pf.r[:2],connDict[i]['coordinates'][-1],atol=.01):
                             attB = pf
                     elif id_method == 'id':
                         # find platform associated with global id
                         if connDict[i]['turbineA_glob_id'] == pf.id:
                             attA = pf
                             # update platform location
-                            pf.r = connDict[i]['coordinates'][0]
+                            pf.r[:2] = connDict[i]['coordinates'][0]
                         elif connDict[i]['turbineB_glob_id'] == pf.id:
                             attB = pf
                             # update platform location
-                            pf.r = connDict[i]['coordinates'][-1]
+                            pf.r[:2] = connDict[i]['coordinates'][-1]
     
                 # get heading of cable from attached object coordinates 
-                headingA = np.radians(90) - np.arctan2((connDict[i]['coordinates'][-1][0]-connDict[i]['coordinates'][0][0]),(connDict[i]['coordinates'][-1][1]-connDict[i]['coordinates'][0][1]))
-                headingB = np.radians(90) - np.arctan2((connDict[i]['coordinates'][0][0]-connDict[i]['coordinates'][-1][0]),(connDict[i]['coordinates'][0][1]-connDict[i]['coordinates'][-1][1]))
+                headingA = np.radians(90) - np.arctan2((connDict[i]['coordinates'][-1][0]-connDict[i]['coordinates'][0][0]),
+                                                       (connDict[i]['coordinates'][-1][1]-connDict[i]['coordinates'][0][1]))
+                headingB = np.radians(90) - np.arctan2((connDict[i]['coordinates'][0][0]-connDict[i]['coordinates'][-1][0]),
+                                                       (connDict[i]['coordinates'][0][1]-connDict[i]['coordinates'][-1][1]))
     
                 # figure out approx. depth at location
                 initial_depths = []
@@ -1538,7 +1586,7 @@ class Project():
                     rad_buff = np.radians(heading_buffer)
                     dc0s = cab.subcomponents[0].span
                     moors = attA.getMoorings() 
-                    msp = list(moors.values())[0].rad_anch
+                    msp = list(moors.values())[0].span + attA.rFair
                     # consider mooring headings from both ends if close enough
                     pfsp = np.sqrt((attA.r[0]-attB.r[0])**2+(attA.r[1]-attB.r[1])**2)
                     if pfsp-2*attA.rFair < msp+dc0s:
@@ -1713,11 +1761,16 @@ class Project():
         
         # Plot platform one way or another (might want to give Platform a plot method)
         for platform in self.platformList.values():
-            
-            ax.plot(platform.r[0], platform.r[1], 'ko',label='Platform')
-            
-        for substation in self.substationList.values():
-            ax.plot(substation.r[0],substation.r[1],'go',label='Substation')
+            entity = platform.entity
+            if 'FOWT' in entity.upper():
+                plotstring = 'ko'
+            elif 'SUBSTATION' in entity.upper():
+                plotstring = 'go'
+            elif 'WEC' in entity.upper():
+                plotstring = 'ro'
+                
+            ax.plot(platform.r[0], platform.r[1], plotstring ,label=entity)
+
             
         ax.set_xlabel('X (m)')
         ax.set_ylabel('Y (m)')
@@ -1891,14 +1944,17 @@ class Project():
                 elif isinstance(sub,StaticCable):
                     # add static cable routing if it exists
                     if hasattr(sub,'x'):
-                        burial = sub.burial
-                        if 'NA' in burial or not burial:
-                            # replace any NA with 0
-                            for i,b in enumerate(burial):
-                                if b == 'NA':
-                                   burial[i] = 0 
-                            if not burial:
-                                burial.append(0)
+                        # burial = sub.burial
+                        # bur = []
+                        # if burial and 'station' in burial:
+                        #     # replace any NA with 0
+                        #     for i,b in enumerate(burial['station']):
+                        #         if b.upper() == 'NONE':
+                        #            bur[i] = 0 
+                        #     if not burial:
+                        #         burial.append(0)
+                        burial = []
+                        burial.append(0) #### UPDATE LATER!!!
                         # get joint locations
                         jointA = cable.subcomponents[j-1]['r']
                         jointB = cable.subcomponents[j+1]['r']
@@ -1985,15 +2041,13 @@ class Project():
         return(ax)
         
        
-    def getMoorPyArray(self,bodyInfo=None,plt=0, pristineLines=True,cables=0):
+    def getMoorPyArray(self, plt=0, pristineLines=True, cables=True):
         '''Creates an array in moorpy from the mooring, anchor, connector, and platform objects in the array.
 
         Parameters
         ----------
-        bodyInfo : list of dictionaries, optional
-            List of dictionaries (one list entry per body) that has information on hydrostatics for each body
-        plt : boolean, optional
-            Controls whether to create a plot of the MoorPy array. 1=create plot, 0=no plot The default is 0.
+        plt : number
+            Controls whether to create a plot of the MoorPy array. 2=create plot with labels, 1=create plot, 0=no plot The default is 0.
 
         pristineLines : boolean, optional
             A boolean describing if the mooringList objects have been altered (0/False) or not (1/True) from their pristine, initial condition.
@@ -2021,24 +2075,20 @@ class Project():
             self.platformList[i].body = None
         
         wflag = 0 # warning flag has not yet been printed (prevent multiple printings of same hydrostatics warning)
-        for i,body in enumerate(self.platformList): # make all the bodies up front - i is index in dictionary, body is key (name of platform)
-            PF = self.platformList[body]
-            if PF.entity == 'buoy':
-                self.ms.addPoint(0,PF.r,m=PF.dd['m'],v=PF.dd['v'])
-                PF.body = self.ms.pointList[-1]
+        for i,body in enumerate(self.platformList.values()): # make all the bodies up front - i is index in dictionary, body is key (name of platform)
+            # add a moorpy body at the correct location
+            r6 = [body.r[0],body.r[1],body.r[2],0,0,0]
+            # use model_details portion of dictionary to create moorpy body if given
+            if 'hydrostatics' in body.dd and body.dd['hydrostatics']:
+                bodyInfo = body.dd['hydrostatics']
+                self.ms.addBody(-1,r6,m=bodyInfo['m'],v=bodyInfo['v'],rCG=np.array(bodyInfo['rCG']),rM=np.array(bodyInfo['rM']),AWP=bodyInfo['AWP'])
+            elif not 'hydrostatics' in body.dd and wflag == 0: # default to UMaine VolturnUS-S design hydrostatics info
+                print('No hydrostatics information given, so default body hydrostatics from UMaine VolturnUS-S will be used.')
+                wflag = 1
+                self.ms.addBody(-1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
             else:
-                # add a moorpy body at the correct location
-                r6 = [PF.r[0],PF.r[1],0,0,0,0]
-                # use bodyInfo dictionary to create moorpy body if given
-                if bodyInfo:
-                    self.ms.addBody(-1,r6,m=bodyInfo[body]['m'],v=bodyInfo[body]['v'],rCG=np.array(bodyInfo[body]['rCG']),rM=np.array(bodyInfo[body]['rM']),AWP=bodyInfo[body]['AWP'])
-                elif not bodyInfo and wflag == 0: # default to UMaine VolturnUS-S design hydrostatics info
-                    print('No hydrostatics information given, so default body hydrostatics from UMaine VolturnUS-S will be used.')
-                    wflag = 1
-                    self.ms.addBody(-1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
-                else:
-                    self.ms.addBody(-1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
-                PF.body = self.ms.bodyList[-1]
+                self.ms.addBody(-1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
+            body.body = self.ms.bodyList[-1]
         # create anchor points and all mooring lines connected to the anchors (since all connected to anchors, can't be a shared mooring)
         for i in self.anchorList: # i is key (name) of anchor
             ssloc = []
@@ -2071,19 +2121,15 @@ class Project():
                         PF = self.platformList[k] # platform object associated with mooring line j and anchor i
                         body = PF.body
                 # attach rB point to platform 
-                if 'Point' in type(body).__name__:
-                    # this is a buoy platform, must be a point
-                    body.attachLine(ssloc[-1].number,1) # attach line to point
-                else:
-                    # add fairlead point
-                    self.ms.addPoint(1,ssloc[-1].rB)
-                    # add connector info for fairlead point
-                    self.ms.pointList[-1].m = self.ms.lineList[-1].pointList[-1].m 
-                    self.ms.pointList[-1].v = self.ms.lineList[-1].pointList[-1].v
-                    self.ms.pointList[-1].CdA = self.ms.lineList[-1].pointList[-1].CdA
-                    # attach the line to point
-                    self.ms.pointList[-1].attachLine(ssloc[-1].number,1)
-                    body.attachPoint(len(self.ms.pointList),[ssloc[-1].rB[0]-PF.r[0],ssloc[-1].rB[1]-PF.r[1],ssloc[-1].rB[2]]) # attach to fairlead (need to subtract out location of platform from point for subsystem integration to work correctly)
+                # add fairlead point
+                self.ms.addPoint(1,ssloc[-1].rB)
+                # add connector info for fairlead point
+                self.ms.pointList[-1].m = self.ms.lineList[-1].pointList[-1].m 
+                self.ms.pointList[-1].v = self.ms.lineList[-1].pointList[-1].v
+                self.ms.pointList[-1].CdA = self.ms.lineList[-1].pointList[-1].CdA
+                # attach the line to point
+                self.ms.pointList[-1].attachLine(ssloc[-1].number,1)
+                body.attachPoint(len(self.ms.pointList),[ssloc[-1].rB[0]-PF.r[0],ssloc[-1].rB[1]-PF.r[1],ssloc[-1].rB[2]]) # attach to fairlead (need to subtract out location of platform from point for subsystem integration to work correctly)
 
         
         check = np.ones((len(self.mooringList),1))
@@ -2115,45 +2161,23 @@ class Project():
                 ends = [ssloc.rA,ssloc.rB]
                 for ki in range(0,2):
                     if isinstance(att[ki],Platform):
-                        if att[ki].entity == 'FOWT' or att[ki].entity == 'OSS':
+                        if att[ki]:
                             # add fairlead point and attach the line to it
                             self.ms.addPoint(1,ends[ki])
                             self.ms.pointList[-1].attachLine(ssloc.number,ki)
                             att[ki].body.attachPoint(len(self.ms.pointList),[ends[ki][0]-att[ki].r[0],ends[ki][1]-att[ki].r[1],ends[ki][2]])
-                        elif att[ki].entity == 'buoy':
-                            # attach to platform point
-                            att[ki].body.attachLine(ssloc.number,ki)
                         else:
                             # this end is unattached
                             pass
-                    # if isinstance(att[ki],Platform):
-                    #     # add fairlead point A and attach the line to it
-                    #     self.ms.addPoint(1,ends[ki])
-                    #     self.ms.pointList[-1].attachLine(ssloc.number,ki)
-                    #     att[ki].body.attachPoint(len(self.ms.pointList),[ends[ki][0]-att[ki].r[0],ends[ki][1]-att[ki].r[1],ends[ki][2]])
-                    # elif isinstance(att[ki],Connector):
-                    #     if not att[ki].mpConn:
-                    #         att[ki].makeMoorPyConnector(self.ms)
-                            
-                    #     att[ki].mpConn.attachLine(ssloc.number,ki)
-                    # elif att[ki] == None:
-                    #     # this end is unattached
-                    #     pass
+
                         
         # add in cables if desired
         if cables:
-            # # create a body for any substations cables are connected to 
-            # if self.substationList:
-            #     for i,sub in enumerate(self.substationList.values()):
-            #         r6 = [sub.r[0],sub.r[1],0,0,0,0]
-            #         self.ms.addBody(1,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
-            #         sub.body = self.ms.bodyList[-1]
+
             for i in self.cableList:           
                 # determine if suspended cable or not - having a static cable as a subcomponent means this is not a suspended cable
                 for j,comp in enumerate(self.cableList[i].subcomponents):
-                    # # check for all attachments (may be failurs enacted preventing all attachments)
-                    # if isinstance(comp,Edge):
-                    #     attach = [att != None for att in comp.attached_to] 
+                    # # check for all attachments (may be failurs enacted preventing all attachments) 
                     # don't make a subsystem for a joint - make a point                   
                     if isinstance(comp,Joint):
                         if not comp.mpConn:
@@ -2474,24 +2498,31 @@ class Project():
         if 'platforms' in RAFTDict or 'platform' in RAFTDict:
             # set up a dictionary with keys as the table names for each row (ease of use later)
             RAFTable = [dict(zip(RAFTDict['array']['keys'], row)) for row in RAFTDict['array']['data']]
-            # find index for ID and mooringID
-            # for i in range(0,len(RAFTDict['array']['keys'])):
-            #     if 'ID' in RAFTDict['array']['keys']:
-            #         if RAFTDict['array']['keys'][i] == 'ID':
-            #             delID = True
-            #             IDindex = i
-            #     if RAFTDict['array']['keys'][i] =='mooringID':
-            #         mooringIDindex = i
+
             if 'ID' in RAFTDict['array']['keys']:
                 IDindex = np.where(np.array(RAFTDict['array']['keys'])=='ID')[0][0]
                 RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
-            mooringIDindex = np.where(np.array(RAFTDict['array']['keys'])=='mooringID')[0][0]
-            headindex = np.where(np.array(RAFTDict['array']['keys'])=='heading_adjust')[0][0]
-            
+            if 'topsideID' in RAFTDict['array']['keys']:
+                ts_loc = RAFTDict['array']['keys'].index('topsideID')
+                RAFTDict['array']['keys'][ts_loc] = 'turbineID'
+            mooringIDindex = RAFTDict['array']['keys'].index('mooringID')
+            headindex = RAFTDict['array']['keys'].index('heading_adjust')
+            tsIDindex = RAFTDict['array']['keys'].index('turbineID')
+            nonturbID = []
             for i in range(0,len(RAFTDict['array']['data'])):
+                entity = self.platformList[RAFTDict['array']['data'][i][IDindex]].entity
                 RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
+                if entity.upper() != 'FOWT':
+                    nonturbID.append(deepcopy(RAFTDict['array']['data'][i][tsIDindex]))
+                    RAFTDict['array']['data'][i][tsIDindex] = 0
                 RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
                 RAFTDict['array']['data'][i][headindex] = - RAFTDict['array']['data'][i][headindex] # convert heading to cartesian from compass
+            # adjust topside ids that are turbines as necessary
+            for turb in RAFTDict['array']['data']:
+                for ti in nonturbID:
+                    if turb[tsIDindex] > ti:
+                        turb[tsIDindex] -= 1
+
                 
             # create empty mooring dictionary
             RAFTDict['mooring'] = {}
@@ -2508,13 +2539,13 @@ class Project():
                 body.calcStatics()
                 # populate dictionary of body info to send to moorpy
                 if 'ID' in RAFTable[i]:
-                    bodyInfo[RAFTable[i]['ID']] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
+                    self.platformList[RAFTable[i]['ID']].dd['hydrostatics'] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
             # create moorpy array if it doesn't exist
             if not self.ms:
                 if self.cableList:
-                    self.getMoorPyArray(bodyInfo,pristineLines=pristine,cables=1)
+                    self.getMoorPyArray(pristineLines=pristine)
                 else:
-                    self.getMoorPyArray(bodyInfo,pristineLines=pristine)
+                    self.getMoorPyArray(pristineLines=pristine)
             # assign moorpy array to RAFT object
             self.array.ms = self.ms
             # connect RAFT fowt to the correct moorpy body
@@ -2689,8 +2720,8 @@ class Project():
         None.
 
         '''
-        r = np.zeros([len(self.platformList),2])   # xy location of each platform
-        r_no_off = np.zeros([len(self.platformList),2]) # xy location of each platform not considering offsets
+        r = np.zeros([len(self.platformList),3])   # xy location of each platform
+        r_no_off = np.zeros([len(self.platformList),3]) # xy location of each platform not considering offsets
         phi = np.zeros(len(self.platformList)) # rotation heading of each platform
         D = 0
         for i,turb in enumerate(self.turbineList.values()):
@@ -3198,8 +3229,11 @@ class Project():
             fy = thrust*np.sin(np.radians(ang))
             
             # add thrust force and moment to the body
-            for body in self.ms.bodyList:
-                body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]                       
+            for pf in self.platformList.values():
+                if pf.entity == 'FOWT':
+                    pf.body.f6Ext = np.array([fx, fy, 0, fy*RNAheight, fx*RNAheight, 0])       # apply an external force on the body [N]  
+                else:
+                    pass                     
             # solve equilibrium 
             self.ms.solveEquilibrium3(DOFtype='both')
         
@@ -3395,23 +3429,39 @@ class Project():
         None.
 
         '''
-        print('Unloading project to yaml file')
+        print(f'Unloading project to yaml file {file}')
                    
         # build out array table
-        arrayKeys = ['ID','turbineID','platformID','mooringID','x_location','y_location','heading_adjust']
+        arrayKeys = ['ID','topsideID','platformID','mooringID','x_location','y_location','z_location','heading_adjust']
         arrayData = [] #np.zeros((len(arrayKeys),len(self.platformList)))
         pf_type = []
         
         # build out platform info
+        topList = []        
         for i,pf in enumerate(self.platformList.values()):
-            turbconn = None
+            ts_loc = 0
+            # determine any connected topsides
             for att in pf.attachments.values():
-                if isinstance(att['obj'],Turbine):
-                    turbconn = att['obj'].dd['type']+1
-            if not turbconn:
-                turbconn = 0
-            arrayData.append([pf.id,turbconn,pf.dd['type']+1,0,float(pf.r[0]),float(pf.r[1]),float(np.degrees(pf.phi))])
+                if not type(att['obj']).__name__ in ['Mooring','Cable','Fairlead']:
+                    dd = att['obj'].dd
+                    if isinstance(att['obj'],Turbine):
+                        entity = 'Turbine'
+                    elif isinstance(att['obj'],Substation):
+                        entity = 'Substation'
+                    else:
+                        entity = att['obj'].entity
+                    dd['type'] = entity
+                    if att['obj'].dd in topList:
+                        ts_loc = topList.index(att['obj'].dd) + 1
+                    else:
+                        topList.append(att['obj'].dd)
+                        ts_loc = len(topList)
+                
+
+            arrayData.append([pf.id, ts_loc, pf.dd['type']+1, 0, float(pf.r[0]), 
+                              float(pf.r[1]), float(pf.r[2]), float(np.degrees(pf.phi))])
             pf_type.append(pf.dd['type'])
+            
         # get set of just platform types used in this project
         pf_type = set(pf_type)
 
@@ -3422,25 +3472,7 @@ class Project():
         else:
             pfkey = 'platform'
             pfTypes = self.platformTypes[list(pf_type)[0]]
-
-        # build out turbine info
-        turb_type = []
-        for i,turb in enumerate(self.turbineList.values()):
-            turb_type.append(turb.dd['type'])
-        # get set of just turbine types used in this project
-
-        turb_type = set(turb_type)
-
-        # figure out keys
-        if len(turb_type)> 1:
-            turbkey = 'turbines'
-            turbTypes = [self.turbineTypes[x] for x in turb_type]
-        else:
-            turbkey = 'turbine'
-            turbTypes = self.turbineTypes[list(turb_type)[0]]
-        
-
-            
+           
         # build out site info
         site = {}
         if hasattr(self,'soilProps'):                       
@@ -3463,7 +3495,7 @@ class Project():
         arrayAnch = []
         anchConfigs = {}
         anchKeys = ['ID','type','x','y','embedment']
-        lineKeys = ['MooringConfigID','end A','end B','headingA','headingB','lengthAdjust']
+        lineKeys = ['MooringConfigID','endA','endB','headingA','headingB','lengthAdjust']
         
         for moor in self.mooringList.values():
             newcon = True
@@ -3472,7 +3504,7 @@ class Project():
             endA = moor.attached_to[0]
             endB = moor.attached_to[1]
             # get heading(s)
-            if not moor.shared and type(endA) != Connector:
+            if not moor.shared:  #  and type(endA) != Connector:
                 headA = 'NA'
                 # add anchor
                 arrayAnch.append([endA.id, endA.dd['name'], float(endA.r[0]), float(endA.r[1]),0])
@@ -3482,9 +3514,9 @@ class Project():
                         current_anch = endA.dd['name']
                 if newanch:
                     anchConfigs[endA.dd['name']] = dict(endA.dd['design'])
-            elif type(endA)==Connector:
-                # get connector info & store like anchors
-                pass
+            # elif type(endA)==Connector:
+            #     # get connector info & store like anchors
+            #     pass
             
             else:
                 # shared line - get end A heading
@@ -3573,31 +3605,17 @@ class Project():
                 sections.append({'connectorType':ctn})
             # put mooring config dictionary together
             mooringConfigs[str(j)] = {'name':str(j),'span':float(conf['span']),'sections':sections}
-            
-        # substation dict setup
-        substation = {}
-        for oss in self.substationList:
-            substation[oss.id] = {}
-            if 'design' in oss.dd:
-                substation[oss.id]['design'] = oss.dd['design']
-            for att in oss.attachments.values():
-                if isinstance(att,Platform):
-                    pfid = att.id
-                    substation[oss.id]['arrayID'] = pfid
+
                     
         # cables setup
-        arrayCables = []
-        arrayCableKeys = ['CableID','AttachA','AttachB','headingA','headingB','route','lengthAdjust']
-        routes = {}
-        jointTypes = {}
+        cables = []
         cableTypes = {}
         cableConfigs = {}
-        cables = {}
         cIdx = 0
         cUnique = []
         bUnique = []
         bIdx = 0
-        buoyTypes = {}
+        appendageTypes = {}
         jUnique = []
         jIdx = 0
         for jj,cab in enumerate(self.cableList.values()):
@@ -3608,37 +3626,70 @@ class Project():
             angB = np.pi/2 - np.arctan2(cab.subcomponents[-1].rA[1]-cab.rB[1],cab.subcomponents[-1].rA[0]-cab.rB[0])
             headB = float(np.degrees(angB - endB.phi))
             coords = []
-            currentCable = []
+            statcab = None
+            dynCabs = [None,None]
+            burial = None
             
-            for sub in cab.subcomponents:
+            for kk,sub in enumerate(cab.subcomponents):
                 currentConfig = {}
-                if isinstance(sub,Joint):
-                    if 'm' in sub or 'v' in sub and (sub['m']!=0 or sub['v']!=0):
-                        jKey = (getFromDict(sub,'m',default=0),getFromDict(sub,'v',default=0))
-                        if not jKey in jUnique:
-                            jUnique.append(jKey)
-                            jtn = 'joint_'+str(jIdx)
-                            jointTypes[jtn] = dict(deepcopy(sub))
-                            if sub['r']:
-                                jointTypes[jtn].pop('r')
-                            jIdx += 1
-                        else:
-                            jtd = deepcopy(sub)
-                            if 'r' in sub:
-                                jtd.pop('r')
-                            jtn = [key for key,val in jointTypes.items() if val==jtd][0]
-                        currentCable.append({'connectorType':jtn})
-                else:
+                # if isinstance(sub,Joint):
+                #     if 'm' in sub or 'v' in sub and (sub['m']!=0 or sub['v']!=0):
+                #         jKey = (getFromDict(sub,'m',default=0),getFromDict(sub,'v',default=0))
+                #         if not jKey in jUnique:
+                #             jUnique.append(jKey)
+                #             jtn = 'joint_'+str(jIdx)
+                #             appendageTypes[jtn] = dict(deepcopy(sub))
+                #             if sub['r']:
+                #                 appendageTypes[jtn].pop('r')
+                #             jIdx += 1
+                #         else:
+                #             jtd = deepcopy(sub)
+                #             if 'r' in sub:
+                #                 jtd.pop('r')
+                #             jtn = [key for key,val in appendageTypes.items() if val==jtd][0]
+                    
+                if isinstance(sub,StaticCable):
+                    # pull out cable config and compare it to existing cableConfigs
+                    ctw = sub.dd['cable_type']['w']
+                    ctA = sub.dd['cable_type']['A'] 
+                    cKey = (ctw,ctA)
+                    ctf = False; ctv = 'static_cable_'+str(cIdx)
+                    # check if made with getCableProps (then we can skip writing out cable type info)
+                    if 'notes' in sub.dd['cable_type']:
+                        if 'made with getCableProps' in sub.dd['cable_type']['notes']:
+                            ctk = 'cableFamily'
+                            ctv = 'static_cable_'+str(sub.voltage)
+                            ctf = True
+                    
+                    # create current cable config dictionary
+                    if not cKey in cUnique and not ctf:
+                        cUnique.append(cKey)                        
+                        ctv = sub.dd['cable_type']['name'] if not ctv in cableTypes.keys() else 'stat_cab_'+str(len(cUnique))
+                        cableTypes[ctv] = sub.dd['cable_type']
+                        cIdx += 1
+                    
+
+                    
+                    # check for routing coordinates
+                    if hasattr(sub,'coordinates'):
+                        coords.extend(sub.coordinates)
+                        
+                    if hasattr(sub,'burial'):
+                        burial = sub.burial
+                        
+                    statcab = ctv
+
+                        
+                elif isinstance(sub,DynamicCable):
                     # pull out cable config and compare it to existing cableConfigs
                     ct = sub.dd['type'] # static or dynamic
                     ctw = sub.dd['cable_type']['w']
                     ctA = sub.dd['cable_type']['A'] 
                     cKey = (ctw,ctA)
-                    ctf = False; ctk = 'cable'; ctv = ct+'_cable_'+str(cIdx)
+                    ctf = False; ctk = 'cable_type'; ctv = ct+'_cable_'+str(cIdx)
                     # check if made with getCableProps (then we can skip writing out cable type info)
                     if 'notes' in sub.dd['cable_type']:
                         if 'made with getCableProps' in sub.dd['cable_type']['notes']:
-                            ctk = 'cableFamily'
                             ctv = ct+'_cable_'+str(sub.voltage)
                             ctf = True
                     # check if cable type has already been written
@@ -3647,62 +3698,85 @@ class Project():
                         ctn = sub.dd['cable_type']['name']
                         cableTypes[ctn] = sub.dd['cable_type']
                         cIdx += 1
-                    if isinstance(sub,StaticCable):
+                    # collect buoyancy sections info if applicable
+                    bs = []
+                    if 'buoyancy_sections' in sub.dd:
+                        for b in sub.dd['buoyancy_sections']:
+                            btw = b['module_props']['w']; btv = b['module_props']['volume']
+                            if not (btw,btv) in bUnique:
+                                btn = 'buoy_'+str(bIdx)
+                                bUnique.append((btw,btv))
+                                bIdx += 1
+                                appendageTypes[btn] = b['module_props']
+                            else:
+                                bid = np.where(bUnique == (btw,btv))[0]
+                                btn = 'buoy_'+str(bid)
+                            bs.append({'L_mid':b['L_mid'],'N_modules':b['N_modules'],
+                                      'spacing':b['spacing'],'V':b['module_props']['volume'],
+                                      'type':btn})
+                    if 'appendages' in sub.dd:
+                        for app in sub.dd['appendages']:
+                            pass # UPDATE TO PULL OUT APPENDAGE INFO AND STORE
+                            
+                    # grab joint info
+                    prevpost = [cab.subcomponents[kk-1],cab.subcomponents[kk+1]]
+                    jsub = [isinstance(ssc,Joint) for ssc in prevpost]
+                    if any(jsub):
+                        sc = np.where(jsub)[0][0]
+                        # grab joint info and add
+                        if 'm' in prevpost[sc] or 'v' in prevpost[sc] and (prevpost[sc]['m']!=0 or prevpost[sc]['v']!=0):
+                            jKey = (getFromDict(prevpost[sc],'m',default=0),getFromDict(prevpost[sc],'v',default=0))
+                            if not jKey in jUnique:
+                                jUnique.append(jKey)
+                                jtn = 'joint_'+str(jIdx)
+                                appendageTypes[jtn] = dict(deepcopy(prevpost[sc]))
+                                if prevpost[sc]['r']:
+                                    appendageTypes[jtn].pop('r')
+                                jIdx += 1
+                            else:
+                                jtd = deepcopy(prevpost[sc])
+                                if 'r' in prevpost[sc]:
+                                    jtd.pop('r')
+                                jtn = [key for key,val in appendageTypes.items() if val==jtd][0]
+                            bs.append({'type':jtn})
+                    # create current cable config dictionary
+                    currentConfig = {ctk:ctv,'A':ctA,'rJTube':sub.dd['rJTube'],
+                                     'span':sub.dd['span'],'length':sub.L,
+                                     'voltage':sub.dd['voltage'],'sections':bs}
+                    # check if current cable config already exists in cable configs dictionary
+                    if currentConfig in cableConfigs.values():
+                        ccn = [key for key,val in cableConfigs.items() if val==currentConfig][0] # get cable config key
+                    else:
+                        # create new cable config entry in dictionary
+                        ccn = 'dynamic_'+str(len(cableConfigs))
+                        cableConfigs[ccn] = currentConfig
                         
-                        # create current cable config dictionary
-                        currentConfig = {'type':'static',ctk:ctv,'voltage':sub.voltage}
-                        if ctf:
-                            currentConfig['A'] = ctA # need to add A if using getCableProps
-                        # check if current cable config already exists in cable configs dictionary
-                        if currentConfig in cableConfigs.values():
-                            ccn = [key for key,val in cableConfigs.items() if val==currentConfig][0] # get cable config key
-                        else:
-                            # create new cable config entry in dictionary
-                            ccn = 'static_'+str(len(cableConfigs))
-                            cableConfigs[ccn] = currentConfig
-                        # check for routing coordinates
-                        if hasattr(sub,'coordinates'):
-                            coords.extend(sub.coordinates)
-                            route = 'route'+str(jj)
-                            routes[route] = {'cable_configID':ccn,'routing':['joint',coords,'joint']}
-                        currentCable.append({'type':ccn})
-                    elif isinstance(sub,DynamicCable):
-                        # collect buoyancy sections info if applicable
-                        bs = []
-                        if 'buoyancy_sections' in sub.dd:
-                            for b in sub.dd['buoyancy_sections']:
-                                btw = b['module_props']['w']; btv = b['module_props']['volume']
-                                if not (btw,btv) in bUnique:
-                                    btn = 'buoy_'+str(bIdx)
-                                    bUnique.append((btw,btv))
-                                    bIdx += 1
-                                    buoyTypes[btn] = b['module_props']
-                                else:
-                                    bid = np.where(bUnique == (btw,btv))[0]
-                                    btn = 'buoy_'+str(bid)
-                                bs.append({'L_mid':b['L_mid'],'N_modules':b['N_modules'],
-                                          'spacing':b['spacing'],'V':b['module_props']['volume'],
-                                          'type':btn})
-                        # create current cable config dictionary
-                        currentConfig = {'type':'dynamic',ctk:ctv,'length':sub.L,'sections':bs}
-                        # check if current cable config already exists in cable configs dictionary
-                        if currentConfig in cableConfigs.values():
-                            ccn = [key for key,val in cableConfigs.items() if val==currentConfig][0] # get cable config key
-                        else:
-                            # create new cable config entry in dictionary
-                            ccn = 'dynamic_'+str(len(cableConfigs))
-                            cableConfigs[ccn] = currentConfig
-                        currentCable.append({'type':ccn})
+                    if kk>0:
+                        didx = 1
+                    else:
+                        didx = 0 
+                    dynCabs[didx] = ccn
+                    # currentCable.append({'type':ccn})
             if not coords:
-                route = 'NA'
+                route = None
                 
-            if currentCable in cables.values():
-                cid = [key for key,val in cables.items() if val == currentCable][0]
-            else:
-                # create new cable entry in dictionary
-                cid = 'array_cable'+str(len(cables))
-                cables['array_cable'+str(len(cables))] = {'sections':currentCable}
-            arrayCables.append([cid,endA.id,endB.id,headA,headB,route,0])
+            cid = 'array_cable'+str(len(cables))
+            endAdict = {'attachID':endA.id,
+                        'heading':headA,
+                        'dynamicID':dynCabs[0] if dynCabs[0] else 'None'}
+            endBdict = {'attachID':endB.id,
+                        'heading':headB,
+                        'dynamicID':dynCabs[1] if dynCabs[1] else 'None'}
+            
+            cables.append({'name':cid,'endA':endAdict,'endB':endBdict})
+            
+            if statcab:
+                cables[-1]['type'] = statcab
+            if route:
+                cables[-1]['routing_x_y_r'] = coords
+            if burial:
+                cables[-1]['burial'] = burial
+                
             
             
         
@@ -3712,17 +3786,15 @@ class Project():
         # create master output dictionary for yaml
         output = {'site':site, 'array':{'keys':arrayKeys,'data':arrayData}, 
                   pfkey:pfTypes, 
-                  turbkey:turbTypes, 
-                  'substations':substation,
+                  'topsides': topList, 
                   'array_mooring':{'anchor_keys':anchKeys, 'anchor_data':arrayAnch,
                                    'line_keys':lineKeys, 'line_data':arrayMoor},
-                  'route_cables':routes,'array_cables':{'keys':arrayCableKeys,'data':arrayCables},
                   'mooring_line_configs':mooringConfigs,
                   'mooring_line_types':secTypes, 
                   'mooring_connector_types':connTypes,
                   'anchor_types':anchConfigs,
-                  'cables':cables,'cable_configs':cableConfigs,'cable_types':cableTypes, 
-                  'cable_appendages':buoyTypes,'cable_joints':jointTypes}
+                  'cables':cables,'dynamic_cable_configs':cableConfigs,'cable_types':cableTypes, 
+                  'cable_appendages':appendageTypes}
 
         output = cleanDataTypes(output)
         import ruamel.yaml

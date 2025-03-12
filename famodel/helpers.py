@@ -417,6 +417,7 @@ def getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal):
             cableType = 'static_cable_'+cableType_def[-2:]
         else:
             cableType = 'dynamic_cable_'+cableType_def[-2:]
+            
         
         if not 'cable_type' in cd or not cd['cable_type']:
             cp = loadCableProps(None)
@@ -441,7 +442,7 @@ def getCableDesign(connVal, cableType_def, cableConfig, configType, depth=None):
         cd = dd['cables'][0]
         cd['span'] = connVal['2Dlength']
         cd['L'] = connVal['2Dlength']
-        cd['A'] = connVal['A_min_con']
+        cd['A'] = connVal['conductor_area']
         cd['voltage'] = cableType_def[-2:]
         
         # add routing if necessary
@@ -452,7 +453,7 @@ def getCableDesign(connVal, cableType_def, cableConfig, configType, depth=None):
         
         if not 'cable_type' in cd:
             cp = loadCableProps(None)
-            cabProps = getCableProps(connVal['A_min_con'],cableType_def,cableProps=cp)
+            cabProps = getCableProps(connVal['conductor_area'],cableType_def,cableProps=cp)
             # fix units
             cabProps['power'] = cabProps['power']*1e6
             cd['cable_type'] = cabProps
@@ -468,7 +469,7 @@ def getCableDesign(connVal, cableType_def, cableConfig, configType, depth=None):
         cableDs = []
         cable_selection = []
         for cabC in cableConfig['configs']:
-            if connVal['A_min_con'] == cabC['A']:
+            if connVal['conductor_area'] == cabC['A']:
                 cableAs.append(cabC)
         if not cableAs:
             raise Exception('Cable configs provided do not match required conductor area')
@@ -522,108 +523,170 @@ def getCableDesign(connVal, cableType_def, cableConfig, configType, depth=None):
         
     return(selected_cable,deepcopy(dd))
 
-def getCables(cabSection, cable_configs, cable_types, cable_appendages, depth, rho_water, g):
+def getDynamicCables(cable_config, cable_types, cable_appendages, depth, 
+                     rho_water=1025, g=9.81):
     '''
     Create cable design dictionary
 
     Parameters
     ----------
-    cabSection : dict
-        Dictionary of cable section information in ontology yaml format
-    cable_configs : dict
-        Dictionary of cable configuration information in ontology yaml format
+    cable_config : dict
+        Dictionary of dynamic cable configuration information in ontology yaml format
     cable_types : dict
         Dictionary of cable type information in ontology yaml format
     cable_appendages : dict
         Dictionary of cable appendage (ex: buoyancy modules) information in ontology yaml format
     depth : float
         Water depth
-    rho_water : float
-        Water density [kg/m^3]
-    g : float
-        acceleration due to gravity [m/s^2]
+    rho_water : float, optional
+        Water density [kg/m^3]. Default is 1025
+    g : float, optional
+        acceleration due to gravity [m/s^2]. Default is 9.81
 
     Returns
     -------
     cCondd : dict
         Dictionary of cable design
+    jCondd : dict
+        Dictionary of joint design
 
     '''
     
-    cCondd = {}
-    cC = cable_configs[cabSection['type']]
-    
-    if cabSection['type'] in cable_configs:
-        if 'span' in cC:
-            cCondd['span'] = cC['span']
-        if 'length' in cC:
-            cCondd['L'] = cC['length']
-        cCondd['A'] = getFromDict(cC,'A',default=0)
-        cCondd['type'] = cC['type']
-        cCondd['powerRating'] = getFromDict(cC,'powerRating',default=0)
-        if 'zJTube' in cC:
-            cCondd['zJTube'] = cC['zJTube']
-        cCondd['voltage'] = getFromDict(cC,'voltage',default=66)
+    cCondd = {'appendages':[]}
+    jCondd = {}
+
+    if cable_config:
+        cCondd['span'] = cable_config['span']
+        cCondd['L'] = cable_config['length']
+        cCondd['A'] = getFromDict(cable_config,'A',default=0)
+        if 'zJTube' in cable_config:
+            cCondd['zJTube'] = cable_config['zJTube']
+        # cCondd['voltage'] = getFromDict(cable_config,'voltage',default=66)
         
         # get cable properties for cable type (should only be one section - may change later)
-        cCondd['cable_type'] = CableProps(cC, cable_types, rho_water, g)
+        cCondd['cable_type'] = CableProps(cable_config['cable_type'], cable_types, rho_water, g, A=cCondd['A'])
+        cCondd['type'] = 'dynamic'
         
-        # get buoy properties
-        if 'sections' in cC:
+        # get appendage properties (could be buoys or could be J-tubes, joints, etc)
+        if 'sections' in cable_config:
             cCondd['buoyancy_sections'] = []
-            for i in range(0,len(cC['sections'])):
-                cCondd['buoyancy_sections'].append(BuoyProps(cC['sections'][i],cable_appendages))
-        
-        # # check for routing / burial info (generally for static cable)
-        # if 'routing_x_y_r' in cC:
-        #     cCondd['routing_xyr'] = cC['routing_x_y_r']
-        # if 'burial' in cC:
-        #     cCondd['burial'] = cC['burial']
+            for i in range(0,len(cable_config['sections'])):
+                dd, appEntity = AppendageProps(cable_config['sections'][i],cable_appendages)
+                if 'BUOY' in appEntity.upper():
+                    cCondd['buoyancy_sections'].append(dd)
+                elif 'JOINT' in appEntity.upper():
+                    jCondd = dd
+                else:
+                    cCondd['appendages'].append(dd)
             
         # add depth
         cCondd['z_anch'] = -depth
         
-    return(cCondd)
+    return(cCondd, jCondd)
 
-def BuoyProps(buoyType,cable_appendages):
+def getStaticCables(statCabID, cable_types, routing=None, burial=None, rho_water=1025,
+                    g=9.81, A=None):
     '''
-    Create buoyancy_sections portion of cable design dictionary
+    Creates design dictionary of a static cable including any routing and burial information
 
     Parameters
     ----------
-    buoyType : dict
-        Dictionary of buoy details from the cable_configs sections list
+    statCabID : str
+        Name of static cable type.
+    cable_types : dict
+        Dictionary of cable types.
+    routing : list, optional
+        List of x-y-r routing coordinates (where r is radius). The default is None.
+    burial : dict, optional
+        Dictionary containing lists of depths and lengths along cable. The default is None.
+    rho_water : float, optional
+        Water density [kg/m^3]. Default is 1025
+    g : float, optional
+        acceleration due to gravity [m/s^2]. Default is 9.81
+    A : int, optional
+        conductor area in mm^2
+
     Returns
     -------
-    dd : buoyancy_sections portion of design dictionary
+    dd : dict
+        Design dictionary of static cable
 
     '''
     dd = {}
-    # add midpoint along length to add buoys to
-    dd['L_mid'] = buoyType['L_mid']
+    dd['cable_type'] = CableProps(statCabID, cable_types, rho_water, g, A=A)
+    dd['type'] = 'static'
     
-    # figure out where buoy properties are located, add it in
-    if buoyType['type'] in cable_appendages:
-        dd['module_props'] = cable_appendages[buoyType['type']]
-    else:
-        bp = loadBuoyProps(None)
-        buoyProps = getBuoyProps(buoyType['V'],buoyType['type'],buoyProps=bp)
-        dd['module_props'] = buoyProps
-    
-    # add number of modules and spacing
-    dd['N_modules'] = buoyType['N_modules']
-    dd['spacing'] = buoyType['spacing']
-    
-    return(deepcopy(dd))
+    # check for routing / burial info
+    if routing:
+        dd['routing_xyr'] = routing
+    if burial:
+        dd['burial'] = burial
+        
+    return(dd)
 
-def CableProps(cabType, cable_types, rho_water, g, checkType=1):
+def AppendageProps(appType,cable_appendages):
+    '''
+    Create appendage or buoyancy_sections portion of cable design dictionary
+
+    Parameters
+    ----------
+    appType : dict
+        Dictionary of appendage details from the dyn_cable_configs sections list
+    Returns
+    -------
+    dd : buoyancy_sections portion of design dictionary (if buoy) or creates Joint design dictionary (if joint)
+         or adds to appendages section of design dictionary (if other i.e. J-tube)
+    entity : str
+        type of appendage
+
+    '''
+    dd = {}
+    if appType['type'] in cable_appendages:
+        # pull out what type of appendage this is 
+        entity = cable_appendages[appType['type']]['type']
+        
+        if 'BUOY' in entity.upper():  # this is a buoyancy module
+            # add midpoint along length to add buoys to
+            dd['L_mid'] = appType['L_mid']
+            
+            # add buoy props to dd
+            dd['module_props'] = cable_appendages[appType['type']]
+            # add number of modules and spacing
+            dd['N_modules'] = appType['N_modules']
+            dd['spacing'] = appType['spacing']
+        else:
+            # create dd
+            dd = cable_appendages[appType['type']]
+            if 'L_mid' in appType:
+                dd['L_mid'] = appType['L_mid']
+    elif 'V' in appType:
+        
+        # pull from buoy props
+        bp = loadBuoyProps(None)
+        buoyProps = getBuoyProps(appType['V'],appType['type'],buoyProps=bp)
+        
+        # assign buoyancy section info
+        dd['L_mid'] = appType['L_mid']
+        dd['module_props'] = buoyProps
+        dd['N_modules'] = appType['N_modules']
+        dd['spacing'] = appType['spacing']
+        
+        entity = 'buoy'
+        
+    else:
+        raise Exception(f"appendage {appType['type']} is not found in cable_appendages dictionary. If appendage design should come from buoyProps, please provide a volume 'V'.")
+        
+        
+    
+    return(deepcopy(dd),entity)
+
+def CableProps(cabType, cable_types, rho_water, g, checkType=1, A=None):
     '''
     Create cable_type section of design dictionary
     Parameters
     ----------
-    cabType : dict
-        Dictionary of cable details from the cable_configs typeID
-        Includes type (reference to name in cable_types or cable_props yaml)
+    cabType : str
+        Name of cable type
     cable_types : dict
         Dictionary of cable type details in ontology yaml format
     rho_water : float
@@ -633,35 +696,37 @@ def CableProps(cabType, cable_types, rho_water, g, checkType=1):
     checkType : boolean
         Controls whether or not to first look for the cable type in the project yaml dictionary before
         attempting to get the cable properties from cable props yaml.
+    A : int
+        Cable conductor area in mm^2, only needed if using cableprops yaml
 
     Returns
     -------
     dd : cable type section of cable design dictionary
 
     '''
-    if 'typeID' in cabType and cabType['typeID'] in cable_types:
-        dd = cable_types[cabType['typeID']]
-        dd['name'] = cabType['typeID']
-        dd['voltage'] = cabType['voltage']
+    if cabType in cable_types:
+        dd = cable_types[cabType]
+        dd['name'] = cabType
         if 'd_vol' in dd:
             d_vol = dd['d_vol']
         else:
             d_vol = dd['d']
         dd['w'] = (dd['m']-np.pi/4*d_vol**2*rho_water)*g
-        if 'cableFamily' in cabType:
-            raise Exception('typeID and cableFamily listed in yaml - use typeID to reference a cable type in the cable_type section of the yaml and cableFamily to obtain cable properties from CableProps_default.yaml')
-    elif 'cableFamily' in cabType:
-        if not 'A' in cabType:
+        # if 'cableFamily' in cabType:
+        #     raise Exception('typeID and cableFamily listed in yaml - use typeID to reference a cable type in the cable_type section of the yaml and cableFamily to obtain cable properties from CableProps_default.yaml')
+    else:
+        # cable type not listed in cable_types dictionary, default to using getCableProps
+        if not A:
             raise Exception('To use CableProps yaml, you must specify an area A for the cable family')
         cp = loadCableProps(None)
-        cabProps = getCableProps(cabType['A'],cabType['cableFamily'],cableProps=cp)
+        cabProps = getCableProps(A,cabType,cableProps=cp)
         # fix units
         cabProps['power'] = cabProps['power']*1e6
         dd = cabProps
-        dd['name'] = cabType['cableFamily']
+        dd['name'] = cabType
         dd['voltage'] = cabProps['voltage']
-    elif 'typeID' in cabType and not cabType['typeID'] in cable_types:
-        raise Exception(f'TypeID {cabType["typeID"]} provided in cable_config {cabType} is not found in cable_types section. Check for errors.')
+    # elif 'typeID' in cabType and not cabType['typeID'] in cable_types:
+    #     raise Exception(f'TypeID {cabType["typeID"]} provided in cable_config {cabType} is not found in cable_types section. Check for errors.')
 
     return(deepcopy(dd))
 

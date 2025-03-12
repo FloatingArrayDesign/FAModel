@@ -391,6 +391,7 @@ class DynamicCable(Edge):
         # go through dictionary and add up costs
         cost_cable = 0
         cost_buoys = 0
+        cost_appendages = 0
         # get cost of bare cable
         if 'cost' in self.dd['cable_type']:
             cost_cable += self.dd['cable_type']['cost']*self.L 
@@ -399,8 +400,13 @@ class DynamicCable(Edge):
             for bs in self.dd['buoyancy_sections']:
                 if 'cost' in bs['module_props']:
                     cost_buoys += bs['module_props']['cost']*bs['N_modules']
+        if 'appendages' in self.dd:
+            for app in self.dd['appendages']:
+                if 'cost' in app:
+                    cost_appendages += app['cost']
         self.cost['cable'] = cost_cable
         self.cost['buoys'] = cost_buoys
+        self.cost['appendages'] = cost_appendages
                     
         # sum up the costs in the dictionary and return       
         return sum(self.cost.values()) 

@@ -48,9 +48,11 @@ class Cable(Edge):
             
             for i, sec in enumerate(d['cables']):
                 Cid = id+'_'+sec['cable_type']['name']+str(i)
-                if sec['type'] == 'static':
+                if sec['type'].upper() == 'STATIC':
                     if 'routing' in sec:
                         d['cables'][i]['routing'] = sec['routing']
+                    if 'burial' in sec:
+                        d['cables'][i]['burial'] = sec['burial']
                     self.dd['cables'].append(StaticCable(Cid, dd=d['cables'][i], **d['cables'][i]))
                 else:
                     if 'routing' in sec:
@@ -80,7 +82,7 @@ class Cable(Edge):
             
         # cost dictionary
         self.cost = {}
-        # add any connector costs to cost dictionary
+        # add any connector costs to cost dictionary - TO BE MOVED INTO DYNAMIC CABLE APPENDAGES SECTION 
         if 'connector_cost' in d:
             self.cost['connector_cost'] = d['connector_cost']
 
@@ -141,8 +143,13 @@ class Cable(Edge):
         else:
             headingA = headings[0]
             headingB = headings[1]
+            
         if not rad_fair:
-            rad_fair = [self.attached_to[x].rFair if self.attached_to[x].rFair else 58 for x in range(2)]
+            rad_fair = [self.attached_to[x].rFair if self.attached_to[x].rFair else 0 for x in range(2)]
+        else:
+            for i,r in enumerate(rad_fair):
+                if r==None:
+                    rad_fair[i] = self.attached_to[i].rFair if self.attached_to[i] else 0
 
         # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
         Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rad_fair[0], self.attached_to[0].r[1]+np.sin(headingA)*rad_fair[0], self.attached_to[0].zFair]

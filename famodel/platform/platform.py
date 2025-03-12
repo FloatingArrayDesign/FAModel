@@ -83,7 +83,8 @@ class Platform(Node):
         '''
         
         # Store updated position and orientation
-        self.r = np.array(r)
+        for i,ri in enumerate(r):
+            self.r[i] = np.array(ri)
         
         if not heading == None:
             if degrees:
@@ -150,7 +151,7 @@ class Platform(Node):
             
         if project and len(project.grid_depth) > 1:
             # calculate the maximum anchor spacing
-            anchor_spacings = [np.linalg.norm(mooring.rA[0:2] - self.r) for mooring in mList]
+            anchor_spacings = [np.linalg.norm(mooring.rA[0:2] - self.r[:2]) for mooring in mList]
             # get the bathymetry range that is related to this platform
             margin = 1.2
             small_grid_x = np.linspace((self.r[0] - np.max(anchor_spacings)*margin), (self.r[0] + np.max(anchor_spacings)*margin), 10)
@@ -169,7 +170,7 @@ class Platform(Node):
         else:
             self.ms = mp.System(depth=mList[0].z_anch)
         
-        r6 = [self.r[0],self.r[1],0,0,0,0]
+        r6 = [self.r[0],self.r[1],self.r[2],0,0,0]
         # create body
         if bodyInfo:
             self.ms.addBody(0,r6,m=bodyInfo['m'],v=bodyInfo['v'],rCG=np.array(bodyInfo['rCG']),rM=np.array(bodyInfo['rM']),AWP=bodyInfo['AWP'])
