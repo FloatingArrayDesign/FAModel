@@ -133,6 +133,7 @@ class Mooring(Edge):
         # Dictionaries for additional information
         self.envelopes = {}  # 2D motion envelope, buffers, etc.
         self.loads = {}
+        self.disturbedSeabedArea = 0
         self.safety_factors = {}
         self.reliability = {}
         self.cost = {}
