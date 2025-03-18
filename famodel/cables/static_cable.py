@@ -87,9 +87,10 @@ class StaticCable(Edge):
             
             # get L between coordinate points
             if len(self.x)>1:
-                for i in range(len(self.x)-1):                
+                for i in range(len(self.x)-1):  
                     L += get_length_between_points([self.x[i+1],self.y[i+1]],
                                                    [self.x[i],self.y[i]])
+
         self.L = L                            
         
         return self.L
@@ -170,23 +171,21 @@ class StaticCable(Edge):
         Parameters
         ----------
         coords : list, optional
-            List of xy coordinates (and potentially burial and radius) for routing
+            List of xy coordinates (and potentially radius) for routing
 
         Returns
         -------
         None.
 
         '''
+
         if coords:
             self.x = [coord[0] for coord in coords]  # cable route vertex global x coordinate [m]
             self.y = [coord[1] for coord in coords]  # cable route vertex global y coordinate [m]
             # Check if radius available
-            if len(coords[0]) <= 2:
-                self.r = []  # cable route vertex corner radius [m]
-            elif len(coords[0]) == 3:
+            if len(coords[0]) == 3:
                 self.r = [coord[2] for coord in coords]  # cable route vertex corner radius [m]
-                
-        self.coordinates = coords
+
                 
         # update static cable length
         self.getLength()

@@ -255,7 +255,7 @@ array cabling.
 ### Array Layout
 There are two options for describing the array layout: uniform or freeform array.
 
-For a simple uniform array, use the 'uniform_array' section. This section provides information on parameters of a uniform array such as number of rows and columns, spacing, etc, along with the id of a mooring system, platform, and turbine that will be used for all platforms. These ids connect to details on specific mooring systems, platforms, and turbines in [mooring_systems](#mooring-systems), [Platform](#platforms), and [Turbine](#turbines) sections respectively. Due to the nature of this method, no shared moorings/anchors can be used. Platform IDs for uniform arrays will be assigned automatically in the Project class.
+For a simple uniform array, use the 'uniform_array' section. This section provides information on parameters of a uniform array such as number of rows and columns, spacing, etc, along with the id of a mooring system, platform, and turbine that will be used for all platforms. These ids connect to details on specific mooring systems, platforms, and turbines in [Mooring Systems](#mooring-systems), [Platform](#platforms), and [Topside](#topsides) sections respectively. Due to the nature of this method, no shared moorings/anchors can be used.
 ```yaml
 # Wind turbine array layout
 uniform_array:
@@ -297,7 +297,7 @@ array:
 
 
 ### Array Mooring
-The array mooring section allows the user to input array-level mooring system details, instead of the more generalized mooring systems in [Mooring Systems](#mooring_systems). It is often used for shared moorings or mooring lines connected to shared anchors, as those lines cannot be described by the [Mooring Systems](#mooring_systems) section.
+The array mooring section allows the user to input array-level mooring system details, instead of the more generalized mooring systems in [Mooring Systems](#mooring-systems). It is often used for shared moorings or mooring lines connected to shared anchors, as those lines cannot be described by the [Mooring Systems](#mooring-systems) section.
 
 This section inputs a list of x,y anchor positions, anchor type, and embedment depth. The anchor type links to the list in the anchor_types section.
 
@@ -330,9 +330,9 @@ There are two locations to list cables, either or both may be used. Cables liste
 
 This section provides a straightforward and compact way to define the power
 cables in the array. The CableID refers to an entry in the [Top Level Cables](#top-level-cables) section. For each end (A and B) of the cable, it specifies the
-platform (matching an ID in the [array table](#array-layout)) it is attached to, the dynamic cable attached at either end (matching an ID in the [Dynamic Cable Configurations](#cable-configurations) section), and the heading of the cable at the attachment of each end, using headings relative to the heading of the platform or substation it is connected to, running clockwise. 
+platform (matching an ID in the [array table](#array-layout)) it is attached to, the dynamic cable attached at either end (matching an ID in the [Dynamic Cable Configurations](#dynamic-cable-configurations) section), and the heading of the cable at the attachment of each end, using headings relative to the heading of the platform or substation it is connected to, running clockwise. 
 
-The static cable type is listed under 'cableType', referencing either an entry in the [Cable Cross Sectional Properties](#cable-types) section or a cable type name in the FAModel CableProps yaml. Length adjustment information is also included.
+The static cable type is listed under 'cableType', referencing either an entry in the [Cable Cross Sectional Properties](#cable-cross-sectional-properties) section or a cable type name in the FAModel CableProps yaml. Length adjustment information is also included.
 
 If a cable does not have a feature (for example, a suspended cable would not have a static cable type or a dynamic cable end B - it is just one cable throughout) None is used instead (see second cable listed below).
 
@@ -476,9 +476,10 @@ in the model, and provides clarity on the location of the connector relative to 
 There is also a True/False option for whether the section length is adjustable. 
 
 Shared or suspended lines may also have an optional 'symmetric' input which, if set to true, signifies that 
-the line is symmetric and only the first half of the line is provided in the 'sections' list. When loaded in to the project class, the mooring object will automatically be fully filled out by mirroring 
-the first half of the line. If a connector is provided as the last item in the sections list for a symmetric line, it is assumed that the middle line is two identical lines with the given connector between, otherwise 
-the middle line (last line given in the list) is doubled in length in the mirroring process. For example, the 'rope_shared' config in the yaml below would produce a symmetric shared line with sections in the following order
+the line is symmetric and only the first half of the line is provided in the 'sections' list.  If a connector is provided as the last item in the sections list for a symmetric line, it is assumed that the middle line is two identical lines with the given connector between, otherwise 
+the middle line (last line given in the list) is doubled in length in the mirroring process. 
+
+For example, the 'rope_shared' config in the yaml below would produce a symmetric shared line with sections in the following order
 a 150 m section of rope, a clump weight, a 1172 m section of rope (note the doubled length), a clump weight, and finally a 150 m section of rope.
 
 
@@ -691,13 +692,13 @@ Routing can be added as an option, described in a list of coordinates for x,y, a
 ### Dynamic Cable Configurations
 
 This section lists the dynamic cable configurations used in the array design.
-The 'cable_type' links to either a dynamic cable entry in the [Cable Cross-Sectional Properties](#cable-cross-sectional-properties) section or a dynamic cable type in the cableProps_default yaml.
+The 'cable_type' links to either a dynamic cable entry in the [Cable Cross-Sectional Properties](#cable-cross-sectional-properties) section or a dynamic cable type in the FAModel cableProps_default yaml.
 
 The sections list provides details on the layout of cable appendages, such as buoyancy modules, joints, and clump weights. The 
 distance of the appendage midpoint from end A is included; however, joints do not need a specified location if they are at the end of a cable. Buoyancy module sections also include the number of modules, the spacing between modules, 
 and the volume of a single buoyancy module. The volume is only needed if the buoyancy module properties will be imported 
 from the cableProps_defaul yaml. As with the cable properties, the 'type' in the sections list must refer to 
-an entry in either the [Cable Appendages](#cable-appendages) section or in the cableProps_default.yaml.
+an entry in either the [Cable Appendages](#cable-appendages) section or in the FAModel cableProps_default.yaml.
 
 Similar to mooring lines, the span refers to the end to end distance of the line in the x-y plane.
 

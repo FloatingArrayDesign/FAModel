@@ -658,7 +658,7 @@ class Anchor(Node):
                     else:
                         FS[Lkey] = Cval/Lval
                     if acceptance_crit and Lkey in acceptance_crit:
-                        if Lval == 0:
+                        if Lval == 0 or acceptance_crit[Lkey] == 0:
                             acceptance[Lkey] = True
                         else:
                             acceptance[Lkey] = acceptance_crit[Lkey]<=FS[Lkey]
@@ -953,7 +953,7 @@ class Anchor(Node):
         if FSdiff_max:
             count = 0
             while count<10 and (np.any([abs(FSdiff[key])>FSdiff_max[key] for key in FSdiff.keys()]) or np.any([diff<0 for diff in FSdiff.values()])):
-                if np.any([diff<.05 for diff in FSdiff.values()]) and np.all([diff>=0 for diff in FSdiff.values()]):
+                if np.any([diff<.02 for key,diff in FSdiff.items() if minfs[key]>0]) and np.all([diff>=0 for diff in FSdiff.values()]):
                     # exit loop if you're as close as can be on one of the FS even if other is above diff requirements UNLESS an FS is below minimum reqiured FS
                     break
                 print('Factor of Safety not close enough to minimum factor of safety, trying again with adjusted initial guess.')

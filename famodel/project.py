@@ -1737,20 +1737,21 @@ class Project():
             # add in routing if it exists
             for sub in cable.subcomponents:
                 if isinstance(sub,StaticCable):
-                    if sub.coordinates:
+                    if hasattr(sub,'x'):
                         # has routing  - first plot rA to sub.coordinate[0] connection
-                        ax.plot([sub.rA[0],sub.coordinates[0][0]],
-                                [sub.rA[1],sub.coordinates[0][1]],':',color = Ccable,
+                        ax.plot([sub.rA[0],sub.x[0]],
+                                [sub.rA[1],sub.y[0]],':',color = Ccable,
                                 lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                         # now plot route
-                        if len(sub.coordinates) > 1:
-                            for i in range(1,len(sub.coordinates)):
-                                ax.plot([sub.coordinates[i-1][0],sub.coordinates[i][0]],
-                                        [sub.coordinates[i-1][1],sub.coordinates[i][1]],
-                                        ':',color=Ccable,lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                        if len(sub.x) > 1:
+                            for i in range(1,len(sub.x)):
+                                ax.plot([sub.x[i-1],sub.x[i]],
+                                        [sub.y[i-1],sub.y[i]],
+                                        ':', color=Ccable, lw=1,
+                                        label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                         # finally plot sub.coordinates[-1] to rB connection
-                        ax.plot([sub.coordinates[-1][0],sub.rB[0]],
-                                [sub.coordinates[-1][1],sub.rB[1]],':',color=Ccable,
+                        ax.plot([sub.x[-1],sub.rB[0]],
+                                [sub.y[-1],sub.rB[1]],':',color=Ccable,
                                 lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
                     else:
                         # if not routing just do simple line plot
@@ -1971,6 +1972,7 @@ class Project():
                                 soil_z = self.projectAlongSeabed(sub.x,sub.y)
                         except:
                             soil_z = [self.depth]
+                            
                         # plot connections from joints to first and last routing point
                         ax.plot([jointA[0],sub.x[0]],[jointA[1],sub.y[0]],[-soil_z[0],-soil_z[0]-burial[0]],
                                 ':',color=Ccable,zorder=5,lw=lw)
@@ -1979,7 +1981,11 @@ class Project():
                         
                         if len(sub.x)> 1:
                             # plot in 3d along soil_z
-                            ax.plot(sub.x,sub.y,-soil_z-burial,':',color=Ccable,zorder=5,lw=lw)
+                            for ii in range(len(sub.x)-1):
+                                ax.plot([sub.x[ii],sub.x[ii+1]],
+                                        [sub.y[ii],sub.y[ii+1]],
+                                        [-soil_z[ii],-soil_z[ii+1]],
+                                        ':', color=Ccable, zorder=5, lw=lw)
                     else:
                         # no routing - just plot a straight line
                         ax.plot([sub.rA[0],sub.rB[0]],[sub.rA[1],sub.rB[1]],[sub.rA[2],sub.rB[2]],':',color=Ccable,zorder=5,lw=lw)
@@ -2101,11 +2107,11 @@ class Project():
             for j in self.anchorList[i].attachments: # j is key (name) of mooring object in anchor i
                 # create subsystem
                 if pristineLines:
-                    self.anchorList[i].attachments[j]['obj'].createSubsystem(pristine=1, project=self, mooringSys=self.ms)
+                    self.anchorList[i].attachments[j]['obj'].createSubsystem(pristine=1, mooringSys=self.ms)
                     # set location of subsystem for simpler coding
                     ssloc.append(self.anchorList[i].attachments[j]['obj'].ss)
                 else:
-                    self.anchorList[i].attachments[j]['obj'].createSubsystem(project=self, mooringSys=self.ms)
+                    self.anchorList[i].attachments[j]['obj'].createSubsystem(mooringSys=self.ms)
                     # set location of subsystem for simpler coding
                     ssloc.append(self.anchorList[i].attachments[j]['obj'].ss_mod)
                 self.ms.lineList.append(ssloc[-1])
@@ -2135,7 +2141,7 @@ class Project():
                 self.ms.pointList[-1].CdA = self.ms.lineList[-1].pointList[-1].CdA
                 # attach the line to point
                 self.ms.pointList[-1].attachLine(ssloc[-1].number,1)
-                body.attachPoint(len(self.ms.pointList),[ssloc[-1].rB[0]-PF.r[0],ssloc[-1].rB[1]-PF.r[1],ssloc[-1].rB[2]]) # attach to fairlead (need to subtract out location of platform from point for subsystem integration to work correctly)
+                body.attachPoint(len(self.ms.pointList),[ssloc[-1].rB[0]-PF.r[0],ssloc[-1].rB[1]-PF.r[1],ssloc[-1].rB[2]-PF.r[2]]) # attach to fairlead (need to subtract out location of platform from point for subsystem integration to work correctly)
 
         
         check = np.ones((len(self.mooringList),1))
@@ -2148,9 +2154,9 @@ class Project():
                 # new shared line
                 # create subsystem for shared line
                 if hasattr(self.mooringList[i],'shared'):
-                    self.mooringList[i].createSubsystem(case=self.mooringList[i].shared,pristine=pristineLines, project=self)
+                    self.mooringList[i].createSubsystem(case=self.mooringList[i].shared,pristine=pristineLines, mooringSys=self.ms)
                 else:
-                    self.mooringList[i].createSubsystem(case=1,pristine=pristineLines, project=self) # we doubled all symmetric lines so any shared lines should be case 1
+                    self.mooringList[i].createSubsystem(case=1,pristine=pristineLines, mooringSys=self.ms) # we doubled all symmetric lines so any shared lines should be case 1
                 # set location of subsystem for simpler coding
                 if pristineLines:
                     ssloc = self.mooringList[i].ss
@@ -2171,7 +2177,7 @@ class Project():
                             # add fairlead point and attach the line to it
                             self.ms.addPoint(1,ends[ki])
                             self.ms.pointList[-1].attachLine(ssloc.number,ki)
-                            att[ki].body.attachPoint(len(self.ms.pointList),[ends[ki][0]-att[ki].r[0],ends[ki][1]-att[ki].r[1],ends[ki][2]])
+                            att[ki].body.attachPoint(len(self.ms.pointList),[ends[ki][0]-att[ki].r[0],ends[ki][1]-att[ki].r[1],ends[ki][2]-att[ki].r[2]])
                         else:
                             # this end is unattached
                             pass
@@ -2519,7 +2525,9 @@ class Project():
                 entity = self.platformList[RAFTDict['array']['data'][i][IDindex]].entity
                 RAFTDict['array']['data'][i].pop(IDindex) # remove ID column because this doesn't exist in RAFT array data table
                 if entity.upper() != 'FOWT':
-                    nonturbID.append(deepcopy(RAFTDict['array']['data'][i][tsIDindex]))
+                    val = deepcopy(RAFTDict['array']['data'][i][tsIDindex])
+                    if val>0:
+                        nonturbID.append(val)
                     RAFTDict['array']['data'][i][tsIDindex] = 0
                 RAFTDict['array']['data'][i][mooringIDindex] = 0 # make mooringID = 0 (mooring data will come from MoorPy)
                 RAFTDict['array']['data'][i][headindex] = - RAFTDict['array']['data'][i][headindex] # convert heading to cartesian from compass
@@ -3471,7 +3479,7 @@ class Project():
             ts_loc = 0
             # determine any connected topsides
             for att in pf.attachments.values():
-                if not type(att['obj']).__name__ in ['Mooring','Cable','Fairlead']:
+                if not isinstance(att['obj'],(Mooring, Cable)):
                     dd = att['obj'].dd
                     if isinstance(att['obj'],Turbine):
                         entity = 'Turbine'
@@ -3686,8 +3694,11 @@ class Project():
 
                     
                     # check for routing coordinates
-                    if hasattr(sub,'coordinates'):
-                        coords.extend(sub.coordinates)
+                    if hasattr(sub,'x'):
+                        if hasattr(sub,'r'):
+                            coords.extend([[sub.x[aa],sub.y[aa],sub.r[aa]] for aa in range(len(sub.x))])
+                        else:
+                            coords.extend([[sub.x[aa],sub.y[aa]] for aa in range(len(sub.x))])
                         
                     if hasattr(sub,'burial'):
                         burial = sub.burial

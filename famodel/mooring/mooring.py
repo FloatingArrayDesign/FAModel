@@ -189,7 +189,7 @@ class Mooring(Edge):
     
     
     def reposition(self, r_center=None, heading=None, project=None, 
-                   degrees=False, rad_fair=[], **kwargs):
+                   degrees=False, rad_fair=[], z_fair=[], **kwargs):
         '''Adjusts mooring position based on changed platform location or
         heading. It can call a custom "adjuster" function if one is
         provided. Otherwise it will just update the end positions.
@@ -210,6 +210,9 @@ class Mooring(Edge):
             fairlead radius of node connected on each end of the mooring line (list should be length 2)
             If not provided, the fairlead radius will be determined from the attached nodes' listed
             fairlead radius (or, if it's an anchor, 0)
+        z_fair : list, optional
+            fairlead depth (relative to platform depth) of node connected on each end of mooring line (list should be length 2)
+            If not provided, the fairlead depth will be determined from the attached nodes' listed fairlead depths (or, if its an anchor, 0)
         **kwargs : dict
             Additional arguments passed through to the designer function.
         '''
@@ -234,9 +237,12 @@ class Mooring(Edge):
         # create fairlead radius list for end A and end B if needed
         if not rad_fair:
             rad_fair = [self.attached_to[x].rFair if (hasattr(self.attached_to[x],'rFair') and self.attached_to[x].rFair) else 0 for x in range(2)]
+        # create fairlead depth list for end A and end B if needed
+        if not z_fair:
+            z_fair = [self.attached_to[x].zFair if (hasattr(self.attached_to[x],'zFair') and self.attached_to[x].zFair) else 0 for x in range(2)]
             
         # Set the updated end B location
-        self.setEndPosition(np.hstack([r_centerB[:2] + rad_fair[1]*u, self.z_fair + r_centerB[2]]), 'b')
+        self.setEndPosition(np.hstack([r_centerB[:2] + rad_fair[1]*u, z_fair[1] + r_centerB[2]]), 'b')
         
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
@@ -244,7 +250,7 @@ class Mooring(Edge):
             self.adjuster(self, r_centerB, u, project=project, **kwargs)
             
         elif self.shared == 1: # set position of end A at platform end A
-            self.setEndPosition(np.hstack([r_centerA[:2] - rad_fair[0]*u, self.z_fair + r_centerA[2]]),'a')
+            self.setEndPosition(np.hstack([r_centerA[:2] - rad_fair[0]*u, z_fair[0] + r_centerA[2]]),'a')
         
         else: # otherwise just set the anchor position based on a set spacing (NEED TO UPDATE THE ANCHOR DEPTH AFTER!)
             xy_loc = r_centerB[:2] + (self.span + rad_fair[1])*u
@@ -363,7 +369,7 @@ class Mooring(Edge):
         return(self.loads['TAmax'],self.loads['TBmax'])
     
     
-    def createSubsystem(self, case=0,pristine=True,dd=None, project=None, mooringSys=None):
+    def createSubsystem(self, case=0,pristine=True,dd=None, mooringSys=None):
         ''' Create a subsystem for a line configuration from the design dictionary
         
         Parameters
@@ -377,8 +383,8 @@ class Mooring(Edge):
                 - 2: the assembly is suspended and assumed symmetric, end A is the midpoint
         dd : dict, optional
             Dictionary describing the design
-        flag : whether or not the warning for a subsystem already existing has been printed (to prevent mass printing to screen
-                                                                                             for big projects)
+        mooringSys : MoorPy System, optional
+            MoorPy system this subsystem is a part of
         '''
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:
