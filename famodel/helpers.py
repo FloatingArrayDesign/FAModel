@@ -267,6 +267,63 @@ def updateYAML_mooring(fname,ms,newfile):
 
 # ----- Cable routing support functions -----
 
+def adjustCable(cc,project,na=None,nb=None,routeAdjustLength=500,rad_fair=None):
+    cx = cc.subcomponents[2].x
+    cy = cc.subcomponents[2].y
+    if na==None:
+        hA = np.radians(90) - np.arctan2((cc.subcomponents[0].rB[0]-cc.subcomponents[0].rA[0]),(cc.subcomponents[0].rB[1]-cc.subcomponents[0].rA[1]))
+    else:
+        hA = np.radians(na) #headingA
+        cx[0] = [cc.attached_to[0].r[0]+500*np.cos(np.radians(na))]
+        cy[0] = [cc.attached_to[0].r[1]+500*np.sin(np.radians(na))]
+    if nb==None:
+        hB = np.radians(90) - np.arctan2((cc.subcomponents[-1].rA[0]-cc.subcomponents[-1].rB[0]),(cc.subcomponents[-1].rA[1]-cc.subcomponents[-1].rB[1]))
+    else:
+        hB = np.radians(nb)
+        cx[-1] = [cc.attached_to[1].r[0]+500*np.cos(np.radians(nb))]
+        cy[-1] = [cc.attached_to[1].r[1]+500*np.sin(np.radians(nb))]
+    cc.reposition(project=project,headings=[hA,hB],rad_fair=rad_fair)
+    
+# find cable(s) associated with specific platform(s) xy coordinates
+def findCable(coords,project,atol=150):
+    '''
+    Find the cable(s) associated with specific platform(s) xy coordinates
+
+    Parameters
+    ----------
+    coords : nested list or list
+        xy coordinates of platforms(s) connected to this cable
+    project : project object
+        Associated project object
+    atol : float, optional
+        Absolute tolerance when looking for associated end locations. The default is 150.
+
+    Returns
+    -------
+    corrcab : List or Cable object
+        Returns a list of cable objects if only one platform coordinate provided
+        Returns one cable object is 2 platform coordinates provided
+
+    '''
+    
+    if isinstance(coords[0],list):
+        allcabs = False
+    else:
+        allcabs = True
+        corrcab = []
+
+    for cab in project.cableList.values():
+        if allcabs:
+            # add any cable connected to this platform coordinate
+            if np.allclose(cab.rA[0:2],coords,atol=atol) or np.allclose(cab.rB[0:2],coords,atol=atol):
+                corrcab.append(cab)
+        else:
+            # add only the cable connected to both platform coordinates
+            if np.allclose(cab.rA[0:2],coords[0],atol=atol) or np.allclose(cab.rB[0:2],coords[0],atol=atol):
+                if np.allclose(cab.rA[0:2],coords[1],atol=atol) or np.allclose(cab.rB[0:2],coords[1],atol=atol):
+                    corrcab = cab
+    return(corrcab)
+
 
 def check_headings(m_headings,c_heading,rad_buff):
     '''
@@ -417,11 +474,12 @@ def getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal):
             cableType = 'static_cable_'+cableType_def[-2:]
         else:
             cableType = 'dynamic_cable_'+cableType_def[-2:]
+            cd['rJTube'] = 5
             
         
         if not 'cable_type' in cd or not cd['cable_type']:
             cp = loadCableProps(None)
-            cabProps = getCableProps(connVal['A_min_con'],cableType,cableProps=cp)
+            cabProps = getCableProps(connVal['conductor_area'],cableType,cableProps=cp)
             # fix units
             cabProps['power'] = cabProps['power']*1e6
             cd['cable_type'] = cabProps
@@ -437,89 +495,64 @@ def getCableDesign(connVal, cableType_def, cableConfig, configType, depth=None):
     dd['cables'] = []
     # collect design dictionary info on cable
 
-    if not cableConfig:
-        dd['cables'].append({})
-        cd = dd['cables'][0]
-        cd['span'] = connVal['2Dlength']
-        cd['L'] = connVal['2Dlength']
-        cd['A'] = connVal['conductor_area']
-        cd['voltage'] = cableType_def[-2:]
+    # create reference cables (these are not saved into the cableList, just used for reference)
+    
+    # find associated cable in cableConfig dict
+    cableAs = []
+    cableDs = []
+    cable_selection = []
+    for cabC in cableConfig['configs']:
+        if connVal['conductor_area'] == cabC['A']:
+            cableAs.append(cabC)
+    if not cableAs:
+        raise Exception('Cable configs provided do not match required conductor area')
+    elif len(cableAs) == 1:
+        cable_selection = cableAs
+    else:                        
+        for cabA in cableAs:                           
+            # only check distance if the cable is NOT connected to substation
+            if 'dist' in cabA and connVal['cable_id']<100:
+                if abs(connVal['2Dlength'] - cabA['dist']) < 0.1:
+                    cableDs.append(cabA)    
         
-        # add routing if necessary
-        if len(connVal['coordinates'])>2:
-            cd['routing'] = []
-            for coord in connVal['coordinates'][1:-1]:
-                cd['routing'].append(coord)
+        #if there's no matching distance, assume the nonsuspended cables 
+        if cableDs == []:
+            for cabA in cableAs:
+                if cabA['type'] == 0:
+                    cableDs.append(cabA)
         
-        if not 'cable_type' in cd:
-            cp = loadCableProps(None)
-            cabProps = getCableProps(connVal['conductor_area'],cableType_def,cableProps=cp)
-            # fix units
-            cabProps['power'] = cabProps['power']*1e6
-            cd['cable_type'] = cabProps
-            cableType = cableType_def
-            
-        selected_cable = None
-            
-    else:
-        # create reference cables (these are not saved into the cableList, just used for reference)
         
-        # find associated cable in cableConfig dict
-        cableAs = []
-        cableDs = []
-        cable_selection = []
-        for cabC in cableConfig['configs']:
-            if connVal['conductor_area'] == cabC['A']:
-                cableAs.append(cabC)
-        if not cableAs:
-            raise Exception('Cable configs provided do not match required conductor area')
-        elif len(cableAs) == 1:
-            cable_selection = cableAs
-        else:                        
-            for cabA in cableAs:                           
-                # only check distance if the cable is NOT connected to substation
-                if 'dist' in cabA and connVal['cable_id']<100:
-                    if abs(connVal['2Dlength'] - cabA['dist']) < 0.1:
-                        cableDs.append(cabA)    
-            
-            #if there's no matching distance, assume the nonsuspended cables 
-            if cableDs == []:
-                for cabA in cableAs:
-                    if cabA['type'] == 0:
-                        cableDs.append(cabA)
-            
-            
-            for cabD in cableDs:
-                if connVal['cable_id']>=100 and cabD['type']==0:
-                    # connected to a substation, use a dynamic-static-dynamic configuration
-                    cable_selection.append(cabD)
-                    
-                elif connVal['cable_id']<100 and cabD['type']==configType:
-                    # not connected to substation, use default config type
-                    cable_selection.append(cabD)
-
-            # if no cables are found to match, override the configType
-
-            if cable_selection == []:
-                for cabD in cableDs:
-                    if connVal['cable_id']<100:
-                        cable_selection.append(cabD)
+        for cabD in cableDs:
+            if connVal['cable_id']>=100 and cabD['type']==0:
+                # connected to a substation, use a dynamic-static-dynamic configuration
+                cable_selection.append(cabD)
                 
-        if len(cable_selection)> 1:
-            # downselect by depth
-            depthdiff = np.array([x['depth']-depth for x in cable_selection])
-            selected_cable = cable_selection[np.argmin(depthdiff)]
-            # else:
-            #     raise Exception(f"Multiple cables match selection criteria for cable {connDict[i]['cable_id']}")
-        elif len(cable_selection) == 1:
-            # found the correct cable
-            selected_cable = cable_selection[0]
+            elif connVal['cable_id']<100 and cabD['type']==configType:
+                # not connected to substation, use default config type
+                cable_selection.append(cabD)
 
-        else:
-            raise Exception(f"No cable matching the selection criteria found for cable {connVal['cable_id']}")
+        # if no cables are found to match, override the configType
+
+        if cable_selection == []:
+            for cabD in cableDs:
+                if connVal['cable_id']<100:
+                    cable_selection.append(cabD)
             
-        dd = getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal)           
-        dd['name'] = cableType_def
+    if len(cable_selection)> 1:
+        # downselect by depth
+        depthdiff = np.array([x['depth']-depth for x in cable_selection])
+        selected_cable = cable_selection[np.argmin(depthdiff)]
+        # else:
+        #     raise Exception(f"Multiple cables match selection criteria for cable {connDict[i]['cable_id']}")
+    elif len(cable_selection) == 1:
+        # found the correct cable
+        selected_cable = cable_selection[0]
+
+    else:
+        raise Exception(f"No cable matching the selection criteria found for cable {connVal['cable_id']}")
+        
+    dd = getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal)           
+    dd['name'] = cableType_def
         
     return(selected_cable,deepcopy(dd))
 

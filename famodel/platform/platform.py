@@ -18,7 +18,7 @@ class Platform(Node):
     Eventually will inherit from Node.
     '''
     
-    def __init__(self, id, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
+    def __init__(self, id, r=[0,0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
         '''
         
         Parameters

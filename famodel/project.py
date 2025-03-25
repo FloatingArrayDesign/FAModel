@@ -1509,6 +1509,9 @@ class Project():
         # create reference cables for resizing
         ref_cables = []
         
+        cabProps = {}
+        cp = loadCableProps(None)
+        
         # detach and delete existing cable list unless specified to keep old cables
         if keep_old_cables:
             lcab = len(self.cableList)
@@ -1520,120 +1523,136 @@ class Project():
             self.cableList = {} 
             lcab = 0
         #### - - - -  Find cable attachments  - - - - #### 
-        for i in range(0,len(connDict)): # go through each cable
-            if connDict[i]['cable_id']>=100 and not connect_ss:
-                # this is a substation, and we don't want to connect to it
-                attachCable = 0
-            else:
-                attachCable = 1
-                    
-            if attachCable:        
+        for i in range(0,len(connDict)): # go through each cable       
+            # attach to platforms/substations
+            for pf in self.platformList.values():
+                if id_method == 'location':
+                    # find platform associated with ends
+                    if np.allclose(pf.r[:2],connDict[i]['coordinates'][0],atol=.01): 
+                        attA = pf
+                    elif np.allclose(pf.r[:2],connDict[i]['coordinates'][-1],atol=.01):
+                        attB = pf
+                elif id_method == 'id':
+                    # find platform associated with global id
+                    if connDict[i]['turbineA_glob_id'] == pf.id:
+                        attA = pf
+                        # update platform location
+                        pf.r[:2] = connDict[i]['coordinates'][0]
+                    elif connDict[i]['turbineB_glob_id'] == pf.id:
+                        attB = pf
+                        # update platform location
+                        pf.r[:2] = connDict[i]['coordinates'][-1]
+
+            # get heading of cable from attached object coordinates 
+            headingA = np.radians(90) - np.arctan2((connDict[i]['coordinates'][-1][0]-connDict[i]['coordinates'][0][0]),
+                                                   (connDict[i]['coordinates'][-1][1]-connDict[i]['coordinates'][0][1]))
+            headingB = np.radians(90) - np.arctan2((connDict[i]['coordinates'][0][0]-connDict[i]['coordinates'][-1][0]),
+                                                   (connDict[i]['coordinates'][0][1]-connDict[i]['coordinates'][-1][1]))
+
+            # figure out approx. depth at location
+            initial_depths = []
+            if cableConfig:
+                avgspan = np.mean([x['span'] for x in cableConfig['cableTypes'].values() if 'span' in x])
+                # depth at avg span (this is just a rough estimate!)
+                endLocA = connDict[i]['coordinates'][0] + avgspan*np.array([np.cos(headingA),np.sin(headingA)])
+                endLocB = connDict[i]['coordinates'][-1] + avgspan*np.array([np.cos(headingB),np.sin(headingB)])
+                # get depth at these locs
+                initial_depths.append(self.getDepthAtLocation(*endLocA))
+                initial_depths.append(self.getDepthAtLocation(*endLocB))
                 
-                # attach to platforms/substations
-                for pf in self.platformList.values():
-                    if id_method == 'location':
-                        # find platform associated with ends
-                        if np.allclose(pf.r[:2],connDict[i]['coordinates'][0],atol=.01): 
-                            attA = pf
-                        elif np.allclose(pf.r[:2],connDict[i]['coordinates'][-1],atol=.01):
-                            attB = pf
-                    elif id_method == 'id':
-                        # find platform associated with global id
-                        if connDict[i]['turbineA_glob_id'] == pf.id:
-                            attA = pf
-                            # update platform location
-                            pf.r[:2] = connDict[i]['coordinates'][0]
-                        elif connDict[i]['turbineB_glob_id'] == pf.id:
-                            attB = pf
-                            # update platform location
-                            pf.r[:2] = connDict[i]['coordinates'][-1]
-    
-                # get heading of cable from attached object coordinates 
-                headingA = np.radians(90) - np.arctan2((connDict[i]['coordinates'][-1][0]-connDict[i]['coordinates'][0][0]),
-                                                       (connDict[i]['coordinates'][-1][1]-connDict[i]['coordinates'][0][1]))
-                headingB = np.radians(90) - np.arctan2((connDict[i]['coordinates'][0][0]-connDict[i]['coordinates'][-1][0]),
-                                                       (connDict[i]['coordinates'][0][1]-connDict[i]['coordinates'][-1][1]))
-    
-                # figure out approx. depth at location
-                initial_depths = []
-                if cableConfig:
-                    avgspan = np.mean([x['span'] for x in cableConfig['cableTypes'].values() if 'span' in x])
-                    # depth at avg span (this is just a rough estimate!)
-                    endLocA = connDict[i]['coordinates'][0] + avgspan*np.array([np.cos(headingA),np.sin(headingA)])
-                    endLocB = connDict[i]['coordinates'][-1] + avgspan*np.array([np.cos(headingB),np.sin(headingB)])
-                    # get depth at these locs
-                    initial_depths.append(self.getDepthAtLocation(*endLocA))
-                    initial_depths.append(self.getDepthAtLocation(*endLocB))
-                else:
-                    initial_depths = self.depth
-                
-                # choose cable object
+                # select cable and collect design dictionary info on cable
                 selected_cable, dd = getCableDesign(connDict[i], cableType_def, 
                                                     cableConfig, configType, 
                                                     depth=np.mean(initial_depths))
-    
-                # create cable object
-                cab = Cable(cableType_def+str(i+lcab),d=dd)
-                self.cableList[cab.id] = cab
-    
-                # update upstream turbines property
-                cab.upstream_turb_count = getFromDict(connDict[i],'upstream_turb_count',default=0)
+            else:
+                dd = {}
+                dd['cables'] = []
+                dd['cables'].append({})
+                cd = dd['cables'][0]
+                cd['span'] = connDict[i]['2Dlength']
+                cd['L'] = connDict[i]['2Dlength']
+                cd['A'] = connDict[i]['conductor_area']
+                cd['voltage'] = cableType_def[-2:]
+                cd['rJTube'] = 5
                 
-                # attach cable
-                cab.attachTo(attA,end='a')
-                cab.attachTo(attB,end='b')
+                # add routing if necessary
+                if len(connDict[i]['coordinates'])>2:
+                    cd['routing'] = []
+                    for coord in connDict[i]['coordinates'][1:-1]:
+                        cd['routing'].append(coord)
                 
-                if cableConfig:
-                    if 'head_offset' in selected_cable:
-                        headingA += np.radians(selected_cable['head_offset'])
-                        headingB -= np.radians(selected_cable['head_offset'])
+                if not 'cable_type' in cd:
+                    if not cd['A'] in cabProps.keys():
+                        cabProps[cd['A']] = getCableProps(connDict[i]['conductor_area'],cableType_def,cableProps=cp)
+                    # fix units
+                    cabProps[cd['A']]['power'] = cabProps[cd['A']]['power']*1e6
+                    cd['cable_type'] = cabProps[cd['A']]
                     
-                    # adjust heading if too close to moorings
-                    rad_buff = np.radians(heading_buffer)
-                    dc0s = cab.subcomponents[0].span
-                    moors = attA.getMoorings() 
-                    msp = list(moors.values())[0].span + attA.rFair
-                    # consider mooring headings from both ends if close enough
-                    pfsp = np.sqrt((attA.r[0]-attB.r[0])**2+(attA.r[1]-attB.r[1])**2)
-                    if pfsp-2*attA.rFair < msp+dc0s:
-                        headingA = head_adjust([attA,attB],headingA,rad_buff=rad_buff)
-                        headingB = head_adjust([attB,attA],headingB,rad_buff=rad_buff,endA_dir=-1)
-                    else:
-                        headingA = head_adjust([attA],headingA,rad_buff=rad_buff)
-                        headingB = head_adjust([attB],headingB,rad_buff=rad_buff)
-                        
-                heads = [headingA,headingB]
-                # reposition cable
-                cab.reposition(project=self,headings=heads,rad_fair=[5,5])
+                selected_cable = None
+            
                 
-                coords = []
-                if cableConfig:
-                    ref_cables = None
-                    # add routing for static cable to continue along adjusted heading for total of 500m (inluding dynamic cable span) & adjust dynamic cable depths as needed
-                    if len(cab.subcomponents)>1:
-                        inds = [0,-1]
-                        for ii,ind in enumerate(inds):
-                            # adjust for depth as needed
-                            dc = cab.subcomponents[ind]
-                            if ref_cables:
-                                dc.dd = self.cableDesignInterpolation(dc.z_anch,ref_cables) #***** left off here 1/28/25 need to check z_anch sign here and figure out how to send cables options *****
-                            # add static routing
-                            if cab.subcomponents[ind].span < 500:
-                                spandiff = 500 - cab.subcomponents[ind].span
-                                ind_of_stat = 2-4*ii # 2 for end A, -2 for end B -- relative loc of static cable compared to dynamic cable
-                                stat_cable = cab.subcomponents[ind+ind_of_stat]
-                                # get new coordinate routing point
-                                stat_cable_end = stat_cable.rA if ind==0 else stat_cable.rB
-                                coord = [stat_cable_end[0] + np.cos(heads[ii])*spandiff,
-                                            stat_cable_end[1] + np.sin(heads[ii])*spandiff]
-                                # append it to static cable object coordinates
-                                coords.append(coord)
+            # create cable object
+            cab = Cable(cableType_def+str(i+lcab),d=dd)
+            self.cableList[cab.id] = cab
+
+            # update upstream turbines property
+            cab.upstream_turb_count = getFromDict(connDict[i],'upstream_turb_count',default=0)
+            
+            # attach cable
+            cab.attachTo(attA,end='a')
+            cab.attachTo(attB,end='b')
+            
+            if cableConfig:
+                if 'head_offset' in selected_cable:
+                    headingA += np.radians(selected_cable['head_offset'])
+                    headingB -= np.radians(selected_cable['head_offset'])
                 
-                # update lengths & spans of any static cables as needed
-                cts = np.where([isinstance(a,StaticCable) for a in cab.subcomponents])[0]
-                for cs in cts:
-                    # update routing
-                    cab.subcomponents[cs].updateRouting(coords) # also updates static and general cable lengths
+                # adjust heading if too close to moorings
+                rad_buff = np.radians(heading_buffer)
+                dc0s = cab.subcomponents[0].span
+                moors = attA.getMoorings() 
+                msp = list(moors.values())[0].span + attA.rFair
+                # consider mooring headings from both ends if close enough
+                pfsp = np.sqrt((attA.r[0]-attB.r[0])**2+(attA.r[1]-attB.r[1])**2)
+                if pfsp-2*attA.rFair < msp+dc0s:
+                    headingA = head_adjust([attA,attB],headingA,rad_buff=rad_buff)
+                    headingB = head_adjust([attB,attA],headingB,rad_buff=rad_buff,endA_dir=-1)
+                else:
+                    headingA = head_adjust([attA],headingA,rad_buff=rad_buff)
+                    headingB = head_adjust([attB],headingB,rad_buff=rad_buff)
+                    
+            heads = [headingA,headingB]
+            # reposition cable
+            cab.reposition(project=self,headings=heads,rad_fair=[5,5])
+            
+            coords = []
+            if cableConfig:
+                ref_cables = None
+                # add routing for static cable to continue along adjusted heading for total of 500m (inluding dynamic cable span) & adjust dynamic cable depths as needed
+                if len(cab.subcomponents)>1:
+                    inds = [0,-1]
+                    for ii,ind in enumerate(inds):
+                        # adjust for depth as needed
+                        dc = cab.subcomponents[ind]
+                        if ref_cables:
+                            dc.dd = self.cableDesignInterpolation(dc.z_anch,ref_cables) #***** left off here 1/28/25 need to check z_anch sign here and figure out how to send cables options *****
+                        # add static routing
+                        if cab.subcomponents[ind].span < 500:
+                            spandiff = 500 - cab.subcomponents[ind].span
+                            ind_of_stat = 2-4*ii # 2 for end A, -2 for end B -- relative loc of static cable compared to dynamic cable
+                            stat_cable = cab.subcomponents[ind+ind_of_stat]
+                            # get new coordinate routing point
+                            stat_cable_end = stat_cable.rA if ind==0 else stat_cable.rB
+                            coord = [stat_cable_end[0] + np.cos(heads[ii])*spandiff,
+                                        stat_cable_end[1] + np.sin(heads[ii])*spandiff]
+                            # append it to static cable object coordinates
+                            coords.append(coord)
+            
+            # update lengths & spans of any static cables as needed
+            cts = np.where([isinstance(a,StaticCable) for a in cab.subcomponents])[0]
+            for cs in cts:
+                # update routing
+                cab.subcomponents[cs].updateRouting(coords) # also updates static and general cable lengths
 
                               
     
@@ -2009,7 +2028,7 @@ class Project():
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if fowt:
             for pf in self.array.fowtList:
-                pf.plot(ax,zorder=20)
+                pf.plot(ax,zorder=6)
             # for i in range(self.nt):
             #     xy = self.turb_coords[i,:]
             #     fowt.setPosition([xy[0], xy[1], 0,0,0,0])
@@ -2107,7 +2126,9 @@ class Project():
             for j in self.anchorList[i].attachments: # j is key (name) of mooring object in anchor i
                 # create subsystem
                 if pristineLines:
+
                     self.anchorList[i].attachments[j]['obj'].createSubsystem(pristine=1, mooringSys=self.ms)
+
                     # set location of subsystem for simpler coding
                     ssloc.append(self.anchorList[i].attachments[j]['obj'].ss)
                 else:
@@ -3512,10 +3533,15 @@ class Project():
            
         # build out site info
         site = {}
+        sps = deepcopy(self.soilProps)
+        for ks,sp in sps.items():
+            for k,s in sp.items():
+                sp[k] = [s]
+            sps[ks] = sp
         if hasattr(self,'soilProps'):                       
             if len(self.soil_x)>1:
                 site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
-                                  'soil_types':self.soilProps} #[[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
+                                  'soil_types': sps}# [[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
                     
         if len(self.grid_x)>1:
             site['bathymetry'] = {'x':[float(x) for x in self.grid_x],'y':[float(y) for y in self.grid_y],'depths':[[float(y) for y in x] for x in self.grid_depth]}
@@ -3789,8 +3815,7 @@ class Project():
                         didx = 0 
                     dynCabs[didx] = ccn
                     # currentCable.append({'type':ccn})
-            if not coords:
-                route = None
+
                 
             cid = 'array_cable'+str(len(cables))
             endAdict = {'attachID':endA.id,
@@ -3802,7 +3827,7 @@ class Project():
             
             cables.append({'name':cid,'endA':endAdict,'endB':endBdict,'type':statcab})
             
-            if route:
+            if coords:
                 cables[-1]['routing_x_y_r'] = coords
             if burial:
                 cables[-1]['burial'] = burial

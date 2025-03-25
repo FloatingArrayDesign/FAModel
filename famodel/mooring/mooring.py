@@ -59,6 +59,29 @@ class Mooring(Edge):
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this Mooring
         self.dd = dd
+        
+        # MoorPy subsystem that corresponds to the mooring line
+        self.ss = subsystem
+        self.ss_mod = None
+        # workaround for users who are making mooring objects based on pre-existing subsystems
+        if self.ss and not self.dd:
+            self.dd = {}
+            if not 'zAnchor' in self.dd:
+                self.dd['zAnchor'] = -self.ss.depth
+            if not 'span' in self.dd:
+                self.dd['span'] = self.ss.span
+            if not 'rad_fair' in self.dd:
+                self.dd['rad_fair'] = self.ss.rad_fair
+            if not 'z_fair' in self.dd:
+                self.dd['z_fair'] = self.ss.z_fair
+                
+            self.dd['sections'] = []
+            self.dd['connectors'] = []
+            for ls in self.ss.lineList:
+                self.dd['sections'].append({'type':ls.type,'L':ls.L})
+            for lp in self.ss.pointList:
+                self.dd['connectors'].append({'CdA':lp.CdA, 'm':lp.m, 'v':lp.v})
+                
 
         # let's turn the dd into something that holds subdict objects of connectors and sections
         if self.dd:
@@ -92,21 +115,6 @@ class Mooring(Edge):
             # Indices of connectors and sections in self.subcomponents list
             self.i_con = list(range(0, 2*self.n_sec+1, 2))
             self.i_sec = list(range(1, 2*self.n_sec+1, 2))
-        
-        # MoorPy subsystem that corresponds to the mooring line
-        self.ss = subsystem
-        self.ss_mod = None
-        # workaround for users who are making mooring objects based on pre-existing subsystems
-        if self.ss:
-            self.dd = {}
-            if not 'zAnchor' in self.dd:
-                self.dd['zAnchor'] = -self.ss.depth
-            if not 'span' in self.dd:
-                self.dd['span'] = self.ss.span
-            if not 'rad_fair' in self.dd:
-                self.dd['rad_fair'] = self.ss.rad_fair
-            if not 'z_fair' in self.dd:
-                self.dd['z_fair'] = self.ss.z_fair
         
         
         # relative positions (variables could be renamed)
@@ -255,7 +263,7 @@ class Mooring(Edge):
         else: # otherwise just set the anchor position based on a set spacing (NEED TO UPDATE THE ANCHOR DEPTH AFTER!)
             xy_loc = r_centerB[:2] + (self.span + rad_fair[1])*u
             if project:
-                self.dd['zAnchor'] = project.getDepthAtLocation(xy_loc[0],xy_loc[1])
+                self.dd['zAnchor'] = -project.getDepthAtLocation(xy_loc[0],xy_loc[1])
             else:
                 print('Warning: depth of mooring line, anchor, and subsystem must be updated manually.')
             self.setEndPosition(np.hstack([r_centerB[:2] + (self.span + rad_fair[1])*u, self.z_anch]), 'a', sink=True)
