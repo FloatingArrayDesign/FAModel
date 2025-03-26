@@ -66,9 +66,11 @@ collection of subpackages for specific functions. The two current subpackages ar
 Please navigate into the subfolders above for additional information.
 
 ## Getting Started
-The easiest way to create an FAModel project is to provide the array information in a yaml file. FAModel has been designed to work with a specific ontology yaml setup, which is described in detail in the [Ontology ReadMe](./famodel/ontology/README.md).
+The easiest way to create an FAModel project is to provide the array information in an ontology yaml file. FAModel has been designed to work with a specific ontology yaml setup, which is described in detail in the [Ontology ReadMe](./famodel/ontology/README.md).
 
 The [example driver file](./famodel/example_driver.py) creates an FAModel project from a pre-set ontology file and shows the syntax and outputs of various capabilities. For guidance on creating your own ontology yaml file, it is recommended to read through the [Ontology ReadMe](./famodel/ontology/README.md), then either adapt one of the ontology samples or fill in the ontology template. 
+
+The [FAModel core readme](./famodel/README.md) describes the FAModel class structure, as well as the properties and methods of each component class. 
 
 There are some limited helper functions to auntomatically fill in sections of a yaml from a moorpy system or a list of platform locations. See [FAModel helpers](./famodel/helpers.py) for the full list of yaml writing capabilities. Many of these are a work in progress.
 

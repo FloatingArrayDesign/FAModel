@@ -3551,7 +3551,7 @@ class Project():
         sps = deepcopy(self.soilProps)
         for ks,sp in sps.items():
             for k,s in sp.items():
-                if not isinstance(s,list) or not 'array' in type(s).__name__:
+                if not isinstance(s,list) and not 'array' in type(s).__name__:
                     sp[k] = [s]
             sps[ks] = sp
         if hasattr(self,'soilProps'):                       
