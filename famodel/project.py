@@ -124,21 +124,24 @@ class Project():
     
 
 
-    def load(self, project_yaml,raft=1):
+    def load(self, info,raft=1):
         '''
         Load a full set of project information from a dictionary or 
         YAML file. This calls other methods for each part of it.
         
         Parameters
         ----------
-        input : dict or filename
+        info : dict or filename
             Dictionary or YAML filename containing project info.
         '''
         # standard function to load dict if input is yaml
-        with open(project_yaml) as file:
-            project = yaml.load(file, Loader=yaml.FullLoader)
-            if not project:
-                raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
+        if isinstance(info,str):
+            with open(info) as file:
+                project = yaml.load(file, Loader=yaml.FullLoader)
+                if not project:
+                    raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
+        else:
+            project = info
         
         # look for site section
         # call load site method
@@ -1126,6 +1129,11 @@ class Project():
             props['phi']   = getFromDict(props, 'phi'  , shape=-1, dtype=list, default=[0.0] , index=None)
             props['UCS']   = getFromDict(props, 'UCS'  , shape=-1, dtype=list, default=[7.0] , index=None)
             props['Em']    = getFromDict(props, 'Em'   , shape=-1, dtype=list, default=[50.0], index=None)
+            
+            for k,prop in props.items():
+                if 'array' in type(prop).__name__:
+                    # clean up property type
+                    props[k] = np.array(prop)
         
         
         self.soilProps = soilProps
@@ -1684,6 +1692,7 @@ class Project():
         alpha = kwargs.get('alpha',0.5)
         
         
+        
         # if axes not passed in, make a new figure
         if ax == None:
             fig, ax = plt.subplots(1,1, figsize=figsize)
@@ -1739,6 +1748,10 @@ class Project():
             else: # simple line plot
                 ax.plot([mooring.rA[0], mooring.rB[0]], 
                         [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5)
+                
+        for anchor in self.anchorList.values():
+            
+            ax.plot(anchor.r[0],anchor.r[1], 'mo',ms=2, label='Anchor')
         
         # Plot cables one way or another (eventually might want to give Mooring a plot method)
         if self.cableList:
@@ -1794,6 +1807,8 @@ class Project():
                 plotstring = 'go'
             elif 'WEC' in entity.upper():
                 plotstring = 'ro'
+            else:
+                plotstring = 'bo'
                 
             ax.plot(platform.r[0], platform.r[1], plotstring ,label=entity)
 
@@ -3536,7 +3551,8 @@ class Project():
         sps = deepcopy(self.soilProps)
         for ks,sp in sps.items():
             for k,s in sp.items():
-                sp[k] = [s]
+                if not isinstance(s,list) or not 'array' in type(s).__name__:
+                    sp[k] = [s]
             sps[ks] = sp
         if hasattr(self,'soilProps'):                       
             if len(self.soil_x)>1:
