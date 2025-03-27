@@ -329,6 +329,7 @@ class Project():
         # ----- platforms -----
         
         RAFTDict = {} # dictionary for raft platform information
+        platforms = [] # dictionary of platform information
         
         if 'platform' in d and d['platform']:
             # check that there is only one platform
@@ -337,16 +338,14 @@ class Project():
             elif type(d['platform']) is list and len(d['platform'])>1:
                 raise Exception("'platform' section keyword must be changed to 'platforms' if multiple platforms are listed")
             else:
-                platforms = [] # dictionary of platform information
                 platforms.append(d['platform'])
                 RAFTDict['platform'] = d['platform']
-                self.platformTypes = d['platform']
         # load list of platform dictionaries into RAFT dictionary
         elif 'platforms' in d and d['platforms']:
-            platforms = [] # list of dictionaries of platform information
             platforms.extend(d['platforms'])
             self.platformTypes = d['platforms']
             RAFTDict['platforms'] = d['platforms']
+        self.platformTypes = platforms
             
         # ----- turbines & topsides -----
         turbines = []
