@@ -942,7 +942,7 @@ def getConnectors(c_config, mName, proj):
             # create connector object with c_config entries
             proj.mooringList[mName].dd['connectors'].append(Connector(**c_config[i]))
 
-def getAnchors(lineAnch, arrayAnchor, proj, mc=None,aNum=0):
+def getAnchors(lineAnch, arrayAnchor, proj):
     '''Create anchor design dictionary based on a given anchor type
 
     Parameters
@@ -953,10 +953,6 @@ def getAnchors(lineAnch, arrayAnchor, proj, mc=None,aNum=0):
         list of anchors listed in array_mooring anchor_data table of ontology yaml.
     proj : project class instance
         project object to develop anchors for
-    mc : mooring class instance, optional
-        mooring class that the anchor is a part of (used only if not a shared anchor). The default is None.
-    aNum : int, optional
-        anchor ID in the anchor data table (used only if it is a shared anchor). The default is 0.
 
     Returns
     -------
@@ -966,11 +962,6 @@ def getAnchors(lineAnch, arrayAnchor, proj, mc=None,aNum=0):
     '''
     ad = {'design':{}, 'cost':{}} 
     ad['design'] = deepcopy(proj.anchorTypes[lineAnch])
-    if proj.soil_x is not None: # get soil conditions at anchor location if soil info available
-        if mc:
-            ad['soil_type'], ad['soil_properties'] = proj.getSoilAtLocation(mc.rA[0], mc.rA[1])
-        else:
-            ad['soil_type'], ad['soil_properties'] = proj.getSoilAtLocation(arrayAnchor[aNum-1]['x'],arrayAnchor[aNum-1]['y'])
     ad['type'] = proj.anchorTypes[lineAnch]['type']
     ad['name'] = lineAnch
     

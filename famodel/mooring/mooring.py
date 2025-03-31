@@ -89,32 +89,22 @@ class Mooring(Edge):
             # and dict of scaling props (would be used by linedesign) ?
             self.n_sec = len(self.dd['sections'])
             
+            self.i_con = []
+            self.i_sec = []
             # Turn what's in dd and turn it into Sections and Connectors
             for i, con in enumerate(self.dd['connectors']):
                 if con and 'type' in con:
                     Cid = con['type']+str(i)
                 else:
-                    Cid = 'Conn'+str(i)
-                self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])
+                    Cid = None
+                self.addConnector(con, i, id=Cid, insert=False)
             
             for i, sec in enumerate(self.dd['sections']):
-                self.dd['sections'][i] = Section('Section'+str(i),**self.dd['sections'][i])
-                #self.dd['connectors'][i  ].attach(self.dd['sections'][i], end=0)
-                #self.dd['connectors'][i+1].attach(self.dd['sections'][i], end=1)
+                self.addSection(sec['L'],sec['type'],i, insert=False)
             
-            # >>> add some error checks for the correct lengths <<<
-            
-            # Connect them and store them in self(Edge).subcomponents!
-            subcons = []  # temporary list of node-edge-node... to pass to the function
-            for i in range(self.n_sec):
-                subcons.append(self.dd['connectors'][i])
-                subcons.append(self.dd['sections'][i])
-            subcons.append(self.dd['connectors'][-1])
-            self.addSubcomponents(subcons)  # Edge method to connect and store em
-            
-            # Indices of connectors and sections in self.subcomponents list
-            self.i_con = list(range(0, 2*self.n_sec+1, 2))
-            self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+            # connect subcomponents and update i_sec and i_conn lists
+            self.connectSubcomponents()
+
         
         
         # relative positions (variables could be renamed)
@@ -274,7 +264,7 @@ class Mooring(Edge):
             
         for i,att in enumerate(self.attached_to):
             iend = self.rA if i == 0 else self.rB
-            if hasattr(att,'aNum'):
+            if type(att).__name__ in 'Anchor':
                 # this is an anchor, move anchor location
                 att.r = iend
                 if att.mpAnchor:
@@ -926,3 +916,100 @@ class Mooring(Edge):
         
         return(x,y)
 
+
+    def addSection(self, section_length, section_type, index, id=None, insert=True):
+        '''
+        Add a section to the design
+        
+        Parameters
+        ----------
+        section_length : float
+            Length of new section in [m]
+        section_type : dict
+            Dictionary of section properties
+        index : int
+            New index of section in the mooring design dictionary sections list
+        id : str/int, optional
+            Id of section
+        '''
+        if not id:
+            if insert:
+                for i,sec in enumerate(self.dd['sections']):
+                    # update ids of sections
+                    if i>=index and isinstance(sec, Section):
+                        sec.id = 'Section'+str(i+1)
+            id='Section'+str(index)
+        newsection_dd = {'type':section_type,'L':section_length}
+        newsection = Section(id,**newsection_dd)
+        if insert:
+            self.dd['sections'].insert(index, newsection)
+        else:
+            self.dd['sections'][index] = newsection
+        
+        
+        return(newsection)
+    
+    def addConnector(self, conn_dd, index, id=None, insert=True):
+        '''
+        Add a connector to the design
+
+        Parameters
+        ----------
+        conn_dd : dict
+            Connector design dictionary
+        index : int
+            New index of connector in the mooring design dictionary connectors list
+        id : str or int, optional
+            ID of new connector
+        insert : bool, optional
+            Controls whether to insert a connector in the list or replace an entry with a connector
+
+        Returns
+        -------
+        Connector object
+            New connector object added to design dictionary
+
+        '''
+        if not id:
+            if insert:
+                for i,conn in enumerate(self.dd['connectors']):
+                    # update ids of connectors
+                    if i>=index and isinstance(conn, Connector):
+                        conn.id = 'Conn'+str(i+1)
+            id = 'Conn'+str(index)
+        newconn = Connector(id, **conn_dd)
+        if insert:
+            self.dd['connectors'].insert(index, newconn)
+        else:
+            self.dd['connectors'][index] = newconn
+        
+        return(newconn)
+    
+    def connectSubcomponents(self):
+        
+        # first disconnect any current subcomponents
+        for ii in self.i_sec:
+            self.subcomponents[ii].detachFrom('A')
+            self.subcomponents[ii].detachFrom('B')
+            
+        # detach end connectors from platforms/anchors just in case
+        if len(self.subcomponents)>0:
+            endattsA = [att['obj'] for att in self.subcomponents[0].attachments.values()]
+            endattsB = [att['obj'] for att in self.subcomponents[-1].attachments.values()]
+            for att in endattsA:
+                self.subcomponents[0].detach(att)
+            for att in endattsB:
+                self.subcomponents[-1].detach(att)
+            
+        # Now connect the new set of subcomponents and store them in self(Edge).subcomponents!
+        subcons = []  # temporary list of node-edge-node... to pass to the function
+        for i in range(self.n_sec):
+            subcons.append(self.dd['connectors'][i])
+            subcons.append(self.dd['sections'][i])
+        subcons.append(self.dd['connectors'][-1])
+        self.addSubcomponents(subcons)  # Edge method to connect and store em
+        
+        # Indices of connectors and sections in self.subcomponents list
+        self.i_con = list(range(0, 2*self.n_sec+1, 2))
+        self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+        

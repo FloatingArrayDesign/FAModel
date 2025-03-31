@@ -30,8 +30,6 @@ class Anchor(Node):
                      L2   torpedo anchor shaft length
                      zlug padeye z elevation (+ down into the soil)
                      beta angle of plate anchor after keying (optional)
-                soil_type:    <<< not design information
-                angle: # seabed angle   <<< not design information
                 cost:
                     matCost: # material cost
                     instCost: # installation cost
@@ -136,15 +134,15 @@ class Anchor(Node):
         return(ms)
     
     
-    def getAnchorCapacity(self,ground_conds=None,installAdj=1,profile=None,loads=None,plot=True):
+    def getAnchorCapacity(self,ground_cons=None,installAdj=1,profile=None,loads=None,plot=True):
         '''
         Calls anchor capacity functions developed by Felipe Moreno for the correct anchor type 
 
         Parameters
         ----------
         ground_conds : dict, optional
-            Ground conditions ex: UCS,Em,phi,gamma,effective stress,etc. The default is None.
-            If no dict provided, the ground conds will be pulled from the dd['soil_properties']
+            Ground conditions dictionary with the key as the soil type name, values as soil info such as UCS,Em,phi,gamma,effective stress,etc. The default is None.
+            If no dict provided, the ground conds will be pulled from the anchor soilProps property
         installAdj : float, optional
             Adjustment to the capacity based on installation (dummy variable for now, but future installation functions
                                                               will dictate this value)
@@ -167,8 +165,12 @@ class Anchor(Node):
         anchType = self.dd['type'] 
         geom = self.dd['design']# geometric anchor information
 
-        if not ground_conds: 
-            ground_conds = self.dd['soil_properties']
+        if not ground_cons:
+            soil = next(iter(self.soilProps.keys()), None) # soil type
+            ground_conds = self.soilProps[soil]
+        else:
+            soil = next(iter(ground_cons.keys()))
+            ground_conds = ground_cons[soil]
          
         for key,prop in ground_conds.items():
             if isinstance(prop,list) or isinstance(prop,np.ndarray):
@@ -177,7 +179,7 @@ class Anchor(Node):
                     break 
                 else:
                     ground_conds[key] = prop[0]
-        soil = self.dd['soil_type'] # soil type
+        
         
         if loads:
             # find out if mudline loads or anchor loads
@@ -548,8 +550,8 @@ class Anchor(Node):
                         else:
                             md = att['obj'].dd['sections'][0]['type']['d_nom']
                             mw = att['obj'].dd['sections'][0]['type']['w']
-                soil = self.dd['soil_type']
-                ground_conds = self.dd['soil_properties']
+                soil = next(iter(self.soilProps.keys()), None)
+                ground_conds = self.soilProps[soil]
                 # update soil conds as needed to be homogeneous
                 for key,prop in ground_conds.items():
                     if isinstance(prop,list) or isinstance(prop,np.ndarray):
