@@ -134,7 +134,9 @@ class Mooring(Edge):
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
-        self.env_impact = {}
+        self.env_impact = {
+            "disturbedSeabedArea": 0
+        }
     
     
     def update(self, dd=None):
