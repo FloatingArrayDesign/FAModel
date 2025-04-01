@@ -7,7 +7,6 @@ from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge
 
-
 class Mooring(Edge):
     '''
     Class for a floating array mooring line (anchored or shared).
@@ -131,11 +130,11 @@ class Mooring(Edge):
         # Dictionaries for additional information
         self.envelopes = {}  # 2D motion envelope, buffers, etc.
         self.loads = {}
-        self.disturbedSeabedArea = 0
         self.safety_factors = {}
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
+        self.env_impact = {}
     
     
     def update(self, dd=None):
@@ -1012,4 +1011,3 @@ class Mooring(Edge):
         # Indices of connectors and sections in self.subcomponents list
         self.i_con = list(range(0, 2*self.n_sec+1, 2))
         self.i_sec = list(range(1, 2*self.n_sec+1, 2))
-        

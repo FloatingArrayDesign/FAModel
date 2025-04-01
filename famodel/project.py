@@ -3582,7 +3582,7 @@ class Project():
                         Rmaxx = max([Rmaxx, Rmax])
                 
                 # compute disturbed area from the laid length 
-                moor.disturbedSeabedArea += (lBots[j]**2 * Rmaxx)/(moor.rad_anch)
+                moor.env_impact['disturbedSeabedArea'] += (lBots[j]**2 * Rmaxx)/(moor.rad_anch)
                             
         if SFs:
             maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    

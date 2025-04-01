@@ -99,6 +99,11 @@ class Anchor(Node):
         '''
         self.soilProps = {}
         self.failure_probability = {}
+
+        # environmental impact
+        self.env_impact = {}
+        
+
         # self.cost = {}
         
         
