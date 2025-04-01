@@ -3582,7 +3582,7 @@ class Project():
                         Rmaxx = max([Rmaxx, Rmax])
                 
                 # compute disturbed area from the laid length 
-                moor.disturbedSeabedArea += (lBots[j]**2 * Rmaxx)/(moor.rad_anch)
+                moor.env_impact['disturbedSeabedArea'] += (lBots[j]**2 * Rmaxx)/(moor.rad_anch)
                             
         if SFs:
             maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
@@ -3722,7 +3722,7 @@ class Project():
             pfTypes = [self.platformTypes[x] for x in pf_type]
         else:
             pfkey = 'platform'
-            pfTypes = self.platformTypes[list(pf_type)[0]]
+            pfTypes = self.platformTypes[int(list(pf_type)[0])]
            
         # build out site info
         site = {}

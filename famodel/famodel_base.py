@@ -59,6 +59,9 @@ class Node():
         self.theta = 0  # heading [rad]
         self.R = np.eye(2)  # rotation matrix
     
+        # installation dictionary [checks for installation status]
+        self.inst = {'mobilized': False,
+                     'installed': False}
     
     def isAttached(self, object, end=None):
         '''Check if something is attached to this node, even if it's part of
@@ -315,7 +318,12 @@ class Edge():
        
         whole = True  # false if there are sub edges/nodes that aren't connected
     
-    
+        # installation dictionary [checks for installation status]
+        self.inst = {'mobilized': False,
+                     'installed': False,
+                     'hookedUpA': False,
+                     'hookedUpB': False}
+
     def isAttachedTo(self, query, end=None):
         '''Checks if this edge is attached to the Node object 'query'.
         It uses the node's isAttached method since that will also check
