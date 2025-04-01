@@ -3722,7 +3722,7 @@ class Project():
             pfTypes = [self.platformTypes[x] for x in pf_type]
         else:
             pfkey = 'platform'
-            pfTypes = self.platformTypes[list(pf_type)[0]]
+            pfTypes = self.platformTypes[int(list(pf_type)[0])]
            
         # build out site info
         site = {}
