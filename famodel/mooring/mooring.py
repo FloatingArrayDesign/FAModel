@@ -255,6 +255,7 @@ class Mooring(Edge):
             xy_loc = r_centerB[:2] + (self.span + rad_fair[1])*u
             if project:
                 self.dd['zAnchor'] = -project.getDepthAtLocation(xy_loc[0],xy_loc[1])
+                self.z_anch = self.dd['zAnchor']
             else:
                 print('Warning: depth of mooring line, anchor, and subsystem must be updated manually.')
             self.setEndPosition(np.hstack([r_centerB[:2] + (self.span + rad_fair[1])*u, self.z_anch]), 'a', sink=True)
