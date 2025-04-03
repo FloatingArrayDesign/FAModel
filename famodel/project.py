@@ -364,7 +364,7 @@ class Project():
         # make platforms first if they exist, as there may be no moorings called out
         if arrayInfo:
             for i in range(len(arrayInfo)):
-                pfID = arrayInfo[i]['platformID']-1
+                pfID = int(arrayInfo[i]['platformID']-1)
                 # create platform instance (even if it only has shared moorings / anchors), store under name of ID for that row
                 if 'z_location' in arrayInfo[i]:
                     r = [arrayInfo[i]['x_location'],arrayInfo[i]['y_location'],arrayInfo[i]['z_location']]
@@ -373,7 +373,7 @@ class Project():
                     r = [arrayInfo[i]['x_location'], arrayInfo[i]['y_location'],platforms[pfID]['z_location']],
                 else: # assume 0 depth
                     r = [arrayInfo[i]['x_location'],arrayInfo[i]['y_location'],0]
-                
+
                 # add platform 
                 self.addPlatform(r=r, id=arrayInfo[i]['ID'], phi=arrayInfo[i]['heading_adjust'], 
                                  entity=platforms[pfID]['type'], rFair=platforms[pfID]['rFair'],
@@ -390,7 +390,7 @@ class Project():
             for i in range(0, len(arrayInfo)): # loop through each platform in array
                  
                 # get index of platform from array table
-                pfID = arrayInfo[i]['platformID']-1
+                pfID = int(arrayInfo[i]['platformID']-1)
                 # get platform object
                 platform = self.platformList[arrayInfo[i]['ID']]
 
@@ -445,7 +445,6 @@ class Project():
                         ad = getAnchors(lineAnch, arrayAnchor, self) # call method to create anchor dictionary
                         # add anchor class instance to anchorList in project class
                         name = str(arrayInfo[i]['ID'])+alph[j]
-                        anch = self.addAnchor(id=name, dd=ad)
                     
                         # get the configuration for that line in the mooring system
                         lineconfig = mySys[j]['MooringConfigID']
@@ -454,9 +453,18 @@ class Project():
                         m_config = getMoorings(lineconfig, lineConfigs, connectorTypes, arrayInfo[i]['ID'], self)
                         
                         # create mooring object, attach ends, reposition
-                        self.addMooring(id=name, endA=anch,endB=platform,
+                        moor = self.addMooring(id=name,
                                         heading=headings[j]+platform.phi,
-                                        dd=m_config)
+                                        dd=m_config, reposition=False)
+                        
+                        anch = self.addAnchor(id=name, dd=ad)
+                        
+                        # attach ends
+                        moor.attachTo(anch, end='A')
+                        moor.attachTo(platform, end='B')
+                        
+                        # reposition mooring
+                        moor.reposition(r_center=platform.r, heading=headings[j]+platform.phi)
                         
                         # update anchor depth and soils
                         self.updateAnchor(anch=anch)
@@ -503,14 +511,32 @@ class Project():
                     m_config = getMoorings(lineconfig, lineConfigs, connectorTypes, self.platformList[PFNum[0]].id, self)
                     
                     # create mooring class instance
-                    self.addMooring(id=str(PFNum[1])+'-'+str(PFNum[0]), 
-                                    endA=self.platformList[PFNum[1]],
-                                    endB=self.platformList[PFNum[0]],
-                                    heading=headingB, dd=m_config)
+                    moor = self.addMooring(id=str(PFNum[1])+'-'+str(PFNum[0]), 
+                                    heading=headingB, dd=m_config, shared=1)
+                    
+                    # attach ends
+                    moor.attachTo(self.platformList[PFNum[1]],end='A')
+                    moor.attachTo(self.platformList[PFNum[0]],end='B')
+                    
+                    # reposition
+                    moor.reposition(r_center=[self.platformList[PFNum[1]].r,
+                                              self.platformList[PFNum[0]].r],
+                                    heading=headingB)
 
                 elif any(ids['ID'] == arrayMooring[j]['endA'] for ids in arrayAnchor): # end A is an anchor
                     # get ID of platform connected to line
                     PFNum.append(arrayMooring[j]['endB'])
+                    
+                    # get configuration for that line 
+                    lineconfig = arrayMooring[j]['MooringConfigID']                       
+                    # create mooring and connector dictionary for that line
+                    m_config = getMoorings(lineconfig, lineConfigs, connectorTypes, self.platformList[PFNum[0]].id, self)
+                    # get letter number for mooring line
+                    ind = len(self.platformList[PFNum[0]].getMoorings())                    
+                    # create mooring class instance, attach to end A and end B objects, reposition
+                    moor = self.addMooring(id=str(PFNum[0])+alph[ind], 
+                                    heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi,
+                                    dd=m_config)
 
                     # check if anchor instance already exists
                     #if any(tt == 'shared_'+ arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
@@ -530,22 +556,31 @@ class Project():
                                 lineAnch = arrayAnchor[k]['type']
                         ad = getAnchors(lineAnch, arrayAnchor, self) # call method to create dictionary
                         # create anchor object
-                        anchor = self.addAnchor(id=arrayAnchor[aNum]['ID'], dd=ad, shared=True)
-                        anchor.r = [aloc[0], aloc[1], -self.getDepthAtLocation(aloc[0],aloc[1])]
-                        
-                    # get configuration for that line 
-                    lineconfig = arrayMooring[j]['MooringConfigID']                       
-                    # create mooring and connector dictionary for that line
-                    m_config = getMoorings(lineconfig, lineConfigs, connectorTypes, self.platformList[PFNum[0]].id, self)
-                    # get letter number for mooring line
-                    ind = len(self.platformList[PFNum[0]].getMoorings())
-                    # create mooring class instance, attach to end A and end B objects, reposition
-                    self.addMooring(id=str(PFNum[0])+alph[ind], endA=anchor,
-                                    endB=self.platformList[PFNum[0]],
-                                    heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi,
-                                    dd=m_config)
-                    # update anchor depth and soils
-                    self.updateAnchor(anchor, update_loc=False)
+                        # zAnew, nAngle = self.getDepthAtLocation(aloc[0], aloc[1], return_n=True)
+                        anchor = self.addAnchor(id=arrayAnchor[aNum]['ID'], dd=ad)
+                        anchor.r[:2] = [aloc[0],aloc[1]]
+                    moor.attachTo(anchor,end='A')
+                    # moor.rA = [aloc[0],aloc[1],-zAnew]
+                    # moor.dd['zAnchor'] = -zAnew
+                    # moor.z_anch = -zAnew
+                    # anchor.r = [aloc[0], aloc[1], -self.getDepthAtLocation(aloc[0],aloc[1])]
+                    moor.attachTo(self.platformList[PFNum[0]],end='B')   
+                    moor.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
+                    zAnew, nAngle = self.getDepthAtLocation(aloc[0],aloc[1], return_n=True)
+                    moor.dd['zAnchor'] = -zAnew
+                    moor.z_anch = -zAnew
+                    moor.rA = [aloc[0],aloc[1],-zAnew]
+                    # moor.dd['zAnchor'] = -zAnew
+                    # moor.z_anch = -zAnew
+                    # # get configuration for that line 
+                    # lineconfig = arrayMooring[j]['MooringConfigID']                       
+                    # # create mooring and connector dictionary for that line
+                    # m_config = getMoorings(lineconfig, lineConfigs, connectorTypes, self.platformList[PFNum[0]].id, self)
+                    # # get letter number for mooring line
+                    # ind = len(self.platformList[PFNum[0]].getMoorings())
+                    
+                    # # update anchor depth and soils
+                    # self.updateAnchor(anchor, update_loc=False)
 
 
                 else: # error in input
@@ -1403,7 +1438,7 @@ class Project():
         if id==None:
             id = 'fowt'+len(self.platformList)
         # optional information to add
-        platformType = getFromDict(kwargs, 'platform_type', default=None)
+        platformType = getFromDict(kwargs, 'platform_type', dtype=int, default=None)
         moor_headings = getFromDict(kwargs,'mooring_headings', default=[])
         RAFTDict = getFromDict(kwargs,'raft_platform_dict', default = {})
         hydrostatics = getFromDict(kwargs, 'hydrostatics', default= {})
@@ -1425,7 +1460,7 @@ class Project():
             if platformType != None:
                 print('Warning, platform type number and raft platform definition provided,\
                       platform type number will be overwritten')
-            dd['type'] = len(self.platformTypes)-1
+            dd['type'] = int(len(self.platformTypes)-1)
         
         if hydrostatics:
             dd['hydrostatics'] = hydrostatics
@@ -1433,10 +1468,10 @@ class Project():
         platform.dd = dd
         self.platformList[id] = platform
         # also save in RAFT, in its MoorPy System(s)
-        
+     
     def addMooring(self, id=None, endA=None, endB=None, heading=0, dd={}, 
                    section_types=[], section_lengths=[], 
-                   connectors=[], span=0, shared=0):
+                   connectors=[], span=0, shared=0, reposition=False):
         '''
         Function to create a mooring object  and save in mooringList
         Optionally does the following:
@@ -1518,17 +1553,21 @@ class Project():
                 mooring.attachTo(endi,end=i) 
                 
         # reposition mooring line if attachments provided
-        r_center = [end.r for end in ends[isplatform]] # grab center loc of any ends that are platforms
-        if len(r_center)>0:
-            if len(r_center)==1:
-                r_center = r_center[0]
-            mooring.reposition(r_center=r_center, heading=heading, project=self)
-            # adjust anchor z location and rA based on location of anchor
-            zAnew, nAngle = self.getDepthAtLocation(mooring.rA[0], 
-                                                    mooring.rA[1], 
-                                                    return_n=True)
-            mooring.rA[2] = -zAnew
-            mooring.dd['zAnchor'] = -zAnew
+        if reposition:
+            r_center = [end.r for end in ends[isplatform]] # grab center loc of any ends that are platforms
+            if len(r_center)>0:
+                if len(r_center)==1:
+                    r_center = r_center[0]
+                mooring.reposition(r_center=r_center, heading=heading, project=self)
+                # adjust anchor z location and rA based on location of anchor
+                zAnew, nAngle = self.getDepthAtLocation(mooring.rA[0], 
+                                                        mooring.rA[1], 
+                                                        return_n=True)
+                mooring.rA[2] = -zAnew
+                mooring.dd['zAnchor'] = -zAnew
+                mooring.z_anch = -zAnew
+        else:
+            mooring.heading = np.degrees(heading)
                 
         self.mooringList[id] = mooring
         
@@ -3703,13 +3742,13 @@ class Project():
                         entity = att['obj'].entity
                     dd['type'] = entity
                     if att['obj'].dd in topList:
-                        ts_loc = topList.index(att['obj'].dd) + 1
+                        ts_loc = int(topList.index(att['obj'].dd) + 1)
                     else:
                         topList.append(att['obj'].dd)
                         ts_loc = len(topList)
                 
 
-            arrayData.append([pf.id, ts_loc, pf.dd['type']+1, 0, float(pf.r[0]), 
+            arrayData.append([pf.id, ts_loc, int(pf.dd['type']+1), 0, float(pf.r[0]), 
                               float(pf.r[1]), float(pf.r[2]), float(np.degrees(pf.phi))])
             pf_type.append(pf.dd['type'])
             
