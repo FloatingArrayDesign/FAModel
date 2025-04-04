@@ -3804,6 +3804,8 @@ class Project():
                         current_anch = endA.dd['name']
                 if newanch:
                     anchConfigs[endA.dd['name']] = dict(endA.dd['design'])
+                    if endA.mass>0: 
+                        anchConfigs[endA.dd['name']]['mass'] = endA.mass
             # elif type(endA)==Connector:
             #     # get connector info & store like anchors
             #     pass
