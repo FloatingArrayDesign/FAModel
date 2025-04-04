@@ -10,14 +10,14 @@ import os
 os.chdir('./Inputs/')
 
 # set yaml file location and name
-ontology_file = 'OntologySample200m_noshared.yaml'
+ontology_file = 'OntologySample200m_1turb.yaml'
 
 # create project class
 project = Project(file=ontology_file)
 project.getMoorPyArray()
 
 # let's choose a single anchor from the array to look at
-anch = project.anchorList['FOWT1a']
+anch = project.anchorList['fowt0a']
 
 # now let's get the mudline and lug forces on this anchor
 anch.getLugForces() # getLugForces calls getMudlineForces() to get the anchor forces at both locations
@@ -32,7 +32,7 @@ loads_with_FS = {'Ha':anch.loads['Ha']*minfs['Ha'],'Va':anch.loads['Va']*minfs['
 anch.getAnchorCapacity(loads=loads_with_FS) # loads are used in capacity calculation, so let's send in the loads with factor of safety applied
 
 # get anchor cost
-startGeom = [15,2,9.32]
+startGeom = [10,2,6.6]
 geomKeys = ['L','D','zlug']
 geomBounds = [(5, 50), (1, 7), (3.3,16.7)]
 FSDiff_max = {'Ha':5,'Va':5}
@@ -41,13 +41,12 @@ anch.getCost()
 print('\nClay suction pile capacity is: ',anch.anchorCapacity)
 print('Clay suction pile safety factor is: ',anch.getFS())
 print('Clay suction pile cost is: ', anch.cost,'\n')
-
 # try suction pile with sand
 newdd = anch.dd
-newdd['soil_type'] = 'sand'
-newdd['soil_properties']['phi'] = 33
-newdd['soil_properties']['Dr'] = 70
-newdd['soil_properties']['delta'] = 25
+anch.soilProps['sand'] = anch.soilProps.pop('mud_firm')
+anch.soilProps['sand']['phi'] = 33
+anch.soilProps['sand']['Dr'] = 70
+anch.soilProps['sand']['delta'] = 25
 # update anchor loads at lug point (mudline load should be constant), then get anchor capacity
 anch.getLugForces()
 anch.getSize(startGeom,geomKeys,geomBounds,plot=True)
@@ -60,7 +59,7 @@ print('Sand suction pile cost is: ', anch.cost,' USD\n')
 # check plate anchor type   
 newdd['type'] = 'DEA'
 newdd['design'] = {'type':'DEA','A':20,'zlug':20,'beta':10}
-newdd['soil_type'] = 'clay'
+anch.soilProps['clay'] = anch.soilProps.pop('sand')
 
 startGeom = [10,20]
 geomKeys = ['A','zlug']
@@ -77,7 +76,7 @@ print('Clay plate cost is: ', anch.cost,' USD\n')
 # check drilled and grouted pile anchor type
 newdd['type'] = 'dandg_pile'
 newdd['design'] = {'type':'dandg_pile','L':50,'D':3,'zlug':0}
-newdd['soil_type'] = 'rock' # soil_properties has default rock info in there already, just change name
+anch.soilProps['rock'] = anch.soilProps.pop('clay') # soil_properties has default rock info in there already, just change name
 
 # startGeom = [5,50]
 # geomKeys = ['L','D']
@@ -89,7 +88,7 @@ print('Rock drilled and grouted pile safety factor is: ',anch.getFS())
 
 # check driven pile anchor in rock
 newdd['type'] = 'driven'
-newdd['soil_type'] = 'weak_rock'
+anch.soilProps['weak_rock'] = anch.soilProps.pop('rock')
 newdd['design'] = {'type':'driven','L':20,'D':1.5,'zlug':-3} # zlug should be negative (above mudline) for rock!
 
 anch.getLugForces()
@@ -98,7 +97,7 @@ print('\nWeak rock driven pile capacity is: ',anch.anchorCapacity,' N')
 print('Weak rock driven pile safety factor is: ',anch.getFS())
 
 # check driven pile anchor in clay
-newdd['soil_type'] = 'clay'
+anch.soilProps['clay'] = anch.soilProps.pop('weak_rock')
 newdd['design'] = {'type':'driven','L':40,'D':4,'zlug':10}
 
 anch.getLugForces()
@@ -107,8 +106,8 @@ print('\nClay driven pile capacity is: ',anch.anchorCapacity,' N')
 print('Clay driven pile safety factor is: ',anch.getFS())
 
 # check driven pile anchor in sand
-newdd['soil_type'] = 'sand'
-newdd['soil_properties']['Dr'] = 50
+anch.soilProps['sand'] = anch.soilProps.pop('clay')
+anch.soilProps['sand']['Dr'] = 50
 
 anch.getLugForces()
 anch.getAnchorCapacity(loads=loads_with_FS)
@@ -125,7 +124,7 @@ print('\nSand helical pile capacity is: ',anch.anchorCapacity,' N')
 print('Sand helical pile safety factor is: ',anch.getFS())
 
 # check helical pile anchor with clay
-newdd['soil_type'] = 'clay'
+anch.soilProps['clay'] = anch.soilProps.pop('sand')
 newdd['type'] = 'helical_pile'
 newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01,'zlug':5}
 

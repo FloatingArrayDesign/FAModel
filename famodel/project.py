@@ -442,7 +442,7 @@ class Project():
                         # - - -  create anchor first
                         # set anchor info
                         lineAnch = mySys[j]['anchorType'] # get the anchor type for the line
-                        ad = getAnchors(lineAnch, arrayAnchor, self) # call method to create anchor dictionary
+                        ad, mass = getAnchors(lineAnch, arrayAnchor, self) # call method to create anchor dictionary
                         # add anchor class instance to anchorList in project class
                         name = str(arrayInfo[i]['ID'])+alph[j]
                     
@@ -457,7 +457,7 @@ class Project():
                                         heading=headings[j]+platform.phi,
                                         dd=m_config, reposition=False)
                         
-                        anch = self.addAnchor(id=name, dd=ad)
+                        anch = self.addAnchor(id=name, dd=ad, mass=mass)
                         
                         # attach ends
                         moor.attachTo(anch, end='A')
@@ -539,7 +539,6 @@ class Project():
                                     dd=m_config)
 
                     # check if anchor instance already exists
-                    #if any(tt == 'shared_'+ arrayMooring[j]['end A'] for tt in self.anchorList): # anchor name exists already in list
                     if any(tt == arrayMooring[j]['endA'] for tt in self.anchorList): # anchor name exists already in list
                         # find anchor class instance
                         for anch in self.anchorList:
@@ -554,33 +553,24 @@ class Project():
                                 aNum = k # get anchor row number
                                 # set line anchor type and get dictionary of anchor information
                                 lineAnch = arrayAnchor[k]['type']
-                        ad = getAnchors(lineAnch, arrayAnchor, self) # call method to create dictionary
+                        ad, mass = getAnchors(lineAnch, arrayAnchor, self) # call method to create dictionary
                         # create anchor object
-                        # zAnew, nAngle = self.getDepthAtLocation(aloc[0], aloc[1], return_n=True)
-                        anchor = self.addAnchor(id=arrayAnchor[aNum]['ID'], dd=ad)
+                        anchor = self.addAnchor(id=arrayAnchor[aNum]['ID'], dd=ad, mass=mass)
                         anchor.r[:2] = [aloc[0],aloc[1]]
+                    # attach anchor
                     moor.attachTo(anchor,end='A')
-                    # moor.rA = [aloc[0],aloc[1],-zAnew]
-                    # moor.dd['zAnchor'] = -zAnew
-                    # moor.z_anch = -zAnew
-                    # anchor.r = [aloc[0], aloc[1], -self.getDepthAtLocation(aloc[0],aloc[1])]
+                    # attach platform
                     moor.attachTo(self.platformList[PFNum[0]],end='B')   
+                    # reposition mooring
                     moor.reposition(r_center=self.platformList[PFNum[0]].r, heading=np.radians(arrayMooring[j]['headingB'])+self.platformList[PFNum[0]].phi, project=self)
+                    # update depths
                     zAnew, nAngle = self.getDepthAtLocation(aloc[0],aloc[1], return_n=True)
                     moor.dd['zAnchor'] = -zAnew
                     moor.z_anch = -zAnew
                     moor.rA = [aloc[0],aloc[1],-zAnew]
-                    # moor.dd['zAnchor'] = -zAnew
-                    # moor.z_anch = -zAnew
-                    # # get configuration for that line 
-                    # lineconfig = arrayMooring[j]['MooringConfigID']                       
-                    # # create mooring and connector dictionary for that line
-                    # m_config = getMoorings(lineconfig, lineConfigs, connectorTypes, self.platformList[PFNum[0]].id, self)
-                    # # get letter number for mooring line
-                    # ind = len(self.platformList[PFNum[0]].getMoorings())
                     
-                    # # update anchor depth and soils
-                    # self.updateAnchor(anchor, update_loc=False)
+                    # update anchor depth and soils
+                    self.updateAnchor(anchor, update_loc=False)
 
 
                 else: # error in input
@@ -1127,7 +1117,8 @@ class Project():
         # update soil info for anchor if needed
         if self.anchorList:
             for anch in self.anchorList.values():
-                anch.dd['soil_type'], anch.dd['soil_properties'] = self.getSoilAtLocation(anch.r[0],anch.r[1])
+                name, props = self.getSoilAtLocation(anch.r[0],anch.r[1])
+                anch.soilProps = {name:props}
         
         # load data from file
         
@@ -1575,7 +1566,7 @@ class Project():
         
     
     def addAnchor(self, id=None, dd=None, design=None, cost=0, atype=None, platform=None,
-                  shared=False):
+                  shared=False, mass=0):
         '''
         Function to add an anchor to the project
 
@@ -1616,6 +1607,9 @@ class Project():
         anchor = Anchor(dd=dd, id=id)
         
         anchor.shared = shared
+        
+        if mass > 0:
+            anchor.mass = mass
         
         self.anchorList[id] = anchor
         

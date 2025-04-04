@@ -964,6 +964,7 @@ class Anchor(Node):
                     # exit loop if you're as close as can be on one of the FS even if other is above diff requirements UNLESS an FS is below minimum reqiured FS
                     break
                 print('Factor of Safety not close enough to minimum factor of safety, trying again with adjusted initial guess.')
+                print(FS)
                 # calculate new percent difference of FS from min fs
                 diffPCT = [FSdiff[key]/FS[key] for key in FSdiff]
                 # create adjustment coefficient based on this or .25, whichever is lower

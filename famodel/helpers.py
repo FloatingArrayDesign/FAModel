@@ -962,10 +962,14 @@ def getAnchors(lineAnch, arrayAnchor, proj):
     '''
     ad = {'design':{}, 'cost':{}} 
     ad['design'] = deepcopy(proj.anchorTypes[lineAnch])
+    if 'mass' in proj.anchorTypes[lineAnch]:
+        mass = ad['design'].pop('mass')
+    else:
+        mass = 0
     ad['type'] = proj.anchorTypes[lineAnch]['type']
     ad['name'] = lineAnch
     
-    return(ad)
+    return(ad, mass)
 
 def cleanDataTypes(info):
     '''
