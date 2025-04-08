@@ -464,7 +464,7 @@ class Project():
                         moor.attachTo(platform, end='B')
                         
                         # reposition mooring
-                        moor.reposition(r_center=platform.r, heading=headings[j]+platform.phi)
+                        moor.reposition(r_center=platform.r, heading=headings[j]+platform.phi, project=self)
                         
                         # update anchor depth and soils
                         self.updateAnchor(anch=anch)
@@ -521,7 +521,7 @@ class Project():
                     # reposition
                     moor.reposition(r_center=[self.platformList[PFNum[1]].r,
                                               self.platformList[PFNum[0]].r],
-                                    heading=headingB)
+                                    heading=headingB, project=self)
 
                 elif any(ids['ID'] == arrayMooring[j]['endA'] for ids in arrayAnchor): # end A is an anchor
                     # get ID of platform connected to line
@@ -2027,7 +2027,8 @@ class Project():
         ax.set_xlabel('X (m)')
         ax.set_ylabel('Y (m)')
         if axis_equal:
-            ax.axis('equal')
+            ax.set_aspect('equal',adjustable='box')
+
         handles, labels = plt.gca().get_legend_handles_labels()
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
         ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=4)
@@ -2591,7 +2592,8 @@ class Project():
         f = interpolate.interp1d(self.windSpeeds, self.thrustForces)
         
         #initialize list of wind speeds (1 wind speed for each turbine)
-        nturbs = len(self.platformList)
+        turblist = [x.body for x in self.platformList.values() if x.entity.upper()=='FOWT']
+        nturbs = len(turblist)
         ws = [ws] * nturbs
         
         winds = []
@@ -2602,14 +2604,14 @@ class Project():
         for n in range(0, 2):
             
             # interpolate thrust force from speed/thrust curve
-            for i in range(0, nturbs):
+            for i in range(0,nturbs):
                 if ws[i] < cutin:
                     T = 0
                 else:
                     T = f(ws[i])
                 
                 # apply thrust force/moments (split into x and y components)
-                self.ms.bodyList[i].f6Ext = np.array([T*np.cos(np.radians(wd)), T*np.sin(np.radians(wd)), 0, T*np.cos(np.radians(wd))*hubht, T*np.sin(np.radians(wd))*hubht, 0])       # apply an external force on the body 
+                turblist[i].f6Ext = np.array([T*np.cos(np.radians(wd)), T*np.sin(np.radians(wd)), 0, T*np.cos(np.radians(wd))*hubht, T*np.sin(np.radians(wd))*hubht, 0])       # apply an external force on the body 
                 
             
             #solve statics to find updated turbine positions
@@ -2617,7 +2619,7 @@ class Project():
             self.ms.solveEquilibrium(DOFtype='both')
 
             #update floris turbine positions and calculate wake losses
-            self.flow.set(layout_x=[body.r6[0] for body in self.ms.bodyList], layout_y=[body.r6[1] for body in self.ms.bodyList])
+            self.flow.set(layout_x=[body.r6[0] for body in turblist], layout_y=[body.r6[1] for body in turblist])
             self.flow.run()
     
           
@@ -2625,8 +2627,8 @@ class Project():
             #update wind speed list for RAFT
             ws = list(self.flow.turbine_average_velocities[0])
             winds.append(ws)
-            xpositions.append([body.r6[0] for body in self.ms.bodyList])
-            ypositions.append([body.r6[1] for body in self.ms.bodyList])
+            xpositions.append([body.r6[0] for body in turblist])
+            ypositions.append([body.r6[1] for body in turblist])
 
 
         #return FLORIS turbine powers (in order of turbine list)
@@ -2684,7 +2686,7 @@ class Project():
             #return turbines to neutral positions **** only done if plotting - this reduces runtime for AEP calculation
             for i in range(0, nturbs):
     
-                self.ms.bodyList[i].f6Ext = np.array([0, 0, 0, 0, 0, 0])       # apply an external force on the body 
+                turblist[i].f6Ext = np.array([0, 0, 0, 0, 0, 0])       # apply an external force on the body 
                 
             #solve statics to find updated turbine positions
             # self.ms.initialize()

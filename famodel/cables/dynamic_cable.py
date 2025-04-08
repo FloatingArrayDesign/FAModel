@@ -699,8 +699,6 @@ class DynamicCable(Edge):
                     rAth = 0 # exit while loop when we find thickness at low
                     count1 = 0 # counter
                     while rAth==0: # and count1 < len(th):
-                        if count1 == len(th):
-                            breakpoint()
                         if flip:
                             if high[2] <= th[count1][2]:
                                 LThick.append(th[count1][0])

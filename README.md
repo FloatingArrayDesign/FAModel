@@ -21,17 +21,7 @@ of the Humboldt lease area is shown below.
 
 
 ## Installation
-
-To install FAModel itself, clone the FAModel repository and then enter the 
-following in the command line from its directory.
-
-For development use:
-
-run ```python setup.py develop``` or ```pip install -e .``` from the command line in the main FAModel directory.
-
-For non-development use:
-
-run ```python setup.py``` or ```pip install .``` from the command line in the main FAModel directory.
+To install FAModel itself, first clone the FAModel repository.
 
 The dependencies required by FAModel depend on how it is used. To install all
 possible required dependencies, you can create a 
@@ -46,6 +36,17 @@ run the following command:
 
 This command will install all the dependencies required to run FAModel.
 Activate your virtual environment before using FAModel with ```conda activate famodel-env```
+
+To install the FAModel package in your environment, enter the 
+following in the command line from the FAModel directory.
+
+For development use:
+
+run ```python setup.py develop``` or ```pip install -e .``` from the command line in the main FAModel directory.
+
+For non-development use:
+
+run ```python setup.py``` or ```pip install .``` from the command line in the main FAModel directory.
 
 ** At this time, FAModel requires the latest MoorPy development branch version to be used. **
 Therefore, you must install MoorPy with ```git clone https://github.com/NREL/MoorPy.git```
