@@ -1828,11 +1828,11 @@ class Project():
                 
                 # adjust heading if too close to moorings
                 rad_buff = np.radians(heading_buffer)
-                dc0s = cab.subcomponents[0].span
+                dc0s = np.max((cab.subcomponents[0].span, 500))
                 moors = attA.getMoorings() 
-                msp = list(moors.values())[0].span + attA.rFair
+                msp = list(moors.values())[0].span + attA.rFair + 200 # add a bit extra
                 # consider mooring headings from both ends if close enough
-                pfsp = np.sqrt((attA.r[0]-attB.r[0])**2+(attA.r[1]-attB.r[1])**2)
+                pfsp = np.linalg.norm(attA.r-attB.r) 
                 if pfsp-2*attA.rFair < msp+dc0s:
                     headingA = head_adjust([attA,attB],headingA,rad_buff=rad_buff)
                     headingB = head_adjust([attB,attA],headingB,rad_buff=rad_buff,endA_dir=-1)
