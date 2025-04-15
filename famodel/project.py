@@ -4162,13 +4162,13 @@ class Project():
         # Unrotate turbines if needed
         if unrotateTurbines:
             if self.wts:
-                phiV = [wt['phi_deg'] for wt in self.wts.values()]  # to unrotate the platforms when unloading MoorDyn
+                phi = [wt['phi_deg'] for wt in self.wts.values()]  # to unrotate the platforms when unloading MoorDyn
             else:
                 raise ValueError("wts is empty. Please run project.extractFarmInfo first before extracting MoorDyn")
         else:
-            phiV = None
+            phi = None
         
-        ms_temp.unload(fileName=filename, phiV=phiV, MDoptionsDict=MDoptionsDict)
+        ms_temp.unload(fileName=filename, phi=phi, MDoptionsDict=MDoptionsDict)
         
         # rename Body to Turbine if needed
         if renameBody:
