@@ -117,7 +117,8 @@ class Project():
         # MoorPy system associated with the project
         self.ms  = None
         
-        
+        # RAFTDict associated with the project
+        self.RAFTDict = None
         
         # ----- if an input file has been passed, load it -----
         if file:
@@ -788,14 +789,16 @@ class Project():
             # create a name for the raft model
             RAFTDict['name'] = 'Project_Array'
             RAFTDict['type'] = 'input file for RAFT'
-    
+
+            self.RAFTDict = deepcopy(RAFTDict)
+
             # create RAFT model if necessary components exist
             if 'platforms' in RAFTDict or 'platform' in RAFTDict:
 
                     self.getRAFT(RAFTDict,pristine=1)
-                    
+                
+            
 
-        
         
 
 
@@ -4114,20 +4117,21 @@ class Project():
         i = 0
         yaw_init = np.zeros((1, len(self.platformList.items())))
         for _, pf in self.platformList.items():
-            x, y, z   = pf.body.r6[0], pf.body.r6[1], pf.body.r6[2]
-            phi_deg       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
-            phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
-            for att in pf.attachments.values():
-                if isinstance(att['obj'],Turbine):
-                    D    = 240   # att['obj'].D         (assuming 15MW)
-                    zhub = att['obj'].dd['hHub']
+            if pf.entity=='FOWT':
+                x, y, z   = pf.body.r6[0], pf.body.r6[1], pf.body.r6[2]
+                phi_deg       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
+                phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
+                for att in pf.attachments.values():
+                    if isinstance(att['obj'],Turbine):
+                        D    = 240   # att['obj'].D         (assuming 15MW)
+                        zhub = att['obj'].dd['hHub']
                 
-            wts[i] = {
-                'x': x, 'y': y, 'z': z, 'phi_deg': phi_deg, 'D': D, 'zhub': zhub, 
-                'cmax': cmax, 'fmax': fmax, 'Cmeander': Cmeander
-                }
-            yaw_init[0, i] = -phi_deg
-            i += 1
+                wts[i] = {
+                    'x': x, 'y': y, 'z': z, 'phi_deg': phi_deg, 'D': D, 'zhub': zhub, 
+                    'cmax': cmax, 'fmax': fmax, 'Cmeander': Cmeander
+                    }
+                yaw_init[0, i] = -phi_deg
+                i += 1
 
         # store farm-level wind turbine information
         self.wts = wts
@@ -4206,6 +4210,48 @@ class Project():
             with open(filename, 'w') as f:
                 f.writelines(newLines)
            
+    def resetArrayCenter(self, FOWTOnly=True):
+        '''
+        Function to reset array center such that the farm origin is the mid-point between all FOWT platforms:
+
+        Parameters
+        ----------
+        FOWTOnly : bool
+            find the center between only FOWT-entity platforms if True.
+        '''       
+        xCenter = np.mean([p.r[0] for p in self.platformList.values() if p.entity=='FOWT' or not FOWTOnly])
+        yCenter = np.mean([p.r[1] for p in self.platformList.values() if p.entity=='FOWT' or not FOWTOnly])          
+        delta   = np.array([xCenter, yCenter])
+        
+        # Change boundaries
+        self.boundary -= delta
+
+        # Change bathymetry
+        self.grid_x -= delta[0]
+        self.grid_y -= delta[1]
+        
+        # Change all platform locations and associated anchors/moorings/cables
+        for pf in self.platformList.values():
+            pf.r[:2]-=delta
+            for i, att in enumerate(pf.attachments.values()):
+                obj = att['obj']
+                if isinstance(obj, Mooring):           
+                    obj.reposition(project=self)
+
+                if isinstance(obj, Cable):
+                    obj.reposiiton(project=self)
+
+        # Change RAFTDict if available.
+        if self.RAFTDict:
+            x_idx = self.RAFTDict['array']['keys'].index('x_location')
+            y_idx = self.RAFTDict['array']['keys'].index('y_location')            
+            for i in range(len(self.platformList.values())):
+                self.RAFTDict['array']['data'][i][x_idx] -= delta[0]
+                self.RAFTDict['array']['data'][i][y_idx] -= delta[1]
+
+            if 'platforms' in self.RAFTDict or 'platform' in self.RAFTDict:
+                    self.getRAFT(self.RAFTDict,pristine=1)
+        
 
     def updateFailureProbability(self):
         '''
@@ -4219,7 +4265,7 @@ class Project():
         None.
 
         '''
-                
+        pass    
 
     
 
