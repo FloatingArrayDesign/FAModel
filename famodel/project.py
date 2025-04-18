@@ -4118,7 +4118,7 @@ class Project():
         yaw_init = np.zeros((1, len(self.platformList.items())))
         for _, pf in self.platformList.items():
             if pf.entity=='FOWT':
-                x, y, z   = pf.body.r6[0], pf.body.r6[1], pf.body.r6[2]
+                x, y, z   = pf.r[0], pf.r[1], pf.r[2]
                 phi_deg       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
                 phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
                 for att in pf.attachments.values():
@@ -4252,10 +4252,6 @@ class Project():
             if 'platforms' in self.RAFTDict or 'platform' in self.RAFTDict:
                     self.getRAFT(self.RAFTDict,pristine=1)
         
-        if self.ms:
-            # Change MoorDyn
-            for body in self.ms.bodyList:
-                body.r6[:2] -= delta
 
 
     def updateFailureProbability(self):
