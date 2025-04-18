@@ -64,8 +64,10 @@ class Platform(Node):
     def setPosition(self, r, heading=None, degrees=False,project=None):
         '''
         Set the position/orientation of the platform as well as the associated
-        anchor points.
+        anchor points. 
         
+        "Note: must only be used for a platform that's only attached with anchored lines"
+
         Parameters
         ----------
         r : list

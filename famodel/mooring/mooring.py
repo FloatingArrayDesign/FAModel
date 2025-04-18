@@ -198,7 +198,7 @@ class Mooring(Edge):
         r_center : list or nested list
             The x, y, z coordinates of the platform(s) (undisplaced) [m]. If shared mooring, must be a list of lists, with the
             coordinates for each platform connection. In this case, end A platform connection is the first entry and end B 
-            platform connection is the second entry.
+            platform connection is the second entry. If not given, r_center will be populated from what self is attached to.
         heading : float
             The absolute heading compass direction of the mooring line from end B
             [deg or rad] depending on degrees parameter (True or False). Must account for the platform heading as well.
@@ -227,11 +227,15 @@ class Mooring(Edge):
         # heading 2D unit vector
         u = np.array([np.cos(phi), np.sin(phi)])
         
-        if self.shared == 1:
-            r_centerB = np.array(r_center)[1]
-            r_centerA = np.array(r_center)[0]
+        if np.any(r_center):
+            if self.shared == 1:
+                r_centerA = np.array(r_center)[0]
+                r_centerB = np.array(r_center)[1]
+            else:
+                r_centerB = np.array(r_center)
         else:
-            r_centerB = np.array(r_center)
+            r_centerA = self.attached_to[0].r
+            r_centerB = self.attached_to[1].r
             
         # create fairlead radius list for end A and end B if needed
         if not rad_fair:
