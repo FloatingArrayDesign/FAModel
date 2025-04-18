@@ -4252,6 +4252,11 @@ class Project():
             if 'platforms' in self.RAFTDict or 'platform' in self.RAFTDict:
                     self.getRAFT(self.RAFTDict,pristine=1)
         
+        if self.ms:
+            # Change MoorDyn
+            for body in self.ms.bodyList:
+                body.r6[:2] -= delta
+
 
     def updateFailureProbability(self):
         '''
