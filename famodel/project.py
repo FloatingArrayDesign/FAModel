@@ -4262,7 +4262,7 @@ class Project():
                     self.getRAFT(self.RAFTDict,pristine=1)
         self.getMoorPyArray()
         
-    def arrayReorientation(self, windHeading=None, degrees=False):
+    def reorientArray(self, windHeading=None, degrees=False):
         '''
         Reorients the array based on a given wind heading. The array will be reoriented such that wind faces East (the zero in FFarm). 
         Useful to allign the array with the wind direction.
