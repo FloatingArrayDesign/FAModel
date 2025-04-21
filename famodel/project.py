@@ -4310,8 +4310,8 @@ class Project():
         min_Y = np.min(Y_rot)
         max_Y = np.max(Y_rot)
 
-        self.grid_x = np.arange(min_X, max_X, np.min(np.diff(self.grid_x)))
-        self.grid_y = np.arange(min_Y, max_Y, np.min(np.diff(self.grid_y)))
+        self.grid_x = np.arange(min_X, max_X + np.min(np.diff(self.grid_x)), np.min(np.diff(self.grid_x)))
+        self.grid_y = np.arange(min_Y, max_Y + np.min(np.diff(self.grid_y)), np.min(np.diff(self.grid_y)))
         X_rot, Y_rot = np.meshgrid(self.grid_x, self.grid_y)
         
         # Interpolate self.grid_depth onto the rotated grid
