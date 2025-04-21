@@ -107,8 +107,9 @@ class Platform(Node):
         
                 # Heading of the mooring line
                 heading_i = self.mooring_headings[count] + self.phi
-                # Reposition the whole Mooring
-                self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
+                # Reposition the whole Mooring if it is an anchored line
+                if not self.attachments[att]['obj'].shared:
+                    self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
                 
                 count += 1
                 
