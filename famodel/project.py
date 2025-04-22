@@ -4226,26 +4226,31 @@ class Project():
             newLines = []
 
             for i, line in enumerate(lines):
-                newLines.append(line)
+                if 'DEPTH' not in line.upper():
+                    newLines.append(line)
                 if '---' in line and 'OPTIONS' in line.upper():
-                    newLines.append(f" {bathymetryFile}             Seafloor File\n")
+                    newLines.append(f"{bathymetryFile}             depth\n")
                 
+            with open(filename, 'w') as f:
+                f.writelines(newLines)
+            
             
             with open(filename, 'w') as f:
                 f.writelines(newLines)
                 
     def resetArrayCenter(self, FOWTOnly=True):
         '''
-        Function to reset array center such that the farm origin is the mid-point between all FOWT platforms:
+        Function to reset array center such that the farm origin is the mid-point 
+        between all FOWT platforms in y and the minimum_x turbine location in x:
 
         Parameters
         ----------
         FOWTOnly : bool
             find the center between only FOWT-entity platforms if True.
         '''       
-        xCenter = np.mean([p.r[0] for p in self.platformList.values() if p.entity=='FOWT' or not FOWTOnly])
+        x       =  np.min([p.r[0] for p in self.platformList.values() if p.entity=='FOWT' or not FOWTOnly])
         yCenter = np.mean([p.r[1] for p in self.platformList.values() if p.entity=='FOWT' or not FOWTOnly])          
-        delta   = np.array([xCenter, yCenter])
+        delta   = np.array([x, yCenter])
         
         # Change boundaries
         self.boundary -= delta
