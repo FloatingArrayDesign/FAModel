@@ -42,7 +42,32 @@ def readBathymetryFile(filename, dtype=float):
     
     return bathGrid_Xs, bathGrid_Ys, bathGrid
 
+def writeBathymetryFile(filename, grid_x, grid_y, grid_depth):
+    """
+    Writes bathymetry data to a file in the format expected by readBathymetryFile.
 
+    Parameters:
+        filename (str): The name of the file to write to.
+        grid_x (list or np.ndarray): The X coordinates of the grid.
+        grid_y (list or np.ndarray): The Y coordinates of the grid.
+        grid_depth (np.ndarray): The bathymetry grid (depth values).
+    """
+    with open(filename, 'w') as f:
+        # Write a placeholder header
+        f.write("Bathymetry Data File\n")
+        
+        # Write the number of grid values in the x and y directions
+        f.write(f"nGridX {len(grid_x)}\n")
+        f.write(f"nGridY {len(grid_y)}\n")
+        
+        # Write the X coordinates
+        f.write(" ".join(map(str, grid_x)) + "\n")
+        
+        # Write the Y coordinates and the bathymetry grid
+        for i, y in enumerate(grid_y):
+            row = [y] + list(grid_depth[i, :])
+            f.write(" ".join(map(str, row)) + "\n")
+            
 def getSoilTypes(filename):
     '''function to read in a preliminary input text file format of soil type information'''
 

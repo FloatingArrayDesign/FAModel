@@ -2765,7 +2765,9 @@ class Project():
 
             if 'ID' in RAFTDict['array']['keys']:
                 IDindex = np.where(np.array(RAFTDict['array']['keys'])=='ID')[0][0]
+                IDdata  = [row[IDindex] for row in RAFTDict['array']['data']]
                 RAFTDict['array']['keys'].pop(IDindex) # remove key for ID because this doesn't exist in RAFT array table
+                reinsert = True
             if 'topsideID' in RAFTDict['array']['keys']:
                 ts_loc = RAFTDict['array']['keys'].index('topsideID')
                 RAFTDict['array']['keys'][ts_loc] = 'turbineID'
@@ -2789,7 +2791,8 @@ class Project():
                     if turb[tsIDindex] > ti:
                         turb[tsIDindex] -= 1
 
-                
+            
+
             # create empty mooring dictionary
             RAFTDict['mooring'] = {}
             #RAFTDict['mooring']['currentMod']
@@ -2817,6 +2820,12 @@ class Project():
             # connect RAFT fowt to the correct moorpy body
             for i in range(0,len(self.platformList)): # do not include substations (these are made last)
                 self.array.fowtList[i].body = self.ms.bodyList[i]
+
+            # Reinsert 'ID' key and data back into RAFTDict
+            if reinsert:
+                RAFTDict['array']['keys'].insert(IDindex, 'ID')  # Reinsert 'ID' key at its original position
+                for i, row in enumerate(RAFTDict['array']['data']):
+                    row.insert(IDindex, IDdata[i])  # Reinsert 'ID' data into each row            
         else:
             raise Exception('Platform(s) must be specified in YAML file')
             
@@ -4118,7 +4127,7 @@ class Project():
         yaw_init = np.zeros((1, len(self.platformList.items())))
         for _, pf in self.platformList.items():
             if pf.entity=='FOWT':
-                x, y, z   = pf.body.r6[0], pf.body.r6[1], pf.body.r6[2]
+                x, y, z   = pf.r[0], pf.r[1], pf.r[2]
                 phi_deg       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
                 phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
                 for att in pf.attachments.values():
@@ -4138,7 +4147,7 @@ class Project():
 
         return wts, yaw_init  
     
-    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True, removeBody=True, MDoptionsDict={}):
+    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True, removeBody=True, MDoptionsDict={}, bathymetryFile=None):
         '''
         Function to create FFarm-compatible MoorDyn input file:
 
@@ -4209,7 +4218,22 @@ class Project():
 
             with open(filename, 'w') as f:
                 f.writelines(newLines)
-           
+        
+        if bathymetryFile:
+            with open(filename, 'r') as f:
+                lines = f.readlines()
+
+            newLines = []
+
+            for i, line in enumerate(lines):
+                newLines.append(line)
+                if '---' in line and 'OPTIONS' in line.upper():
+                    newLines.append(f" {bathymetryFile}             Seafloor File\n")
+                
+            
+            with open(filename, 'w') as f:
+                f.writelines(newLines)
+                
     def resetArrayCenter(self, FOWTOnly=True):
         '''
         Function to reset array center such that the farm origin is the mid-point between all FOWT platforms:
@@ -4251,7 +4275,116 @@ class Project():
 
             if 'platforms' in self.RAFTDict or 'platform' in self.RAFTDict:
                     self.getRAFT(self.RAFTDict,pristine=1)
+        self.getMoorPyArray()
         
+    def reorientArray(self, windHeading=None, degrees=False):
+        '''
+        Reorients the array based on a given wind heading. The array will be reoriented such that wind faces East (the zero in FFarm). 
+        Useful to allign the array with the wind direction.
+
+        Parameters
+        ----------
+        windHeading, float (optional)
+            The heading of the wind [deg or rad] depending on
+            degrees parameter. The heading is based on compass convention (North=0deg and +ve CW).
+        degrees : bool (optional)
+            Determines whether to use degree or radian for heading.
+        '''
+
+        from scipy.interpolate import griddata
+
+        # Check if windHeading is given
+        if windHeading is None:
+            raise ValueError("windHeading is not given. Please provide a valid wind heading.")
+        
+        if degrees:
+            windHeading = np.radians(windHeading)
+        
+        # reference wind heading (aligned with x-axis)
+        windHeadingRef = np.radians(270)
+        # Calculate the phi angle with which we will rotate the array
+        phi = ((np.pi/2 - windHeading) + np.pi) % (2*np.pi)
+        
+        # Compute rotation matrix for faster computation
+        R = np.array([[np.cos(phi), np.sin(phi)],
+                  [-np.sin(phi), np.cos(phi)]])
+        
+        # Rotate the boundary
+        self.boundary = np.dot(R, self.boundary.T).T
+        
+        # Rotate the bathymetry
+        X, Y = np.meshgrid(self.grid_x, self.grid_y)
+        coords_flat = np.stack([X.flatten(), Y.flatten()], axis=-1)
+        rotated_coords_flat = np.dot(R, coords_flat.T).T
+        rotated_X_flat, rotated_Y_flat = rotated_coords_flat[:, 0], rotated_coords_flat[:, 1]
+        X_rot = rotated_X_flat.reshape(X.shape)
+        Y_rot = rotated_Y_flat.reshape(Y.shape)
+
+        min_X = np.min(X_rot)
+        max_X = np.max(X_rot)
+        min_Y = np.min(Y_rot)
+        max_Y = np.max(Y_rot)
+
+        self.grid_x = np.arange(min_X, max_X + np.min(np.diff(self.grid_x)), np.min(np.diff(self.grid_x)))
+        self.grid_y = np.arange(min_Y, max_Y + np.min(np.diff(self.grid_y)), np.min(np.diff(self.grid_y)))
+        X_rot, Y_rot = np.meshgrid(self.grid_x, self.grid_y)
+        
+        # Interpolate self.grid_depth onto the rotated grid
+        depth_flat = self.grid_depth.flatten()  # Flatten the depth values
+        rotated_depth = griddata(
+            points=rotated_coords_flat,  # Original grid points
+            values=depth_flat,   # Original depth values
+            xi=(X_rot, Y_rot),   # New rotated grid points
+            method='linear'      # Interpolation method (can also use 'nearest' or 'cubic')
+        )        
+
+        if np.isnan(rotated_depth).any():
+            nan_mask = np.isnan(rotated_depth)
+            nearest_depth = griddata(
+                points=rotated_coords_flat,
+                values=depth_flat,
+                xi=(X_rot, Y_rot),
+                method='nearest'
+            )
+            rotated_depth[nan_mask] = nearest_depth[nan_mask]
+
+        self.grid_depth = rotated_depth
+        
+        # Rotate the platforms
+        for pf in self.platformList.values():
+            pf.r[:2] = np.dot(R, pf.r[:2].T).T
+            pf.phi = pf.phi + windHeadingRef - windHeading
+        
+
+        # Rotate moorings
+        for moor in self.mooringList.values():
+            # if not moor.shared:
+            mooringHeading = np.radians(moor.heading) + windHeadingRef - windHeading
+            moor.reposition(heading=mooringHeading, project=self)
+            # else:
+            #     mooringHeading = np.radians(obj.heading)
+            #     moor.reposition(heading=mooringHeading)
+            
+            
+
+            #     if isinstance(obj, Cable):
+            #         cableHeading = [obj.subcomponents[0].headingA + phi, obj.subcomponents[-1].headingB + phi]
+            #         obj.reposiiton(headings=cableHeading, project=self)
+        
+        # Change RAFTDict if available.
+        if self.RAFTDict:
+            x_idx = self.RAFTDict['array']['keys'].index('x_location')
+            y_idx = self.RAFTDict['array']['keys'].index('y_location')            
+            p_idx = self.RAFTDict['array']['keys'].index('heading_adjust')            
+            for i, pf in enumerate(self.platformList.values()):
+                self.RAFTDict['array']['data'][i][x_idx] = pf.r[0]
+                self.RAFTDict['array']['data'][i][y_idx] = pf.r[1]
+                self.RAFTDict['array']['data'][i][p_idx] = np.degrees(pf.phi)
+
+            if 'platforms' in self.RAFTDict or 'platform' in self.RAFTDict:
+                    self.getRAFT(self.RAFTDict,pristine=1)        
+        
+        self.getMoorPyArray()
 
     def updateFailureProbability(self):
         '''
