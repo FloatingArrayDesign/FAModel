@@ -4147,7 +4147,7 @@ class Project():
 
         return wts, yaw_init  
     
-    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True, removeBody=True, MDoptionsDict={}):
+    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True, removeBody=True, MDoptionsDict={}, bathymetryFile=None):
         '''
         Function to create FFarm-compatible MoorDyn input file:
 
@@ -4218,7 +4218,22 @@ class Project():
 
             with open(filename, 'w') as f:
                 f.writelines(newLines)
-           
+        
+        if bathymetryFile:
+            with open(filename, 'r') as f:
+                lines = f.readlines()
+
+            newLines = []
+
+            for i, line in enumerate(lines):
+                newLines.append(line)
+                if '---' in line and 'OPTIONS' in line.upper():
+                    newLines.append(f" {bathymetryFile}             Seafloor File\n")
+                
+            
+            with open(filename, 'w') as f:
+                f.writelines(newLines)
+                
     def resetArrayCenter(self, FOWTOnly=True):
         '''
         Function to reset array center such that the farm origin is the mid-point between all FOWT platforms:
