@@ -54,7 +54,7 @@ def writeBathymetryFile(filename, grid_x, grid_y, grid_depth):
     """
     with open(filename, 'w') as f:
         # Write a placeholder header
-        f.write("Bathymetry Data File\n")
+        f.write("--- MoorPy Bathymetry Input File ---\n")
         
         # Write the number of grid values in the x and y directions
         f.write(f"nGridX {len(grid_x)}\n")
