@@ -3549,6 +3549,7 @@ class Project():
                         moor.loads['TBmax'] = moor.ss.TB*DAF
                         moor.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
                         moor.safety_factors['tension'] = minTenSF[j]
+                        moor.safety_factors['analysisType'] = 'quasi-static (MoorPy)'
                     
                     # store max. laid length of the mooring lines
                     if moor_seabed_disturbance:
@@ -4405,9 +4406,126 @@ class Project():
         '''
         pass    
 
-    
+    def mapRAFTResults(self, results=None, SFs=True):
+        '''
+        Function to map RAFT results to the project class. This
+        maps the results from RAFT to the project class.
+
+        Parameters
+        ----------
+        results : dict, optional
+            Dictionary of results from RAFT. The default is None. 
+            If `analyzeCases` is ran in raft, then the self.array
+            results will be used. if results dictionary is empty, 
+            we try to call analyze cases
+        
+
+        Returns
+        -------
+        None.
+
+        '''
+        if results:  # if results are given, overwrite self.array.results
+            self.array.results = results
+        
+        if not self.array.results:
+            if not self.array.design['cases']:
+                raise ValueError("RAFT cases dictionary is empty. Please populate raft cases to generate RAFT results.")
+            
+            # If there is cases dictionary but has not been run, make sure to run RAFT to get it
+            self.array.analyzeCases(display=1)        
+        
+        else:
+            # Get results from RAFT
+            # Map platform-related results:
+            nCases = len(self.array.design['cases']['data'])
+            for iCase in range(nCases):
+                for i, pf in enumerate(self.platformList.values()):
+                    pf.raftResults[iCase] = self.array.results['case_metrics'][iCase][i]
+
+            # Map mooring-related results:
+            if SFs:
+                for moor in self.mooringList.values():
+                    moor.safety_factors['tension'] = 1e10
+                
+            for iCase in range(nCases):
+                i = 0
+                for moor in self.mooringList.values():
+                    for line in moor.ss.lineList:
+                        line.raftResults = {
+                            'Tmoor_avg': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_avg'][[i, i+len(self.ms.lineList)]],
+                            'Tmoor_std': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'][[i, i+len(self.ms.lineList)]],
+                            'Tmoor_min': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'][[i, i+len(self.ms.lineList)]],
+                            'Tmoor_max': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'][[i, i+len(self.ms.lineList)]],
+                            'Tmoor_PSD': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'][[i, i+len(self.ms.lineList)], :]
+                        }
+                        if SFs:
+                            moor.safety_factors['tension'] = min(moor.safety_factors['tension'], min(line.type['MBL']/line.raftResults['Tmoor_max']))
+                            moor.safety_factors['analysisType'] = f'(RAFT) MoorMod={self.array.moorMod}'
+                        
+                        i += 1
+            
+    def generateSheets(self, filename):
+        """
+        Generates sheets in an Excel workbook with platform and mooring line information.
+
+        Parameters
+        ----------
+        filename (str): The name of the Excel file to save the generated sheets.
 
 
+        Returns
+        -------
+        None
+
+        """
+        
+        import openpyxl
+
+        if not self.array.results:
+            if not self.array.design['cases']:
+                raise ValueError("RAFT cases dictionary is empty. Please populate raft cases to generate RAFT results.")
+
+            self.array.analyzeCases(display=1)
+        else:
+            nCases = len(self.array.design['cases']['data'])
+
+        # Create a new workbook
+        workbook = openpyxl.Workbook()
+        # Delete the default sheet
+        default_sheet = workbook.active
+        workbook.remove(default_sheet)
+
+        # Create a sheet for platforms
+        platform_sheet = workbook.create_sheet(title="Platforms")
+        platform_sheet.append(["ID", "X", "Y", "Depth", "Case", "Results (Avg)"])
+        platform_sheet.merge_cells(start_row=1, start_column=6, end_row=1, end_column=13)
+        platform_sheet.append(["  ", " ", " ", "     ", "    ", "Surge (m)", "Sway (m)", "Heave (m)", "Roll (deg)", "Pitch (deg)", "Yaw (deg)", "NacAcc (m/s^2)", "TwrBend (Nm)"])  #, "RtrSpd (RPM)", "RtrTrq (Nm)", "Power (MW)"
+        for pf in self.platformList.values():
+            depth_at_pf = self.getDepthAtLocation(pf.r[0], pf.r[1])
+            if hasattr(pf, 'raftResults'):
+                for iCase in range(nCases):
+                    if iCase==0:
+                        platform_sheet.append([pf.id, round(pf.r[0], 2), round(pf.r[1], 2), round(depth_at_pf, 2), iCase,
+                                               round(pf.raftResults[iCase]['surge_avg'], 2), round(pf.raftResults[iCase]['sway_avg'], 2), round(pf.raftResults[iCase]['heave_avg'], 2), 
+                                               round(pf.raftResults[iCase]['roll_avg'], 2), round(pf.raftResults[iCase]['pitch_avg'], 2), round(pf.raftResults[iCase]['yaw_avg'], 2), 
+                                               round(pf.raftResults[iCase]['AxRNA_avg'][0], 2), round(pf.raftResults[iCase]['Mbase_avg'][0], 2)])  #, round(pf.raftResults[iCase]['omega_avg'][0], 2), round(pf.raftResults[iCase]['torque_avg'][0], 2), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 2)])
+                    else:
+                        platform_sheet.append([" ", " ", " ", " ", iCase,
+                                               round(pf.raftResults[iCase]['surge_avg'], 2), round(pf.raftResults[iCase]['sway_avg'], 2), round(pf.raftResults[iCase]['heave_avg'], 2), 
+                                               round(pf.raftResults[iCase]['roll_avg'], 2), round(pf.raftResults[iCase]['pitch_avg'], 2), round(pf.raftResults[iCase]['yaw_avg'], 2), 
+                                               round(pf.raftResults[iCase]['AxRNA_avg'][0], 2), round(pf.raftResults[iCase]['Mbase_avg'][0], 2)])  #, round(pf.raftResults[iCase]['omega_avg'][0], 2), round(pf.raftResults[iCase]['torque_avg'][0], 2), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 2)])
+            else:
+                platform_sheet.append([pf.id, round(pf.r[0], 2), round(pf.r[1], 2), round(depth_at_pf, 2)])
+
+        # Create a sheet for mooring lines
+        mooring_sheet = workbook.create_sheet(title="Mooring Lines")
+        mooring_sheet.append(["ID", "endA", "endB", "Shrd",  "Safety Factors", "Fid Level"])
+        for moor in self.mooringList.values():
+            mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, round(moor.safety_factors['tension'], 2), moor.safety_factors['analysisType']])
+
+        # Save the workbook
+        workbook.save(filename)
 '''
 Other future items:
 Cost calc functions

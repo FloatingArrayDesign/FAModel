@@ -59,7 +59,7 @@ class Platform(Node):
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
-    
+        self.raftResults = {}
     
     def setPosition(self, r, heading=None, degrees=False,project=None):
         '''
