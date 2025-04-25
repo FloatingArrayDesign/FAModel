@@ -4447,27 +4447,36 @@ class Project():
             if SFs:
                 for moor in self.mooringList.values():
                     moor.safety_factors['tension'] = 1e10
-                
+            
+            # initialize raftResults dictionary in Line [Why isn't line an edge?]
+            for moor in self.mooringList.values():
+                for line in moor.ss.lineList:
+                    line.raftResults = {}
+            
             for iCase in range(nCases):
                 i = 0
                 for moor in self.mooringList.values():
-                    for line in moor.ss.lineList:
-                        line.raftResults = {
-                            'Tmoor_avg': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_avg'][[i, i+len(self.ms.lineList)]],
-                            'Tmoor_std': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'][[i, i+len(self.ms.lineList)]],
-                            'Tmoor_min': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'][[i, i+len(self.ms.lineList)]],
-                            'Tmoor_max': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'][[i, i+len(self.ms.lineList)]],
-                            'Tmoor_PSD': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'][[i, i+len(self.ms.lineList)], :]
-                        }
-                        if SFs:
-                            moor.safety_factors['tension'] = min(moor.safety_factors['tension'], min(line.type['MBL']/line.raftResults['Tmoor_max']))
-                            moor.safety_factors['analysisType'] = f'(RAFT) MoorMod={self.array.moorMod}'
+                    moor.raftResults[iCase] = {
+                        'Tmoor_avg': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_avg'][[i, i+len(self.ms.lineList)]],
+                        'Tmoor_std': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'][[i, i+len(self.ms.lineList)]],
+                        'Tmoor_min': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'][[i, i+len(self.ms.lineList)]],
+                        'Tmoor_max': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'][[i, i+len(self.ms.lineList)]],
+                        'Tmoor_PSD': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'][[i, i+len(self.ms.lineList)], :]
+                    }
+                    if SFs:
+                        SF = np.zeros((len(moor.ss.lineList)))
+                        for i, line in enumerate(moor.ss.lineList):
+                            line_MBL = line.type['MBL']
+                            SF[i] = line_MBL/np.mean(moor.raftResults[iCase]['Tmoor_avg'])
+                        
+                        moor.safety_factors['tension'] = min([moor.safety_factors['tension'], min(SF)])
+                        moor.safety_factors['analysisType'] = f'(RAFT) MoorMod={self.array.moorMod}'
                         
                         i += 1
             
     def generateSheets(self, filename):
         """
-        Generates sheets in an Excel workbook with platform and mooring line information.
+        Generates sheets in an Excel workbook with RAFT cases, platform, and mooring line information.
 
         Parameters
         ----------
@@ -4480,7 +4489,32 @@ class Project():
 
         """
         
+        def style_it(sheet, row, col_start, col_end, fill_color="FFFF00"):
+            """
+            Applies styling to a range of cells in the given sheet.
+
+            Parameters
+            ----------
+            sheet : openpyxl.worksheet.worksheet.Worksheet
+                The worksheet to apply styling to.
+            row : int
+                The row number to apply styling to.
+            col_start : int
+                The starting column number for the range.
+            col_end : int
+                The ending column number for the range.
+
+            Returns
+            -------
+            None
+            """
+            for col in range(col_start, col_end + 1):
+                cell = sheet.cell(row=row, column=col)
+                cell.fill = openpyxl.styles.PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+                cell.font = openpyxl.styles.Font(bold=True)
+
         import openpyxl
+        from openpyxl.drawing.image import Image
 
         if not self.array.results:
             if not self.array.design['cases']:
@@ -4496,33 +4530,121 @@ class Project():
         default_sheet = workbook.active
         workbook.remove(default_sheet)
 
+        if self.array.design:
+            # Create a sheet for cases information 
+            cases_sheet = workbook.create_sheet(title="Cases")
+            cases_sheet.append(self.array.design['cases']['keys'])
+            for iCase in range(nCases):
+                cases_sheet.append(self.array.design['cases']['data'][iCase])
+            
         # Create a sheet for platforms
         platform_sheet = workbook.create_sheet(title="Platforms")
-        platform_sheet.append(["ID", "X", "Y", "Depth", "Case", "Results (Avg)"])
+        platform_sheet.append(["ID", "X", "Y", "Depth", "Case", "Results (Avg)", " ", " ", " ", " ", " ", " ", " ", "Results (Std)"])
         platform_sheet.merge_cells(start_row=1, start_column=6, end_row=1, end_column=13)
-        platform_sheet.append(["  ", " ", " ", "     ", "    ", "Surge (m)", "Sway (m)", "Heave (m)", "Roll (deg)", "Pitch (deg)", "Yaw (deg)", "NacAcc (m/s^2)", "TwrBend (Nm)"])  #, "RtrSpd (RPM)", "RtrTrq (Nm)", "Power (MW)"
+        platform_sheet.merge_cells(start_row=1, start_column=14, end_row=1, end_column=21)
+        platform_sheet.append(["  ", " ", " ", "     ", "    ", 
+                               "Surge (m)", "Sway (m)", "Heave (m)", "Roll (deg)", "Pitch (deg)", "Yaw (deg)", "NacAcc (m/s^2)", "TwrBend (kNm)",   #, "RtrSpd (RPM)", "RtrTrq (Nm)", "Power (MW)"
+                               "Surge (m)", "Sway (m)", "Heave (m)", "Roll (deg)", "Pitch (deg)", "Yaw (deg)", "NacAcc (m/s^2)", "TwrBend (kNm)"])  #, "RtrSpd (RPM)", "RtrTrq (Nm)", "Power (MW)"
+        platform_sheet.merge_cells(start_row=1, start_column=1, end_row=2, end_column=1)
+        platform_sheet.merge_cells(start_row=1, start_column=2, end_row=2, end_column=2)
+        platform_sheet.merge_cells(start_row=1, start_column=3, end_row=2, end_column=3)
+        platform_sheet.merge_cells(start_row=1, start_column=4, end_row=2, end_column=4)
+        platform_sheet.merge_cells(start_row=1, start_column=5, end_row=2, end_column=5)
+        surgeMax = float('-inf')
+        swayMax = float('-inf')
+        rollMax = float('-inf')
+        pitchMax = float('-inf')
+        nacAccMax = float('-inf')
+        twrBendMax = float('-inf')
         for pf in self.platformList.values():
             depth_at_pf = self.getDepthAtLocation(pf.r[0], pf.r[1])
             if hasattr(pf, 'raftResults'):
                 for iCase in range(nCases):
                     if iCase==0:
-                        platform_sheet.append([pf.id, round(pf.r[0], 2), round(pf.r[1], 2), round(depth_at_pf, 2), iCase,
-                                               round(pf.raftResults[iCase]['surge_avg'], 2), round(pf.raftResults[iCase]['sway_avg'], 2), round(pf.raftResults[iCase]['heave_avg'], 2), 
-                                               round(pf.raftResults[iCase]['roll_avg'], 2), round(pf.raftResults[iCase]['pitch_avg'], 2), round(pf.raftResults[iCase]['yaw_avg'], 2), 
-                                               round(pf.raftResults[iCase]['AxRNA_avg'][0], 2), round(pf.raftResults[iCase]['Mbase_avg'][0], 2)])  #, round(pf.raftResults[iCase]['omega_avg'][0], 2), round(pf.raftResults[iCase]['torque_avg'][0], 2), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 2)])
+                        platform_sheet.append([pf.id, round(pf.r[0], 3), round(pf.r[1], 3), round(depth_at_pf, 3), iCase,
+                                               round(pf.raftResults[iCase]['surge_avg'], 3), round(pf.raftResults[iCase]['sway_avg'], 3), round(pf.raftResults[iCase]['heave_avg'], 3), 
+                                               round(pf.raftResults[iCase]['roll_avg'], 3), round(pf.raftResults[iCase]['pitch_avg'], 3), round(pf.raftResults[iCase]['yaw_avg'], 3), 
+                                               round(pf.raftResults[iCase]['AxRNA_avg'][0], 3), round(pf.raftResults[iCase]['Mbase_avg'][0]/1e3, 3),  #, round(pf.raftResults[iCase]['omega_avg'][0], 3), round(pf.raftResults[iCase]['torque_avg'][0], 3), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 3)])
+                                               round(pf.raftResults[iCase]['surge_std'], 3), round(pf.raftResults[iCase]['sway_std'], 3), round(pf.raftResults[iCase]['heave_std'], 3), 
+                                               round(pf.raftResults[iCase]['roll_std'], 3), round(pf.raftResults[iCase]['pitch_std'], 3), round(pf.raftResults[iCase]['yaw_std'], 3), 
+                                               round(pf.raftResults[iCase]['AxRNA_std'][0], 3), round(pf.raftResults[iCase]['Mbase_std'][0]/1e3, 3)])  #, round(pf.raftResults[iCase]['omega_avg'][0], 3), round(pf.raftResults[iCase]['torque_avg'][0], 3), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 3)])
                     else:
                         platform_sheet.append([" ", " ", " ", " ", iCase,
-                                               round(pf.raftResults[iCase]['surge_avg'], 2), round(pf.raftResults[iCase]['sway_avg'], 2), round(pf.raftResults[iCase]['heave_avg'], 2), 
-                                               round(pf.raftResults[iCase]['roll_avg'], 2), round(pf.raftResults[iCase]['pitch_avg'], 2), round(pf.raftResults[iCase]['yaw_avg'], 2), 
-                                               round(pf.raftResults[iCase]['AxRNA_avg'][0], 2), round(pf.raftResults[iCase]['Mbase_avg'][0], 2)])  #, round(pf.raftResults[iCase]['omega_avg'][0], 2), round(pf.raftResults[iCase]['torque_avg'][0], 2), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 2)])
+                                               round(pf.raftResults[iCase]['surge_avg'], 3), round(pf.raftResults[iCase]['sway_avg'], 3), round(pf.raftResults[iCase]['heave_avg'], 3), 
+                                               round(pf.raftResults[iCase]['roll_avg'], 3), round(pf.raftResults[iCase]['pitch_avg'], 3), round(pf.raftResults[iCase]['yaw_avg'], 3), 
+                                               round(pf.raftResults[iCase]['AxRNA_avg'][0], 3), round(pf.raftResults[iCase]['Mbase_avg'][0]/1e3, 3),  #, round(pf.raftResults[iCase]['omega_avg'][0], 3), round(pf.raftResults[iCase]['torque_avg'][0], 3), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 3)])
+                                               round(pf.raftResults[iCase]['surge_std'], 3), round(pf.raftResults[iCase]['sway_std'], 3), round(pf.raftResults[iCase]['heave_std'], 3), 
+                                               round(pf.raftResults[iCase]['roll_std'], 3), round(pf.raftResults[iCase]['pitch_std'], 3), round(pf.raftResults[iCase]['yaw_std'], 3), 
+                                               round(pf.raftResults[iCase]['AxRNA_std'][0], 3), round(pf.raftResults[iCase]['Mbase_std'][0]/1e3, 3)])  #, round(pf.raftResults[iCase]['omega_avg'][0], 3), round(pf.raftResults[iCase]['torque_avg'][0], 3), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 3)])
+                    # Update min and max values
+                    surgeMax = max(surgeMax, abs(pf.raftResults[iCase]['surge_avg']));      swayMax = max(swayMax, abs(pf.raftResults[iCase]['sway_avg']))
+                    rollMax = max(rollMax, abs(pf.raftResults[iCase]['roll_avg']));         pitchMax = max(pitchMax, abs(pf.raftResults[iCase]['pitch_avg']))
+                    nacAccMax = max(nacAccMax, abs(pf.raftResults[iCase]['AxRNA_avg'][0])); twrBendMax = max(twrBendMax, abs(pf.raftResults[iCase]['Mbase_avg'][0]/1e3))
+                    
+                platform_sheet.merge_cells(start_row=platform_sheet.max_row-nCases+1, start_column=1, end_row=platform_sheet.max_row, end_column=1)
+                platform_sheet.merge_cells(start_row=platform_sheet.max_row-nCases+1, start_column=2, end_row=platform_sheet.max_row, end_column=2)
+                platform_sheet.merge_cells(start_row=platform_sheet.max_row-nCases+1, start_column=3, end_row=platform_sheet.max_row, end_column=3)
+                platform_sheet.merge_cells(start_row=platform_sheet.max_row-nCases+1, start_column=4, end_row=platform_sheet.max_row, end_column=4)
             else:
-                platform_sheet.append([pf.id, round(pf.r[0], 2), round(pf.r[1], 2), round(depth_at_pf, 2)])
+                platform_sheet.append([pf.id, round(pf.r[0], 3), round(pf.r[1], 3), round(depth_at_pf, 3)])
+
+        platform_sheet.append(["----------------------"])
+        platform_sheet.append(["Highest average values"])
+        for cell in platform_sheet[platform_sheet.max_row]:
+            cell.font = openpyxl.styles.Font(bold=True)
+
+        platform_sheet.append(["Surge (m)", "Sway (m)", "Roll (deg)", "Pitch (deg)", "NacAcc (m/s^2)", "TwrBend (Nm)"])
+        platform_sheet.append([round(surgeMax, 3), round(swayMax, 3), round(rollMax, 3), round(pitchMax, 3), round(nacAccMax, 3), round(twrBendMax, 3)])
+        # style maximum values (bold and italic)
+        for cell in platform_sheet[platform_sheet.max_row]:
+            cell.font = openpyxl.styles.Font(bold=True, italic=True)
 
         # Create a sheet for mooring lines
         mooring_sheet = workbook.create_sheet(title="Mooring Lines")
-        mooring_sheet.append(["ID", "endA", "endB", "Shrd",  "Safety Factors", "Fid Level"])
+        mooring_sheet.append(["ID", "endA", "endB", "Shrd", "Safety Factors", "Fid Level", "Case", "Avg EndA Tension (kN)", "Std EndA Tension (kN)", "Avg EndB Tension (kN)", "Std EndB Tension (kN)"])
         for moor in self.mooringList.values():
-            mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, round(moor.safety_factors['tension'], 2), moor.safety_factors['analysisType']])
+            if hasattr(moor, 'raftResults'):
+                for iCase in range(nCases):
+                    if iCase==0:
+                        mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, round(moor.safety_factors['tension'], 3), moor.safety_factors['analysisType'], iCase,
+                                            round(moor.raftResults[iCase]['Tmoor_avg'][0], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][0], 3)/1e3,
+                                            round(moor.raftResults[iCase]['Tmoor_avg'][1], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][1], 3)/1e3])
+                        if moor.safety_factors['tension']<2.0:
+                            style_it(mooring_sheet, mooring_sheet.max_row, 1, 6, fill_color="FF0000")
+                        
+                    else:
+                        mooring_sheet.append([" ", " ", " ", " ", " ", " ", iCase,
+                                            round(moor.raftResults[iCase]['Tmoor_avg'][0], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][0], 3)/1e3,
+                                            round(moor.raftResults[iCase]['Tmoor_avg'][1], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][1], 3)/1e3])
+                    if np.any(moor.raftResults[iCase]['Tmoor_avg']/1e3 < 100):
+                        style_it(mooring_sheet, mooring_sheet.max_row, 7, mooring_sheet.max_column, fill_color="FFFF00")
+                mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=1, end_row=mooring_sheet.max_row, end_column=1)
+                mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=2, end_row=mooring_sheet.max_row, end_column=2)
+                mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=3, end_row=mooring_sheet.max_row, end_column=3)
+                mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=4, end_row=mooring_sheet.max_row, end_column=4)
+                mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=5, end_row=mooring_sheet.max_row, end_column=5)
+                mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=6, end_row=mooring_sheet.max_row, end_column=6)
+            else:
+                mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, round(moor.safety_factors['tension'], 3), moor.safety_factors['analysisType']])
+        
+        # Create a sheet for a 2D Plot
+        plot_sheet_2D = workbook.create_sheet(title="2D Plot")
+        fig, ax = plt.subplots()
+        ax = self.plot2d(ax=ax, plot_boundary=False, plot_bathymetry=True)
+        filenameFolder = os.path.dirname(filename)
+        imagePath = os.path.join(filenameFolder, 'temp_plot_2D.png')
+        fig.savefig(imagePath, dpi=300)
+        img = Image(imagePath)
+        plot_sheet_2D.add_image(img, 'A1')
+
+        # Create a sheet for a 3D Plot
+        plot_sheet_3D = workbook.create_sheet(title="3D Plot")
+        fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
+        ax = self.plot3d(ax=ax, fowt=True, draw_boundary=True, boundary_on_bath=True, draw_bathymetry=True)
+        imagePath = os.path.join(filenameFolder, 'temp_plot_3D.png')
+        fig.savefig(imagePath, dpi=300)
+        img = Image(imagePath)
+        plot_sheet_3D.add_image(img, 'A1')
 
         # Save the workbook
         workbook.save(filename)

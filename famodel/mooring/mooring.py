@@ -137,7 +137,8 @@ class Mooring(Edge):
         self.env_impact = {
             "disturbedSeabedArea": 0
         }
-    
+
+        self.raftResults = {}
     
     def update(self, dd=None):
         '''Update the Mooring object based on the current state of the design
