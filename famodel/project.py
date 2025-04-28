@@ -4448,31 +4448,27 @@ class Project():
                 for moor in self.mooringList.values():
                     moor.safety_factors['tension'] = 1e10
             
-            # initialize raftResults dictionary in Line [Why isn't line an edge?]
-            for moor in self.mooringList.values():
-                for line in moor.ss.lineList:
-                    line.raftResults = {}
-            
             for iCase in range(nCases):
-                i = 0
-                for moor in self.mooringList.values():
+                for i, moor in enumerate(self.mooringList.values()):
+                    # Find the corresponding line in the proj.ms.lineList
+                    idx = moor.ss.number - 1
+                    
                     moor.raftResults[iCase] = {
-                        'Tmoor_avg': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_avg'][[i, i+len(self.ms.lineList)]],
-                        'Tmoor_std': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'][[i, i+len(self.ms.lineList)]],
-                        'Tmoor_min': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'][[i, i+len(self.ms.lineList)]],
-                        'Tmoor_max': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'][[i, i+len(self.ms.lineList)]],
-                        'Tmoor_PSD': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'][[i, i+len(self.ms.lineList)], :]
+                        'Tmoor_avg': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_avg'][[idx, idx+len(self.ms.lineList)]],
+                        'Tmoor_std': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_std'][[idx, idx+len(self.ms.lineList)]],
+                        'Tmoor_min': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_min'][[idx, idx+len(self.ms.lineList)]],
+                        'Tmoor_max': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_max'][[idx, idx+len(self.ms.lineList)]],
+                        'Tmoor_PSD': self.array.results['case_metrics'][iCase]['array_mooring']['Tmoor_PSD'][[idx, idx+len(self.ms.lineList)], :]
                     }
                     if SFs:
                         SF = np.zeros((len(moor.ss.lineList)))
-                        for i, line in enumerate(moor.ss.lineList):
+                        for j, line in enumerate(moor.ss.lineList):
                             line_MBL = line.type['MBL']
-                            SF[i] = line_MBL/np.mean(moor.raftResults[iCase]['Tmoor_avg'])
+                            SF[j] = line_MBL/np.mean(moor.raftResults[iCase]['Tmoor_avg'])
                         
                         moor.safety_factors['tension'] = min([moor.safety_factors['tension'], min(SF)])
                         moor.safety_factors['analysisType'] = f'(RAFT) MoorMod={self.array.moorMod}'
                         
-                        i += 1
             
     def generateSheets(self, filename):
         """
@@ -4601,31 +4597,43 @@ class Project():
 
         # Create a sheet for mooring lines
         mooring_sheet = workbook.create_sheet(title="Mooring Lines")
-        mooring_sheet.append(["ID", "endA", "endB", "Shrd", "Safety Factors", "Fid Level", "Case", "Avg EndA Tension (kN)", "Std EndA Tension (kN)", "Avg EndB Tension (kN)", "Std EndB Tension (kN)"])
+        mooring_sheet.append(["ID", "endA", "endB", "Shrd", "chain dnom [mm]", "rope dnom [mm]", "Safety Factors", "Fid Level", "Case", "Avg EndA Tension (kN)", "Std EndA Tension (kN)", "Avg EndB Tension (kN)", "Std EndB Tension (kN)"])
         for moor in self.mooringList.values():
+            # Find nominal diameters in moor
+            ch_dnom = '-'
+            rp_dnom = '-'
+
+            for line in moor.ss.lineList:
+                if 'rope' in line.type['material'] or 'polyester' in line.type['material']:  # change the polyester/rope length
+                    rp_dnom = line.type['d_nom'] * 1e3
+                elif 'chain' in line.type['material']:
+                    ch_dnom = line.type['d_nom'] * 1e3
+
             if hasattr(moor, 'raftResults'):
                 for iCase in range(nCases):
                     if iCase==0:
-                        mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, round(moor.safety_factors['tension'], 3), moor.safety_factors['analysisType'], iCase,
+                        mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, ch_dnom, rp_dnom, round(moor.safety_factors['tension'], 3), moor.safety_factors['analysisType'], iCase,
                                             round(moor.raftResults[iCase]['Tmoor_avg'][0], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][0], 3)/1e3,
                                             round(moor.raftResults[iCase]['Tmoor_avg'][1], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][1], 3)/1e3])
                         if moor.safety_factors['tension']<2.0:
-                            style_it(mooring_sheet, mooring_sheet.max_row, 1, 6, fill_color="FF0000")
+                            style_it(mooring_sheet, mooring_sheet.max_row, 1, 8, fill_color="FF0000")
                         
                     else:
-                        mooring_sheet.append([" ", " ", " ", " ", " ", " ", iCase,
+                        mooring_sheet.append([" ", " ", " ", " ", " ", " ", " ", " ", iCase,
                                             round(moor.raftResults[iCase]['Tmoor_avg'][0], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][0], 3)/1e3,
                                             round(moor.raftResults[iCase]['Tmoor_avg'][1], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][1], 3)/1e3])
                     if np.any(moor.raftResults[iCase]['Tmoor_avg']/1e3 < 100):
-                        style_it(mooring_sheet, mooring_sheet.max_row, 7, mooring_sheet.max_column, fill_color="FFFF00")
+                        style_it(mooring_sheet, mooring_sheet.max_row, 9, mooring_sheet.max_column, fill_color="FFFF00")
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=1, end_row=mooring_sheet.max_row, end_column=1)
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=2, end_row=mooring_sheet.max_row, end_column=2)
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=3, end_row=mooring_sheet.max_row, end_column=3)
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=4, end_row=mooring_sheet.max_row, end_column=4)
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=5, end_row=mooring_sheet.max_row, end_column=5)
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=6, end_row=mooring_sheet.max_row, end_column=6)
+                mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=7, end_row=mooring_sheet.max_row, end_column=7)
+                mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=8, end_row=mooring_sheet.max_row, end_column=8)
             else:
-                mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, round(moor.safety_factors['tension'], 3), moor.safety_factors['analysisType']])
+                mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, ch_dnom, rp_dnom, round(moor.safety_factors['tension'], 3), moor.safety_factors['analysisType']])
         
         # Create a sheet for a 2D Plot
         plot_sheet_2D = workbook.create_sheet(title="2D Plot")
