@@ -4466,8 +4466,9 @@ class Project():
                             line_MBL = line.type['MBL']
                             SF[j] = line_MBL/np.mean(moor.raftResults[iCase]['Tmoor_avg'])
                         
-                        moor.safety_factors['tension'] = min([moor.safety_factors['tension'], min(SF)])
-                        moor.safety_factors['analysisType'] = f'(RAFT) MoorMod={self.array.moorMod}'
+                        if min(SF) < moor.safety_factors['tension']:
+                            moor.safety_factors['tension'] = min([moor.safety_factors['tension'], min(SF)])
+                            moor.safety_factors['analysisType'] = f'(RAFT) MoorMod={self.array.moorMod}'
                         
             
     def generateSheets(self, filename):
@@ -4546,6 +4547,7 @@ class Project():
         platform_sheet.merge_cells(start_row=1, start_column=3, end_row=2, end_column=3)
         platform_sheet.merge_cells(start_row=1, start_column=4, end_row=2, end_column=4)
         platform_sheet.merge_cells(start_row=1, start_column=5, end_row=2, end_column=5)
+        excMax = float('-inf')
         surgeMax = float('-inf')
         swayMax = float('-inf')
         rollMax = float('-inf')
@@ -4573,6 +4575,7 @@ class Project():
                                                round(pf.raftResults[iCase]['roll_std'], 3), round(pf.raftResults[iCase]['pitch_std'], 3), round(pf.raftResults[iCase]['yaw_std'], 3), 
                                                round(pf.raftResults[iCase]['AxRNA_std'][0], 3), round(pf.raftResults[iCase]['Mbase_std'][0]/1e3, 3)])  #, round(pf.raftResults[iCase]['omega_avg'][0], 3), round(pf.raftResults[iCase]['torque_avg'][0], 3), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 3)])
                     # Update min and max values
+                    excMax = max(excMax, np.sqrt(pf.raftResults[iCase]['surge_avg']**2+pf.raftResults[iCase]['sway_avg']**2))
                     surgeMax = max(surgeMax, abs(pf.raftResults[iCase]['surge_avg']));      swayMax = max(swayMax, abs(pf.raftResults[iCase]['sway_avg']))
                     rollMax = max(rollMax, abs(pf.raftResults[iCase]['roll_avg']));         pitchMax = max(pitchMax, abs(pf.raftResults[iCase]['pitch_avg']))
                     nacAccMax = max(nacAccMax, abs(pf.raftResults[iCase]['AxRNA_avg'][0])); twrBendMax = max(twrBendMax, abs(pf.raftResults[iCase]['Mbase_avg'][0]/1e3))
@@ -4589,8 +4592,8 @@ class Project():
         for cell in platform_sheet[platform_sheet.max_row]:
             cell.font = openpyxl.styles.Font(bold=True)
 
-        platform_sheet.append(["Surge (m)", "Sway (m)", "Roll (deg)", "Pitch (deg)", "NacAcc (m/s^2)", "TwrBend (Nm)"])
-        platform_sheet.append([round(surgeMax, 3), round(swayMax, 3), round(rollMax, 3), round(pitchMax, 3), round(nacAccMax, 3), round(twrBendMax, 3)])
+        platform_sheet.append(["Surge (m)", "Sway (m)", "Excursion (m)", "Roll (deg)", "Pitch (deg)", "NacAcc (m/s^2)", "TwrBend (Nm)"])
+        platform_sheet.append([round(surgeMax, 3), round(swayMax, 3), round(excMax, 3), round(rollMax, 3), round(pitchMax, 3), round(nacAccMax, 3), round(twrBendMax, 3)])
         # style maximum values (bold and italic)
         for cell in platform_sheet[platform_sheet.max_row]:
             cell.font = openpyxl.styles.Font(bold=True, italic=True)
