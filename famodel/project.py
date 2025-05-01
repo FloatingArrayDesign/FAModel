@@ -4548,12 +4548,20 @@ class Project():
         platform_sheet.merge_cells(start_row=1, start_column=4, end_row=2, end_column=4)
         platform_sheet.merge_cells(start_row=1, start_column=5, end_row=2, end_column=5)
         excMax = float('-inf')
-        surgeMax = float('-inf')
-        swayMax = float('-inf')
-        rollMax = float('-inf')
-        pitchMax = float('-inf')
-        nacAccMax = float('-inf')
-        twrBendMax = float('-inf')
+        avg_surgeMax = float('-inf')
+        avg_swayMax = float('-inf')
+        avg_rollMax = float('-inf')
+        avg_pitchMax = float('-inf')
+        avg_nacAccMax = float('-inf')
+        avg_twrBendMax = float('-inf')
+
+        std_surgeMax = float('-inf')
+        std_swayMax = float('-inf')
+        std_rollMax = float('-inf')
+        std_pitchMax = float('-inf')
+        std_nacAccMax = float('-inf')
+        std_twrBendMax = float('-inf')
+
         for pf in self.platformList.values():
             depth_at_pf = self.getDepthAtLocation(pf.r[0], pf.r[1])
             if hasattr(pf, 'raftResults'):
@@ -4576,9 +4584,13 @@ class Project():
                                                round(pf.raftResults[iCase]['AxRNA_std'][0], 3), round(pf.raftResults[iCase]['Mbase_std'][0]/1e3, 3)])  #, round(pf.raftResults[iCase]['omega_avg'][0], 3), round(pf.raftResults[iCase]['torque_avg'][0], 3), round(pf.raftResults[iCase]['power_avg'][0]*1e-6, 3)])
                     # Update min and max values
                     excMax = max(excMax, np.sqrt(pf.raftResults[iCase]['surge_avg']**2+pf.raftResults[iCase]['sway_avg']**2))
-                    surgeMax = max(surgeMax, abs(pf.raftResults[iCase]['surge_avg']));      swayMax = max(swayMax, abs(pf.raftResults[iCase]['sway_avg']))
-                    rollMax = max(rollMax, abs(pf.raftResults[iCase]['roll_avg']));         pitchMax = max(pitchMax, abs(pf.raftResults[iCase]['pitch_avg']))
-                    nacAccMax = max(nacAccMax, abs(pf.raftResults[iCase]['AxRNA_avg'][0])); twrBendMax = max(twrBendMax, abs(pf.raftResults[iCase]['Mbase_avg'][0]/1e3))
+                    avg_surgeMax = max(avg_surgeMax, abs(pf.raftResults[iCase]['surge_avg']));      avg_swayMax = max(avg_swayMax, abs(pf.raftResults[iCase]['sway_avg']))
+                    avg_rollMax = max(avg_rollMax, abs(pf.raftResults[iCase]['roll_avg']));         avg_pitchMax = max(avg_pitchMax, abs(pf.raftResults[iCase]['pitch_avg']))
+                    avg_nacAccMax = max(avg_nacAccMax, abs(pf.raftResults[iCase]['AxRNA_avg'][0])); avg_twrBendMax = max(avg_twrBendMax, abs(pf.raftResults[iCase]['Mbase_avg'][0]/1e3))
+
+                    std_surgeMax = max(std_surgeMax, abs(pf.raftResults[iCase]['surge_std']));      std_swayMax = max(std_swayMax, abs(pf.raftResults[iCase]['sway_std']))
+                    std_rollMax = max(std_rollMax, abs(pf.raftResults[iCase]['roll_std']));         std_pitchMax = max(std_pitchMax, abs(pf.raftResults[iCase]['pitch_std']))
+                    std_nacAccMax = max(std_nacAccMax, abs(pf.raftResults[iCase]['AxRNA_std'][0])); std_twrBendMax = max(std_twrBendMax, abs(pf.raftResults[iCase]['Mbase_std'][0]/1e3))
                     
                 platform_sheet.merge_cells(start_row=platform_sheet.max_row-nCases+1, start_column=1, end_row=platform_sheet.max_row, end_column=1)
                 platform_sheet.merge_cells(start_row=platform_sheet.max_row-nCases+1, start_column=2, end_row=platform_sheet.max_row, end_column=2)
@@ -4587,20 +4599,38 @@ class Project():
             else:
                 platform_sheet.append([pf.id, round(pf.r[0], 3), round(pf.r[1], 3), round(depth_at_pf, 3)])
 
-        platform_sheet.append(["----------------------"])
-        platform_sheet.append(["Highest average values"])
-        for cell in platform_sheet[platform_sheet.max_row]:
-            cell.font = openpyxl.styles.Font(bold=True)
+        if hasattr(pf, 'raftResults'):
+            platform_sheet.append(["----------------------"])
+            platform_sheet.append(["Highest average values"])
+            for cell in platform_sheet[platform_sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True)
 
-        platform_sheet.append(["Surge (m)", "Sway (m)", "Excursion (m)", "Roll (deg)", "Pitch (deg)", "NacAcc (m/s^2)", "TwrBend (Nm)"])
-        platform_sheet.append([round(surgeMax, 3), round(swayMax, 3), round(excMax, 3), round(rollMax, 3), round(pitchMax, 3), round(nacAccMax, 3), round(twrBendMax, 3)])
-        # style maximum values (bold and italic)
-        for cell in platform_sheet[platform_sheet.max_row]:
-            cell.font = openpyxl.styles.Font(bold=True, italic=True)
+            platform_sheet.append(["Surge (m)", "Sway (m)", "Roll (deg)", "Pitch (deg)", "NacAcc (m/s^2)", "TwrBend (Nm)",  "Excursion (m)"])
+            platform_sheet.append([round(avg_surgeMax, 3), round(avg_swayMax, 3), round(avg_rollMax, 3), round(avg_pitchMax, 3), round(avg_nacAccMax, 3), round(avg_twrBendMax, 3), round(excMax, 3)])
+            # style maximum values (bold and italic)
+            for cell in platform_sheet[platform_sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True, italic=True)
+
+            platform_sheet.append(["----------------------"])
+            platform_sheet.append(["Highest std values"])
+            for cell in platform_sheet[platform_sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True)
+
+            platform_sheet.append(["Surge (m)", "Sway (m)", "Roll (deg)", "Pitch (deg)", "NacAcc (m/s^2)", "TwrBend (Nm)"])
+            platform_sheet.append([round(std_surgeMax, 3), round(std_swayMax, 3), round(std_rollMax, 3), round(std_pitchMax, 3), round(std_nacAccMax, 3), round(std_twrBendMax, 3)])
+            # style maximum values (bold and italic)
+            for cell in platform_sheet[platform_sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True, italic=True)
 
         # Create a sheet for mooring lines
         mooring_sheet = workbook.create_sheet(title="Mooring Lines")
         mooring_sheet.append(["ID", "endA", "endB", "Shrd", "chain dnom [mm]", "rope dnom [mm]", "Safety Factors", "Fid Level", "Case", "Avg EndA Tension (kN)", "Std EndA Tension (kN)", "Avg EndB Tension (kN)", "Std EndB Tension (kN)"])
+        
+        avg_Tmoor_endA = float('-inf')
+        avg_Tmoor_endB = float('-inf')
+        std_Tmoor_endA = float('-inf')
+        std_Tmoor_endB = float('-inf')
+
         for moor in self.mooringList.values():
             # Find nominal diameters in moor
             ch_dnom = '-'
@@ -4627,6 +4657,11 @@ class Project():
                                             round(moor.raftResults[iCase]['Tmoor_avg'][1], 3)/1e3, round(moor.raftResults[iCase]['Tmoor_std'][1], 3)/1e3])
                     if np.any(moor.raftResults[iCase]['Tmoor_avg']/1e3 < 100):
                         style_it(mooring_sheet, mooring_sheet.max_row, 9, mooring_sheet.max_column, fill_color="FFFF00")
+
+                    # Update min and max values
+                    avg_Tmoor_endA = max(avg_Tmoor_endA, moor.raftResults[iCase]['Tmoor_avg'][0]);      avg_Tmoor_endB = max(avg_Tmoor_endB, moor.raftResults[iCase]['Tmoor_avg'][1])
+                    std_Tmoor_endA = max(std_Tmoor_endA, moor.raftResults[iCase]['Tmoor_std'][0]);      std_Tmoor_endB = max(std_Tmoor_endB, moor.raftResults[iCase]['Tmoor_std'][1])
+
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=1, end_row=mooring_sheet.max_row, end_column=1)
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=2, end_row=mooring_sheet.max_row, end_column=2)
                 mooring_sheet.merge_cells(start_row=mooring_sheet.max_row-nCases+1, start_column=3, end_row=mooring_sheet.max_row, end_column=3)
@@ -4638,6 +4673,29 @@ class Project():
             else:
                 mooring_sheet.append([moor.id, moor.attached_to[0].id, moor.attached_to[1].id, moor.shared, ch_dnom, rp_dnom, round(moor.safety_factors['tension'], 3), moor.safety_factors['analysisType']])
         
+        if hasattr(moor, 'raftResults'):
+            mooring_sheet.append(["----------------------"])
+            mooring_sheet.append(["Highest average values"])
+            for cell in mooring_sheet[mooring_sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True)
+
+            mooring_sheet.append(["Tmoor_endA (kN)", "Tmoor_endB (kN)"])
+            mooring_sheet.append([round(avg_Tmoor_endA, 3)/1e3, round(avg_Tmoor_endB, 3)/1e3])
+            # style maximum values (bold and italic)
+            for cell in mooring_sheet[mooring_sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True, italic=True)        
+
+            mooring_sheet.append(["----------------------"])
+            mooring_sheet.append(["Highest std values"])
+            for cell in mooring_sheet[mooring_sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True)
+
+            mooring_sheet.append(["Tmoor_endA (kN)", "Tmoor_endB (kN)"])
+            mooring_sheet.append([round(std_Tmoor_endA, 3)/1e3, round(std_Tmoor_endB, 3)/1e3])
+            # style maximum values (bold and italic)
+            for cell in mooring_sheet[mooring_sheet.max_row]:
+                cell.font = openpyxl.styles.Font(bold=True, italic=True)        
+
         # Create a sheet for a 2D Plot
         plot_sheet_2D = workbook.create_sheet(title="2D Plot")
         fig, ax = plt.subplots()
