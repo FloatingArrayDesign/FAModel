@@ -62,7 +62,8 @@ class Node():
         # installation dictionary [checks for installation status]
         self.inst = {'mobilized': False,
                      'installed': False}
-    
+
+        
     def isAttached(self, object, end=None):
         '''Check if something is attached to this node, even if it's part of
         a higher-level edge.
