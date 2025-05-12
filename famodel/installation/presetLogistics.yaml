@@ -1,0 +1,24 @@
+distant2Port: 500  # km
+
+individualLines:
+  option1:
+    - AHTS: [[mobilize, transit, preset, transit]]
+  
+  option2:
+    - MPSV: [mobilize, transit, preset, [load, preset], transit]
+    - Barge: [[mobilize, transit, offload, transit]]
+
+  option3:
+    - AHTS: [[mobilize, transit, preset, transit]]
+    - MPSV: [mobilize, transit, preset, [load, preset], transit]
+    - Barge: [[mobilize, transit, offload, transit]]
+    - Barge: [[mobilize, transit, offload, transit]]  # if needed
+
+sharedLines:
+  option1:
+    - AHTS: [[mobilize, transit, preset, transit]] # here, we're only mobilizing anchored lines
+
+  option2:
+    - MPSV: [mobilize, transit, preset, [load, preset], transit] # here, we're mobilizing both anchored, and shared lines.
+    - Barge: [[mobilize, transit, offload, transit]]
+

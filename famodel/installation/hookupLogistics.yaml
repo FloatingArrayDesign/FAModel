@@ -1,0 +1,25 @@
+distant2Port: 500  # km
+
+individualLines:
+  option1:
+    - AHTS: [transit, prepare, [retrieve, connect], transit]
+  
+  option2:
+    - MPSV: [transit, prepare, [retrieve, connect], transit]
+
+sharedLines: # island of 4 (closed)
+  option1: # mobilize and install shared lines at once
+    - AHTS1: [mobilize, transit, [retrive, connect], transit]
+    - AHTS2: [mobilize, transit, [attachA, attachB, tension], transit]
+    - tug1: [transit, [hold], transit]
+    - tug2: [transit, [hold], transit]
+    - tug3: [transit, [hold], transit]
+    - tug4: [transit, [hold], transit]
+
+  option2: # shared lines are prelayed
+    - AHTS1: [transit, [retrive, connect], transit]
+    - AHTS2: [transit, [retrieve, attachA, attachB, tension], transit]
+    - tug1: [transit, [hold], transit]
+    - tug2: [transit, [hold], transit]
+    - tug3: [transit, [hold], transit]
+    - tug4: [transit, [hold], transit]

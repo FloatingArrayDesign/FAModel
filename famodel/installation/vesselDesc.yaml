@@ -1,0 +1,45 @@
+# Vessel general descriptsion
+
+AHTS: # Anchor Handling Towing Supply vessel
+  bollardPull: 200 # mT
+  speed: 7.7       # m/s
+  winchSpeed: 11.5   # m/min
+  hookupTime: 4    # hrs (time it takes to hook up a line (either anchored or shared))
+  storage:
+    Mode1:
+      material: ['pile', 'poly', 'chain', 'gear']
+      quantity: [3, 4, 8, 1]
+    Mode2:
+      material: ['poly', 'clump']
+      quantity: [4, 2]
+
+MPSV: # Multi-Purpose Supply Vessel
+  bollardPull: 100 # mT
+  speed: 7.7       # m/s
+  winchSpeed: 18   # m/min
+  hookupTime: 5    # hrs
+  storage:
+    Mode1:
+      material: ['pile', 'poly', 'chain']
+      quantity: [2, 12, 12]
+    Mode2:
+      material: ['pile']
+      quantity: [3]
+  
+Barge: # Usually with MPSV
+  speed: 7.7       # m/s
+  winchSpeed: 18   # m/min
+  storage:
+    Mode1:
+      material: ['pile']
+      quantity: [6]
+    Mode2:
+      material: ['poly', 'chain']
+      quantity: [5, 12]
+    Mode3:
+      material: ['poly', 'clump']
+      quantity: [3, 4]
+
+Tug:    
+  bollardPull: 100 # mT
+  speed: 7.7       # m/s

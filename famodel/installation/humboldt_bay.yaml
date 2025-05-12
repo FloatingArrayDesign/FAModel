@@ -1,0 +1,11 @@
+# Humboldt bay general descriptsion
+
+name: humboldt_bay
+specs:
+  storage_specs:
+    yard_storage_capacity:  728434    # m^2 or 180 acres (NREL - projected data for 2035 for the port of Humboldt) - https://humboldtbay.org/sites/humboldtbay.org/files/FY%202023-24%20MPDG%20Humboldt%20Bay%20Offshore%20Wind%20MVP%20Proposal%20Package_reducedfilesize.pdf
+    wet_storage_capacity:   8         # 15MW FOWT units      (NREL - projected data for 2030 for the port of Humboldt)
+
+location:
+  lat: 40.7277778     # degree
+  long: -124.2425000  # degree
