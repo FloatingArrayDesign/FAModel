@@ -2,6 +2,21 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 def tranportTo_actionItem(vessel, distance2port):
+    """
+    Creates an action item for transporting a vessel to a site.
+
+    Parameters
+    ----------
+    vessel : dict
+        The vessel to be transported.
+    distance2port : float
+        The distance to the port.
+
+    Returns
+    -------
+    action : dict
+        The action item for transporting the vessel.
+    """
     action = {
         "transport_to_site": {
             "duration": distance2port/vessel['transport_specs']['transit_speed'],
@@ -11,6 +26,23 @@ def tranportTo_actionItem(vessel, distance2port):
     return action
 
 def tranportFrom_actionItem(vessel, distance2port, empty_factor=1.0):
+    """
+    Creates an action item for transporting a vessel from a site.
+
+    Parameters
+    ----------
+    vessel : dict
+        The vessel to be transported.
+    distance2port : float
+        The distance to the port.
+    empty_factor : float, optional
+        The factor to account for empty return trip.
+
+    Returns
+    -------
+    action : dict
+        The action item for transporting the vessel.
+    """
     action = {
         "transport_from_site": {
             "duration": empty_factor * distance2port/vessel['transport_specs']['transit_speed'],
@@ -20,6 +52,19 @@ def tranportFrom_actionItem(vessel, distance2port, empty_factor=1.0):
     return action
 
 def mobilizeV_actionItem(vessel):
+    """
+    Creates an action item for mobilizing a vessel.
+
+    Parameters
+    ----------
+    vessel : dict
+        The vessel to be mobilized.
+
+    Returns
+    -------
+    action : dict
+        The action item for mobilizing the vessel.
+    """
     action = {
         "mobilize_vessel": {
             "duration": vessel['vessel_specs'],
@@ -29,6 +74,23 @@ def mobilizeV_actionItem(vessel):
     return action
 
 def mobilizeM_actionItem(vessel, pkg):
+    """
+    Creates an action item for mobilizing materials on a vessel.
+
+    Parameters
+    ----------
+    vessel : dict
+        The vessel to be mobilized.
+    pkg : dict
+        The package of materials to be mobilized.
+
+    Returns
+    -------
+    action : dict
+        The action item for mobilizing the materials.
+    vessel : dict
+        The updated vessel state.
+    """
     winch_speed = vessel['storage_specs']['winch_speed']*60  # m/hr
     anchor_loading_speed = vessel['storage_specs']['anchor_loading_speed']
     
@@ -76,8 +138,23 @@ def mobilizeM_actionItem(vessel, pkg):
     return action, vessel
 
 def install_actionItem(vessel, pkg):
-    ''' for anchored mooring line
-    '''
+    """
+    Creates an action item for installing a materials package.
+
+    Parameters
+    ----------
+    vessel : dict
+        The vessel to be used for installation.
+    pkg : dict
+        The package of materials to be installed.
+
+    Returns
+    -------
+    action : dict
+        The action item for installing the materials.
+    vessel : dict
+        The updated vessel state.
+    """
     action = {
         "position onsite": {"duration": 0, "dependencies": []},
         "site survey": {"duration": 0, "dependencies": ["position onsite"]},
@@ -87,6 +164,21 @@ def install_actionItem(vessel, pkg):
     }
 
     def installItem(key):
+        '''
+        NOT A PUBLIC FUNCTION
+        This function installs an item and its dependencies.
+        It checks if the item is already installed and if not, it installs its dependencies first.
+        Then, it installs the item itself and updates the vessel state.
+
+        Parameters
+        ----------
+        key : str
+            The key of the item to be installed.
+
+        Returns
+        -------
+        None
+        '''
         item = pkg.get(key)
         for dep in item['dependencies']:
             if not pkg[dep]['obj'].inst['installed']:
@@ -127,8 +219,19 @@ def install_actionItem(vessel, pkg):
     
     return action, vessel
 
-
 def visualizeAction(action):
+    """
+    Visualizes the action items as a directed graph.
+
+    Parameters
+    ----------
+    action : dict
+        The action items to be visualized.
+
+    Returns
+    -------
+    None
+    """
     # Create the graph
     G = nx.DiGraph()
     for item, data in action.items():

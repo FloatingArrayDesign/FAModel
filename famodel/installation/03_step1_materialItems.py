@@ -1,3 +1,16 @@
+"""
+Script to create material packages for installation.
+
+Steps
+-----
+1. Load the Project object.
+2. Group components into material packages for transport and installation.
+
+Dependencies
+-----------
+famodel.project.Project
+"""
+
 '''Loads an ontology file and performs material itemization.'''
 import matplotlib.pyplot as plt
 import os

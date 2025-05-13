@@ -1,3 +1,16 @@
+"""
+Script to generate action items for transport, mobilization, and installation.
+
+Steps
+-----
+1. Define tasks for each stage of the installation process.
+2. Set dependencies between tasks.
+
+Dependencies
+-----------
+None
+"""
+
 '''loads material package saved in step1, loads vessel description, and creates action items for transport, mobilization, and installation.'''
 import matplotlib.pyplot as plt
 import os
@@ -55,4 +68,4 @@ inst.visualizeAction(mobilize_V1)
 plt.show() 
 
 inst.visualizeAction(install_V1)
-plt.show() 
+plt.show()

@@ -7,7 +7,32 @@ from copy import deepcopy
 import numpy as np
 
 class Port:
+    """
+    Represents a port for staging and logistics operations.
+    
+    Attributes
+    ----------
+    name : str
+        Name of the port.
+    capacity : dict
+        Dictionary containing capacity parameters of the port.
+    storage : dict
+        Current storage state of the port.
+    """
+
     def __init__(self, file):
+        """
+        Initialize a Port object from a configuration file.
+        
+        Parameters
+        ----------
+        config_file : str
+            Path to the port configuration file.
+            
+        Returns
+        -------
+        None
+        """
         with open(file) as f:
             portDisc = yaml.load(f, Loader=yaml.FullLoader)
         
@@ -29,8 +54,20 @@ class Port:
         self.chain_refLngth = 100   # m
 
     def staging(self, pkgs):
-        """Perform staging and update port storage states."""
-
+        """
+        Perform staging and update port storage states.
+        
+        Parameters
+        ----------
+        pkgs : list
+            List of packages to be staged at the port.
+            
+        Returns
+        -------
+        remaining_pkgs : list or None
+            Packages that couldn't be staged due to capacity constraints,
+            or None if all packages were staged successfully.
+        """
         remainingPkgs = deepcopy(pkgs)
         # Get some information about polyester and chain lines 
         polyLineLength = 0
@@ -82,11 +119,36 @@ class Port:
         return remainingPkgs
 
     def logState(self, time, new_state):
-        """Log and update port state."""
+        """
+        Log and update the port state.
+
+        Parameters
+        ----------
+        time : float
+            Current simulation time.
+        new_state : dict
+            New state information to update and log.
+
+        Returns
+        -------
+        None
+        """
         self.state.update(new_state)
         self.state["log"].append({"time": time, "state": new_state})
 
     def getState(self, t):
-        """Retrieve port state at time t."""
+        """
+        Retrieve port state at a specific time.
+
+        Parameters
+        ----------
+        t : float
+            Time at which to retrieve the port state.
+
+        Returns
+        -------
+        state : dict
+            The port state at time t, or None if no state exists before time t.
+        """
         return next((log for log in reversed(self.state["log"]) if log["time"] <= t), None)
 

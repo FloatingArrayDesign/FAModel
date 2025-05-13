@@ -4,6 +4,16 @@ This example loads a project class and conducts some analysis and performance me
 NOTE: If the project yaml file does not exist, please run 01_unload_driver.py before this 
 so you have a project that you can load here in this example. The project yaml file generated 
 by the unload driver is named proj_{<concept name>}. Insert that in the inputFile in this script.
+
+Steps
+-----
+1. Load the Project object.
+2. Perform analysis using metrics from the fadesign conceptual module.
+
+Dependencies
+-----------
+famodel.project.Project
+fadesign.conceptual.metrics
 """
 
 import matplotlib.pyplot as plt
@@ -24,15 +34,17 @@ mtricFile    = os.path.join(filePath, category, f"{conceptName}_mtr.xlsx")
 windFile     = os.path.join(filePath, "sites/wind_data/humboldt_rose_1.csv")
 currentFile  = os.path.join(filePath, "sites/surface_currents/HumboldtBay_currentRose.csv")
 
-# Load project
+# Load project (what was unloaded in 01_unload_driver.py)
 proj = Project(file=inputFile)
 model = proj.array
 model.mooring_currentMod = 0     
 model.ms.moorMod = 0
 proj.trimGrids()
 
+# Plot the project
 proj.plot3d(draw_boundary=True, boundary_on_bath=True, draw_bathymetry=True)
 plt.show()
+
 # Compute metrics
 proj = mtr.metrics(proj, mtricFile, windFile=windFile, currentFile=currentFile)
 

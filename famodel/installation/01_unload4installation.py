@@ -1,5 +1,14 @@
 """
-This example unloads a project class from a conceptDesign class. 
+Script to unload a project class from a ConceptDesign class.
+
+Steps
+-----
+1. Load the ConceptDesign object.
+2. Extract the project class for further processing.
+
+Dependencies
+-----------
+fadesign.conceptual.conceptDesign.ConceptDesign
 """
 import matplotlib.pyplot as plt
 import os
@@ -25,6 +34,7 @@ conceptName = "3_ILIA_1P2C_grd_mini"
 filePath = os.path.dirname(os.path.abspath(__file__))
 inputFile = os.path.join(filePath, category, f"{conceptName}.yaml")
 
+# Load the design
 concept = ConceptDesign(baseDir=filePath, filename=inputFile, plot=False)
 concept.design(plot=False)
 

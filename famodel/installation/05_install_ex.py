@@ -1,3 +1,16 @@
+"""
+Script to integrate all steps into a complete installation simulation.
+
+Steps
+-----
+1. Load material packages and action items.
+2. Simulate the installation process using the InstallManager.
+
+Dependencies
+-----------
+None
+"""
+
 '''an example of how install manager is used to register a vessel and port, and schedule an event and run (not finished yet).'''
 # from fadesign.conceptual.installation.vessel import Vessel
 # from fadesign.conceptual.installation.port import Port

@@ -9,8 +9,41 @@ from fadesign.installation.vessel import Vessel
 
 
 class InstallManager:
+    """
+    Manages the overall installation process for mooring systems.
+    
+    Attributes
+    ----------
+    vesselList : dict
+        Dictionary of registered vessels.
+    portList : dict
+        Dictionary of registered ports.
+    events : list
+        Priority queue of scheduled events.
+    now : float
+        Current simulation time.
+    totalDuration : float
+        Total duration of the installation.
+    logs : list
+        List of logged events.
+    allTasks : dict
+        Dictionary tracking all actions by (agent_name, action_name, item_name).
+    pkgs2Stage : list or None
+        Packages that need staging later.
+    """
 
     def __init__(self):
+        """
+        Initialize the installation manager.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.vesselList = {}
         self.portList = {}
         self.events = []
@@ -21,17 +54,56 @@ class InstallManager:
         self.pkgs2Stage = None
 
     def registerVessel(self, file):
-        """Register a vessel"""
+        """
+        Register a vessel with the installation manager.
+        
+        Parameters
+        ----------
+        file : str
+            Path to the vessel configuration file.
+            
+        Returns
+        -------
+        None
+        """
         vessel = Vessel(file)
         self.vesselList[vessel.name] = vessel
     
     def registerPort(self, file):
-        """Register a port"""
+        """
+        Register a port with the installation manager.
+        
+        Parameters
+        ----------
+        file : str
+            Path to the port configuration file.
+            
+        Returns
+        -------
+        None
+        """
         port = Port(file)
         self.portList[port.name] = port
 
     def scheduleEvent(self, time, agent, action, params):
-        """Schedule an event at a given time"""
+        """
+        Schedule an event at a given time, checking weather conditions.
+        
+        Parameters
+        ----------
+        time : float
+            Time at which the event should occur.
+        agent : object
+            Agent responsible for the action.
+        action : str
+            Name of the action to perform.
+        params : dict
+            Parameters for the action.
+            
+        Returns
+        -------
+        None
+        """
         # check weather
         if self.weather_ok(time):
             heapq.heappush(self.events, (time, agent, action, params))
@@ -40,7 +112,22 @@ class InstallManager:
             heapq.heappush(self.events, (time+delayTime, agent, action, params))
 
     def depSchedule(self, agent, action_name, item_name):
-        """Schedule events based on dependencies of these actions"""
+        """
+        Schedule events based on dependencies of actions.
+        
+        Parameters
+        ----------
+        agent : object
+            Agent responsible for the action.
+        action_name : str
+            Name of the action.
+        item_name : str
+            Name of the item.
+            
+        Returns
+        -------
+        None
+        """
         key = (agent.name, action_name, item_name)
         item = self.allTasks(key)
 
@@ -62,7 +149,17 @@ class InstallManager:
 
         
     def run(self):
-        """Run the installation phase"""
+        """
+        Run the installation phase simulation.
+        
+        Parameters
+        ----------
+        None
+            
+        Returns
+        -------
+        None
+        """
         while self.events:
             t, agent, action, params = heapq.heappop(self.events)
             self.now = t
@@ -73,29 +170,60 @@ class InstallManager:
                 self.scheduleEvent(*evt)
     
     def weather_ok(self, t):
-        """Check for weather conditions"""
+        """
+        Check if weather conditions are suitable for operations.
+        
+        Parameters
+        ----------
+        t : float
+            Current time.
+            
+        Returns
+        -------
+        ok : bool
+            True if weather conditions are suitable, False otherwise.
+        """
         return True
     
     def createPkgs(self, project, stageMode):
-        """Clusters components [or material Packages] from FAModel project class that needs to bre mobilized/
-        installed simultaneously.
+        """
+        Clusters components [or material Packages] from FAModel project class 
+        that need to be mobilized/installed simultaneously.
         
         This function also updates the port staging based on stageMode.
-
-        Params:
-            project (Project): The project class
-            stageMode (int): This determines what package goes into which port:
-                stageMode=1: packages are stored in ports in a first-listed-first-served basis. Whenever the
-                  yard storage capacity of the first port is full,
-                  the remaining packages are stored in the second port on the list and so on. If all ports are
-                  full and packages are yet remaining, they are stored in self.pkgs2Stage for later staging.
+        
+        Parameters
+        ----------
+        project : Project
+            The project class containing mooring systems.
+        stageMode : int
+            Determines what package goes into which port:
+                stageMode=1: packages are stored in ports in a first-listed-first-served basis. Whenever the 
+                    yard storage capacity of the first port is full, the remaining packages are stored in the second
+                    port on the list and so on. If all ports are full and packages are still remaining, they are stored 
+                    in self.pkgs2Stage for later staging. 
                 stageMode=2: Not developed yet [but this could be used for more smart staging - for instance, 
-                  suction piles can be stored separately in a different port and so on.]
-
+                    suction piles can be stored separately in a different port and so on.]
+            
+        Returns
+        -------
+        None
         """
-
         # Stage Mode = 1
         def createPkg(moor):
+            """
+            Create a package of components from a mooring system.
+
+            Parameters
+            ----------
+            moor : Mooring
+                Mooring system to create a package from.
+
+            Returns
+            -------
+            pkg : dict
+                Package of components from the mooring system.
+            """
             pkg = {}
             if moor.shared:
                 # installation itemization for shared line
