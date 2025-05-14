@@ -104,7 +104,7 @@ array:
         -  [FOWT1,     1,         1,         ms3,          0,         0,          180   ]    # 2 array, shared moorings
         -  [FOWT2,     1,         1,         ms2,          1600,           0,            0   ] 
         -  [FOWT3,     1,         1,         ms1,          0,           1656,            180   ]
-        -  [FOWT4,     1,         1,         ms4,          1600,        1600,             180]
+        -  [FOWT4,     1,         1,         ms4,          1600,        1656,             180]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
         # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
@@ -138,7 +138,7 @@ array_cables:
     keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB,  headingA, headingB, cableType, lengthAdjust]
     data: 
       - [ FOWT1, FOWT3, suspended_1, NONE, 180,  0,   NONE, 0]
-      - [ FOWT3, FOWT4,  lazy_wave1, lazy_wave1, 90,   90, static_cable_36, 0] 
+      - [ FOWT3, FOWT4,  lazy_wave1, lazy_wave1, 290,   70, static_cable_36, 0] 
 
 
 # ----- turbines and platforms -----
@@ -1522,11 +1522,12 @@ cables:
       type: static_cable_36
       endA: 
           attachID: FOWT1            # FOWT/substation/junction ID
-          heading:  270                  # [deg] heading of attachment at end A
+          heading:  260                  # [deg] heading of attachment at end A
           dynamicID: lazy_wave1  # ID of dynamic cable configuration at this end
+          rJTube : 5 # [m] radial distance from center of platform that J-tube is located
       endB:
           attachID: FOWT2
-          heading: 270
+          heading: 280
           dynamicID: lazy_wave1
       routing_x_y_r:
           - [700,150,20] # [x (m), y (m), radius (m)]
@@ -1560,7 +1561,7 @@ dynamic_cable_configs:
         name: Dynamic suspended cable configuration 1 
         voltage: 33 
         span: 1500
-        rJTube : 58 # [m] radial distance from center of platform that J-tube is located   
+        rJTube : 58 # [m] radial distance from center of platform that J-tube is located         
         cable_type: dynamic_cable_33        # ID of a cable section type1
         A: 300
         length: 1650                   # [m] length (unstretched)

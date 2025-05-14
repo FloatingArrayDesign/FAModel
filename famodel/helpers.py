@@ -19,6 +19,12 @@ def pol2cart(rho, phi):
     y = rho * np.sin(phi)
     return(x, y)
 
+def m2nm(data):
+    if isinstance(data,list):
+        data = np.array(data)
+    data = data*0.000539957
+    return(data)
+
 
 def printMat(mat):
     '''Prints a matrix to a format that is specified
@@ -349,8 +355,10 @@ def check_headings(m_headings,c_heading,rad_buff):
         if mh<0:
             #breakpoint()
             m_headings[i] = 2*np.pi + mh
+        elif mh>2*np.pi:
+            m_headings[i] = mh - 2*np.pi
     ang_diff = m_headings - c_heading
-    inds_to_fix = np.where([round(abs(angd),8)<round(rad_buff,8) for angd in ang_diff])[0]
+    inds_to_fix = np.where([round(abs(angd),8)<round(rad_buff,8) or round(abs(angd),8)>np.pi*2-round(rad_buff,8) for angd in ang_diff])[0]
     if len(inds_to_fix)>0:
         return([m_headings[ind] for ind in inds_to_fix])
     else:
@@ -387,24 +395,24 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
     attheadings = []
     flipheads = False # whether to flip headings ( for if you are looking at mooring headings of platform on the other end)
     for at in att:
+        mhs = np.radians([m.heading for m in at.getMoorings().values()])
         if flipheads:
-            atmh = at.mooring_headings + at.phi + np.pi
+            atmh = np.array(mhs) + np.pi
             for j,a in enumerate(atmh):
                 # keep everything under 2pi angle
                 if a>2*np.pi:
                     atmh[j] = a-2*np.pi
         else:
             atmh = at.mooring_headings + at.phi
+        #attheadings.extend(atmh)
         attheadings.extend(np.pi/2 - atmh)
         flipheads = True
-
     interfere_h = check_headings(attheadings,headnew,rad_buff)
     # if the headings interfere, adjust them by angle buffer
     for mhead in interfere_h:
-        ang_diff_dir = np.sign(headnew - mhead)
+        ang_diff_dir = np.sign(headnew - mhead) if headnew != mhead else 1
         headnew = mhead + rad_buff*endA_dir*ang_diff_dir #headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
         interfere_hi = check_headings(attheadings,headnew,rad_buff)
-        
         for i in interfere_hi:
             # try rotating other way
             headnew = mhead - rad_buff*endA_dir*ang_diff_dir
@@ -415,9 +423,8 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
             else:
                 # cut buffer in half and try again
                 newbuff = rad_buff/2
-                headnew = mhead - newbuff*endA_dir*ang_diff_dir
+                headnew = mhead + newbuff*endA_dir*ang_diff_dir
                 return(headnew)
-    
     return(headnew)
 
 def getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal):
@@ -803,7 +810,7 @@ def MooringProps(mCon, lineTypes, rho_water, g, checkType=1):
         mProps = getLineProps(mCon['d_nom']*1000,mCon['mooringFamily'],lineProps=lineprops)
         dd = mProps
         dd['name'] = mCon['mooringFamily']
-        dd['d_nom'] = mProps['d_nom']
+        dd['d_nom'] = mCon['d_nom']
     elif 'type' in mCon and not mCon['type'] in lineTypes:
         raise Exception(f'Type {mCon["type"]} provided in mooring_line_config {mCon} is not found in mooring_line_types section. Check for errors.')
 

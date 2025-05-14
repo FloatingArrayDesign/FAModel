@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 ### INPUTS ###
 inputfolder = './Inputs/'
-bathfile = 'bathymetry200m_sample.txt'
+bathfile = 'bathymetry200m_Array.txt'
 soilfile = 'soil_sample.txt'
 boundfile = 'boundary_sample.csv'
 moordynfile = 'Moordyn_semitaut200m.dat'
@@ -29,7 +29,7 @@ project = Project()
 # easiest way to do this is with a moorpy system 
 ms = mp.System(file=moordynfile)
 # create platform, moorings, anchors from moorpy system
-pflocs = [-800,-800]
+pflocs = [-800,-800,0]
 project.addPlatformMS(ms,pflocs)
 
 # lets add a few more platforms, this time by duplicating the platform we just made

@@ -114,7 +114,7 @@ def test_headings_repositioning():
     assert_allclose(np.hstack((project.mooringList['FOWT1a'].rA,project.mooringList['FOWT1-FOWT2'].rA)),
                     np.hstack(([-828.637,-828.637,-600],[40.5,0,-20])),rtol=0,atol=0.5)
     assert_allclose(np.hstack((project.cableList['array_cable12'].subcomponents[0].rB,project.cableList['cable0'].subcomponents[0].rB)),
-                    np.hstack(([640.5,0,-600],[0,1615.5,-20])),rtol=0,atol=0.5)
+                    np.hstack(([605,0,-600],[0,1615.5,-20])),rtol=0,atol=0.5)
     
 def test_marine_growth():
     project = Project(file='tests/testOntology.yaml',raft=0)
