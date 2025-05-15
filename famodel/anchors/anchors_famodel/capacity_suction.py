@@ -322,12 +322,12 @@ if __name__ == '__main__':
     V = 1000.0       # Vertical load in kN
     
     gamma = 8
-    Su0 = 0
-    k = 10
+    Su0 = 25
+    k = 0
     
     phi = 50
     Dr = 75
     
     results_clay = getCapacitySuction(D, L, zlug, H, V, 'clay', gamma, Su0=Su0, k=k, phi=phi, Dr=Dr, plot=True) 
     
-    results_sand = getCapacitySuction(D, L, zlug, H, V, 'sand', gamma, Su0=Su0, k=k, phi=phi, Dr=Dr, plot=True)   
+    # results_sand = getCapacitySuction(D, L, zlug, H, V, 'sand', gamma, Su0=Su0, k=k, phi=phi, Dr=Dr, plot=True)   

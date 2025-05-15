@@ -1,10 +1,10 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from capacity_soils import clay_profile
-from capacity_plots import plot_plate
+from .capacity_soils import clay_profile
+from .capacity_plots import plot_plate
 
-def getCapacityPlate(profile, soil_type, B, L, zlug, beta, H, V, plot=True):
+def getCapacityPlate(profile, soil_type, B, L, zlug, beta, Ha, Va, plot=True):
     '''Calculate the plate anchor capacity using a full clay soil profile and return capacity + UC.
     The calculation is based on the soil profile, anchor geometry and inclined load.
 
@@ -22,9 +22,9 @@ def getCapacityPlate(profile, soil_type, B, L, zlug, beta, H, V, plot=True):
         Embedment depth of the main padeye (m)
     beta : float
         Inclination angle of the plate (deg)
-    H : float
+    Ha : float
         Applied horizontal load (kN)
-    V : float
+    Va : float
         Applied vertical load (kN)
     plot : bool
         Placeholder for future use.
@@ -41,7 +41,7 @@ def getCapacityPlate(profile, soil_type, B, L, zlug, beta, H, V, plot=True):
     
     # Extract soil parameters from profile
     z0, f_Su, _, f_gamma, _ = clay_profile(profile)
-    
+
     # Geometry
     t = round(B/B_t, 2)
     V_steel = round(B*L*t, 2)
@@ -54,12 +54,18 @@ def getCapacityPlate(profile, soil_type, B, L, zlug, beta, H, V, plot=True):
 
     # Evaluate Su and gamma at these points
     Su_vals = [f_Su(z) for z in z_points]
-    gamma_vals = [f_gamma(z) for z in z_points]
-    Su = np.mean(Su_vals)
-    gamma = np.mean(gamma_vals)
+    gamma_10 = f_gamma(z_points[2]); print(gamma_10)
+    gamma_vals = [f_gamma(z) for z in z_points]; print("gamma_vals:", [f"{val:.2f}" for val in gamma_vals], "N/m3")
+    Su = np.mean(Su_vals); print(f"Su: {Su:.2f} Pa")
+    gamma = np.mean(gamma_vals); print(f"gamma: {gamma:.2f} N/m3")
+    
+    print("Profile being sent to clay_profile():")
+    for row in profile:
+        print(f"z = {row[0]:.2f} m, Su = {row[1]:.2f} kPa, gamma = {row[2]:.2f} kN/m³")
 
     # Compute shear strength gradient k from linear fit
     k = np.polyfit(z_points, Su_vals, 1)[0]
+    print(f"k: {k:.2f}")
     
     # Pile weight (inc. auxiliary elements) assessed as a factor
     Wp = 1.35*V_steel*(rhows + rhow)
@@ -68,6 +74,7 @@ def getCapacityPlate(profile, soil_type, B, L, zlug, beta, H, V, plot=True):
     Nco_0_0  = 2.483*np.log(zlug_B) + 1.974
     Nco_90_0 = 2.174*np.log(zlug_B) + 3.391
     kBSh = k*B/Su
+    print(f"kBSh: {kBSh:.2f}")
 
     f0  = np.where(zlug_B < 4, 1.77*(zlug_B**0.3) - 1.289, 0.192*zlug_B + 0.644)
     f90 = np.where(zlug_B < 4, 0.68*(zlug_B**0.5) - 0.410, 0.153*zlug_B + 0.341)
@@ -92,19 +99,19 @@ def getCapacityPlate(profile, soil_type, B, L, zlug, beta, H, V, plot=True):
     Nc_final = max(Nco + (gamma*zlug)/Su, Nco_s) # anchor pullout capacity factor [kN]
     print(f"Nc_star: {Nco + (gamma*zlug)/Su:.2f}")
     print(f"Nc_star: {Nco_s:.2f}")
-    qu = Nc_final*Su  # The bearing pressure capacity of the anchor plate
-    Tmax = round(qu*(1 - Los)*B*L, 2)  # The bearing tension force capacity of the anchor plate
+    qu = Nc_final*Su                   # Bearing pressure capacity of the anchor plate
+    Tmax = round(qu*(1 - Los)*B*L, 2)  # Bearing tension force capacity of the anchor plate
     Hmax = Tmax*np.cos(np.deg2rad(90 - beta))
     Vmax = Tmax*np.sin(np.deg2rad(90 - beta))
     
-    Ta = np.sqrt(H**2 + V**2)
+    Ta = np.sqrt(Ha**2 + Va**2)
     UC = Ta/Tmax
 
     resultsPlate = {
         'Capacity': Tmax,
         'Horizontal max.': Hmax,
         'Vertical max.': Vmax,
-        'UC': UC,
+        'Unity check': UC,
         'Weight plate': Wp
     }
     
@@ -119,18 +126,18 @@ if __name__ == '__main__':
         [25.0, 50, 9.0]
     ])
     
-    B = 2.0                               # Plate width (m)
-    L = 2.0                               # Plate length (m)
-    zlug = 10.0                           # Padeye depth (m)
-    H = 000e3                             # Horizontal load (N)
-    V = 400e3                             # Vertical load (N)
-    alpha = np.rad2deg(np.arctan2(V, H))  # Load angle from horizontal (deg)
-    beta = 90 - alpha                     # Plate angle after keying (m)
+    B = 2.0                                 # Plate width (m)
+    L = 2.0                                 # Plate length (m)
+    zlug = 10.0                             # Padeye depth (m)
+    Ha = 350e3                              # Horizontal load (N)
+    Va = 400e3                              # Vertical load (N)
+    alpha = np.rad2deg(np.arctan2(Va, Ha))  # Load angle from horizontal (deg)
+    beta = 90 - alpha                       # Plate angle after keying (m)
     
-    results = getCapacityPlate(profile_clay, 'clay', B, L, zlug, beta, H, V)
+    results = getCapacityPlate(profile_clay, 'clay', B, L, zlug, beta, Ha, Va)
     print("\n--- Plate Anchor Capacity Results ---")
     for key, val in results.items():
         print(f"{key}: {val:.2f}")
         
-    plot_plate(profile_clay, 'clay', B, L, zlug, beta, title='Inclined Plate Anchor in Clay')
+    # plot_plate(profile_clay, 'clay', B, L, zlug, beta, title='Inclined Plate Anchor in Clay')
     
