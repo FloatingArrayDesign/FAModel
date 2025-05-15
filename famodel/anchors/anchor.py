@@ -919,7 +919,7 @@ class Anchor(Node):
         
         # if zlug is fixed, remove it from design variables
         if fix_zlug and 'zlug' in geomKeys:
-            zlug_loc = np.where('zlug' in geomKeys)[0][0]
+            zlug_loc = geomKeys.index('zlug')
             startGeom.pop('zlug')
             geomKeys.remove('zlug')
             geom.pop(zlug_loc)

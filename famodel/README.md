@@ -8,7 +8,7 @@ This package integrates various open-source array modeling tools such as [RAFT](
 and [FLORIS](https://nrel.github.io/floris/). FAModel can automatically create a model of the array in any of these tools.
 
 To enable organized storage of floating array information and functions specific to components, each component of an array 
-has a dedicated class (i.e. Mooring class, Turbine class, etc).
+has a dedicated class (i.e. Mooring class, Turbine class, etc). 
 
 
 ## Overview
@@ -30,6 +30,24 @@ The structure of the project class and component classes is described in the fol
   * [Joint Class](#joint-class)
 * [Turbine Class](#turbine-class)
 * [Substation Class](#substation-class)
+
+### Accessing Component Information and Methods
+All array information and component objects are stored in the Project object, so 
+component objects must be accessed through the Project object. 
+
+Major component classes (Platform, Mooring, Cable, Anchor, Turbine, Substation)
+are stored in a dedicated dictionary within the project class that lists each component instance in the array, with the key being the component's ID and the value pointing 
+to the object. 
+
+For example, mooringList is the Project class dictionary listing all Mooring objects in the array. To access a component object, the user can follow
+this method: ```project.mooringList[<mooring line ID>]``` where project in this case is the name of the Project class instance.
+
+Subcomponent classes (such as Section, Connector, Dynamic Cable, Static Cable, Joint) can be accessed 
+through the subcomponent list of the parent component object. For example, the static cable within a cable object can be accessed in the following way: 
+```project.cableList[<cable ID>].subcomponents[2]``` if the static cable was the third subcomponent from end A of the cable. Subcomponents are 
+always listed from end A to end B of the parent object.
+
+Each component is overviewed in a section of this ReadMe, and a full list of each component class's properties and methods is provided in the ReadMe dedicated to that specific class.
 
 ### Project Information
 A full description of the project class methods and properties is found in the following sections:

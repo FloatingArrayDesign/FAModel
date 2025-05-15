@@ -50,6 +50,8 @@ class StaticCable(Edge):
         self.g = g
         
         # call function to update routing variables
+        self.x = []
+        self.y = []
         self.updateRouting(routing)
         
         # set burial if it exists - for now just keep in dict form...

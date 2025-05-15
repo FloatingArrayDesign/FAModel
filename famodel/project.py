@@ -34,7 +34,7 @@ from famodel.famodel_base import Node
 # Import select required helper functions
 from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
                             getMoorings, getAnchors, getFromDict, cleanDataTypes, 
-                            getStaticCables, getCableDesign)
+                            getStaticCables, getCableDesign,m2nm)
 
 
 class Project():
@@ -94,6 +94,9 @@ class Project():
 
         # Project boundary (vertical stack of x,y coordinate pairs [m])
         self.boundary = np.zeros([0,2])
+        
+        # Exclusion zones
+        self.exclusion = []
         
         # Seabed grid
         self.grid_x      = np.array([0])  # coordinates of x grid lines [m]
@@ -340,7 +343,10 @@ class Project():
             elif type(d['platform']) is list and len(d['platform'])>1:
                 raise Exception("'platform' section keyword must be changed to 'platforms' if multiple platforms are listed")
             else:
-                platforms.append(d['platform'])
+                if isinstance(d['platform'],list):
+                    platforms.append(d['platform'][0])
+                else:
+                    platforms.append(d['platform'])
                 RAFTDict['platform'] = d['platform']
         # load list of platform dictionaries into RAFT dictionary
         elif 'platforms' in d and d['platforms']:
@@ -1226,8 +1232,9 @@ class Project():
                 else:
                     att['obj'].rB[2] = anchor.r[2]
                 
-            name, props = self.getSoilAtLocation(x,y) # update soil
-            anchor.soilProps = {name:props}
+            if hasattr(self,'soil_x'):
+                name, props = self.getSoilAtLocation(x,y) # update soil
+                anchor.soilProps = {name:props}
             
 
 
@@ -1346,7 +1353,16 @@ class Project():
             self.boundary = np.vstack([self.boundary, self.boundary[0,:]])
         
         # figure out masking to exclude grid data outside the project boundary
-    
+        
+    def setExclusionZone(self, Xs, Ys):
+        '''
+        Set exclusion zones of the project based on x-y verts
+        '''
+        self.exclusion.append(np.vstack([[Xs[i],Ys[i]] for i in range(len(Xs))]))
+        
+        # if the exclusion doesn't repeat the first vertex at the end, add it
+        if not all(self.exclusion[-1][0,:] == self.exclusion[-1][-1,:]):
+            self.exclusion[-1] = np.vstack([self.exclusion[-1], self.exclusion[-1][0,:]])
     
     def trimGrids(self, buffer=100):
         '''Trims bathymetry and soil grid information that is outside the
@@ -1519,7 +1535,8 @@ class Project():
                 id = str(id_part[0])+'_'+str(id_part[1])
             elif len(id_part)==1:
                 # anchored line
-                n_existing_moor = len(self.platformList[id_part].getMoorings())
+                n_existing_moor = len(self.platformList[id_part[0]].getMoorings())
+
                 id = str(id_part)+alph[n_existing_moor]
             else:
                 id = 'moor'+str(len(self.mooringList))
@@ -1715,7 +1732,6 @@ class Project():
         None.
 
         '''
-        
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
         # create substation object with id 
         if oss:
@@ -1904,6 +1920,12 @@ class Project():
         edgecolor = kwargs.get('env_color',[.5,0,0,.8])
         color = kwargs.get('fenv_color',[.6,.3,.3,.6])
         alpha = kwargs.get('alpha',0.5)
+        return_contour = kwargs.get('return_contour',False)
+        cmap_cables = kwargs.get('cmap_cables',None)
+        plot_platforms = kwargs.get('plot_platforms',True)
+        plot_anchors = kwargs.get('plot_anchors',True)
+        plot_moorings = kwargs.get('plot_moorings',True)
+        plot_cables = kwargs.get('plot_cables',True)
         
         
         
@@ -1921,14 +1943,14 @@ class Project():
                 X, Y = np.meshgrid(self.grid_x, self.grid_y)
                 
                 contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
-                #contourf.norm.autoscale([0,1])
-                #contourf.set_clim(0, 1000)
             
                 if not bare:  # Add colorbar with label
                     cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)')
                     
         if plot_boundary:
             ax.plot(self.boundary[:,0], self.boundary[:,1], 'b-.',label='Lease Boundary')
+            for ez in self.exclusion:
+                ax.plot(ez[:,0], ez[:,1], 'r-.', label='Exclusion Zone')
             
         
         # Seabed ground/soil type (to update)
@@ -1939,96 +1961,101 @@ class Project():
         
         
         # Plot any object envelopes
-        from shapely import Point
-        for platform in self.platformList.values():
+        if plot_platforms:
+            from shapely import Point
+            for platform in self.platformList.values():
+                for name, env in platform.envelopes.items():
+                    ax.fill(env['x'], env['y'], edgecolor=edgecolor, facecolor='none', linestyle='dashed', lw=0.8, label='Platform envelope')
+        
+        if plot_moorings:
+            for mooring in self.mooringList.values():
+                for name, env in mooring.envelopes.items():
+                    #if 'shape' in env:  # if there's a shapely object
+                    #    pass  # do nothing for now...
+                    #elif 'x' in env and 'y' in env:  # otherwise just use coordinates
+                    ax.fill(env['x'], env['y'], color=color,label='Mooring envelope',alpha=alpha)
+        
+        
+            # Plot moorings one way or another (eventually might want to give Mooring a plot method)
+            for mooring in self.mooringList.values():
             
-            for name, env in platform.envelopes.items():                 
-                ax.fill(env['x'], env['y'], edgecolor=edgecolor, facecolor='none', linestyle='dashed', lw=0.8, label='Platform envelope')
-        
-        for mooring in self.mooringList.values():
-            for name, env in mooring.envelopes.items():
-                #if 'shape' in env:  # if there's a shapely object
-                #    pass  # do nothing for now...
-                #elif 'x' in env and 'y' in env:  # otherwise just use coordinates
-                ax.fill(env['x'], env['y'], color=color,label='Mooring envelope',alpha=alpha)
-        
-        
-        # Plot moorings one way or another (eventually might want to give Mooring a plot method)
-        for mooring in self.mooringList.values():
-        
-            if mooring.ss:  # plot with Subsystem if available
-                mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
-                                      Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')        
-            else: # simple line plot
-                ax.plot([mooring.rA[0], mooring.rB[0]], 
-                        [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5)
+                if mooring.ss:  # plot with Subsystem if available
+                    mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
+                                          Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')        
+                else: # simple line plot
+                    ax.plot([mooring.rA[0], mooring.rB[0]], 
+                            [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
                 
-        for anchor in self.anchorList.values():
-            
-            ax.plot(anchor.r[0],anchor.r[1], 'mo',ms=2, label='Anchor')
+        if plot_anchors:
+            for anchor in self.anchorList.values():
+                ax.plot(anchor.r[0],anchor.r[1], 'mo',ms=2, label='Anchor')
         
         # Plot cables one way or another (eventually might want to give Mooring a plot method)
-        if self.cableList:
+        if self.cableList and plot_cables:
             maxcableSize = max([cab.dd['cables'][0].dd['A'] for cab in self.cableList.values()])
-        for cable in self.cableList.values():
-            # get cable color
-            import matplotlib.cm as cm
-            cmap = cm.get_cmap('plasma_r')
-            cableSize = int(cable.dd['cables'][0].dd['A'])
-            Ccable = cmap(cableSize/(1.1*maxcableSize))
-            # # simple line plot for now
-            # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
-            #         [cable.subcomponents[0].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
-            
-            # add in routing if it exists
-            for sub in cable.subcomponents:
-                if isinstance(sub,StaticCable):
-                    if hasattr(sub,'x'):
-                        # has routing  - first plot rA to sub.coordinate[0] connection
-                        ax.plot([sub.rA[0],sub.x[0]],
-                                [sub.rA[1],sub.y[0]],':',color = Ccable,
-                                lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
-                        # now plot route
-                        if len(sub.x) > 1:
-                            for i in range(1,len(sub.x)):
-                                ax.plot([sub.x[i-1],sub.x[i]],
-                                        [sub.y[i-1],sub.y[i]],
-                                        ':', color=Ccable, lw=1,
-                                        label='Buried Cable '+str(cableSize)+' mm$^{2}$')
-                        # finally plot sub.coordinates[-1] to rB connection
-                        ax.plot([sub.x[-1],sub.rB[0]],
-                                [sub.y[-1],sub.rB[1]],':',color=Ccable,
-                                lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
-                    else:
-                        # if not routing just do simple line plot
-                        ax.plot([sub.rA[0],sub.rB[0]], 
-                                [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1,
-                                label='Buried Cable '+str(cableSize)+' mm$^{2}$')
-                elif isinstance(sub,DynamicCable):
-                        ax.plot([sub.rA[0],sub.rB[0]], 
-                                [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1,
-                                label='Cable '+str(cableSize)+' mm$^{2}$')
+            for cable in self.cableList.values():
+                # get cable color
+                import matplotlib.cm as cm
+                if not cmap_cables:
+                    cmap = cm.get_cmap('plasma_r')
+                else:
+                    cmap = cm.get_cmap(cmap_cables)
+                cableSize = int(cable.dd['cables'][0].dd['A'])
+                Ccable = cmap(cableSize/(1.1*maxcableSize))
+                # # simple line plot for now
+                # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
+                #         [cable.subcomponents[0].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
+                
+                # add in routing if it exists
+                for sub in cable.subcomponents:
+                    if isinstance(sub,StaticCable):
+                        if len(sub.x)>0:
+                            # has routing  - first plot rA to sub.coordinate[0] connection
+                            ax.plot([sub.rA[0],sub.x[0]],
+                                    [sub.rA[1],sub.y[0]],':',color = Ccable,
+                                    lw=1.2,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                            # now plot route
+                            if len(sub.x) > 1:
+                                for i in range(1,len(sub.x)):
+                                    ax.plot([sub.x[i-1],sub.x[i]],
+                                            [sub.y[i-1],sub.y[i]],
+                                            ':', color=Ccable, lw=1.2,
+                                            label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                            # finally plot sub.coordinates[-1] to rB connection
+                            ax.plot([sub.x[-1],sub.rB[0]],
+                                    [sub.y[-1],sub.rB[1]],':',color=Ccable,
+                                    lw=1.2,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                        else:
+                            # if not routing just do simple line plot
+                            ax.plot([sub.rA[0],sub.rB[0]], 
+                                    [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1.2,
+                                    label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                    elif isinstance(sub,DynamicCable):
+                            ax.plot([sub.rA[0],sub.rB[0]], 
+                                    [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1.2,
+                                    label='Cable '+str(cableSize)+' mm$^{2}$')
             
                 # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
                 #         [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]], 'r--', lw=0.5)
         
         # Plot platform one way or another (might want to give Platform a plot method)
-        for platform in self.platformList.values():
-            entity = platform.entity
-            if 'FOWT' in entity.upper():
-                plotstring = 'ko'
-            elif 'SUBSTATION' in entity.upper():
-                plotstring = 'go'
-            elif 'WEC' in entity.upper():
-                plotstring = 'ro'
-            else:
-                plotstring = 'bo'
-                
-            ax.plot(platform.r[0], platform.r[1], plotstring ,label=entity)
-
-            
+        if plot_platforms:
+            for platform in self.platformList.values():
+                entity = platform.entity
+                if 'FOWT' in entity.upper():
+                    plotstring = 'ko'
+                elif 'SUBSTATION' in entity.upper():
+                    plotstring = 'go'
+                elif 'WEC' in entity.upper():
+                    plotstring = 'ro'
+                else:
+                    plotstring = 'bo'
+                    
+                ax.plot(platform.r[0], platform.r[1], plotstring ,label=entity)
+  
         ax.set_xlabel('X (m)')
         ax.set_ylabel('Y (m)')
+
         if axis_equal:
             ax.set_aspect('equal',adjustable='box')
 
@@ -2039,14 +2066,17 @@ class Project():
             plt.savefig('2dfarm.png', dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
             
             # TODO - add ability to plot from RAFT FOWT
-        return(ax)   
+        if return_contour:
+            return(ax,contourf)
+        else:
+            return(ax)   
         
         
 
     def plot3d(self, ax=None, figsize=(10,8), fowt=False, save=False,
                draw_boundary=True, boundary_on_bath=True, args_bath={}, 
                draw_axes=True, draw_bathymetry=True, draw_soil=False,
-               colorbar=True, boundary_only=False):
+               colorbar=True, boundary_only=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2063,7 +2093,9 @@ class Project():
         # color map for soil plotting
         import matplotlib.cm as cm
         # from matplotlib.colors import Normalize
-        
+        cmap_cables = kwargs.get('cmap_cables','plasma_r')
+        alpha = kwargs.get('alpha',1)
+        orientation = kwargs.get('orientation',[20, -130])
             
         
 
@@ -2140,7 +2172,9 @@ class Project():
                 ####################
                 bath = ax.plot_surface(X, Y, plot_depths, rstride=1, cstride=1, **args_bath)
                 if colorbar:
-                    fig.colorbar(bath,ax=ax,shrink=0.5,aspect=10)
+                    cb = fig.colorbar(bath,ax=ax,shrink=0.5,aspect=10)
+                    cb.ax.get_yaxis().labelpad = 15
+                    cb.ax.set_ylabel('Water Depth (m)', rotation=270)
         
         if draw_soil:
             if draw_bathymetry:
@@ -2185,7 +2219,7 @@ class Project():
         for cable in self.cableList.values():
             # get cable color
             import matplotlib.cm as cm
-            cmap = cm.get_cmap('plasma_r')
+            cmap = cm.get_cmap(cmap_cables)
             cableSize = cable.dd['cables'][0].dd['A']
             Ccable = cmap(cableSize/maxA)
             
@@ -2199,7 +2233,7 @@ class Project():
                         
                 elif isinstance(sub,StaticCable):
                     # add static cable routing if it exists
-                    if hasattr(sub,'x'):
+                    if len(sub.x)>0:
                         # burial = sub.burial
                         # bur = []
                         # if burial and 'station' in burial:
@@ -2254,11 +2288,10 @@ class Project():
                     line.lw = lw
                 mooring.ss.drawLine(0, ax, color='self')
                         
-        
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if fowt:
             for pf in self.array.fowtList:
-                pf.plot(ax,zorder=6)
+                pf.plot(ax,zorder=6,alpha=alpha,plot_ms=False)
             # for i in range(self.nt):
             #     xy = self.turb_coords[i,:]
             #     fowt.setPosition([xy[0], xy[1], 0,0,0,0])
@@ -2273,19 +2306,13 @@ class Project():
         set_axes_equal(ax)
         if not draw_axes:
             ax.axis('off')
+        else:
+            ax.set_xlabel("X (m)")
+            ax.set_ylabel("Y (m)")
+            ax.set_zlabel("Depth (m)")
         
-        ax.view_init(20, -130)
+        ax.view_init(orientation[0],orientation[1])
         
-        # # Remove x-axis tick labels
-        # ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-        # ax.set_xticks([])
-        # ax.set_yticks([])
-        # # # # Remove y-axis tick labels
-        # # # ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
-        # ax.set_zticks([])
-        ax.set_axis_off()
-        # ax.tick_params(axis='z', labelsize=0)
-        # ax.dist -= 3
         fig.tight_layout()
         
         # ----- Save plot with an incremented number if it already exists
@@ -2451,6 +2478,7 @@ class Project():
                     elif isinstance(comp,DynamicCable):
                         # create subsystem for dynamic cable
                         comp.createSubsystem(pristine=pristineLines)
+
                         if pristineLines:                           
                             ssloc = comp.ss
                         else:
@@ -3227,7 +3255,7 @@ class Project():
         return(pf2)
             
         
-    def addPlatformMS(self,ms,r=[0,0]):
+    def addPlatformMS(self,ms,r=[0,0,0]):
         '''
         Create a platform object, along with associated mooring and anchor objects
         from a moorpy system
@@ -3360,13 +3388,14 @@ class Project():
                                                             mList[-1].rA[1])
                             mList[-1].rA[2] = -zAnew
                             mList[-1].dd['zAnchor'] = -zAnew
+                            mList[-1].z_anch = -zAnew
                             self.anchorList[mList[-1].id].r = mList[-1].rA
                         
                 count += 1
                             
                 
         # add platform at ms.body location       
-        self.platformList[pfid] = Platform(pfid, r=ms.bodyList[0].r6[0:2],
+        self.platformList[pfid] = Platform(pfid, r=ms.bodyList[0].r6[0:3],
                                                      mooring_headings=mhead,
                                                      rFair=rFair, zFair=zFair)
         # attach moorings
@@ -3374,7 +3403,7 @@ class Project():
             self.platformList[pfid].attach(moor,end=endB[i])
             
         # update location
-        self.platformList[pfid].setPosition(r=r)
+        self.platformList[pfid].setPosition(r=r,project=self)
             
         return(self.platformList[pfid])
             
@@ -3964,7 +3993,7 @@ class Project():
 
                     
                     # check for routing coordinates
-                    if hasattr(sub,'x'):
+                    if hasattr(sub,'x') and len(sub.x)>0:
                         if hasattr(sub,'r'):
                             coords.extend([[sub.x[aa],sub.y[aa],sub.r[aa]] for aa in range(len(sub.x))])
                         else:

@@ -2,7 +2,7 @@
 
 This folder contains examples for various functionalities of FAModel.
 These examples are designed to help users get acquainted with the package and how it can be used.
-The sample .yaml files may also be used as templates for the user's own floating array yamls.
+The sample .yaml files may also be used as templates for the user's own floating array ontologies.
 The examples are described below:
 
 ## FAModel project from a yaml file example

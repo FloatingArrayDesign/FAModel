@@ -7,8 +7,8 @@ the array's behavior considering the site conditions. For example, it combines
 information about site soil conditions and an array's anchor characteristics to
 estimate the holding capacity of each anchor.
 
-The library works in conjunction with the tools RAFT and MoorPy to model floating
-wind turbines and mooring systems, respectively.
+The library works in conjunction with the tools RAFT, MoorPy, and FLORIS to model floating
+wind turbines, mooring systems, and array wakes respectively.
 
 In addition to the code, this repository defines a 
 [Floating Array Ontology](https://github.com/FloatingArrayDesign/FAModel/tree/main/famodel/ontology), 
@@ -18,6 +18,13 @@ An example of use of these tools to model three mooring lines over the bathymetr
 of the Humboldt lease area is shown below.
 
 ![Humboldt](famodel/seabed/images/slopeview4.PNG)
+
+See example use cases in our [examples](https://github.com/FloatingArrayDesign/FAModel/tree/main/examples/README.md) folder.
+
+## Pre-installation Requirements
+The FAModel package is built entirely in Python. It is recommended that users familiarize themselves with basic Python commands before use.
+It is important to understand the general structure of FAModel and how to access models and stored information. Please see the model structure 
+document (./famodel/README.md).
 
 
 ## Installation
@@ -58,7 +65,7 @@ Make sure your virtual enviroment is activated before installing MoorPy.
 ## Subpackages
 
 The library has a core Project class for organizing information, classes for each component of an array and an evolving
-collection of subpackages for specific functions. The two current subpackages are:
+collection of subpackages for specific functions. The current subpackages are:
 
 - anchors: contains modules for anchor capacity calculations, in addition to the anchor class
 - failures: contains modules for failure modeling with graph theory, and allows for enactment of a failure mode in integrated FAModel tools such as MoorPy and RAFT.
