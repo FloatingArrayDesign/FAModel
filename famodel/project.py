@@ -2291,7 +2291,7 @@ class Project():
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if fowt:
             for pf in self.array.fowtList:
-                pf.plot(ax,zorder=6,alpha=alpha,plot_ms=False)
+                pf.plot(ax,zorder=6,plot_ms=False)
             # for i in range(self.nt):
             #     xy = self.turb_coords[i,:]
             #     fowt.setPosition([xy[0], xy[1], 0,0,0,0])
@@ -3848,7 +3848,7 @@ class Project():
                         current_anch = endA.dd['name']
                 if newanch:
                     anchConfigs[endA.dd['name']] = dict(endA.dd['design'])
-                    if endA.mass>0: 
+                    if endA.mass is not None and endA.mass>0: 
                         anchConfigs[endA.dd['name']]['mass'] = endA.mass
             # elif type(endA)==Connector:
             #     # get connector info & store like anchors

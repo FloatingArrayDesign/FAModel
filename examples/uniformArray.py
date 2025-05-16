@@ -25,7 +25,7 @@ os.chdir(input_directory)
 project = Project(file=filename,raft=True)
 project.plot2d()
 # plot the system
-project.plot3d()
+project.plot3d(fowt=True)
 project.trimGrids()
 project.unload('checkyaml.yaml')
 
@@ -60,18 +60,6 @@ for i,body in enumerate(model.fowtList):
     body.heading_adjust = np.degrees(project.platformList['fowt'+str(i)].phi)
 # plot again
 project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False)
-
-#%% Run RAFT
-print('\nRunning RAFT Case\n')
-model = project.array
-model.mooring_currentMod = 0
-model.ms.moorMod = 0
-print('Running RAFT case')
-# run cases
-model.analyzeCases()
-# plot results
-model.plotResponses()
-model.plot()
 
 #%% Run FLORIS
 print('\nRunning FLORIS\n')
