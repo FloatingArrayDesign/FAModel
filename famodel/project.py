@@ -4420,6 +4420,41 @@ class Project():
                     self.getRAFT(self.RAFTDict,pristine=1)        
         
         self.getMoorPyArray()
+        
+    def repositionArray(self,platform_locs,platform_headings,anch_resize=False,
+                        return_costs=False):
+        '''
+        Method to reposition all platforms in the array at once with input arrays of positions and headings
+
+        Parameters
+        ----------
+        platform_locs : array
+            2D or 3D (x,y or x,y,z) positions for each platform in an array
+            Each row represents the position of the corresponding platform in the platformList.
+            PlatformList is a dictionary, but it is ordered. It therefore follows this order
+        platform_headings : array
+            Each entry represents the heading of the corresponding platform in the platformList
+
+        Returns
+        -------
+        None.
+
+        '''
+        # reset platform, moorings, and anchor positions. If adjuster function available for moorings, adjust mooring for new depth
+        for i,pf in enumerate(self.platformList.values()):
+            pf.setPosition(platform_locs[i],heading=platform_headings[i],project=self)
+
+        if anch_resize:
+            # get some preliminary max loads for the anchors
+            self.arrayWatchCircle()
+            # resize the anchors as needed
+            for anch in self.anchorList.values():
+                anch.getSize(anch.dd['design'].values(), anch.dd['design'].keys(), loads=None, minfs={'Ha':1.6,'Va':2},
+                            LD_con=[4,8], fix_zlug=False, FSdiff_max={'Ha':.05,'Va':.05}, plot=False)
+
+        if return_costs:
+            total_cost = self.getArrayCost()
+            return(total_cost['anchor cost'], total_cost['moor cost'])
 
     def updateFailureProbability(self):
         '''

@@ -803,8 +803,8 @@ class DynamicCable(Edge):
             # create arrays
             # d_nom_old = np.zeros((len(LTypes),1))        
             # ve_nom_adjust = np.zeros((len(LTypes),1))
-            mu_mg = np.zeros((len(LTypes),1))
-            rho_mg = np.ones((len(LTypes),1))*1325
+            mu_mg = np.zeros((len(LTypes)))
+            rho_mg = np.ones((len(LTypes)))*1325
             # adjust rho value if alternative provided
             if 'rho' in mgDict:
                 if not type(mgDict['rho']) is list:
