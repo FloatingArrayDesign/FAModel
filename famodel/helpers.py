@@ -66,209 +66,7 @@ def unitVector(r):
 
     return r/L
 
-def updateYAML_array(fname,outx,outy,turbID,pfID,moorID,hadjust,newFile):
-    '''
-    Write turbines and locations to yaml file. Recommend using a different file name for the output than 
-    the input yaml file, because the array table section will be written out in a manner that is not as readable
-    
-    Parameters
-    ----------
-    fname : str
-        filename of yaml to read from
-    outx : array
-        1D array of x coordinates for platform locations
-    outy : array
-        1D array of y coordinates for platform locations
-    turbID : array
-        1D array of ID number of turbine for each platform, referencing turbine listing in ontology yaml
-    pfID : array
-        1D array of ID number of platform type for each platform, referencing platform listing in ontology yaml
-    moorID : str or int
-        1D array of ID of mooring system for each platform, referencing mooring system in ontology yaml
-    hadjust : array
-        1D array of angle rotation for each platform 
-    newFile : str
-        New file to write yaml to
-    '''
-    import ruamel.yaml
-    yaml = ruamel.yaml.YAML()
-    
-    # read in yaml file 
-    with open(fname) as fp:
-        data = yaml.load(fp)
-        
-    # add rows for all platforms with general info
-    data['array']['data'] = [] # remove any existing rows in the array table
-    for i in range(0,len(outx)):
-        data['array']['data'].append(['fowt'+str(i),turbID[i],pfID[i],moorID[i],float(outx[i]),float(outy[i]),hadjust[i]])
-    
-    # write to yaml file
-    with open(newFile,'w') as f:    
-        yaml.dump(data,f)
 
-def updateYAML_MooringConfig(fname,ms,newfile):
-    '''
-    Update a yaml file with mooring configuration and mooring line type info from a moorpy system
-
-    Parameters
-    ----------
-    fname : str
-        YAML file to read in
-    ms : object
-        MoorPy system
-    newfile : str
-        YAML file to write to
-
-    Returns
-    -------
-    None.
-
-    '''
-    import ruamel.yaml 
-    yaml = ruamel.yaml.YAML()
-    from moorpy.subsystem import Subsystem
-    from moorpy.helpers import lines2ss
-    
-    # read in yaml file
-    with open(fname) as fp:
-        data = yaml.load(fp)
-        
-    # fill in mooring line types info
-    for mtype in ms.lineTypes:
-        data['mooring_line_types'][mtype] = ms.lineTypes[mtype]
-    
-    for i,line in enumerate(ms.lineList):
-        if not isinstance(line,Subsystem):
-            # convert to subsystem
-            lines2ss(ms)
-        types = []
-        lengths = []
-        connType = []
-        for seg in line:
-            types.append(seg.type['name'])
-            lengths.append(seg.L)
-        for j,conn in enumerate(line.pointList):
-            connType.append({})
-            if conn.m != 0:
-                connType.append({'m':conn.m})
-                connType[-1]['v'] = conn.v 
-                connType[-1]['Cd'] = conn.cd
-        
-        # 
-
-            
-            
-    
-
-def updateYAML_mooring(fname,ms,newfile):
-    '''
-    Update a yaml file with mooring line information and platform locations from a moorpy system.
-    Does not support cables currently.
-
-    Parameters
-    ----------
-    fname : str
-        YAML file to read in
-    ms : object
-        MoorPy system
-    newfile : str
-        YAML file to write to
-
-    Returns
-    -------
-    None.
-
-    '''
-    import ruamel.yaml 
-    yaml = ruamel.yaml.YAML()
-    
-    # read in yaml file
-    with open(fname) as fp:
-        data = yaml.load(fp)
-        
-    # fill in mooring line types info
-    for mtype in ms.lineTypes:
-        data['mooring_line_types'][mtype] = ms.lineTypes[mtype]
-    
-    # convert to subsystems if needed
-    
-    
-    # fill in mooring systems info and parse for similar mooring systems (same line types, lengths, spans, # lines, headings)
-    # msys = []
-    # for pf in ms.bodyList:
-    #     psys = []
-    #     for pidx in pf.attachedP:
-    #         lineDetails = []
-    #         for lidx in ms.pointList[pidx-1].attached:
-    #             ss = ms.lineList[lidx-1]
-    #             lineDetails.append(ss.span) # span
-    #             # calc heading
-    #             heading = np.pi/2 - np.atan2((ss.rB[1]-ss.rA[1]),(ss.rB[0]-ss.rA[0]))
-    #             lineDetails.append(heading) # heading
-    #             # get segment details
-    #             segType = []
-    #             segL = []
-    #             for seg in ss.lineList:
-    #                 segType.append(seg.type['name'])
-    #                 segL.append(seg.L)
-    #             lineDetails.extend(segType,segL) # segment details
-    #         # append line details to system for that platform
-    #         psys.append(lineDetails)
-    #     # append platfrom line system to mooring system
-    #     msys.append(psys)
-    '''spans = []
-    headings = []
-    segTypes = []
-    segLs = []
-    for pf in ms.bodyList:
-        spansP = []
-        headingsP = []
-        segTypesP = []
-        segLsP = []
-        for pidx in pf.attachedP:
-            for lidx in ms.pointList[pidx-1].attached: # should only be one line
-                ss = ms.lineList[lidx-1]
-                spansP.append(ss.span)
-                # calc heading
-                heading = np.pi/2 - np.atan2((ss.rB[1]-ss.rA[1]),(ss.rB[0]-ss.rA[0]))
-                headingsP.append(heading) # heading
-                # get segment details
-                segType = []
-                segL = []
-                for seg in ss.lineList:
-                    segType.append(seg.type['name'])
-                    segL.append(seg.L)
-                segTypesP.append(segType)
-                segLsP.append(segL)
-        # append line details to system for that platform
-        spans.append(spansP)
-        headings.append(headingsP)
-        segTypes.append(segTypesP)
-        segLs.append(segLsP)
-    
-    # first find where lengths of spans are the same
-    lenspans = [len(span) for span in spans]
-    uspanL = np.unique(lenspans)
-    ind = []
-    for i in range(0,len(uspanL)):
-        ind.append(np.where(spans == uspanL[i])[0])
-    # then find where spans are the same    
-    
-    spinds = []
-    for ix in ind:
-        for jx in ix:
-            spinds_in = []
-            for k in range(0,len(spans[jx])):
-                spinds_in.append(np.where(spans[ix][k]==spans[jx][k])[0])
-            if spinds_in[-1]'''
-                
-
-            
-        
-    
-        
-    # add rows for all platforms with general info
-    data['array']['data'] = []
 
 
 # ----- Cable routing support functions -----
@@ -978,6 +776,81 @@ def getAnchors(lineAnch, arrayAnchor, proj):
     
     return(ad, mass)
 
+def adjustMooring_taut(mooring, r, u, project=None, target_pretension=1e6,
+                       line_section_idx=0, level=2):
+        '''Custom function to adjust a mooring, called by
+        Mooring.adjust. Fairlead point should have already
+        been adjusted.
+        
+        Parameters
+        ----------
+        mooring : FAModel Mooring object
+        r : array
+            platform center location
+        u : array
+            direction unit vector from end B of mooring
+        project : FAModel Project object this is a part of. 
+            Optional, default is None. If provided, itwill update anchor depth at new location
+        target_pretension : float
+            Pretension in N to target for the mooring line
+        line_section_idx : int
+            Index of line section to adjust
+            '''
+        from fadesign.fadsolvers import dsolve2
+        ss = mooring.ss  # shorthand for the mooring's subsystem
+        
+        i_line = line_section_idx
+        T_target = target_pretension
+        
+        #>>> pit in better prpfile <<<
+        
+        # Find anchor location based on desired relation
+        fairlead_rad = 58
+        fairlead_z = -14
+        mooring.rad_fair = fairlead_rad
+        mooring.z_fair = fairlead_z
+        r_i = np.hstack([r + fairlead_rad*u, fairlead_z]) # fairlead point
+        slope = 0.58  # slope from horizontal
+        u_a = np.hstack([u, -slope])  # direct vector from r_i to anchor
+        if project:
+            r_anch = project.seabedIntersect(r_i, u_a)  # seabed intersection  
+            # save some stuff for the heck of it
+            mooring.dd['zAnchor'] = r_anch[2]
+            mooring.rad_anch = np.linalg.norm(r_anch[:2]-r)
+            span = mooring.rad_anch - fairlead_rad
+        else:
+            dchange = -mooring.dd['zAnchor'] + r_i[2] # vertical change from fairlead
+            span = dchange/slope # horizontal change from fairlead (span!)
+            mooring.rad_anch = span + fairlead_rad # mooring anchoring radius (From platform center)
+            r_anch = [r[0]+u[0]*mooring.rad_anch,r[1]+u[1]*mooring.rad_anch,mooring.dd['zAnchor']] # anchor location
+            
+        mooring.setEndPosition(r_anch, 'a')  # set the anchor position
+
+        # Estimate the correct line length to start with
+        ss.lineList[0].setL(np.linalg.norm(mooring.rB - mooring.rA))
+            
+        # Next we could adjust the line length/tension (if there's a subsystem)
+        if level==1:  # level 1 analysis (static solve to update node positions)
+            ss.staticSolve()
+            
+        elif level==2:  # adjust pretension (hardcoded example method for now)
+            
+            def eval_func(X, args):
+                '''Tension evaluation function for different line lengths'''
+                ss.lineList[i_line].L = X[0]  # set the first line section's length
+                ss.staticSolve(tol=0.0001)  # solve the equilibrium of the subsystem
+                return np.array([ss.TB]), dict(status=1), False  # return the end tension
+
+            # run dsolve2 solver to solve for the line length that matches the initial tension
+            X0 = [ss.lineList[i_line].L]  # start with the current section length
+            L_final, T_final, _ = dsolve2(eval_func, X0, Ytarget=[T_target], 
+                                  Xmin=[1], Xmax=[1.1*np.linalg.norm(ss.rB-ss.rA)],
+                                  dX_last=[1], tol=[0.1], maxIter=50, stepfac=4)
+            ss.lineList[i_line].L = L_final[0]
+            mooring.dd['sections'][i_line]['L'] = L_final[0]
+            mooring.dd['span'] = span
+            mooring.span = span
+
 def cleanDataTypes(info):
     '''
     cleans data types in a dictionary to be yaml-writeable data types, usually for 
@@ -1118,3 +991,207 @@ def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
                     return np.tile(default, shape)
                 else:
                     return np.tile(default, [shape, 1])
+
+def updateYAML_array(fname,outx,outy,turbID,pfID,moorID,hadjust,newFile):
+    '''
+    Write turbines and locations to yaml file. Recommend using a different file name for the output than 
+    the input yaml file, because the array table section will be written out in a manner that is not as readable
+    
+    Parameters
+    ----------
+    fname : str
+        filename of yaml to read from
+    outx : array
+        1D array of x coordinates for platform locations
+    outy : array
+        1D array of y coordinates for platform locations
+    turbID : array
+        1D array of ID number of turbine for each platform, referencing turbine listing in ontology yaml
+    pfID : array
+        1D array of ID number of platform type for each platform, referencing platform listing in ontology yaml
+    moorID : str or int
+        1D array of ID of mooring system for each platform, referencing mooring system in ontology yaml
+    hadjust : array
+        1D array of angle rotation for each platform 
+    newFile : str
+        New file to write yaml to
+    '''
+    import ruamel.yaml
+    yaml = ruamel.yaml.YAML()
+    
+    # read in yaml file 
+    with open(fname) as fp:
+        data = yaml.load(fp)
+        
+    # add rows for all platforms with general info
+    data['array']['data'] = [] # remove any existing rows in the array table
+    for i in range(0,len(outx)):
+        data['array']['data'].append(['fowt'+str(i),turbID[i],pfID[i],moorID[i],float(outx[i]),float(outy[i]),hadjust[i]])
+    
+    # write to yaml file
+    with open(newFile,'w') as f:    
+        yaml.dump(data,f)
+
+def updateYAML_MooringConfig(fname,ms,newfile):
+    '''
+    Update a yaml file with mooring configuration and mooring line type info from a moorpy system
+
+    Parameters
+    ----------
+    fname : str
+        YAML file to read in
+    ms : object
+        MoorPy system
+    newfile : str
+        YAML file to write to
+
+    Returns
+    -------
+    None.
+
+    '''
+    import ruamel.yaml 
+    yaml = ruamel.yaml.YAML()
+    from moorpy.subsystem import Subsystem
+    from moorpy.helpers import lines2ss
+    
+    # read in yaml file
+    with open(fname) as fp:
+        data = yaml.load(fp)
+        
+    # fill in mooring line types info
+    for mtype in ms.lineTypes:
+        data['mooring_line_types'][mtype] = ms.lineTypes[mtype]
+    
+    for i,line in enumerate(ms.lineList):
+        if not isinstance(line,Subsystem):
+            # convert to subsystem
+            lines2ss(ms)
+        types = []
+        lengths = []
+        connType = []
+        for seg in line:
+            types.append(seg.type['name'])
+            lengths.append(seg.L)
+        for j,conn in enumerate(line.pointList):
+            connType.append({})
+            if conn.m != 0:
+                connType.append({'m':conn.m})
+                connType[-1]['v'] = conn.v 
+                connType[-1]['Cd'] = conn.cd
+        
+        # 
+
+            
+            
+    
+
+def updateYAML_mooring(fname,ms,newfile):
+    '''
+    Update a yaml file with mooring line information and platform locations from a moorpy system.
+    Does not support cables currently.
+
+    Parameters
+    ----------
+    fname : str
+        YAML file to read in
+    ms : object
+        MoorPy system
+    newfile : str
+        YAML file to write to
+
+    Returns
+    -------
+    None.
+
+    '''
+    import ruamel.yaml 
+    yaml = ruamel.yaml.YAML()
+    
+    # read in yaml file
+    with open(fname) as fp:
+        data = yaml.load(fp)
+        
+    # fill in mooring line types info
+    for mtype in ms.lineTypes:
+        data['mooring_line_types'][mtype] = ms.lineTypes[mtype]
+    
+    # convert to subsystems if needed
+    
+    
+    # fill in mooring systems info and parse for similar mooring systems (same line types, lengths, spans, # lines, headings)
+    # msys = []
+    # for pf in ms.bodyList:
+    #     psys = []
+    #     for pidx in pf.attachedP:
+    #         lineDetails = []
+    #         for lidx in ms.pointList[pidx-1].attached:
+    #             ss = ms.lineList[lidx-1]
+    #             lineDetails.append(ss.span) # span
+    #             # calc heading
+    #             heading = np.pi/2 - np.atan2((ss.rB[1]-ss.rA[1]),(ss.rB[0]-ss.rA[0]))
+    #             lineDetails.append(heading) # heading
+    #             # get segment details
+    #             segType = []
+    #             segL = []
+    #             for seg in ss.lineList:
+    #                 segType.append(seg.type['name'])
+    #                 segL.append(seg.L)
+    #             lineDetails.extend(segType,segL) # segment details
+    #         # append line details to system for that platform
+    #         psys.append(lineDetails)
+    #     # append platfrom line system to mooring system
+    #     msys.append(psys)
+    '''spans = []
+    headings = []
+    segTypes = []
+    segLs = []
+    for pf in ms.bodyList:
+        spansP = []
+        headingsP = []
+        segTypesP = []
+        segLsP = []
+        for pidx in pf.attachedP:
+            for lidx in ms.pointList[pidx-1].attached: # should only be one line
+                ss = ms.lineList[lidx-1]
+                spansP.append(ss.span)
+                # calc heading
+                heading = np.pi/2 - np.atan2((ss.rB[1]-ss.rA[1]),(ss.rB[0]-ss.rA[0]))
+                headingsP.append(heading) # heading
+                # get segment details
+                segType = []
+                segL = []
+                for seg in ss.lineList:
+                    segType.append(seg.type['name'])
+                    segL.append(seg.L)
+                segTypesP.append(segType)
+                segLsP.append(segL)
+        # append line details to system for that platform
+        spans.append(spansP)
+        headings.append(headingsP)
+        segTypes.append(segTypesP)
+        segLs.append(segLsP)
+    
+    # first find where lengths of spans are the same
+    lenspans = [len(span) for span in spans]
+    uspanL = np.unique(lenspans)
+    ind = []
+    for i in range(0,len(uspanL)):
+        ind.append(np.where(spans == uspanL[i])[0])
+    # then find where spans are the same    
+    
+    spinds = []
+    for ix in ind:
+        for jx in ix:
+            spinds_in = []
+            for k in range(0,len(spans[jx])):
+                spinds_in.append(np.where(spans[ix][k]==spans[jx][k])[0])
+            if spinds_in[-1]'''
+                
+
+            
+        
+    
+        
+    # add rows for all platforms with general info
+    data['array']['data'] = []

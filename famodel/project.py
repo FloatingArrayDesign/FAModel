@@ -1165,14 +1165,17 @@ class Project():
         '''
         
         # NEW: finds the specific soil grid point that the xy point is closest to and assigns it that soil type
-        ix = np.argmin([abs(x-soil_x) for soil_x in self.soil_x])
-        iy = np.argmin([abs(y-soil_y) for soil_y in self.soil_y])
-
-        soil_name = self.soil_names[iy, ix]
-
-        soil_info = self.soilProps[soil_name]
-
-        return soil_name, soil_info
+        if self.soil_x is not None:
+            ix = np.argmin([abs(x-soil_x) for soil_x in self.soil_x])
+            iy = np.argmin([abs(y-soil_y) for soil_y in self.soil_y])
+    
+            soil_name = self.soil_names[iy, ix]
+    
+            soil_info = self.soilProps[soil_name]
+    
+            return soil_name, soil_info
+        else:
+            pass
         
         '''
         # SIMPLE HACK FOR NOW        
@@ -1232,7 +1235,7 @@ class Project():
                 else:
                     att['obj'].rB[2] = anchor.r[2]
                 
-            if hasattr(self,'soil_x'):
+            if hasattr(self,'soil_x') and self.soil_x is not None:
                 name, props = self.getSoilAtLocation(x,y) # update soil
                 anchor.soilProps = {name:props}
             
