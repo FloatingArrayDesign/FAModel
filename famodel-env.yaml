@@ -6,7 +6,7 @@ dependencies:
   - bzip2=1.0.8
   - ca-certificates=2023.08.22
   - libffi=3.4.4
-  - openssl=4.0
+  - openssl=3.5.0
   - pip=23.2.1
   - python=3.11.5
   - setuptools=68.0.0
