@@ -776,80 +776,106 @@ def getAnchors(lineAnch, arrayAnchor, proj):
     
     return(ad, mass)
 
-def adjustMooring_taut(mooring, r, u, project=None, target_pretension=1e6,
-                       line_section_idx=0, level=2):
-        '''Custom function to adjust a mooring, called by
-        Mooring.adjust. Fairlead point should have already
-        been adjusted.
-        
-        Parameters
-        ----------
-        mooring : FAModel Mooring object
-        r : array
-            platform center location
-        u : array
-            direction unit vector from end B of mooring
-        project : FAModel Project object this is a part of. 
-            Optional, default is None. If provided, itwill update anchor depth at new location
-        target_pretension : float
-            Pretension in N to target for the mooring line
-        line_section_idx : int
-            Index of line section to adjust
-            '''
-        from fadesign.fadsolvers import dsolve2
-        ss = mooring.ss  # shorthand for the mooring's subsystem
-        
-        i_line = line_section_idx
-        T_target = target_pretension
-        
-        #>>> pit in better prpfile <<<
+def adjustMooring(mooring, method = 'pretension', r=[0,0,0], project=None, target=1e6,
+                       i_line = 0, slope = 0.58 ):
+    '''Custom function to adjust a mooring, called by
+    Mooring.adjust. Fairlead point should have already
+    been adjusted.
+    
+    There are two methods: "pretension" geometrically adjusts the anchor point and matches pretension, intended for taut moorings.
+    "horizontal" leaves anchor point in the same position and matches the horizontal forces, intended for catenary and semi-taut moorings
+    
+    Parameters
+    ----------
+    mooring : FAModel Mooring object
+    r : array
+        platform center location
+    project : FAModel Project object this is a part of. 
+        Optional, default is None. This is a required input for the "pretension" option to correctly move the anchor position
+    target_pretension : float
+        Total pretension OR horizontal force in N to target for the mooring line 
+    i_line : int
+        Index of line section to adjust
+    slope: float
+        depth over span for baseline case (to match same geometric angle for 'pretension' option)
+    
+        '''
+    from fadesign.fadsolvers import dsolve2
+    ss = mooring.ss  # shorthand for the mooring's subsystem
+
+    if method == 'pretension':
         
         # Find anchor location based on desired relation
-        fairlead_rad = 58
-        fairlead_z = -14
-        mooring.rad_fair = fairlead_rad
-        mooring.z_fair = fairlead_z
-        r_i = np.hstack([r + fairlead_rad*u, fairlead_z]) # fairlead point
-        slope = 0.58  # slope from horizontal
-        u_a = np.hstack([u, -slope])  # direct vector from r_i to anchor
+        fairlead_rad = mooring.rad_fair
+        fairlead_z = mooring.z_fair
+        
+        fairlead = ss.rB # fairlead point
+        
+        #unit direction vector towards ORIGNAL anchor in x,y plane, and inputted slope as the z component
+        xydist = np.linalg.norm([ss.rA[0] - ss.rB[0],ss.rA[1] - ss.rB[1]])
+        direction = np.array([(ss.rA[0] - ss.rB[0])/xydist, (ss.rA[1] - ss.rB[1])/xydist, -slope])
+        
+        #use project class to find new anchor interesection point, maintaining original line heading
         if project:
-            r_anch = project.seabedIntersect(r_i, u_a)  # seabed intersection  
-            # save some stuff for the heck of it
-            mooring.dd['zAnchor'] = r_anch[2]
-            mooring.rad_anch = np.linalg.norm(r_anch[:2]-r)
-            span = mooring.rad_anch - fairlead_rad
+            r_anch = project.seabedIntersect(fairlead, direction)  # seabed intersection  
         else:
-            dchange = -mooring.dd['zAnchor'] + r_i[2] # vertical change from fairlead
-            span = dchange/slope # horizontal change from fairlead (span!)
-            mooring.rad_anch = span + fairlead_rad # mooring anchoring radius (From platform center)
-            r_anch = [r[0]+u[0]*mooring.rad_anch,r[1]+u[1]*mooring.rad_anch,mooring.dd['zAnchor']] # anchor location
-            
+            print('Project must be inputted for the pretension method')
+            return 
+        #update mooring properties
+        print('R_anch new ', r_anch)
+        mooring.dd['zAnchor'] = r_anch[2]
+        mooring.z_anch = mooring.dd['zAnchor']
+        mooring.rad_anch = np.linalg.norm(r_anch-r)
+        span = mooring.rad_anch - fairlead_rad
         mooring.setEndPosition(r_anch, 'a')  # set the anchor position
 
+        #move anchor attachments
+        for i,att in enumerate(mooring.attached_to):
+            iend = mooring.rA if i == 0 else mooring.rB
+            if type(att).__name__ in 'Anchor':
+                # this is an anchor, move anchor location
+                att.r = iend
+                if att.mpAnchor:
+                    att.mpAnchor.r = att.r
+                    
         # Estimate the correct line length to start with
-        ss.lineList[0].setL(np.linalg.norm(mooring.rB - mooring.rA))
+        ss.lineList[i_line].setL(np.linalg.norm(mooring.rB - mooring.rA))
             
         # Next we could adjust the line length/tension (if there's a subsystem)
-        if level==1:  # level 1 analysis (static solve to update node positions)
+           
+        def eval_func(X, args):
+            '''Tension evaluation function for different line lengths'''
+            ss.lineList[i_line].L = X[0]  # set the first line section's length
+            ss.staticSolve(tol=0.0001)  # solve the equilibrium of the subsystem
+            return np.array([ss.TB]), dict(status=1), False  # return the end tension
+
+        # run dsolve2 solver to solve for the line length that matches the initial tension
+        X0 = [ss.lineList[i_line].L]  # start with the current section length
+        L_final, T_final, _ = dsolve2(eval_func, X0, Ytarget=[target], 
+                              Xmin=[1], Xmax=[1.1*np.linalg.norm(ss.rB-ss.rA)],
+                              dX_last=[1], tol=[0.01], maxIter=50, stepfac=4)
+        ss.lineList[i_line].L = L_final[0]
+        mooring.dd['sections'][i_line]['L'] = L_final[0]
+        mooring.dd['span'] = span
+        mooring.span = span
+            
+    elif method == 'horizontal':
+        
+        def func_TH_L(X, args):
+            '''Apply specified section L, return the horizontal pretension error.'''
+            ss.lineList[i_line].setL(X[0])
             ss.staticSolve()
             
-        elif level==2:  # adjust pretension (hardcoded example method for now)
+            #Fx is the horizontal pretension
+            Fx = np.linalg.norm([ss.fB_L[0], ss.fB_L[1]])
             
-            def eval_func(X, args):
-                '''Tension evaluation function for different line lengths'''
-                ss.lineList[i_line].L = X[0]  # set the first line section's length
-                ss.staticSolve(tol=0.0001)  # solve the equilibrium of the subsystem
-                return np.array([ss.TB]), dict(status=1), False  # return the end tension
+            return np.array([Fx - target]), dict(status=1) , False
+            
+        X0 = [ss.lineList[i_line].L]
+        x, y, info = dsolve2(func_TH_L, X0,  tol=[0.01], args=dict(direction='horizontal'), Xmin=[10], Xmax=[2000], dX_last=[10], maxIter=50, stepfac=4, display = 5)
 
-            # run dsolve2 solver to solve for the line length that matches the initial tension
-            X0 = [ss.lineList[i_line].L]  # start with the current section length
-            L_final, T_final, _ = dsolve2(eval_func, X0, Ytarget=[T_target], 
-                                  Xmin=[1], Xmax=[1.1*np.linalg.norm(ss.rB-ss.rA)],
-                                  dX_last=[1], tol=[0.1], maxIter=50, stepfac=4)
-            ss.lineList[i_line].L = L_final[0]
-            mooring.dd['sections'][i_line]['L'] = L_final[0]
-            mooring.dd['span'] = span
-            mooring.span = span
+    else:
+        print('Invalid method. Must be either pretension or horizontal')
 
 def cleanDataTypes(info):
     '''
