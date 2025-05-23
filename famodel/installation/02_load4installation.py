@@ -1,6 +1,8 @@
 """
 This example loads a project class and conducts some analysis and performance metrics. 
 
+This just sets up a project, does not test the install model. 
+
 NOTE: If the project yaml file does not exist, please run 01_unload_driver.py before this 
 so you have a project that you can load here in this example. The project yaml file generated 
 by the unload driver is named proj_{<concept name>}. Insert that in the inputFile in this script.
@@ -25,7 +27,7 @@ from fadesign.conceptual import metrics as mtr
 
 # CONCEPT CATEGORY & NAME
 category    = "ILIA"  # ILIA | ILSA | SLIA | SLSA | hybrid 
-conceptName = "3_ILIA_1P2C_grd_mini"
+conceptName = "3_ILIA_al[cr]_grd"
 
 # FILE LOCATIONS
 filePath     = os.path.dirname(os.path.abspath(__file__))

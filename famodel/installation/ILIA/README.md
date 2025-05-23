@@ -1,0 +1,1 @@
+This folder contains files from FADesign/scripts/concepts/ILIA. These are other inputs to work with becasue the original 3_ILIA_1P2C_grd_mini input file set being used cant be found. 

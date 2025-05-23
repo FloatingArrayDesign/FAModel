@@ -7,5 +7,5 @@ specs:
     wet_storage_capacity:   8         # 15MW FOWT units      (NREL - projected data for 2030 for the port of Humboldt)
 
 location:
-  lat: 40.7277778     # degree
-  long: -124.2425000  # degree
+  lattitude: 40.7277778     # degree
+  longitude: -124.2425000  # degree

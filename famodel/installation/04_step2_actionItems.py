@@ -1,5 +1,5 @@
 """
-Script to generate action items for transport, mobilization, and installation.
+loads material package saved in step1, loads vessel description, and creates action items for transport, mobilization, and installation.
 
 Steps
 -----
@@ -11,7 +11,7 @@ Dependencies
 None
 """
 
-'''loads material package saved in step1, loads vessel description, and creates action items for transport, mobilization, and installation.'''
+
 import matplotlib.pyplot as plt
 import os
 from fadesign.conceptual.conceptDesign import ConceptDesign
@@ -22,7 +22,7 @@ from fadesign.conceptual import metrics as mtr
 import yaml
 import networkx as nx
 import pickle 
-import install_helpers as inst
+from . import install_helpers as inst
 
 
 # FILE LOCATIONS
@@ -55,6 +55,9 @@ transport_V1 = inst.tranportTo_actionItem(vessel, distance2port)
 # Mobilization
 pkg = pkgs[0] # example
 mobilize_V1, vessel = inst.mobilizeM_actionItem(vessel, pkg)
+
+# TODO: This seems like the same as vessel.mobilize? Are these two different approaches that are duplicates? How do we map this out? 
+
 print(vessel['state'])
 # Installation
 pkg = pkgs[0] # example

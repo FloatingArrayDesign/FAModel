@@ -1,0 +1,244 @@
+conceptName: 'ILIA3_2'
+  
+load&save: 
+  save: False
+  load: True
+  saveFile: "./ILIA/ILIA_ng.pkl"
+  loadFile: "./ILIA/3_ILIA_X_grd.pkl"
+  
+configType: ARR  # Options: ARR (for array configuration) | OCC (for open cell configuration) | CCC (for close cell configuration). This option only works if not loading a graph already.
+
+# ARRAY CONFIGURATION
+arrayConfig: 
+  coordsFile: "./ILIA/HumboldtNECoords_67Tur_S6d725D_theta0.xlsx" 
+  nAnch: 4                                      # number of anchors per turbine
+  sAnch: 1141.27                                    # anchor spacing
+  gamma: 45                                     # anchor heading angle
+  sFactor: 0.75                                 # threshold factor for shared lines 
+
+# CELL CONFIGURATIONS
+openCellConfig:
+  degree: 4
+  graphType: 2
+  deltaX: 1.0
+  deltaY: 1.0
+  thetaC: 25.0
+  nAnch: 4
+  sPtfm: 1614
+  interDistF: 1.0
+  thtaF: 1.0
+  anchorHeading: 1
+  center_deltaX: 0.58    # as a ratio of sPtfm
+  center_deltaY: 0.0
+  cell2array: True                                                      # Enable array transformation (True/False)
+  Ns: [1, 1]                                                            # Periodicity vector, e.g., if graph has a degree of 2, Ns=[1, 1] will result in 3x3 
+                                                                        #   cell grid (repeated once in the +ve and -ve in x and y). This is restarted to appropriate values 
+                                                                        #   if wea is given to cover the full WEA.
+
+closeCellConfig:
+  subArrayName: 'Grid3x3'
+  sAnch: 500
+  sPtfm: 500
+  deltaX: 1.0
+  deltaY: 1.0
+  thetaC: 5.0
+  gamma: 45
+  interDistFX: 2.0
+  interDistFY: 3.0
+
+
+# INTERACTIVE GRAPH
+interactiveGraph:
+  removePtfm: True  
+  # rotatePtfm: True    
+  # removeAnch: True      
+  # removeSharedLine: True
+  # removeAnchorLine: True
+  # adjustAnchSpacing: True
+  # adjustPtfmSpacing: True
+  # addIntersect: True 
+  # multiplyAnchorLine: True
+
+# GLOBAL SETTINGS
+globalSettings:
+  minCap               : 1000                                                        # [MW] Minimum capacity required
+  turPow               : 15                                                          # [MW] rated power capacity of the turbine [assuming single turbine type]
+  nSS                  : 1                                                           # [-] Number of substations     
+  depth                : &Depth 800                                                  # [m] initial water depth assumption
+  rho                  : 1025                                                        # [kg/m^3] water density
+  g                    : 9.81                                                        # [m/s^2] gravitational acceleration
+  tension_FoS          : 2.0                                                         # [-] factor of safety
+  rFair                : &rFairDefault [58 ,0,-21]                                   # [m] fairlead location in the ++ quadrant
+  Fwind                : 1.95e6                                                      # [N] max steady thrust force
+  Fadd_rat             : 0.0                                                         # [-] additional force to thrust ratio (this could include mean drift wave force + current force)
+  xmax_rat             : 0.05                                                        # [-] max offset to water depth ratio
+  x_ampl               : 10.0                                                        # [m] wave-frequency maximum amplitude estimate
+  Fwindd               : 0                                                           # [N] max dynamic force that will be added to Fwind (e.g., turbulence)
+  Faddd                : 0                                                           # [N] max dynamic force  that will be added to Fadd=Fadd_rat*Fwind (e.g., wave-frequency, slow drift)
+  maxIter              : 30                                                          # maximum number of interations of updating the moorings  
+  conv_tol             : 0.04
+  DAFs                 : 1.0 
+  autoGroupMthd        : 2                                                          # Auto-grouping method to use (1: automorphisms or 2: unique length,
+                                                                                    #   heading, degree of connections, intersectZ if applicable, and shared status (recommended for speed)
+  autoGroupCriteria    : ['profile', 'intersectZ', 'length']                        # keys to group unique moorings (used when autoGroupMthd=2).  
+  removeRedundantGroups: True
+  onlyLinear           : False
+  anchorArrangements   : ['anchored-poly-chain']
+  sharedArrangements   : ['shared-poly']
+  netArrangements      : ['tendon-net-4D', 'non-tendon-net-4D']
+  createProjectClass   : True
+  # sizeAnchors          : True
+  # sizeAnchorsInd       : True
+  # anch_allVars         : [10, 2, 9.32]
+  # anch_keys            : ['L', 'D', 'zlug']
+  # anch_Xmin            : [5, 1, 3.3]
+  # anch_Xmax            : [50, 7, 16.7]
+  setback              : 1000                                                        # [m] wea setback   
+  inits                :
+    tenA               : 56636.77                                                    # [N]  Initial tension(Anchored)
+    tenS               : 89903.75                                                    # [N]  Initial tension(Shared)
+    klA                :   885.43                                                    # [N/m] Initial stiffness (Anchored)
+    klS                :   501.10                                                    # [N/m] Initial stiffness (Shared)
+    tenTen             :  3.17e+7                                                    # [N] Initial tendon tension (Hybrid)
+    w                  :    27.16                                                    # [kg/m] mass     
+
+    
+  # files:
+  bathFile          : "./sites/bathymetry_files/humboldt_bathymetry_318x224.txt"  # bathymetry file: bathymetry_sample.txt, humboldt_bathymetry_318x224.txt
+  soilFile          : "./sites/soil_files/soil_sample.txt"                        # soil file
+  weaFile           : "./sites/WEA_boundaries/Humboldt-NE.xlsx"                   # WEA boundary file  
+  raftFile          : "./VolturnUS-S_example.yaml"                                # RAFT file
+  
+  # configSettings
+  configSettings:
+    shared-poly     :               
+      shared        : True
+      lineTypeNames : [polyester]
+      allVars       : [0, 710.80, 200]
+      Xindices      : ['c','s',0]
+      Xmin          : [10]
+      Xmax          : [500]
+      dX_last       : [10]
+      rBFair        : *rFairDefault
+      constraints   :
+        - name: min_sag
+          index: 0
+          threshold: -60
+          offset: max       
+
+    anchored-poly   :
+      lineTypeNames : [polyester]
+      anchorType    : suction
+      allVars       : [130, 800, 200]
+      Xindices      : ['c', 's', 0]
+      Xmin          : [10]
+      Xmax          : [500]
+      dX_last       : [10]
+      rBFair        : *rFairDefault
+      constraints   :
+        - name: rope_contact
+          index: 0
+          threshold: 5.0
+          offset: min
+    
+    anchored-poly-chain   :
+      lineTypeNames : [chain, polyester]
+      anchorType    : suction
+      allVars       : [130, 25, 110, 0, 1147, 200]
+      Xindices      : ['c', 'c', 'c', 'c', 's', 0]
+      Xmin          : [10]
+      Xmax          : [500]
+      dX_last       : [10]
+      rBFair        : *rFairDefault
+      constraints   :
+        - name: rope_contact
+          index: 1
+          threshold: 5.0
+          offset: min          
+
+    anchored-chain-poly-chain   :
+      lineTypeNames : [chain, polyester, chain]
+      anchorType    : suction
+      allVars       : [130, 250, 120, 0, 1147, 200, 0, 100, 120]
+      Xindices      : ['c', 'c', 'c', 'c', 's', 0, 'c', 'c', 'c']
+      Xmin          : [10]
+      Xmax          : [500]
+      dX_last       : [10]
+      rBFair        : *rFairDefault
+      constraints   :
+        - name: rope_contact
+          index: 1
+          threshold: 5.0
+          offset: min     
+
+    non-tendon-net-2D:
+      lineTypeNames : [polyester]
+      allVars       : [50, 800, 100]
+      Xindices      : [0, 's', 1]
+      Xmin          : [10, 10]
+      Xmax          : [500, 500]
+      dX_last       : [10, 10]    
+      intersectDeg  : 2
+      tendON        : False
+      rBFair        : *rFairDefault    
+      constraints   : 
+        - name: min_sag
+          index: 0
+          threshold: -60
+          offset: max
+      
+    tendon-net-2D:
+      lineTypeNames : [polyester, polyester]
+      allVars       : [50, 300, 100, 800, 100]
+      Xindices      : [0, 1, 2, 's', 3]
+      Xmin          : [10, 10, 10, 10]
+      Xmax          : [500, *Depth, 500, 500]
+      dX_last       : [10, 10, 10, 10]    
+      intersectDeg  : 2
+      tendON        : True
+      rBFair        : *rFairDefault    
+      constraints   : 
+        - name: min_tension
+          index: 0
+          threshold: 100
+          offset: min
+        - name: min_sag
+          index: 1
+          threshold: -60
+          offset: max
+
+    non-tendon-net-4D:
+      lineTypeNames : [polyester, polyester]
+      allVars       : [50, 800, 100, 800, 100]
+      Xindices      : [0, 's', 1, 's', 1]
+      Xmin          : [10, 10]
+      Xmax          : [500, 500]
+      dX_last       : [10, 10]    
+      intersectDeg  : 2
+      tendON        : False
+      rBFair        : *rFairDefault    
+      constraints   : 
+        - name: min_sag
+          index: 0
+          threshold: -60
+          offset: max
+
+    tendon-net-4D:  
+      lineTypeNames : [polyester, polyester, polyester]
+      allVars       : [50, 300, 100, 800, 100, 800, 100]
+      Xindices      : [0, 1, 2, 's', 3, 's', 3]
+      Xmin          : [10, 10, 10, 10]
+      Xmax          : [500, *Depth, 500, 500]
+      dX_last       : [10, 10, 10, 10]    
+      intersectDeg  : 2
+      tendON        : False
+      rBFair        : *rFairDefault    
+      constraints   : 
+        - name: min_tension
+          index: 0
+          threshold: 100
+          offset: min
+        - name: min_sag
+          index: 1
+          threshold: -60
+          offset: max    

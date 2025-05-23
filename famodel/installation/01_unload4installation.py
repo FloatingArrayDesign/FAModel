@@ -1,6 +1,8 @@
 """
 Script to unload a project class from a ConceptDesign class.
 
+This just sets up a project, does not test the install model. 
+
 Steps
 -----
 1. Load the ConceptDesign object.
@@ -28,7 +30,7 @@ plt.rcParams['font.serif'] = ['Times New Roman']
 # ILIA | 3_ILIA_1P2C_grd_mini (caseI for installation)
 
 category    = "ILIA"
-conceptName = "3_ILIA_1P2C_grd_mini"
+conceptName = "3_ILIA_al[cr]_grd"
 
 # FILE LOCATIONS
 filePath = os.path.dirname(os.path.abspath(__file__))

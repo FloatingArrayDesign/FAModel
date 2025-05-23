@@ -4,8 +4,8 @@ __author__ = "Rudy Alkarem"
 
 
 import heapq
-from fadesign.installation.port import Port
-from fadesign.installation.vessel import Vessel
+from .port import Port
+from .vessel import Vessel
 
 
 class InstallManager:
@@ -151,6 +151,10 @@ class InstallManager:
     def run(self):
         """
         Run the installation phase simulation.
+        This method processes scheduled events in the priority queue, executing actions
+        and updating the current time.
+        It continues until all events have been processed.
+        The method also logs each event as it is processed.
         
         Parameters
         ----------
@@ -160,12 +164,21 @@ class InstallManager:
         -------
         None
         """
+
+        print("Events:")
+        print(self.events) # how is this determined? How do we loop through actions? What level is actions at? <-- each event has an action
         while self.events:
-            t, agent, action, params = heapq.heappop(self.events)
+            t, agent, action, params = heapq.heappop(self.events) # each event is made of different agents with their own actions. 
+            print(f"Event: {t}, {agent.name}, {action}, {params}")
             self.now = t
-            func = getattr(agent, action)
-            completed, new_events = func(t, **params)
+            func = getattr(agent, action) # get the function to call: agent.action (t, params)
+            # TODO: what functions can be called here? How do we keep them consistent with the same output formatting?
+                # all functions that are in the vessel class and port class. Do we want these all called? How does functions in install_helpers relate?
+            completed, new_events = func(t, **params) # call funcion: agent.action(t, params)
+
             self.logs.append({"time": t, "agent": agent.name, "action": action})
+
+            # TODO: what does this do? <-- schedules events that might be triggered by the current event? 
             for evt in new_events:
                 self.scheduleEvent(*evt)
     
@@ -183,6 +196,9 @@ class InstallManager:
         ok : bool
             True if weather conditions are suitable, False otherwise.
         """
+
+        # TODO
+
         return True
     
     def createPkgs(self, project, stageMode):
@@ -212,6 +228,7 @@ class InstallManager:
         # Stage Mode = 1
         def createPkg(moor):
             """
+            NOT A PUBLIC FUNCTION
             Create a package of components from a mooring system.
 
             Parameters

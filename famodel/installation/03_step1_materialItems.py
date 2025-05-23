@@ -85,7 +85,8 @@ def create_mtrlPkg(moor):
 
 # CONCEPT CATEGORY & NAME
 category    = "ILIA"  # ILIA | ILSA | SLIA | SLSA | hybrid 
-conceptName = "3_ILIA_1P2C_grd_mini"
+conceptName = "3_ILIA_al[cr]_grd"
+
 # FILE LOCATIONS
 filePath     = os.path.dirname(os.path.abspath(__file__))
 inputFile    = os.path.join(filePath, category, f"proj_{conceptName}.yaml")

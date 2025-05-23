@@ -1,10 +1,50 @@
 # Vessel general descriptsion
+# [storage_space, max_deck_load, anchor_loading_speed, pile_fixed_install_time, mobilization_time] are not real data, just filler numbers to get it to run
+
+### Vessel type structure ###
+# VesselType:
+#   name: # Name of the vessel type
+#   type: # Type of the vessel (e.g., AHTS, MPSV, Barge, Tug)
+#   specs: # placeholder
+#     vessel_specs: # Placeholder for vessel specifications
+#       pile_fixed_install_time: # Time it takes to install a pile (in hours)
+#       line_fixed_install_time: # Time it takes to install a line (in hours)
+#       mobilization_time: # hrs (time it takes to mobilize the vessel)
+#     bollardPull: # Bollard pull of the vessel (in metric tons)
+#     transport_specs: # Placeholder for transport specifications
+#       transit_speed: # Transit speed of the vessel (in meters per second)
+#     storage_specs: # Placeholder for storage specifications
+#       max_cargo: # Maximum cargo capacity of the vessel (in metric tons)
+#       max_deck_space: # Maximum deck space of the vessel (in square meters)
+#       max_deck_load: # Maximum deck load of the vessel (in metric tons)
+#       max_spool_capacity: # Maximum spool capacity of the vessel (in metric tons)
+#       winch_speed: # Winch speed of the vessel (in meters per minute)
+#       anchor_loading_speed: # Anchor loading speed of the vessel (in unspecified units)
+#     storage: # Placeholder for storage specifications
+#       Mode1: # Placeholder for storage mode 1
+#         material: # List of materials in storage mode 1
+#         quantity: # List of quantities for each material in storage mode 1
+#       Mode2: # Placeholder for storage mode 2
+#         material: # List of materials in storage mode 2
+#         quantity: # List of quantities for each material in storage mode 2
+#       etc. # Additional storage modes can be added as needed
+
 
 AHTS: # Anchor Handling Towing Supply vessel
+  vessel_specs:
+    pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
+    line_fixed_install_time : 4 # hrs (time it takes to install a line, either anchored or shared)
+    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
   bollardPull: 200 # mT
-  speed: 7.7       # m/s
-  winchSpeed: 11.5   # m/min
-  hookupTime: 4    # hrs (time it takes to hook up a line (either anchored or shared))
+  transport_specs:
+    transit_speed: 7.7       # m/s
+  storage_specs:
+    max_cargo: 2000 # mT
+    max_deck_space: 1000 # m2
+    max_deck_load: 2000 # mT
+    max_spool_capacity: 1000 # mT
+    winch_speed: 11.5   # m/min
+    anchor_loading_speed: 5 
   storage:
     Mode1:
       material: ['pile', 'poly', 'chain', 'gear']
@@ -14,10 +54,20 @@ AHTS: # Anchor Handling Towing Supply vessel
       quantity: [4, 2]
 
 MPSV: # Multi-Purpose Supply Vessel
+  vessel_specs:
+    pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
+    line_fixed_install_time : 5 # hrs (time it takes to install a line, either anchored or shared)
+    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
   bollardPull: 100 # mT
-  speed: 7.7       # m/s
-  winchSpeed: 18   # m/min
-  hookupTime: 5    # hrs
+  transport_specs:
+    transit_speed: 7.7       # m/s
+  storage_specs:
+    max_cargo: 2000 # mT
+    max_deck_space: 1000 # m2
+    max_deck_load: 2000 # mT
+    max_spool_capacity: 1000 # mT
+    winch_speed: 18   # m/min
+    anchor_loading_speed: 5 
   storage:
     Mode1:
       material: ['pile', 'poly', 'chain']
@@ -27,8 +77,17 @@ MPSV: # Multi-Purpose Supply Vessel
       quantity: [3]
   
 Barge: # Usually with MPSV
-  speed: 7.7       # m/s
-  winchSpeed: 18   # m/min
+  vessel_specs:
+      mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
+  transport_specs:
+    transit_speed: 7.7       # m/s
+  storage_specs:
+    max_cargo: 2000 # mT
+    max_deck_space: 1000 # m2
+    max_deck_load: 2000 # mT
+    max_spool_capacity: 1000 # mT
+    winch_speed: 18   # m/min
+    anchor_loading_speed: 5 
   storage:
     Mode1:
       material: ['pile']
@@ -42,4 +101,5 @@ Barge: # Usually with MPSV
 
 Tug:    
   bollardPull: 100 # mT
-  speed: 7.7       # m/s
+  transport_specs:
+    transit_speed: 7.7       # m/s

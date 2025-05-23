@@ -43,8 +43,7 @@ class Port:
             "wet_storage": self.specs['storage_specs']['wet_storage_capacity'], 
             "log": []
         }
-        
-        self.r = [portDisc['lattitude'], portDisc['longitude']]
+        self.r = [portDisc['location']['lattitude'], portDisc['location']['longitude']]
         self.pkgs = {}
 
         # misc
@@ -82,7 +81,8 @@ class Port:
                 if pkg["obj"]["type"]["material"]=="chain":
                     chinLineLength += pkg["length"]
                     chinPkgs.append(pkg)
-            
+        
+        # TODO: can we generalize this beyond polyester and chain? Any number of lines and line types?
         # Store polyester lines
         # Compute number of reels required to roll all polyester lines in pkgs
         reelCount = np.ceil(polyLineLength/self.reel_refCap)
