@@ -32,7 +32,7 @@ dependencies:
       - kiwisolver==1.4.5
       - matplotlib==3.8.0
       - moorpy==1.0.1
-      - numpy==1.26.0
+      - numpy
       - packaging==23.1
       - pandas==2.2.3
       - pillow==10.0.1
