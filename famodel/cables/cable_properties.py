@@ -32,7 +32,7 @@ def loadCableProps(source):
         import os
         dir = os.path.dirname(os.path.realpath(__file__))
         print(dir)
-        with open(os.path.join(dir,"CableProps_default.yaml")) as file:
+        with open(os.path.join(dir,"cableProps_default.yaml")) as file:
             source = yaml.load(file, Loader=yaml.FullLoader)
         
     elif type(source) is str:
@@ -268,7 +268,7 @@ def getBuoyProps(V, buoy_type, buoyProps=None, source=None, name="", rho=1025.0,
 
 if __name__ == '__main__':
     
-    cableProps = loadCableProps('CableProps_default.yaml')
+    cableProps = loadCableProps('cableProps_default.yaml')
     
     As = [95,120, 150, 185, 200, 300, 400, 500, 630, 800]
     

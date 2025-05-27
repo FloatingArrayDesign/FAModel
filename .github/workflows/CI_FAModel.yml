@@ -50,6 +50,10 @@ jobs:
               run: |
                   pip install git+https://github.com/NREL/MoorPy@dev
 
+            - name: Conda install numpy
+              run: |
+                  pip install numpy
+
             - name: Example run
               run: |
                   cd examples
