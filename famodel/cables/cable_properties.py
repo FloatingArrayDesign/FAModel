@@ -31,7 +31,6 @@ def loadCableProps(source):
     elif source is None or source=="default":
         import os
         dir = os.path.dirname(os.path.realpath(__file__))
-        print(dir)
         with open(os.path.join(dir,"cableProps_default.yaml")) as file:
             source = yaml.load(file, Loader=yaml.FullLoader)
         
