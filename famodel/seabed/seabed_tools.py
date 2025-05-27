@@ -12,33 +12,33 @@ import numpy as np
 
 def readBathymetryFile(filename, dtype=float):
 
-    f = open(filename, 'r')
-    # skip the header
-    line = next(f)
-    # collect the number of grid values in the x and y directions from the second and third lines
-    line = next(f)
-    nGridX = int(line.split()[1])
-    line = next(f)
-    nGridY = int(line.split()[1])
-    # allocate the Xs, Ys, and main bathymetry grid arrays
-    bathGrid_Xs = np.zeros(nGridX)
-    bathGrid_Ys = np.zeros(nGridY)
-    bathGrid = np.zeros([nGridY, nGridX], dtype=dtype)  # MH swapped order June 30
-    # read in the fourth line to the Xs array
-    line = next(f)
-    bathGrid_Xs = [float(line.split()[i]) for i in range(nGridX)]
-    strlist = []
-    # read in the remaining lines in the file into the Ys array (first entry) and the main bathymetry grid
-    for i in range(nGridY):
+    with open(filename, 'r') as f:
+        # skip the header
         line = next(f)
-        entries = line.split()
-        bathGrid_Ys[i] = entries[0]
-        if dtype==float:
-            bathGrid[i,:] = entries[1:]
+        # collect the number of grid values in the x and y directions from the second and third lines
+        line = next(f)
+        nGridX = int(line.split()[1])
+        line = next(f)
+        nGridY = int(line.split()[1])
+        # allocate the Xs, Ys, and main bathymetry grid arrays
+        bathGrid_Xs = np.zeros(nGridX)
+        bathGrid_Ys = np.zeros(nGridY)
+        bathGrid = np.zeros([nGridY, nGridX], dtype=dtype)  # MH swapped order June 30
+        # read in the fourth line to the Xs array
+        line = next(f)
+        bathGrid_Xs = [float(line.split()[i]) for i in range(nGridX)]
+        strlist = []
+        # read in the remaining lines in the file into the Ys array (first entry) and the main bathymetry grid
+        for i in range(nGridY):
+            line = next(f)
+            entries = line.split()
+            bathGrid_Ys[i] = entries[0]
+            if dtype==float:
+                bathGrid[i,:] = entries[1:]
+            if dtype==str:
+                strlist.append(entries[1:])
         if dtype==str:
-            strlist.append(entries[1:])
-    if dtype==str:
-        bathGrid = np.array(strlist)
+            bathGrid = np.array(strlist)
     
     return bathGrid_Xs, bathGrid_Ys, bathGrid
 
