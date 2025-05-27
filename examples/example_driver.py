@@ -29,6 +29,7 @@ ontology_file = 'OntologySample200m.yaml'
 
 #%% Section 1: Project without RAFT
 print('Creating project without RAFT\n')
+print(os.getcwd())
 # create project object
 project = Project(file=ontology_file,raft=False)
 # create moorpy system of the array, include cables in the system
