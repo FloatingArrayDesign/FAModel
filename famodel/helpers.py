@@ -776,7 +776,7 @@ def getAnchors(lineAnch, arrayAnchor, proj):
     
     return(ad, mass)
 
-def adjustMooring(mooring, method = 'pretension', r=[0,0,0], project=None, target=1e6,
+def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, target=1e6,
                        i_line = 0, slope = 0.58 ):
     '''Custom function to adjust a mooring, called by
     Mooring.adjust. Fairlead point should have already

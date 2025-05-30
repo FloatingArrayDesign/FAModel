@@ -251,7 +251,27 @@ class Mooring(Edge):
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
         if self.adjuster:
-            self.adjuster(self, r_centerB, u, project=project, **kwargs)
+            
+            #if i_line is not defined, assumed segment 0 will be adjusted
+            if not hasattr(self,'i_line'):
+                self.i_line = 0
+       
+            
+            if hasattr(self,'slope'):
+                self.adjuster(self, method = 'pretension', r=r_centerB, project=project, target = self.target, i_line = self.i_line, slope = self.slope)
+            
+            else:
+                
+                #move anchor based on set spacing then adjust line length
+                xy_loc = r_centerB[:2] + (self.span + rad_fair[1])*u
+                if project:
+                    self.dd['zAnchor'] = -project.getDepthAtLocation(xy_loc[0],xy_loc[1])
+                    self.z_anch = self.dd['zAnchor']
+                else:
+                    print('Warning: depth of mooring line, anchor, and subsystem must be updated manually.')
+                self.setEndPosition(np.hstack([r_centerB[:2] + (self.span + rad_fair[1])*u, self.z_anch]), 'a', sink=True)
+
+                self.adjuster(self, method = 'horizontal', r=r_centerB, project=project, target = self.target, i_line = self.i_line)
             
         elif self.shared == 1: # set position of end A at platform end A
             self.setEndPosition(np.hstack([r_centerA[:2] - rad_fair[0]*u, z_fair[0] + r_centerA[2]]),'a')

@@ -1484,7 +1484,8 @@ class Project():
      
     def addMooring(self, id=None, endA=None, endB=None, heading=0, dd={}, 
                    section_types=[], section_lengths=[], 
-                   connectors=[], span=0, shared=0, reposition=False):
+                   connectors=[], span=0, shared=0, reposition=False, adjuster=None,
+                   method = 'horizontal', target = None, i_line = 0):
         '''
         Function to create a mooring object  and save in mooringList
         Optionally does the following:
@@ -1521,7 +1522,14 @@ class Project():
             The default is 0. Used to develop a dd, unused if dd provided.
         shared : int, optional
             Describes if a mooring line is shared (1), sahred half line (2) or anchored (0). The default is 0.
-
+        adjuster : Function, optional
+            Function to adjust mooring lines for different depths. The default is none
+        method : str, optional
+            Method 'horizontal' or 'pretension' for adjuster function
+        target : float, optional
+            Target pretension or horizontal tension for adjuster function. if none, will calculate
+        i_line: int, optional
+            The index of the line segment to adjust. default is 0
         Returns
         -------
         mooring : mooring object
@@ -1556,6 +1564,20 @@ class Project():
                   'z_fair':self.platformList[id_part[0]].zFair if id_part else 0}
         
         mooring = Mooring(dd=dd, id=id) # create mooring object
+        
+        #calculate target pretension or horizontal tension if none provided
+        if adjuster != None and target == None:
+            targetdd = deepcopy(dd)
+            targetdd['zAnchor'] = self.depth
+            mooring.createSubsystem(dd)
+            
+            if method == 'horizontal':
+                mooring.target = np.linalg.norm(mooring.ss.fB_L[:2])
+            elif method =='pretension':
+                mooring.target = np.linalg.norm(mooring.ss.fB_L)
+            else:
+                raise Exception('Invalid adjustment method. Must be pretension or horizontal')
+        
         # update shared prop if needed
         if len(id_part)==2 and shared<1:
             shared = 1
@@ -1582,7 +1604,25 @@ class Project():
                 mooring.z_anch = -zAnew
         else:
             mooring.heading = np.degrees(heading)
+        
+        #add mooring adjuster if porivded
+        if adjuster!= None:
+            mooring.adjuster = adjuster 
+            mooring.i_line = i_line 
+            
+            # check if method is 'pretension' then save slope
+            if method == 'pretension':
                 
+                if dd:
+                    
+                    #calculate mooring slope using base depth
+                    #**** this assumes that the mooring system is designed for the base depth*****
+                    mooring.slope = self.depth / dd['span']
+                    
+                else:   
+                    
+                    mooring.slope = self.depth / span
+        
         self.mooringList[id] = mooring
         
         return(mooring)
