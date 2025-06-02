@@ -67,7 +67,64 @@ def unitVector(r):
     return r/L
 
 
+def loadYAML(filename):
+    '''
+    Loads a YAML file, allowing !include <filename> to include another yaml 
+    in the file.
 
+    Parameters
+    ----------
+    filename : str
+        Filename (including path if needed) of main yaml file to load
+
+    Returns
+    -------
+    info : dict
+        Dictionary loaded from yaml
+
+    '''
+    
+    with open(filename) as file:
+        loader = yaml.FullLoader 
+        loader.add_constructor('!include',yamlInclude)
+        project = yaml.load(file, Loader=loader)
+        if not project:
+            raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
+    
+    return(project)
+
+def yamlInclude(loader, node):
+    '''
+    Custom constructor that allows !include tag to include another yaml in
+    the main yaml
+
+    Parameters
+    ----------
+    loader : YAML loader object
+    node : YAML node
+        YAML node for include
+
+    Returns
+    -------
+    None.
+
+    '''
+    # pull out f
+    file_to_include = loader.construct_scalar(node)
+    # pull out absolute path of file
+    # if os.path.isabs(file_to_include):
+    #     included_yaml = file_to_include
+    # else:
+    #     dir = 
+    included_yaml = os.path.abspath(file_to_include)
+    try:
+        with open(included_yaml) as file:
+            return(yaml.load(file,Loader=loader.__class__))
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Included file {included_yaml} not found")
+    except Exception as err:
+        raise Exception(f"Error ocurred while loading included file {included_yaml}: {err}")
+    
 
 # ----- Cable routing support functions -----
 

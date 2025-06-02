@@ -34,7 +34,7 @@ from famodel.famodel_base import Node
 # Import select required helper functions
 from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
                             getMoorings, getAnchors, getFromDict, cleanDataTypes, 
-                            getStaticCables, getCableDesign,m2nm)
+                            getStaticCables, getCableDesign,m2nm, loadYAML)
 
 
 class Project():
@@ -129,7 +129,7 @@ class Project():
     
 
 
-    def load(self, info,raft=1):
+    def load(self, info, raft=True):
         '''
         Load a full set of project information from a dictionary or 
         YAML file. This calls other methods for each part of it.
@@ -141,10 +141,12 @@ class Project():
         '''
         # standard function to load dict if input is yaml
         if isinstance(info,str):
-            with open(info) as file:
-                project = yaml.load(file, Loader=yaml.FullLoader)
-                if not project:
-                    raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
+            
+            # with open(info) as file:
+            #     project = yaml.load(file, Loader=yaml.FullLoader)
+            #     if not project:
+            #         raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
+            project = loadYAML(info)
         else:
             project = info
         
@@ -161,7 +163,7 @@ class Project():
 
     # ----- Design loading/processing methods -----
     
-    def loadDesign(self, d, raft=1):
+    def loadDesign(self, d, raft=True):
         '''Load design information from a dictionary or YAML file
         (specified by input). This should be the design portion of
         the floating wind array ontology.'''
@@ -1485,7 +1487,8 @@ class Project():
     def addMooring(self, id=None, endA=None, endB=None, heading=0, dd={}, 
                    section_types=[], section_lengths=[], 
                    connectors=[], span=0, shared=0, reposition=False, adjuster=None,
-                   method = 'horizontal', target = None, i_line = 0):
+                   method = 'horizontal', target = None, i_line = 0, subsystem=None):
+
         '''
         Function to create a mooring object  and save in mooringList
         Optionally does the following:
@@ -1552,7 +1555,7 @@ class Project():
             else:
                 id = 'moor'+str(len(self.mooringList))
                 
-        if not dd:
+        if not dd and len(section_types) > 0:
             sections = [{'type':section_types[i],'L':section_lengths[i]} for i in range(len(section_types))]
             if len(connectors) == 0 and len(sections) != 0:
                 connectors = [{}]*len(sections)+1
@@ -1563,13 +1566,13 @@ class Project():
                   'rad_fair':self.platformList[id_part[0]].rFair if id_part else 0,
                   'z_fair':self.platformList[id_part[0]].zFair if id_part else 0}
         
-        mooring = Mooring(dd=dd, id=id) # create mooring object
+        mooring = Mooring(dd=dd, id=id, subsystem=subsystem) # create mooring object
         
         #calculate target pretension or horizontal tension if none provided
         if adjuster != None and target == None:
-            targetdd = deepcopy(dd)
+            targetdd = deepcopy(mooring.dd)
             targetdd['zAnchor'] = self.depth
-            mooring.createSubsystem(dd)
+            mooring.createSubsystem()
             
             if method == 'horizontal':
                 mooring.target = np.linalg.norm(mooring.ss.fB_L[:2])
@@ -1577,7 +1580,9 @@ class Project():
                 mooring.target = np.linalg.norm(mooring.ss.fB_L)
             else:
                 raise Exception('Invalid adjustment method. Must be pretension or horizontal')
-        
+        else:
+            mooring.target = target
+
         # update shared prop if needed
         if len(id_part)==2 and shared<1:
             shared = 1
