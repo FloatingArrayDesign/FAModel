@@ -833,6 +833,66 @@ def getAnchors(lineAnch, arrayAnchor, proj):
     
     return(ad, mass)
 
+def configureAdjuster(mooring, adjuster=None, method='horizontal',
+                      i_line=0, span=None, project=None, target=None):
+    '''Configures adjuster function for mooring object
+    
+    mooring : FAModel Mooring object
+    adjuster : function, optional
+        Function to adjust the mooring object
+    method : str
+        'horizontal' or 'pretension' ; method of adjusting the mooring
+    i_line : int
+        Line section number (0 is closest to end A) to adjust the length of 
+    span : float
+        Horizontal distance from fairlead to anchor (or fairlead to fairlead for shared lines)
+    project : FAModel project class 
+        Project class this mooring object is associated with. Required if adjuster function provided and 
+        target is not provided, or method=pretension
+    target : target value(s) for method - either pretension value or horizontal force value in x and y
+    
+    '''
+    #calculate target pretension or horizontal tension if none provided
+    if adjuster != None and target == None:
+        targetdd = deepcopy(mooring.dd)
+        if project == None:
+            raise Exception('Project class instance needs to be provided to determine target')
+        targetdd['zAnchor'] = project.depth
+        mooring.createSubsystem()
+        
+        if method == 'horizontal':
+            mooring.target = np.linalg.norm(mooring.ss.fB_L[:2])
+        elif method =='pretension':
+            mooring.target = np.linalg.norm(mooring.ss.fB_L)
+        else:
+            raise Exception('Invalid adjustment method. Must be pretension or horizontal')
+    else:
+        mooring.target = target
+    
+    if adjuster!= None:
+        mooring.adjuster = adjuster 
+        mooring.i_line = i_line 
+        
+        # check if method is 'pretension' then save slope
+        if method == 'pretension':
+            
+            if project == None:
+                raise Exception('Project class instance needs to be provided to determine slope')
+            
+            if mooring.dd:
+                
+                #calculate mooring slope using base depth
+                #**** this assumes that the mooring system is designed for the base depth*****
+                mooring.slope = project.depth / mooring.dd['span']
+                
+            else:   
+                if span:
+                    mooring.slope = project.depth / span
+                else:
+                    raise Exception('Span required to perform adjustment')
+                    
+    return(mooring)
+
 def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, target=1e6,
                        i_line = 0, slope = 0.58 ):
     '''Custom function to adjust a mooring, called by
@@ -857,7 +917,7 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
         depth over span for baseline case (to match same geometric angle for 'pretension' option)
     
         '''
-    from fadesign.fadsolvers import dsolve2
+    from moorpy.helpers import dsolve2
     ss = mooring.ss  # shorthand for the mooring's subsystem
 
     if method == 'pretension':
