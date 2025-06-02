@@ -1453,8 +1453,8 @@ class Project():
         if id==None:
             id = 'fowt'+len(self.platformList)
         # optional information to add
-        platformType = getFromDict(kwargs, 'platform_type', dtype=int, default=None)
-        moor_headings = getFromDict(kwargs,'mooring_headings', default=[])
+        platformType = getFromDict(kwargs, 'platform_type', dtype=int, default=[])
+        moor_headings = getFromDict(kwargs,'mooring_headings',shape = -1, default = []) 
         RAFTDict = getFromDict(kwargs,'raft_platform_dict', default = {})
         hydrostatics = getFromDict(kwargs, 'hydrostatics', default= {})
         
