@@ -65,7 +65,6 @@ def test_bathymetry():
     
     # plot to see if it worked
     #project.plot3d()
-    plt.show()
 
 def test_create_components():
     dir = os.path.dirname(os.path.realpath(__file__))
