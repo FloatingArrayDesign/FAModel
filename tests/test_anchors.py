@@ -1,11 +1,13 @@
 # tests anchor capacity and load functionality
 from famodel.project import Project
 import numpy as np
+import os
 
 
 def test_anchor_loads():
     # load in famodel project 
-    project = Project(file='tests/testOntology.yaml', raft=False)
+    dir = os.path.dirname(os.path.realpath(__file__))
+    project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
     
@@ -18,7 +20,8 @@ def test_anchor_loads():
 
 def test_anchor_capacities():
     # load in famodel project (suction pile anchor)
-    project = Project(file='tests/testOntology.yaml', raft=False)
+    dir = os.path.dirname(os.path.realpath(__file__))
+    project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
     
