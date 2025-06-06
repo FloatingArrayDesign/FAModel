@@ -34,9 +34,7 @@ Naming convention per Leah: The naming convention used generally for the yamls d
 
 The 01-05 steps were set up with a 3_ILIA_1P2C_grd_mini.yaml, which (I believe) is the same configuration as the Delmar_installation_staging_tool.xlsx, so it that can serve as a verification of this model. if we can't find that input configuration, then we can remake it with the instructions in the `Conceptual Desgin Tutorial.docx` file. 
 
-For getting things running, I changed to ______, from `FADesign/scripts/concepts/ILIA/______`. 
-
-# Copilot Explaination of the tool
+# Copilot Explaination of the tool (outdated)
 
 ## Prompt: Explain the tool
 
@@ -67,7 +65,7 @@ The tool is designed to:
    - Found in install_helpers.py, these functions handle specific tasks like transporting materials, mobilizing vessels, and visualizing actions.
 
 4. **Configuration Files**:
-   - YAML files (e.g., VolturnUS-S_example.yaml, `presetLogistics.yaml`) define input parameters for the simulations, such as mooring configurations and logistics setups.
+   - YAML files define input parameters for the simulations, such as mooring configurations and logistics setups.
 
 5. **Spreadsheet Tool**:
    - `Delmar_installation_staging_tool.xlsm` appears to be a verification or supplementary tool for the model.

@@ -96,7 +96,7 @@ class InstallManager:
         agent : object
             Agent responsible for the action.
         action : str
-            Name of the action to perform.
+            Name of the action to perform. # TODO: this may not be correct, may need to be an action object instead.
         params : dict
             Parameters for the action.
             

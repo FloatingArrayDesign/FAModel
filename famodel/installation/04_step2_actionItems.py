@@ -44,7 +44,7 @@ for vesselName in vesselNames:
     vessel['state'] = {
         'remaining_cargo': vessel['storage_specs']['max_cargo'],
         'remaining_deck_space': vessel['storage_specs']['max_deck_space'],
-        'remaining_spool_capacity': vessel['storage_specs']['spool_capacity'],
+        'remaining_spool_capacity': vessel['storage_specs']['max_spool_capacity'],
         'assigned_materials': []
         }
     

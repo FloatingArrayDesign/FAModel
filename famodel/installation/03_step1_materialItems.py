@@ -99,6 +99,6 @@ mtrlPkgs = []
 for moor in proj.mooringList.values():
     mtrlPkgs.append(create_mtrlPkg(moor))
 
-output = os.path.join(filePath, "mtrlPkgs.pkl")
+output = os.path.join(filePath, "mtrlPkgs.pkl") # TODO: make intermediate files saved to a separate folder
 with open(output, 'wb') as f:
     pickle.dump(mtrlPkgs, f)
