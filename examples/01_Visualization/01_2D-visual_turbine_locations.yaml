@@ -1,0 +1,19 @@
+
+# ----- Array-level inputs -----
+
+# Wind turbine array layout
+array:
+    keys : [ID, topsideID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
+    data : #    ID#        ID#        ID#          [m]             [m]           [deg]
+        -  [fowt0,     0,         1,           0,          -1600,         -1600,          0   ]
+        -  [fowt1,     0,         1,           0,          0,             -1600,          0     ]    # 2 array, shared moorings
+        -  [fowt2,     0,         1,           0,          1600,           -1600,          0   ]
+        -  [fowt3,     0,         1,         0,          -1600,          0,            0   ]
+        -  [fowt4,     0,         1,         0,          0,              0,            0   ]
+        -  [fowt5,     0,         1,         0,          1600,              0,            0   ]
+        -  [fowt6,     0,         1,        0,          -1600,           1600,            0   ]
+        -  [fowt7,     0,         1,         0,          0,              1600,            0   ]
+        -  [fowt8,     0,         1,         0,          1600,           1600,            0   ] 
+
+platform:
+  type         :  FOWT

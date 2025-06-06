@@ -91,6 +91,9 @@ class Project():
         self.lat0  = lat  # lattitude of site reference point [deg]
         self.lon0  = lon  # longitude of site reference point [deg]
         self.g = 9.81
+        self.rho_water = 1025 # density of water (default to saltwater) [kg/m^3]
+        self.rho_air = 1.225 # density of air [kg/m^3]
+        self.mu_air = 1.81e-5 # dynamic viscosity of air [Pa*s]
 
         # Project boundary (vertical stack of x,y coordinate pairs [m])
         self.boundary = np.zeros([0,2])
@@ -107,6 +110,7 @@ class Project():
         self.seabed_type = 'clay'  # switch of which soil property set to use ('clay', 'sand', or 'rock')
         
         # soil parameters at each grid point
+        self.soilProps = {}
         self.soil_mode  = 0                # soil/anchor model level to use (0: none; 1: simple categories; 2: quantitative)
         self.soil_class = [["none"]]       # soil classification name ('clay', 'sand', or 'rock' with optional modifiers)
         self.soil_gamma = np.zeros((1,1))  # soil effective unit weight [kPa] (all soils)
@@ -152,7 +156,8 @@ class Project():
         
         # look for site section
         # call load site method
-        self.loadSite(project['site'])
+        if 'site' in project:
+            self.loadSite(project['site'])
         
         # look for design section
         # call load design method
@@ -385,8 +390,8 @@ class Project():
 
                 # add platform 
                 self.addPlatform(r=r, id=arrayInfo[i]['ID'], phi=arrayInfo[i]['heading_adjust'], 
-                                 entity=platforms[pfID]['type'], rFair=platforms[pfID]['rFair'],
-                                 zFair=platforms[pfID]['zFair'],platform_type=pfID)
+                                 entity=platforms[pfID]['type'], rFair=platforms[pfID].get('rFair',0),
+                                 zFair=platforms[pfID].get('zFair',0),platform_type=pfID)
                                  
         # check that all necessary sections of design dictionary exist
         if arrayInfo and lineConfigs:
@@ -2503,7 +2508,7 @@ class Project():
                         pass
                     elif isinstance(comp,DynamicCable):
                         # create subsystem for dynamic cable
-                        comp.createSubsystem(pristine=pristineLines)
+                        comp.createSubsystem(pristine=pristineLines)  
 
                         if pristineLines:                           
                             ssloc = comp.ss
@@ -3835,7 +3840,7 @@ class Project():
                 if not isinstance(s,list) and not 'array' in type(s).__name__:
                     sp[k] = [s]
             sps[ks] = sp
-        if hasattr(self,'soilProps'):                       
+        if hasattr(self,'soilProps') and self.soilProps:                       
             if len(self.soil_x)>1:
                 site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
                                   'soil_types': sps}# [[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
@@ -4150,9 +4155,10 @@ class Project():
                   'cables':cables,'dynamic_cable_configs':cableConfigs,'cable_types':cableTypes, 
                   'cable_appendages':appendageTypes}
 
-        output = cleanDataTypes(output)
+        output = cleanDataTypes(output, convert_lists=True)
         import ruamel.yaml
         yaml = ruamel.yaml.YAML()
+        
         # write out to file
         with open(file,'w') as f:    
             yaml.dump(output,f)

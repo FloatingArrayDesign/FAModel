@@ -6,6 +6,7 @@ import os
 import re
 from copy import deepcopy
 from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCableProps,loadBuoyProps
+import ruamel
 
 
 
@@ -258,19 +259,19 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
                 if a>2*np.pi:
                     atmh[j] = a-2*np.pi
         else:
-            atmh = at.mooring_headings + at.phi
+            atmh = np.array(mhs) #at.mooring_headings + at.phi
         #attheadings.extend(atmh)
-        attheadings.extend(np.pi/2 - atmh)
+        attheadings.extend(np.pi/2 - atmh) # convert to 0 rad at East going CCW
         flipheads = True
     interfere_h = check_headings(attheadings,headnew,rad_buff)
     # if the headings interfere, adjust them by angle buffer
     for mhead in interfere_h:
         ang_diff_dir = np.sign(headnew - mhead) if headnew != mhead else 1
-        headnew = mhead + rad_buff*endA_dir*ang_diff_dir #headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
+        headnew = mhead - rad_buff*endA_dir*ang_diff_dir #headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
         interfere_hi = check_headings(attheadings,headnew,rad_buff)
         for i in interfere_hi:
             # try rotating other way
-            headnew = mhead - rad_buff*endA_dir*ang_diff_dir
+            headnew = mhead + rad_buff*endA_dir*ang_diff_dir
             # re-check offsets
             interfere_hij = check_headings(attheadings,headnew,rad_buff)
             if not interfere_hij:
@@ -993,11 +994,33 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
 
     else:
         print('Invalid method. Must be either pretension or horizontal')
+        
+def yamlList(in_list):
+    '''
+    Function to convert a list to a ruaml list class with flow style set.
+    Helpful for unloading ontologies in a readable manner.
 
-def cleanDataTypes(info):
+    Parameters
+    ----------
+    in_list : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    '''
+    yaml_list = ruamel.yaml.comments.CommentedSeq(in_list)
+    yaml_list.fa.set_flow_style()
+    return(yaml_list)
+
+def cleanDataTypes(info, convert_lists=True):
     '''
     cleans data types in a dictionary to be yaml-writeable data types, usually for 
     dumping a yaml file i.e. in project.unload()
+    
+    Will convert lists to a ruamel.yaml list object with flow style set for ease of reading
+    when unloading an ontology
     
     Example: will convert a numpy float64 to regular float
 
@@ -1023,7 +1046,7 @@ def cleanDataTypes(info):
             valnew = int(val)
         else:
             valnew = val
-        #print(valnew)
+
         return(valnew)
     
     def gothroughdict(dat):
@@ -1039,15 +1062,23 @@ def cleanDataTypes(info):
         return(dat)
                 
     def gothroughlist(dat):
+        bottom_list = True
         for i,value in enumerate(dat):
             if isinstance(value,dict):
                 value = gothroughdict(value)
+                bottom_list = False
             elif isinstance(value,list):
                 value = gothroughlist(value)
+                bottom_list = False
             elif 'array' in type(value).__name__:
                 value = value.tolist()
                 value = gothroughlist(value)
+                bottom_list = False
+                
             dat[i] = fixType(value)
+        if bottom_list and convert_lists:
+            dat = yamlList(dat)
+            
         return(dat)
     
     # recursively go through and clean data types for everything in this dictionary
