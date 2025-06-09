@@ -5,6 +5,10 @@ These examples are designed to help users get acquainted with the package and ho
 The sample .yaml files may also be used as templates for the user's own floating array ontologies.
 The examples are described below:
 
+## Numbered Examples
+
+The numbered example folders (01-08) contain small isolated examples showing ontologies and driver files for basic functionalities. Within each folder, a number of sub-functionalities are shown individually. Currently, only the 01_Visualization folder is developed, as this is a work in progress. 
+
 ## FAModel project from a yaml file example
 This example shows how to make an FAModel project from a yaml file. The sample shows various possibilities for mooring and anchoring including shared moorings and shared anchors. It also shows some functionalities of FAModel including:
 - integration with MoorPy

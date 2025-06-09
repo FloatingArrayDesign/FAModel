@@ -182,6 +182,7 @@ class Project():
         # ===== load FAM-specific model parts =====
         
         # array table
+        arrayInfo = []
         if 'array' in d and d['array']['data']:
             arrayInfo = [dict(zip(d['array']['keys'], row)) for row in d['array']['data']]
         elif 'uniform_array' in d and d['uniform_array']:
@@ -384,14 +385,16 @@ class Project():
                     r = [arrayInfo[i]['x_location'],arrayInfo[i]['y_location'],arrayInfo[i]['z_location']]
 
                 elif 'z_location' in platforms[pfID]:
-                    r = [arrayInfo[i]['x_location'], arrayInfo[i]['y_location'],platforms[pfID]['z_location']],
+                    r = [arrayInfo[i]['x_location'], arrayInfo[i]['y_location'],platforms[pfID]['z_location']]
                 else: # assume 0 depth
                     r = [arrayInfo[i]['x_location'],arrayInfo[i]['y_location'],0]
 
                 # add platform 
+                print(r)
                 self.addPlatform(r=r, id=arrayInfo[i]['ID'], phi=arrayInfo[i]['heading_adjust'], 
                                  entity=platforms[pfID]['type'], rFair=platforms[pfID].get('rFair',0),
                                  zFair=platforms[pfID].get('zFair',0),platform_type=pfID)
+                print(self.platformList[arrayInfo[i]['ID']].r)
                                  
         # check that all necessary sections of design dictionary exist
         if arrayInfo and lineConfigs:
@@ -1977,11 +1980,16 @@ class Project():
             
                 if not bare:  # Add colorbar with label
                     cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)')
+        # if plot_seabed:
+        #     if len(self.soil_x) > 1 and len(self.soil_y) > 1:
+        #         sX, sY = np.meshgrid(self.soil_x, self.soil_y)
+        #         ax.scatter(sX, sY, self.soil_names)
                     
         if plot_boundary:
-            ax.plot(self.boundary[:,0], self.boundary[:,1], 'b-.',label='Lease Boundary')
-            for ez in self.exclusion:
-                ax.plot(ez[:,0], ez[:,1], 'r-.', label='Exclusion Zone')
+            if len(self.boundary) > 1:
+                ax.plot(self.boundary[:,0], self.boundary[:,1], 'b-.',label='Lease Boundary')
+                for ez in self.exclusion:
+                    ax.plot(ez[:,0], ez[:,1], 'r-.', label='Exclusion Zone')
             
         
         # Seabed ground/soil type (to update)

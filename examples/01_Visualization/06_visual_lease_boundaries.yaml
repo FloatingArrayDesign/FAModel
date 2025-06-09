@@ -1,0 +1,11 @@
+# Site condition information
+site:
+    general: {}
+    boundaries:  # project or lease area boundary, via file or vertex list
+        file:   # filename of x-y vertex coordinates [m] (alternative to x_y method below)
+        x_y:    # list of polygon vertices in order [m]
+          - [-2500, -2500]
+          - [-2500, -800] 
+          - [2500, -800]
+          - [2500, -2500]
+          - [-2500, -2500]

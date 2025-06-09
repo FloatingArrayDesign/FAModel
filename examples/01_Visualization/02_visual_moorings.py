@@ -19,6 +19,10 @@ project = Project(file=input_file,raft=False)
 # plot
 project.plot2d()
 
+# to moorings plot in 3d, we'll need to add depth and create a moorpy model of the system
+project.depth = 200 # depth added because we did not include the site conditions section of the yaml
+project.getMoorPyArray()
+project.plot3d()
+
 plt.show()
 
-project.unload()
