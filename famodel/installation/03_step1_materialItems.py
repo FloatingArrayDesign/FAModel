@@ -12,15 +12,9 @@ famodel.project.Project
 """
 
 '''Loads an ontology file and performs material itemization.'''
-import matplotlib.pyplot as plt
 import os
-from fadesign.conceptual.conceptDesign import ConceptDesign
-import numpy as np
 from famodel.project import Project
-from famodel.mooring.mooring import Mooring
-from fadesign.conceptual import metrics as mtr
 import pickle
-import networkx as nx
 
 
 def create_mtrlPkg(moor):

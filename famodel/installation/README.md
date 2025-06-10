@@ -34,7 +34,7 @@ Naming convention per Leah: The naming convention used generally for the yamls d
 
 The 01-05 steps were set up with a 3_ILIA_1P2C_grd_mini.yaml, which (I believe) is the same configuration as the Delmar_installation_staging_tool.xlsx, so it that can serve as a verification of this model. if we can't find that input configuration, then we can remake it with the instructions in the `Conceptual Desgin Tutorial.docx` file. 
 
-# Dependencies to FAD tools
+# Dependencies to FAD and FAM tools
 File: `01_unload4installation.py` Dependencies:
 ```python
 from fadesign.conceptual.conceptDesign import ConceptDesign

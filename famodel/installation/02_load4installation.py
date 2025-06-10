@@ -20,8 +20,6 @@ fadesign.conceptual.metrics
 
 import matplotlib.pyplot as plt
 import os
-from fadesign.conceptual.conceptDesign import ConceptDesign
-import numpy as np
 from famodel.project import Project
 from fadesign.conceptual import metrics as mtr
 

@@ -15,10 +15,6 @@ fadesign.conceptual.conceptDesign.ConceptDesign
 import matplotlib.pyplot as plt
 import os
 from fadesign.conceptual.conceptDesign import ConceptDesign
-from fadesign.conceptual import metrics as metr
-import numpy as np
-from famodel.project import Project
-import pandas as pd
 
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = ['Times New Roman']
