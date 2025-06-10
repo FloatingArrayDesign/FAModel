@@ -1,5 +1,7 @@
 "Vessel base class"
 
+# TODO: change dictionary reference to get() calls where appropriate
+
 __author__ = "Rudy Alkarem"
 
 from .port import Port
@@ -21,7 +23,7 @@ class Vessel:
         Current state of the vessel including position, cargo, etc.
     """
 
-    def __init__(self, file):
+    def __init__(self, file = None, vesselDisc=None):
         """
         Initialize a Vessel object from a configuration file.
         
@@ -34,63 +36,99 @@ class Vessel:
         -------
         None
         """
-        with open(file) as f:
-            vesselDisc = yaml.load(f, Loader=yaml.FullLoader)
 
-        self.name  = vesselDisc['name']
-        self.type  = vesselDisc['type']
+        if vesselDisc is None and file is not None:
+            with open(file) as f:
+                vesselDisc = yaml.load(f, Loader=yaml.FullLoader)
+        elif vesselDisc is not None and file is None:
+            pass
+        else:
+            raise ValueError("Either vesselDisc or file must be provided.")
+
+        self.name  = vesselDisc.get('name', "Unnamed Vessel")
+        self.type  = vesselDisc.get('type', "Untyped Vessel")
         self.specs = vesselDisc['specs']
         self.state = {
             "spool_storage": self.specs['storage_specs']['max_spool_capacity'],
             "deck_storage": self.specs['storage_specs']['max_deck_space'],
             "cargo_mass": self.specs['storage_specs']['max_cargo'],
+            "assigned_materials" : [],
             "log": []
         }
-        
 
-    def mobilize(self):
-        """
-        Mobilize the vessel to a specified location.
+        # Set up the action structures
+        self.transit_to = Action("transit_to")
+        self.transit_from = Action("transit_from")
+        self.mobilize_material = Action("mobilize")
+        self.install = Action("install")
         
+    def get_mobilize_action(self, pkg):
+        """
+        Mobilize action for the vessel at port.
+
+        This is a collection of code that looked duplicated between the vessel file and the install_helpers file.
+        More than anything it helps give sense of how to calculate the mobilization time based on the vessel specs and the package of materials.
+
         Parameters
         ----------
-        None
-            
+        pkg : dict
+            The package of materials to be mobilized.
+
         Returns
         -------
-        None
+        Action
+            Action for mobilizing the vessel.
         """
-        mobilize_material = Action("mobilize")
 
-        mobilize_material.addItem("load spooling", duration=1)
-        mobilize_material.addItem("load line", duration=2, dependencies=[("self", "load spooling")])
-        mobilize_material.addItem("load anchor", duration=1)
-        mobilize_material.addItem("load gear", duration=2)
-        mobilize_material.addItem("seafasten", duration=3, dependencies=[
-            ("self", "load spooling"), ("self", "load line"),
-            ("self", "load anchor"), ("self", "load gear")
-        ])        
-
-    def transit(self):
-        """
-        Transit the vessel to a destination.
+        # Old vessel mobilize action
+        # mobilize_material.addItem("load spooling", duration=1)
+        # mobilize_material.addItem("load line", duration=2, dependencies=[("self", "load spooling")])
+        # mobilize_material.addItem("load anchor", duration=1)
+        # mobilize_material.addItem("load gear", duration=2)
+        # mobilize_material.addItem("seafasten", duration=3, dependencies=[
+        #     ("self", "load spooling"), ("self", "load line"),
+        #     ("self", "load anchor"), ("self", "load gear")
+        # ])    
         
-        Parameters
-        ----------
-        None
-            
-        Returns
-        -------
-        None
-        """
-        transit_to   = Action("transit_to")
-        transit_from = Action("transit_from")
-        transit_to.addItem("transit_to_site", duration=18, dependencies=[("mobilize_material", "seafasten")])
-        transit_from.addItem("transit_from_site", duration=18, dependencies=[("transit_to", "transit_to_site"), ("install", "finalizing")])
+        # Old Mobilize function
+        # mobilize_material.addItem("mobilize_vessel", duration=self.specs['vessel_specs']['mobilization_time'], dependencies=[])
 
+        # Mobilize action from install_helpers
+        winch_speed = self.specs['storage_specs']['winch_speed']*60  # m/hr
+        anchor_loading_speed = self.specs['storage_specs']['anchor_loading_speed']
+        
+        self.mobilize_material.addItem("load spooling", duration=1, dependencies=[])
+        self.mobilize_material.addItem("load line", duration=0, dependencies=[self.mobilize_material.items["load spooling"]]) # these need to be ActionItems in an Action object
+        self.mobilize_material.addItem("load anchor", duration=0, dependencies=[])
+        self.mobilize_material.addItem("load gear", duration=2, dependencies=[])
+        self.mobilize_material.addItem("seafasten", duration=3, dependencies=[ # these need to be ActionItems in an Action object
+            self.mobilize_material.items["load spooling"], self.mobilize_material.items["load line"],
+            self.mobilize_material.items["load anchor"], self.mobilize_material.items["load gear"]
+        ])
+
+        for key, item in pkg.items():
+            item['obj'].inst['mobilized'] = True
+            if key.startswith("sec"):  # agnostic to line type
+                self.mobilize_material.items["load line"].duration += item['length'] / winch_speed
+                self.state['spool_storage'] -= item['length']
+                
+            elif key.startswith("anchor"):  # anchor
+                if item['load'] > self.specs['storage_specs']['max_deck_load']:
+                    raise ValueError(f"item {key} has a load higher than what the vessel can withstand.")
+                
+                self.mobilize_material.items["load anchor"].duration += anchor_loading_speed  # Assuming 1 anchor load = 1 * speed
+                self.state['deck_storage'] -= item['space']
+        
+            self.state['cargo_mass'] -= item['mass'] # remaining capacity
+            self.state['assigned_materials'].append(item['obj'])
+
+        return self.mobilize_material
 
     def mob(self, time, **kwargs):
         """
+
+        This function is not used yet. Example of what considering port location could look like. 
+        
         Initialize the vessel and mobilize to port
 
         Parameters
@@ -121,6 +159,127 @@ class Vessel:
             time = log["time"] + duration
 
         self.logState(time=time, new_state=self.state)
+
+    def get_transit_to_action(self, distance2port):
+        """
+        Transit actions for the vessel to a destination from port.
+        
+        Parameters
+        ----------
+        distance2port : float
+            The distance to the site from port.
+            
+        Returns
+        -------
+        transit_to : Action
+            Action for transiting to the site from port.
+        """
+
+        self.transit_to.addItem("transit_to_site", duration=distance2port/self.specs['transport_specs']['transit_speed'], dependencies=[self.mobilize_material.items["seafasten"]]) # these need to be ActionItems in an Action object
+
+        return self.transit_to
+
+
+    def get_install_action(self, pkg):
+        """
+        Creates an action item for installing a materials package from a vessel.
+
+        Parameters
+        ----------
+        pkg : dict
+            The package of materials to be installed.
+
+        Returns
+        -------
+        action : dict
+            The action item for installing the materials.
+        """
+        
+        # set up structure for filling in based on pkg
+        self.install.addItem("position onsite", duration=0, dependencies=[])
+        self.install.addItem("site survey", duration=0, dependencies=[self.install.items["position onsite"]])
+        self.install.addItem("install anchor", duration=0, dependencies=[self.install.items["position onsite"], self.install.items["site survey"]])
+        self.install.addItem("rerig deck", duration=0, dependencies=[self.install.items["position onsite"], self.install.items["install anchor"]])
+        self.install.addItem("install line", duration=0, dependencies=[self.install.items["install anchor"], self.install.items["rerig deck"]])
+        
+
+        def installItem(key):
+            '''
+            NOT A PUBLIC FUNCTION
+            This function installs an item and its dependencies.
+            It checks if the item is already installed and if not, it installs its dependencies first.
+            Then, it installs the item itself and updates the vessel state.
+
+            Parameters
+            ----------
+            key : str
+                The key of the item to be installed.
+
+            Returns
+            -------
+            None
+            '''
+            item = pkg.get(key)
+            for dep in item['dependencies']:
+                if not pkg[dep]['obj'].inst['installed']:
+                    installItem(dep)
+            
+            if key.startswith("anchor"):
+                self.install.items["position onsite"].duration = 2  # from PPI (only once per anchor)           
+                self.install.items["site survey"].duration = 2       # from PPI 
+                if item['obj'].dd['design']['type']=='suction':
+                    pile_fixed = self.specs["vessel_specs"]["pile_fixed_install_time"]
+                    pile_depth = 0.005 * abs(item['obj'].r[-1])
+
+                    self.install.items["install anchor"].duration = pile_fixed + pile_depth
+                else:
+                    # support for other anchor types
+                    pass
+                
+                self.state['deck_storage'] += item.get('space', 0)
+
+            elif key.startswith("sec"):
+                if self.install.items["install line"].duration ==0:
+                    # first line to install
+                    self.install.items["rerig deck"].duration = self.specs['storage_specs'].get('rerig_deck', 0)
+                winch_speed = self.specs['storage_specs']['winch_speed']*60  # m/hr
+                line_fixed = self.specs["vessel_specs"]["line_fixed_install_time"]
+                line_winch = item['length']/winch_speed
+                self.install.items["install line"].duration += line_fixed + line_winch
+                self.install.items["install line"].dependencies = [self.install.items["install anchor"], self.install.items["rerig deck"]]
+
+                self.state['spool_storage'] += item.get('length', 0)
+
+            item['obj'].inst['installed'] = True
+            self.state['cargo_mass'] += item['mass']
+            self.state['assigned_materials'].remove(item['obj'])
+
+        for key in pkg.keys():
+            installItem(key)
+        
+        return self.install
+    
+    def get_transit_from_action(self, distance2port, empty_factor=1.0):
+        """
+        Transit actions for the vessel from a destination to port.
+        
+        Parameters
+        ----------
+        distance2port : float
+            The distance to the site from port.
+        empty_factor : float, optional
+            The factor to account for empty return trip.
+            
+        Returns
+        -------
+        transit_from : Action
+            Action for transiting from the site to port.
+        """
+
+        self.transit_from.addItem("transit_from_site", duration= empty_factor * distance2port/self.specs['transport_specs']['transit_speed'], dependencies=[self.transit_to.items["transit_to_site"], self.install.items["install anchor"], self.install.items["install line"]])
+
+        return self.transit_from
+
 
     def logState(self, time, new_state):
         """

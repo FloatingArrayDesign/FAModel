@@ -53,36 +53,42 @@ class InstallManager:
         self.allTasks = {}  # (agent_name, action_name, item_name) - I need this to keep track of all actions
         self.pkgs2Stage = None
 
-    def registerVessel(self, file):
+    def registerVessel(self, vessel):
         """
         Register a vessel with the installation manager.
         
         Parameters
         ----------
-        file : str
-            Path to the vessel configuration file.
+        vessel : str | Vessel
+            If a string, it is the path to the vessel configuration file.
+            If a Vessel object, it is directly added to the vessel list.
             
         Returns
         -------
         None
         """
-        vessel = Vessel(file)
+        if isinstance(vessel, str):
+            vessel = Vessel(vessel)
+        
         self.vesselList[vessel.name] = vessel
     
-    def registerPort(self, file):
+    def registerPort(self, port):
         """
         Register a port with the installation manager.
         
         Parameters
         ----------
-        file : str
+        port : str 
             Path to the port configuration file.
             
         Returns
         -------
         None
         """
-        port = Port(file)
+
+        if isinstance(port, str): # loading in port object not yet set up externally in examples
+            port = Port(port)
+
         self.portList[port.name] = port
 
     def scheduleEvent(self, time, agent, action, params):
@@ -169,12 +175,9 @@ class InstallManager:
         print(self.events) # how is this determined? How do we loop through actions? What level is actions at? <-- each event has an action
         while self.events:
             t, agent, action, params = heapq.heappop(self.events) # each event is made of different agents with their own actions. 
-            print(f"Event: {t}, {agent.name}, {action}, {params}")
             self.now = t
-            func = getattr(agent, action) # get the function to call: agent.action (t, params)
-            # TODO: what functions can be called here? How do we keep them consistent with the same output formatting?
-                # all functions that are in the vessel class and port class. Do we want these all called? How does functions in install_helpers relate?
-            completed, new_events = func(t, **params) # call funcion: agent.action(t, params)
+            
+            # TODO: call the actions from the agent. Need standardized Inputs and Outputs. Need time dependency.
 
             self.logs.append({"time": t, "agent": agent.name, "action": action})
 

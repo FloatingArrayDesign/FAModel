@@ -1,6 +1,6 @@
 """
 an example of how install manager is used to register a vessel and port, and schedule an event and run (not finished yet).
-This is independent of 04_step2_actionItems.py and 03_step1_materialItems.py
+This is loads in the vessels from 04 and their respective actions.
 
 Steps
 -----
@@ -15,24 +15,32 @@ None
 # from fadesign.conceptual.installation.vessel import Vessel
 # from fadesign.conceptual.installation.port import Port
 from .install_manager import InstallManager as IM
-from pyproj import Proj, Transformer
-import pandas as pd
 import os
+import pickle 
 
 # FILE LOCATIONS
-filePath     = os.path.dirname(os.path.abspath(__file__))
-vessel1_file = os.path.join(filePath, "ahts.yaml")
-port1_file   = os.path.join(filePath, "humboldt_bay.yaml")
+filePath     = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+port1_file   = os.path.join(filePath, "input_files/agent_yamls", "humboldt_bay.yaml")
+vesselsFile = os.path.join(filePath, "temp_files", "vessels.pkl")
+
+# Load vessel info
+with open(vesselsFile, 'rb') as f:
+    vesselDict = pickle.load(f)
 
 # Initialize
 im = IM()
 
 # Register Port
 im.registerPort(port1_file)
-# Register Vessels
-im.registerVessel(vessel1_file)
 
-# Register vessel mob activity
-im.scheduleEvent(im.now, im.vesselList['3gs'], action='mob', params={"portLocation": [0, 0]}) # TODO: how does this relate to 04? In 04 you create actions. Here you schedule events and it seems like the action is defined as a method of the class (not a separate object).
+# Register Vessels (set up for a list of vessels, currently only one)
+for keys in vesselDict.keys():
+    vessel = vesselDict[keys]
+    # Register the vessel with the InstallManager
+    im.registerVessel(vessel)
+
+# Register vessel action (INCOMPLETE) - have not finished how to call the actions in a time loop, how time is handled, and stnadard action input/outputs. Have not considered port locations. 
+# im.scheduleEvent(im.now, im.vesselList['AHTS'], action='mob', params={"portLocation": [0, 0]}) # Incomplete. This calls vessel.mob(), which is a function that's decoupled from the other actions in the class. 
+im.scheduleEvent(im.now, im.vesselList['AHTS'], action=vessel.mobilize, params={"portLocation": [0, 0]}) # Incomplete. This calls vessel.mob(), which is a function that's decoupled from the other actions in the class. 
 # Register 
 im.run()

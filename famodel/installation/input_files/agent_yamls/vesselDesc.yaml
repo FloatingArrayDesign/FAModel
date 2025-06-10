@@ -31,75 +31,87 @@
 
 
 AHTS: # Anchor Handling Towing Supply vessel
-  vessel_specs:
-    pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
-    line_fixed_install_time : 4 # hrs (time it takes to install a line, either anchored or shared)
-    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-  bollardPull: 200 # mT
-  transport_specs:
-    transit_speed: 7.7       # m/s
-  storage_specs:
-    max_cargo: 2000 # mT
-    max_deck_space: 1000 # m2
-    max_deck_load: 2000 # mT
-    max_spool_capacity: 1000 # mT
-    winch_speed: 11.5   # m/min
-    anchor_loading_speed: 5 
-  storage:
-    Mode1:
-      material: ['pile', 'poly', 'chain', 'gear']
-      quantity: [3, 4, 8, 1]
-    Mode2:
-      material: ['poly', 'clump']
-      quantity: [4, 2]
+  name : AHTS
+  type : AHTS
+  specs:
+    vessel_specs:
+      pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
+      line_fixed_install_time : 4 # hrs (time it takes to install a line, either anchored or shared)
+      mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
+    bollardPull: 200 # mT
+    transport_specs:
+      transit_speed: 7.7       # m/s
+    storage_specs:
+      max_cargo: 2000 # mT
+      max_deck_space: 1000 # m2
+      max_deck_load: 2000 # mT
+      max_spool_capacity: 1000 # mT
+      winch_speed: 11.5   # m/min
+      anchor_loading_speed: 5 
+    storage:
+      Mode1:
+        material: ['pile', 'poly', 'chain', 'gear']
+        quantity: [3, 4, 8, 1]
+      Mode2:
+        material: ['poly', 'clump']
+        quantity: [4, 2]
 
 MPSV: # Multi-Purpose Supply Vessel
-  vessel_specs:
-    pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
-    line_fixed_install_time : 5 # hrs (time it takes to install a line, either anchored or shared)
-    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-  bollardPull: 100 # mT
-  transport_specs:
-    transit_speed: 7.7       # m/s
-  storage_specs:
-    max_cargo: 2000 # mT
-    max_deck_space: 1000 # m2
-    max_deck_load: 2000 # mT
-    max_spool_capacity: 1000 # mT
-    winch_speed: 18   # m/min
-    anchor_loading_speed: 5 
-  storage:
-    Mode1:
-      material: ['pile', 'poly', 'chain']
-      quantity: [2, 12, 12]
-    Mode2:
-      material: ['pile']
-      quantity: [3]
+  name : MPSV
+  type : MPSV
+  specs:
+    vessel_specs:
+      pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
+      line_fixed_install_time : 5 # hrs (time it takes to install a line, either anchored or shared)
+      mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
+    bollardPull: 100 # mT
+    transport_specs:
+      transit_speed: 7.7       # m/s
+    storage_specs:
+      max_cargo: 2000 # mT
+      max_deck_space: 1000 # m2
+      max_deck_load: 2000 # mT
+      max_spool_capacity: 1000 # mT
+      winch_speed: 18   # m/min
+      anchor_loading_speed: 5 
+    storage:
+      Mode1:
+        material: ['pile', 'poly', 'chain']
+        quantity: [2, 12, 12]
+      Mode2:
+        material: ['pile']
+        quantity: [3]
   
 Barge: # Usually with MPSV
-  vessel_specs:
-      mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-  transport_specs:
-    transit_speed: 7.7       # m/s
-  storage_specs:
-    max_cargo: 2000 # mT
-    max_deck_space: 1000 # m2
-    max_deck_load: 2000 # mT
-    max_spool_capacity: 1000 # mT
-    winch_speed: 18   # m/min
-    anchor_loading_speed: 5 
-  storage:
-    Mode1:
-      material: ['pile']
-      quantity: [6]
-    Mode2:
-      material: ['poly', 'chain']
-      quantity: [5, 12]
-    Mode3:
-      material: ['poly', 'clump']
-      quantity: [3, 4]
+  name : Barge
+  type : Barge
+  specs:
+    vessel_specs:
+        mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
+    transport_specs:
+      transit_speed: 7.7       # m/s
+    storage_specs:
+      max_cargo: 2000 # mT
+      max_deck_space: 1000 # m2
+      max_deck_load: 2000 # mT
+      max_spool_capacity: 1000 # mT
+      winch_speed: 18   # m/min
+      anchor_loading_speed: 5 
+    storage:
+      Mode1:
+        material: ['pile']
+        quantity: [6]
+      Mode2:
+        material: ['poly', 'chain']
+        quantity: [5, 12]
+      Mode3:
+        material: ['poly', 'clump']
+        quantity: [3, 4]
 
 Tug:    
-  bollardPull: 100 # mT
-  transport_specs:
-    transit_speed: 7.7       # m/s
+  name : Tug
+  type : Tug 
+  specs:
+    bollardPull: 100 # mT
+    transport_specs:
+      transit_speed: 7.7       # m/s
