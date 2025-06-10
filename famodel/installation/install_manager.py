@@ -142,7 +142,7 @@ class InstallManager:
 
         if deps_met and item.status == "pending":
             duration = item.duration
-            self.scheudleEvent(self.now + duration, agent, "completeItem", {
+            self.scheduleEvent(self.now + duration, agent, "completeItem", {
                 "action_name": action_name,
                 "item_name": item_name
             })

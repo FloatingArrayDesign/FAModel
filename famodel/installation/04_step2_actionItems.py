@@ -27,12 +27,12 @@ from . import install_helpers as inst
 
 # FILE LOCATIONS
 filePath     = os.path.dirname(os.path.abspath(__file__))
-itemFile     = os.path.join(filePath, "mtrlPkgs.pkl")
+itemFile     = os.path.join(filePath, "temp_files", "mtrlPkgs.pkl")
 
 with open(itemFile, 'rb') as f:
     pkgs = pickle.load(f)
 
-vesselFile   = os.path.join(filePath, "vesselDesc.yaml")
+vesselFile   = os.path.join(filePath, "input_files/agent_yamls", "vesselDesc.yaml")
 vesselNames = ['AHTS']
 
 with open(vesselFile) as file:

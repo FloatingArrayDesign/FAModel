@@ -33,7 +33,7 @@ category    = "ILIA"
 conceptName = "3_ILIA_al[cr]_grd"
 
 # FILE LOCATIONS
-filePath = os.path.dirname(os.path.abspath(__file__))
+filePath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input_files")
 inputFile = os.path.join(filePath, category, f"{conceptName}.yaml")
 
 # Load the design

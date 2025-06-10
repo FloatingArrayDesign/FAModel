@@ -89,7 +89,7 @@ conceptName = "3_ILIA_al[cr]_grd"
 
 # FILE LOCATIONS
 filePath     = os.path.dirname(os.path.abspath(__file__))
-inputFile    = os.path.join(filePath, category, f"proj_{conceptName}.yaml")
+inputFile    = os.path.join(filePath, "input_files", category, f"proj_{conceptName}.yaml")
 
 # Load project
 proj = Project(file=inputFile)
@@ -99,6 +99,6 @@ mtrlPkgs = []
 for moor in proj.mooringList.values():
     mtrlPkgs.append(create_mtrlPkg(moor))
 
-output = os.path.join(filePath, "mtrlPkgs.pkl") # TODO: make intermediate files saved to a separate folder
+output = os.path.join(filePath, "temp_files", "mtrlPkgs.pkl") # TODO: make intermediate files saved to a separate folder
 with open(output, 'wb') as f:
     pickle.dump(mtrlPkgs, f)
