@@ -388,13 +388,17 @@ class Project():
                     r = [arrayInfo[i]['x_location'], arrayInfo[i]['y_location'],platforms[pfID]['z_location']]
                 else: # assume 0 depth
                     r = [arrayInfo[i]['x_location'],arrayInfo[i]['y_location'],0]
+                    
+                if 'hydrostatics' in platforms[pfID]:
+                    hydrostatics = platforms[pfID]['hydrostatics']
+                else:
+                    hydrostatics = {}
 
                 # add platform 
-                print(r)
                 self.addPlatform(r=r, id=arrayInfo[i]['ID'], phi=arrayInfo[i]['heading_adjust'], 
                                  entity=platforms[pfID]['type'], rFair=platforms[pfID].get('rFair',0),
-                                 zFair=platforms[pfID].get('zFair',0),platform_type=pfID)
-                print(self.platformList[arrayInfo[i]['ID']].r)
+                                 zFair=platforms[pfID].get('zFair',0),platform_type=pfID,
+                                 hydrostatics=hydrostatics)
                                  
         # check that all necessary sections of design dictionary exist
         if arrayInfo and lineConfigs:
@@ -1463,8 +1467,8 @@ class Project():
         # optional information to add
         platformType = getFromDict(kwargs, 'platform_type', dtype=int, default=[])
         moor_headings = getFromDict(kwargs,'mooring_headings',shape = -1, default = []) 
-        RAFTDict = getFromDict(kwargs,'raft_platform_dict', default = {})
-        hydrostatics = getFromDict(kwargs, 'hydrostatics', default= {})
+        RAFTDict = kwargs.get('raft_platform_dict', {})
+        hydrostatics = kwargs.get('hydrostatics', {})
         
         # create platform object & fill in properties
         platform = Platform(id, r=r, heading=phi)
@@ -3603,6 +3607,7 @@ class Project():
                         anch.loads['Vm'] = F[j][2]
                         anch.loads['thetam'] = np.degrees(np.arctan(anch.loads['Vm']/anch.loads['Hm'])) #[deg]
                         anch.loads['mudline_load_type'] = 'max'
+                        anch.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
                             
                 # get tensions on mooring line
                 for j, moor in enumerate(self.mooringList.values()):
