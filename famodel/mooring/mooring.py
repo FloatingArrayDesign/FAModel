@@ -228,7 +228,7 @@ class Mooring(Edge):
         # heading 2D unit vector
         u = np.array([np.cos(phi), np.sin(phi)])
         
-        if np.any(r_center):
+        if r_center is not None:
             if self.shared == 1:
                 r_centerA = np.array(r_center)[0]
                 r_centerB = np.array(r_center)[1]
