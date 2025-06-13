@@ -10,7 +10,7 @@ profile_map = [
         'layers': [
             {'top':  0.0, 'bottom': 20.0, 'soil_type': 'clay', 'gamma_top': 8.0, 'gamma_bot': 8.5, 'Su_top':  50, 'Su_bot':  70},
             {'top': 20.0, 'bottom': 25.0, 'soil_type': 'clay', 'gamma_top': 8.5, 'gamma_bot': 8.5, 'Su_top':  80, 'Su_bot': 100},
-            {'top': 25.0, 'bottom': 50.0, 'soil_type': 'clay', 'gamma_top': 8.5, 'gamma_bot': 9.0, 'Su_top': 125, 'Su_bot': 150}
+            {'top': 25.0, 'bottom': 50.0, 'soil_type': 'clay', 'gamma_top': 8.5, 'gamma_bot': 9.0, 'Su_top': 100, 'Su_bot': 150}
         ]
     }
 ]
@@ -24,7 +24,7 @@ anchor = Anchor(
             'D2': 1.5,     # Shaft diameter
             'L1': 11.0,    # Winged section length
             'L2': 5.0,     # Shaft section length
-            'zlug': 20.0,  # Padeye depth
+            'zlug': 15.0,  # Padeye depth
             'ballast': 10000
         }
     },
@@ -84,9 +84,9 @@ anchor.getSizeAnchor(
     geomKeys = ['L1', 'D1'],
     geomBounds = [(7.0, 25.0), (2.5, 4.5)],
     loads = None,
-    minfs = {'Ha': 1.0, 'Va': 1.0},
     lambdap_con = [2, 8],
     zlug_fix = True,
+    safety_factor = {'SF_combined': 1},
     plot = True
 )
 

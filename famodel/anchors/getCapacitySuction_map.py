@@ -1,7 +1,8 @@
 
-from anchor_map import Anchor
 import numpy as np
-from famodel.anchors.anchors_famodel_map.capacity_plots_map import plot_load
+from anchor_map2 import Anchor
+from moorpy.helpers import loadPointProps  
+from famodel.anchors.anchors_famodel_map.capacity_plots_map import plot_suction
 
 # --- Define soil profile ---
 profile_map = [
@@ -49,9 +50,23 @@ profile_map = [
 
 
 anchor = Anchor(
-    dd = {'type': 'suction', 'design': {'D': 2.5, 'L': 12.0, 'zlug': 9.0}},
-    r = [250.0, 000.0, 000.0]
+    dd = {'type': 'suction', 'design': {'D': 2.5, 'L': 12.0, 'zlug': 8.67}},
+    r = [250.0, 250.0, 000.0]
 )
+
+# --- Step 0: Create anchor based grid CPTs ---
+anchor.interpolateSoilProfile(profile_map)
+
+# --- Step 1: Plot suction pile and soil profile ---
+# Access anchor geometrical properties
+L = anchor.dd['design']['L']
+D = anchor.dd['design']['D']
+zlug = anchor.dd['design']['zlug']
+# Access matched profile
+layers = anchor.soil_profile
+z0 = layers[0]['top']  
+
+plot_suction(layers, L=L, D=D, z0=z0, zlug=zlug, title='Suction Pile and Soil Layers')
 
 # Assign loads manually
 anchor.loads = {
@@ -64,11 +79,8 @@ anchor.line_type = 'chain'
 anchor.d = 0.16    # Chain diameter (m)
 anchor.w = 5000.0  # Nominal submerged weight (N/m)
 
-# --- Step 0: Create anchor based grid CPTs ---
-anchor.setSoilProfile(profile_map)
 
-
-# --- Step 1: Compute Lug Forces ---
+# --- Step 2: Compute Lug Forces ---
 layers, Ha, Va = anchor.getLugForces(
     Hm = anchor.loads['Hm'],
     Vm = anchor.loads['Vm'],
@@ -83,7 +95,7 @@ print('\nLug Forces Computed:')
 print(f'Ha = {Ha:.2f} N')
 print(f'Va = {Va:.2f} N')
 
-# --- Step 2: Compute Capacity ---
+# --- Step 3: Compute Capacity ---
 anchor.getCapacityAnchor(
     Hm = anchor.loads['Hm'],
     Vm = anchor.loads['Vm'],
@@ -95,24 +107,37 @@ anchor.getCapacityAnchor(
 )
 
 print('\nCapacity Results:')
-for key, value in anchor.capacity_results.items():
+for key, value in anchor.anchorCapacity.items():
     print(f'{key}: {value:.2f}')
+    
+# --- Step 4: Compute Costs ---     
+anchor.getCostAnchor()
+print(f'Mass: {anchor.mass:.2f} kg')
+mat_cost = anchor.cost['Material Cost']
+print(f'Material unit cost: {mat_cost/anchor.mass:.2f} USD/kg')
+cost = anchor.cost['Material Cost']
+print(f'Material unit cost: {cost:.2f} USD [2024]')
 
-# --- Step 3: Optimize Anchor Geometry ---
+# --- Step 5: Optimize Anchor Geometry ---
 anchor.getSizeAnchor(
     geom = [anchor.dd['design']['L'], anchor.dd['design']['D']],
     geomKeys = ['L', 'D'],
-    geomBounds = [(5.0, 15.0), (2.0, 6.0)],
+    geomBounds = [(5.0, 15.0), (1.0, 4.0)],
     loads = None,
-    minfs = {'Ha': 1.0, 'Va': 1.0},
     lambdap_con = [3, 6],
     zlug_fix = False,
-    plot = True
+    safety_factor = {'SF_combined': 2},
+    plot = True   
 )
 
 print('\nFinal Optimized Anchor:')
 print('Design:', anchor.dd['design'])
-print('Capacity Results:', anchor.capacity_results)
+print('Capacity Results:', anchor.anchorCapacity)
 
-# --- Step 4: Visualize Anchor Geometry ---
-anchor.getCombinedPlot()
+# --- Step 6: Compute Costs ---     
+costs = anchor.getCostAnchor()
+print(anchor.mass)
+print(f'Anchor cost: {costs:.2f} USD [2024]')
+
+# --- Step 7: Visualize Anchor Geometry ---
+# anchor.getCombinedPlot()

@@ -7,9 +7,9 @@ profile_map = [
         'name': 'CPT_D1',
         'x': 0.0, 'y': 0.0,
         'layers': [
-            {'top':  1.0, 'bottom':  6.0, 'soil_type': 'clay', 'gamma_top':  9.0, 'gamma_bot': 10.0, 'Su_top': 45, 'Su_bot':  60},
-            {'top':  6.0, 'bottom': 15.0, 'soil_type': 'clay', 'gamma_top': 10.0, 'gamma_bot': 10.0, 'Su_top': 60, 'Su_bot':  80},
-            {'top': 15.0, 'bottom': 35.0, 'soil_type': 'clay', 'gamma_top': 10.0, 'gamma_bot': 10.5, 'Su_top': 80, 'Su_bot': 100}
+            {'top':  1.0, 'bottom':  6.0, 'soil_type': 'clay', 'gamma_top':  9.0, 'gamma_bot': 10.0, 'Su_top':  25, 'Su_bot':  40},
+            {'top':  6.0, 'bottom': 15.0, 'soil_type': 'clay', 'gamma_top': 10.0, 'gamma_bot': 10.0, 'Su_top':  80, 'Su_bot': 100},
+            {'top': 15.0, 'bottom': 35.0, 'soil_type': 'clay', 'gamma_top': 10.0, 'gamma_bot': 10.5, 'Su_top': 100, 'Su_bot': 100}
         ]
     }
 ]
@@ -19,9 +19,9 @@ anchor = Anchor(
     dd = {
         'type': 'driven',
         'design': {
-            'L': 25.0,        # Embedded length
-            'D': 2.0,         # Diameter
-            'zlug': 10.0      # Padeye depth
+            'L': 15.0,        # Embedded length
+            'D': 2.75,        # Diameter
+            'zlug': 3.0       # Padeye depth
         }
     },
     r = [0.0, 0.0, 0.0]
@@ -29,8 +29,8 @@ anchor = Anchor(
 
 # Assign mooring loads
 anchor.loads = {
-    'Hm': 4.0e6,
-    'Vm': 2.5e6
+    'Hm': 8.0e5,
+    'Vm': 2.5e5
 }
 anchor.line_type = 'chain'
 anchor.d = 0.16
@@ -68,3 +68,15 @@ anchor.getCapacityAnchor(
 print('\nCapacity Results:')
 for key, val in anchor.capacity_results.items():
     print(f'{key}: {val:.2f}')
+
+# --- Step 3: Optimize Anchor Geometry ---
+anchor.getSizeAnchor(
+    geom = [anchor.dd['design']['L'], anchor.dd['design']['D']],
+    geomKeys = ['L', 'D'],
+    geomBounds = [(2.0, 70.0), (0.25, 3.0)],
+    loads = None,
+    lambdap_con = [4, 50],
+    zlug_fix = False,
+    safety_factor = {'SF_horizontal': 1, 'SF_vertical': 1},
+    plot = True
+)

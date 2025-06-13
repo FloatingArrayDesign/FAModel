@@ -1,42 +1,43 @@
 
 from anchor_map import Anchor
 
-# --- Define soil profile ---
+# --- Soil profile for helical pile in clay ---
 profile_map = [
     {
         'name': 'CPT_H1',
         'x': 0.0, 'y': 0.0,
         'layers': [
-            {'top':  1.0, 'bottom': 10.0, 'soil_type': 'sand', 'gamma_top': 10.0, 'gamma_bot': 11.0, 'phi_top': 30, 'phi_bot': 32, 'Dr_top': 60, 'Dr_bot': 60},
-            {'top': 10.0, 'bottom': 20.0, 'soil_type': 'sand', 'gamma_top': 11.0, 'gamma_bot': 11.5, 'phi_top': 36, 'phi_bot': 38, 'Dr_top': 60, 'Dr_bot': 80}
+            {'top': 1.0, 'bottom':  3.0, 'soil_type': 'clay', 'gamma_top':  8.0, 'gamma_bot':  9.0, 'Su_top':  60, 'Su_bot':  50},
+            {'top': 3.0, 'bottom':  7.0, 'soil_type': 'clay', 'gamma_top': 15.0, 'gamma_bot': 25.0, 'Su_top': 100, 'Su_bot': 150},
+            {'top': 7.0, 'bottom': 15.0, 'soil_type': 'clay', 'gamma_top': 25.0, 'gamma_bot': 50.0, 'Su_top': 200, 'Su_bot': 400}
         ]
     }
 ]
 
-# --- Create helical anchor object ---
+# --- Define helical anchor ---
 anchor = Anchor(
     dd = {
         'type': 'helical',
         'design': {
-            'D': 1.7,         # Helix diameter (m)
-            'L': 12.0,        # Depth (m)
-            'd': 0.3,         # Shaft diameter (m)
-            'zlug': 4.0       # Padeye depth (m)
+            'D': 1.5,         # Helix diameter (m)
+            'L': 12.0,        # Total length (m)
+            'd': 0.5,         # Shaft diameter (m)
+            'zlug': 3.0       # Padeye depth (m)
         }
     },
     r = [0.0, 0.0, 0.0]
 )
 
-# Assign loads and mooring info
+# --- Assign mooring loads and properties ---
 anchor.loads = {
-    'Hm': 8.8e6,
-    'Vm': 1.2e6
+    'Hm': 80e4,
+    'Vm': 50e3
 }
 anchor.line_type = 'chain'
 anchor.d = 0.16
 anchor.w = 5000.0
 
-# Assign local soil
+# --- Assign local soil ---
 anchor.setSoilProfile(profile_map)
 
 # --- Step 1: Lug Forces ---
@@ -62,9 +63,21 @@ anchor.getCapacityAnchor(
     line_type = anchor.line_type,
     d = anchor.d,
     w = anchor.w,
-    plot = True
+    plot = False
 )
 
 print('\nCapacity Results:')
 for key, val in anchor.capacity_results.items():
     print(f'{key}: {val:.2f}')
+
+# --- Step 3: Optimize Anchor Geometry ---
+anchor.getSizeAnchor(
+    geom = [anchor.dd['design']['L'], anchor.dd['design']['D']],
+    geomKeys = ['L', 'D'],
+    geomBounds = [(6.0, 25.0), (0.5, 2.0)],
+    loads = None,
+    minfs = {'Ha': 1.0, 'Va': 1.0},
+    lambdap_con = [6, 15],
+    zlug_fix = True,
+    plot = False
+)
