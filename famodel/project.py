@@ -3953,15 +3953,14 @@ class Project():
            
         # build out site info
         site = {}
-
-        if hasattr(self,'soilProps'):
-            sps = deepcopy(self.soilProps)
-            for ks,sp in sps.items():
-                for k,s in sp.items():
-                    if not isinstance(s,list) and not 'array' in type(s).__name__:
-                        sp[k] = [s]
-                sps[ks] = sp
-
+        
+        sps = deepcopy(self.soilProps)
+        for ks,sp in sps.items():
+            for k,s in sp.items():
+                if not isinstance(s,list) and not 'array' in type(s).__name__:
+                    sp[k] = [s]
+            sps[ks] = sp
+        if hasattr(self,'soilProps') and self.soilProps:
             if len(self.soil_x)>1:
                 site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
                                   'soil_types': sps}# [[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
