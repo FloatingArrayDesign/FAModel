@@ -53,6 +53,7 @@ mooring_line_configs:
           - mooringFamily: chain      # ID of a mooring line section type
             d_nom: .1549              # nominal diameter of material [m]
             length: 497.7            # [m] usntretched length of line section
+          - connectorType: shackle
           - mooringFamily: polyester        # ID of a mooring line section type
             d_nom: .182              # nominal diameter of material [m]
             length: 199.8           # [m] length (unstretched)

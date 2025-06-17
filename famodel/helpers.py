@@ -6,8 +6,9 @@ import os
 import re
 from copy import deepcopy
 from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCableProps,loadBuoyProps
-import ruamel
-
+import ruamel.yaml
+import moorpy as mp
+from moorpy.helpers import loadPointProps, getPointProps
 
 
 def cart2pol(x, y):
@@ -21,6 +22,7 @@ def pol2cart(rho, phi):
     return(x, y)
 
 def m2nm(data):
+    ''' Convert meters to nautical miles'''
     if isinstance(data,list):
         data = np.array(data)
     data = data*0.000539957
@@ -728,14 +730,26 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
             lineLast = 1
             
         elif 'connectorType' in lc:
+            cID = lc['connectorType']
             # this is a connector
             if lineLast == 0:
                 # last item in list was a connector
                 raise Exception(f"Two connectors were specified in a row for line configuration '{lcID}', please remove one of the connectors")
             else:
+                
                 # last item in list was a line
-                c_config.append(connectorTypes[lc['connectorType']]) # add connector to list
-                c_config[-1]['type'] = lc['connectorType']
+                if cID in connectorTypes:
+                    c_config.append(connectorTypes[cID]) # add connector to list
+                    c_config[-1]['type'] = cID
+                else:
+                    # try pointProps
+                    try:
+                        props = loadPointProps(None)
+                        design = {f"num_c_{cID}":1}
+                        c_config.append(getPointProps(design, Props=props))
+                    except Exception as e: 
+                        raise Exception(f"Connector type {cID} not found in connector_types dictionary, and getPointProps raised the following exception:",e)
+                        
                 # update lineLast boolean
                 lineLast = 0
         else:
@@ -775,6 +789,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
     m_config['connectors'] = c_config  # add connectors section to the mooring dict
     
     return(m_config) #, c_config)
+    
 
 def getConnectors(c_config, mName, proj):
     '''
@@ -801,7 +816,7 @@ def getConnectors(c_config, mName, proj):
         if c_config[i] == None:                   
             # create empty connector object
             proj.mooringList[mName].dd['connectors'].append(Connector())
-        else:
+        elif c_config[i]:
             # create connector object with c_config entries
             proj.mooringList[mName].dd['connectors'].append(Connector(**c_config[i]))
 

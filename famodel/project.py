@@ -3808,10 +3808,35 @@ class Project():
         arrayData = [] #np.zeros((len(arrayKeys),len(self.platformList)))
         pf_type = []
         
+        anchConfigs = {}
+        arrayAnch = []
+        mapAnchNames = {}
+        mscs = {}
+        arrayMoor = []
+        for i,anch in enumerate(self.anchorList.values()):  
+            newanch = True
+            name = anch.dd['name'] if 'name' in anch.dd else str(len(anchConfigs))
+            if len(anch.attachments)>1:
+                # shared anchor, add to arrayAnch list
+                arrayAnch.append([anch.id,name,anch.r[0],anch.r[1],0])
+            if anchConfigs:
+                ac = [an for an,ad in anchConfigs.items() if ad==anch.dd['design']]
+                if len(ac)>0:
+                    newanch = False
+                    name = ac[0] # reset name to matching config name
+            if newanch:
+                anchConfigs[name] = dict(anch.dd['design'])
+                if anch.mass is not None and anch.mass>0: 
+                    anchConfigs[name]['mass'] = anch.mass
+            mapAnchNames[anch.id] = name
+        
         # build out platform info
-        topList = []        
+        topList = []   
+        allconfigs = []
         for i,pf in enumerate(self.platformList.values()):
             ts_loc = 0
+            msys = []
+            newms = True
             # determine any connected topsides
             for att in pf.attachments.values():
                 if not isinstance(att['obj'],(Mooring, Cable)):
@@ -3828,9 +3853,72 @@ class Project():
                     else:
                         topList.append(att['obj'].dd)
                         ts_loc = len(topList)
-                
+                elif isinstance(att['obj'], Mooring):
+                    newcon = True
+                    # check if shared
+                    moor = att['obj']
+                    atts = np.array(moor.attached_to)
+                    is_pf = np.array([isinstance(at, Platform) for at in atts])
+                    is_anch = np.array([isinstance(at, Anchor) for at in atts])
+                    # get end B heading (needed for all mooring lines)
+                    angB = np.pi/2 - np.arctan2(moor.rB[1]-moor.attached_to[1].r[1],moor.rB[0]-moor.attached_to[1].r[0])
+                    headB = np.degrees(angB - moor.attached_to[1].phi) # remove platform heading
+                    if headB<0:
+                        headB = headB +360 # make angle positive
+                    # create dict describing configuration
+                    config = {'span':float(moor.dd['span']),'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
+                    
+                    # check if an existing mooring configuration matches the current configuration
+                    if allconfigs:
+                        pc = [ii for ii,mc in enumerate(allconfigs) if mc==config]
+                        for j in pc:
+                            # this config already exists, don't add to config list
+                            current_config = str(j)
+                            newcon = False
+                    if newcon:
+                        # add to config list
+                        allconfigs.append(config)
+                        current_config = str(len(allconfigs) - 1) # make new name
+                    if all(is_pf) or moor.shared:
+                        # write in array_mooring section
+                        ang = np.pi/2 - np.arctan2(moor.rA[1]-atts[0].r[1],moor.rB[0]-atts[0].r[0]) # calc angle of mooring end A
+                        headA = float(np.degrees(ang - atts[0].phi)) # get heading without platform influence
+                        if headA<0:
+                            headA = headA + 360 # make heading positive
+                        amc = [current_config,atts[0].id, atts[1].id, headA,headB,int(0)] # create array mooring eentry
+                        if not amc in arrayMoor:
+                            arrayMoor.append(amc) # append entry to arrayMoor list if it's not already in there
+                    elif any([len(at.attachments)>1 for at in atts[is_anch]]):
+                        # we have a shared anchor here, put mooring in array_mooring
+                        headA = 'None' # no heading at end A because it's an anchor
+                        # append mooring line to array_moor section
+                        arrayMoor.append([current_config,moor.attached_to[0].id, moor.attached_to[1].id, headA,headB,int(0)])
+                    else:
+                        # not shared anchor or shared mooring, add line to mooring system 
+                        msys.append([current_config,
+                                     np.round(headB,2),
+                                     mapAnchNames[atts[is_anch][0].id],
+                                     0])
 
-            arrayData.append([pf.id, ts_loc, int(pf.dd['type']+1), 0, float(pf.r[0]), 
+            # check if an existing mooring system matches the current        
+            if len(msys)>0:
+                if mscs:
+                    pc = [n for n,ms in mscs.items() if sorted(ms)==sorted(msys)]
+                    if len(pc)>0:
+                        # this system already exists, don't add to mooring_systems dict
+                        mname = pc[0]
+                        newms = False
+                if newms:
+                    # add to mooring_system list
+                    mname = 'ms'+str(len(mscs))
+                    mscs[mname] = msys
+            else:
+                mname = 0
+                    
+                        
+
+            # put all information for array data table together
+            arrayData.append([pf.id, ts_loc, int(pf.dd['type']+1), mname, float(pf.r[0]), 
                               float(pf.r[1]), float(pf.r[2]), float(np.degrees(pf.phi))])
             pf_type.append(pf.dd['type'])
             
@@ -3867,71 +3955,16 @@ class Project():
         
          
             
-        # build out array mooring and array anchor section
-        arrayMoor = []
-        allconfigs = []
-        arrayAnch = []
-        anchConfigs = {}
+        # # build out mooring and anchor sections
+ 
         anchKeys = ['ID','type','x','y','embedment']
         lineKeys = ['MooringConfigID','endA','endB','headingA','headingB','lengthAdjust']
         
-        for moor in self.mooringList.values():
-            newcon = True
-            newanch = True
-            # get connected objects
-            endA = moor.attached_to[0]
-            endB = moor.attached_to[1]
-            # get heading(s)
-            if not moor.shared:  #  and type(endA) != Connector:
-                headA = 'NA'
-                # add anchor
-                arrayAnch.append([endA.id, endA.dd['name'], float(endA.r[0]), float(endA.r[1]),0])
-                if anchConfigs:
-                    if any([endA.dd['name']==k for k in anchConfigs]):
-                        newanch = False
-                        current_anch = endA.dd['name']
-                if newanch:
-                    anchConfigs[endA.dd['name']] = dict(endA.dd['design'])
-                    if endA.mass is not None and endA.mass>0: 
-                        anchConfigs[endA.dd['name']]['mass'] = endA.mass
-            # elif type(endA)==Connector:
-            #     # get connector info & store like anchors
-            #     pass
-            
-            else:
-                # shared line - get end A heading
-                # relloc = np.array(endA.r) - np.array(moor.rA)
-                # fairleadA = np.where(endA.fairleads[ii] == relloc[ii] for ii in range(3))
-                ang = np.pi/2 - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
-                headA = float(np.degrees(ang - endA.phi))
-                
-            # get end B heading
-            angB = np.pi/2 - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
-            headB = np.degrees(angB - endB.phi)
-
-            # if type(endB)==Connector:
-            #     # get connector info & store like anchors
-            #     pass
-            # else:
-            #     relloc = np.array(endB.r) - np.array(moor.rB)
-            #     fairleadB = np.where(endB.fairlead[ii] == relloc[ii] for ii in range(3))
-            # get mooring configuration
-            config = {'span':float(moor.dd['span']),'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
-            
-            # check if an existing mooring configuration matches the current configuration
-            if allconfigs:
-                pc = np.where([config['span']==x['span'] for x in allconfigs] and [len(y['sections'])==len(config['sections']) for y in allconfigs])[0]
-                for j in pc:
-                    if all([allconfigs[j]['sections'][k]==config['sections'][k] for k in range(len(config['sections']))]):
-                        if all([allconfigs[j]['connectors'][k]==config['connectors'][k] for k in range(len(config['connectors']))]):
-                            current_config = str(j)
-                            newcon = False
-            if newcon:
-                allconfigs.append(config)
-                current_config = str(len(allconfigs) - 1)
-
-            arrayMoor.append([current_config,endA.id, endB.id, headA,headB,int(0)])
-            # arrayMoor.append([current_config,endA.id, endB.id, fairleadA,fairleadB,int(0)])
+        msyskeys = ['MooringConfigID','heading','anchorType','lengthAdjust']
+        moor_systems = {}
+        for name,sys in mscs.items():
+            moor_systems[name] = {'keys':msyskeys,
+                                  'data':sys}
 
         # set up mooring configs, connector and section types dictionaries
         connTypes = {}  
@@ -4161,6 +4194,7 @@ class Project():
                   'topsides': topList, 
                   'array_mooring':{'anchor_keys':anchKeys, 'anchor_data':arrayAnch,
                                    'line_keys':lineKeys, 'line_data':arrayMoor},
+                  'mooring_systems':moor_systems,
                   'mooring_line_configs':mooringConfigs,
                   'mooring_line_types':secTypes, 
                   'mooring_connector_types':connTypes,

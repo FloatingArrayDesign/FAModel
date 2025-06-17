@@ -111,7 +111,8 @@ class DynamicCable(Edge):
         
         # Dictionaries for addition information
         self.loads = {}
-        self.safety_factors = {}
+        self.safety_factors = {} # calculated safety factor
+        self.safety_factors_required = {} # minimum allowable safety factor
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}

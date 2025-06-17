@@ -3,6 +3,8 @@ Simple driver file to create an FAModel project and make a moorpy system model
 of the array, then run a watch circle analysis.
 The input file only contains the bare minimum information to build a moorpy
 array with moorings and dynamic cables (static cables are not modeled in MoorPy)
+
+For more information on MoorPy, please see MoorPy documentation at https://github.com/NREL/MoorPy
 """
 
 from famodel import Project
