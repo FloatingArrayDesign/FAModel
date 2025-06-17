@@ -1964,7 +1964,7 @@ class Project():
         plot_anchors = kwargs.get('plot_anchors',True)
         plot_moorings = kwargs.get('plot_moorings',True)
         plot_cables = kwargs.get('plot_cables',True)
-        
+        cable_labels = kwargs.get('cable_labels', False)
         
         
         # if axes not passed in, make a new figure
@@ -2073,10 +2073,28 @@ class Project():
                             ax.plot([sub.rA[0],sub.rB[0]], 
                                     [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1.2,
                                     label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                        
+                        # if cable_labels:
+                        #     x = np.mean([sub.rA[0],sub.rB[0]])
+                        #     y = np.mean([sub.rA[1],sub.rB[1]])
+                        #     if '_' in cable.id:
+                        #         label = cable.id.split('_')[-1]
+                        #     else:
+                        #         label = cable.id
+                        #     ax.text(x,y, label)
                     elif isinstance(sub,DynamicCable):
                             ax.plot([sub.rA[0],sub.rB[0]], 
                                     [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1.2,
                                     label='Cable '+str(cableSize)+' mm$^{2}$')
+                            
+                            if cable_labels:
+                                x = np.mean([sub.rA[0],sub.rB[0]])
+                                y = np.mean([sub.rA[1],sub.rB[1]])
+                                if '_' in cable.id:
+                                    label = cable.id.split('_')[-1]
+                                else:
+                                    label = cable.id
+                                ax.text(x,y, label)
             
                 # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
                 #         [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]], 'r--', lw=0.5)
@@ -3935,13 +3953,15 @@ class Project():
            
         # build out site info
         site = {}
-        sps = deepcopy(self.soilProps)
-        for ks,sp in sps.items():
-            for k,s in sp.items():
-                if not isinstance(s,list) and not 'array' in type(s).__name__:
-                    sp[k] = [s]
-            sps[ks] = sp
-        if hasattr(self,'soilProps') and self.soilProps:                       
+
+        if hasattr(self,'soilProps'):
+            sps = deepcopy(self.soilProps)
+            for ks,sp in sps.items():
+                for k,s in sp.items():
+                    if not isinstance(s,list) and not 'array' in type(s).__name__:
+                        sp[k] = [s]
+                sps[ks] = sp
+
             if len(self.soil_x)>1:
                 site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
                                   'soil_types': sps}# [[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
