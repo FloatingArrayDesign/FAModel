@@ -3,28 +3,16 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
 import moorpy as mp
 from moorpy.helpers import set_axes_equal
 import yaml
-
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, LineString
-
-
-
-
 import famodel.seabed.seabed_tools as sbt
-
-
-
-
 from pyproj import CRS
 from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
-
-
 
 def getLatLongCRS(epsg_code=4326):
     '''Returns a coordinate reference system (CRS) object from the pyproj package of a 'wordly' CRS with units of latitude and longitude
@@ -92,7 +80,6 @@ def getTargetCRS(longitudes, latitudes):
 
     return target_crs
 
-
 def getCustomCRS(long, lat):
     '''Seemingly way too simple of a method to create a pyproj CRS centered around a custom geographical point
 
@@ -112,8 +99,6 @@ def getCustomCRS(long, lat):
     custom_crs = f'+proj=tmerc +lat_0={lat} +lon_0={long} +ellps=WGS84 +units=m +no_defs'
 
     return custom_crs
-
-
 
 def getLeaseCoords(lease_name):
 
@@ -147,10 +132,6 @@ def getLeaseCoords(lease_name):
 
     return area_longs, area_lats, centroid
         
-
-
-
-
 def convertLatLong2Meters(longs, lats, centroid, latlong_crs, target_crs, return_centroid=False):
     '''input longs/lats need to be in EPSG:4326 CRS
     Longs and Lats need to be in pairs, i.e., the first entry to longs and 
@@ -206,7 +187,6 @@ def convertLatLong2Meters(longs, lats, centroid, latlong_crs, target_crs, return
     else:
         return xs, ys
 
-
 def convertMeters2LatLong(xs, ys, centroid, latlong_crs, target_crs, mesh=False):
     '''Input xs and ys need to be in the target CRS
     Xs and Ys need to be in pairs, i.e. the first entry to xs and the 
@@ -250,9 +230,6 @@ def convertMeters2LatLong(xs, ys, centroid, latlong_crs, target_crs, mesh=False)
     
     return longs, lats
 
-
-
-
 def getMapBathymetry(gebcofilename):
 
     # load the GEBCO bathymetry file
@@ -276,7 +253,6 @@ def getMapBathymetry(gebcofilename):
     lats  = np.linspace(yllcorner, yllcorner+nrows*cellsize, nrows)
 
     return longs, lats, depths, ncols, nrows
-
 
 def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, 
                              latlong_crs, target_crs, ncols, nrows,
@@ -331,8 +307,6 @@ def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm,
 
     return bathXs, bathYs, bath_depths
 
-        
-        
 def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths, soil=False):
     '''Write a MoorDyn/MoorPy-style bathymetry text file based on provided
     x and y grid line values and a 2D array of depth values.'''
@@ -354,8 +328,6 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths,
                 f.write(f'{bath_depths[iy,id]:8.3f} ')
         f.write('\n')
     f.close()
-
-
 
 def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows=100):
 
@@ -392,10 +364,6 @@ def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows
     info['bath_depths'] = bath_depths
 
     return info
-
-
-
-
 
 def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
     """Function to return the name of the soil below a specific x/y coordinate by creating shapely polygons based on the shapefile data.
@@ -438,8 +406,6 @@ def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
             break
 
     return soil_type
-
-
 
 def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file, nrows=100, ncols=100, xbound=None, ybound=None):
     """Note: can make the outer shapely shape have 'holes' of the inner shapely shapes"""
@@ -507,8 +473,6 @@ def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file, nrows=100, ncols=1
     soil_grid = np.array(soil_grid_list)        # saving to list and then changing to np.array because I couldn't figure out how else to do it with strings
 
     return xs, ys, soil_grid
-
-
         
 def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath={}, xbounds=None, ybounds=None, zbounds=None):
     '''Plot aspects of the Project object in matplotlib in 3D'''
@@ -557,8 +521,6 @@ def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath
     ax.axis('off')
 
     return fig, ax
-
-
 
 def projectAlongSeabed(x, y, bathXs, bathYs, bath_depths):
     '''Project a set of x-y coordinates along a seabed surface (grid),
