@@ -42,6 +42,10 @@ How do we identify/track the attacheble end sub-objets?
 Dicts???
 
 
+The current approach is not top-down. If you connect higher-level objects,
+the lower level objects aren't automatically connected. Instead, if you connect
+lower objects (including specifying particular positions), the higher-level
+connections are also made.
 
 
 Nodes can attach to nodes as either subortinately or equally...
@@ -162,12 +166,22 @@ class Node():
                                            r_rel=np.array([0,0]), type='node')
         
         # Register the attachment in higher level objects if applicable
-        if isinstance(self.part_of, Edge) and isinstance(object.part_of, Node):
-            self.part_of.attach_to( object.part_of ) ...?
-        elif isinstance(self.part_of, Node) and isinstance(object.part_of, Edge):
-            object.part_of.attach_to( self.part_of ) ...?
+        if isinstance(self.part_of, Edge) and isinstance(object.part_of, Edge):
+            raise Exception("This attachment would directly connect two higher-level edges to each other, which is not allowed.")
         
-        
+        elif isinstance(self.part_of, Edge) and isinstance(object.attached_to, Node):
+            end = self.part_of.findEnd(self)
+            object.attached_to.attach(self.part_of, end=end)
+            #self.part_of._attach_to(object.part_of, end=end)
+            
+        elif isinstance(self.attached_to, Node) and isinstance(object.part_of, Edge):
+            end = object.part_of.findEnd(object)
+            self.attached_to.attach(object.part_of, end=end)
+            
+        elif isinstance(self.attached_to, Node) and isinstance(object.attached_to, Node):
+            raise Exception("This would attach two higher-level nodes, which is not supported.")
+    
+    
     def separate(self, object):
         '''Opposite of join'''
         
@@ -185,10 +199,13 @@ class Node():
         del object.attachments[self.id]
         
         # Register the separation in higher level objects if applicable
-        if isinstance(self.part_of, Edge) and isinstance(object.part_of, Node):
-            self.part_of.detach...( object.part_of ) ...?
-        elif isinstance(self.part_of, Node) and isinstance(object.part_of, Edge):
-            object.part_of.detach...( self.part_of ) ...?
+        if isinstance(self.part_of, Edge) and isinstance(object.attached_to, Node):
+            end = self.part_of.findEnd(self)
+            object.attached_to.dettach(self.part_of, end=end)
+            
+        elif isinstance(self.attached_to, Node) and isinstance(object.part_of, Edge):
+            end = object.part_of.findEnd(object)
+            self.attached_to.detach(object.part_of, end=end)
         
     
     def attach(self, object, r_rel=[0,0], end=None):
@@ -206,11 +223,8 @@ class Node():
             If an Edge is being attached, which end of it, 'a' or 'b'.
         '''
         
-        
-        object_parent
-        self_parent
-        
-        
+        #object_parent
+        #self_parent
         
         '''
         # find top-level edge end if applicable
@@ -226,13 +240,23 @@ class Node():
         if object.id in self.attachments:
             raise Exception(f"Object {object.id} is already attached to {self.id}")
         
+        
         # Attach the object
         if isinstance(object, Node):  # (object is a node)
+        
+            if object.attached_to:  # object is already attached to something
+                raise Exception("The object being attached is already attached to a higher node - it needs to be detached first.")
+        
             self.attachments[object.id] = dict(obj=object, id=object.id, 
                                             r_rel=np.array(r_rel), type='node')
             object._attach_to(self)  # tell it it's attached to this Node
             
         elif isinstance(object, Edge):  # (object is an edge)
+            i_end = endToIndex(end, estr='when attaching an edge to a node.')
+            
+            if object.attached_to[i_end]:   # object is already attached to something
+                raise Exception("The object being attached is already attached to a higher node - it needs to be detached first.")
+            
             self.attachments[object.id] = dict(obj=object, id=object.id, 
                                             r_rel=np.array(r_rel), type='edge', 
                                             end=i_end)
@@ -242,25 +266,61 @@ class Node():
         else:
             raise Exception('Unrecognized object type')
         
-        # See about attaching higher-level objects (new)
+        # See about attaching higher-level objects (new) (note: r_rel will be neglected at higher level)
+        
         if isinstance(object.part_of, Edge):  # attached object is part of an edge
-            if self.part_of == None:  # this node isn't part of an edge
-                >>> figure out which edge of parent object <<<<
+        
+            # figure out which end of the edge object corresponds to
+            if object in object.part_of.subcons_A:
+                end = 0
+            elif object in object.part_of.subcons_B:
+                end = 1
+            else:
+                end = -1  # object isn't at the end of the higher level edge so do nothing
+                if not self.part_of == object.part_of:  
+                    raise Exception("Cannot attach two non-end subcomponents of different edges.")
+            
+            if self.part_of == None and end > -1:  # this node isn't part of an edge
                 if self.attached_to:  # if self is part of a higher node
                     # attach higher edge to higher node
-                    self.attached_to.attach(object.part_of, r_rel=r_rel, end=<<<)
+                    self.attached_to.attach(object.part_of, end=end)
                 else:
                     # attach higher edge to this node
-                    self.attach(object.part_of, r_rel=r_rel, end=<<<)
+                    self.attach(object.part_of, r_rel=r_rel, end=end)
                 
-            else:   # if self is part of a higher level edge, then what??
-                raise Exception("Can't currently attach two edges - even if higher level...")
+            else:   # if self is part of a higher level edge
+                raise Exception("This attachment would directly connect two higher-level edges to each other, which is not allowed.")
+        '''
+        elif isinstance(object.attached_to, Node):  # attached object is attached to a higher node
+            
+            raise Exception("The object being attached is part of a higher node - this operation is not supported.")
+            
+            if self.part_of:  # self node is part of a higher level edge
+            
+                # figure out which end of the edge object corresponds to
+                if self in self.part_of.subcons_A:
+                    end = 0
+                elif self in self.part_of.subcons_B:
+                    end = 1
+                
+                # attach higher node and edge
+                object.attached_to.attach(self.part_of, end=end)
+                
+                # attach higher edge to this node
+                self.attach(object.part_of, r_rel=r_rel, end=end)
+                
+            elif if self.attached_to:  # if self is part of a higher node
+                Exception("This attachment would directly connect two higher-level nodes to each other, which is not allowed.")
+            
+            else:  # self has nothing higher, so attach the object's higher level thing to self as well
+                self.attach(object.attached_to, r_rel=r_rel, end=end) XXXX
+        '''
+    
     
     
     def detach(self, object, end=None):
         '''Detach the specified object from this node.
-        Note that this method doesn't search for highest-level edge 
-        attachment because it should already be attached that way.
+        Will also detach any attached sub-objects
         
         Parameters
         ----------
@@ -275,22 +335,26 @@ class Node():
             raise Exception(f"Object {object.id} is not attached to {self.id}")
             # this exception could be optionally disabled
         
-        # Remove it from the attachment registry
-        del self.attachments[object.id]
-        
         # Handle attachment type and the end if applicable, and record
         # the detachment in the subordinate object.
         if isinstance(object, Node):
-            object._detach_from()  # tell the attached object to record things
-            
+            object._detach_from()  # tell the attached object to record that it's detached
+        
         elif isinstance(object, Edge):
-            
-            i_end = endToIndex(end, estr='when detaching an edge from a node.')
-            
+            if end:
+                i_end = endToIndex(end, estr='when detaching an edge from a node.')
+            else: # otherwise figure out which end is attached
+                i_end = self.attachments[object.id]['end']
+                
+            # Detach this edge from self 
+            # This will also detach end subcomponents of the edge from anything.
             object._detach_from(i_end)
         
         else:
             raise Exception('Provided object is not an Edge or Node.')
+    
+        # Remove it from the attachment registry
+        del self.attachments[object.id]
     
 
     def _attach_to(self, object):
@@ -322,7 +386,7 @@ class Node():
         self.attached_to = None
         
 
-
+    """
     def getTopLevelObject(self):
         '''If this node is part of a higher-level object, and the request
         corresponds to an end of that higher-level group, return the higher object,
@@ -337,9 +401,9 @@ class Node():
                 return supe.getTopLevelEdge(1)
         else:
             return self, -1  # if not part of something bigger, just return self
+    """
     
-    
-    def setPosition(self, r, theta=0):
+    def setPosition(self, r, theta=0, force=False):
         '''Set the position of the node, as well as any attached objects.
         
         Parameters
@@ -348,24 +412,50 @@ class Node():
             x and y coordinates to position the node at [m].
         theta, float (optional)
             The heading of the object [rad].
+        force : bool (optional)
+            When false (default) it will not allow movement of subordinate objects.
         '''
+        
+        # Don't allow this if this is part of another object
+        if self.part_of and not force:
+            raise Exception("Can't setPosition of an object that's part of a higher object unless force=True.")
         
         # Store updated position and orientation
         self.r = np.array(r)
         self.theta = theta
         
         # Get rotation matrix...
-        self.R = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
+        if len(r) == 2:
+            self.R = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
+        elif len(r) == 3:
+            if np.isscalar(theta):
+                angles = np.array([theta, 0, 0])
+            elif len(theta)==1:
+                angles = np.array([theta[0], 0, 0])
+            elif len(theta)==3:
+                angles = np.array(theta)
+            else:
+                raise Exception("theta needs to be length 1 or 3.")
         
+            self.R = rotationMatrix(*angles)
+        else:
+            raise Exception("Length or r must be 2 or 3.")
         
         # Update the position of any attach objects
         for att in self.attachments.values():
+        
+            if len(r) == len(att['r_rel']):
+                pass  # all good
+            elif len(r) == 3 and len(att['r_rel']) == 2:  # pad r_rel with z=0 if needed
+                att['r_rel'] = np.hstack([att['r_rel'], [0]])
+            else:
+                raise Exception("r and attachment r_rel values have mismatched dimensions.")
         
             # Compute the attachment's position
             r_att = self.r + np.matmul(self.R, att['r_rel'])
             
             if isinstance(att['obj'], Node):
-                att['obj'].setPosition(r_att)
+                att['obj'].setPosition(r_att, theta=theta, force=True)
                 
             elif isinstance(att['obj'], Edge):
                 att['obj'].setEndPosition(r_att, att['end'])
@@ -391,7 +481,7 @@ class Edge():
         
         self.id = id  # id number or string, used as the key when attached to things
         
-        self.attached_to = [[], []]  # whether either end [A, B] of this object is bound to other object(s)
+        self.attached_to = [None, None]  # object end [A, B] of this edge is attached to
         
         # End A and B locations
         self.rA = [0,0]
@@ -403,8 +493,8 @@ class Edge():
         self.subcomponents = []  # chain of edges and nodes that make up this edge 
         # (e.g. sections of a mooring line, and connetors between them)
         
-     >>   self.sub_ind_A = [] # subcomponent index for end A (can be multiple)
-        self.sub_ind_B = [] # subcomponent index for end B (can be multiple)
+        self.subcons_A = [] # subcomponent for end A (can be multiple)
+        self.subcons_B = [] # subcomponent for end B (can be multiple)
         
         whole = True  # false if there is a disconnect among the sub edges/nodes
     
@@ -460,7 +550,7 @@ class Edge():
     
     def _attach_to(self, object, end):
         '''Internal method to update the edge's attached_to registry when
-        requested by a node. 
+        requested by a node. This doesn't do higher level attachments.
         
         Parameters
         ----------
@@ -474,9 +564,12 @@ class Edge():
         if not isinstance(object, Node):
             raise Exception('Edge objects can only be attached to Node objects.')
         
+        # Could potentially check if it's already attached to something <<<
+        
         # Add it to the attached_to registry
         self.attached_to[i_end] = object
         
+        '''
         # Recursively attach any subcomponent at the end
         >>> do we really want to do this still? <<<
         if len(self.subcomponents) > 0:  # this edge has subcomponents
@@ -488,7 +581,7 @@ class Edge():
                     
                 elif isinstance(subcon, Edge): # if it's an edge
                     subcon._attach_to(object, i_end)  # i_end will tell it whether to use end A or B
-            
+        ''' 
         
     
     
@@ -510,8 +603,8 @@ class Edge():
         
     def _detach_from(self, end):
         '''Internal method to update the edge's attached_to registry when
-        requested by a node. In nested edges, expects to be called for the
-        highest-level one first, then it will recursively call any lower ones.
+        requested by a node. In nested edges, it will recursively call any 
+        lower objects.
         
         Parameters
         ----------
@@ -522,23 +615,23 @@ class Edge():
         # Delete the attachment(s) of the edge end (there should only be one)
         self.attached_to[i_end] = None
         
-        # Recursively detach the ends of any sub-edges
-        if len(self.subcomponents) > 0:
-  >>          subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
-            
+        # Go deeper >..... >>>
+        if i_end == 0:
+            end_subcons = self.subcons_A
+        elif i_end == 1:
+            end_subcons = self.subcons_B
+
+        for subcon in end_subcons:
             if isinstance(subcon, Node):
-                subcon._detach_from()
+                if subcon.attached_to:
+                    subcon.attached_to.detach(subcon)
+                # the above will then call subcon._detach_from()
                 
             elif isinstance(subcon, Edge):
-                subcon._detach_from(i_end)
-        
-        '''
-        if self.sub_edges:
-            if end:
-                self.sub_edges[-1]._detach_from(end)
-            else:
-                self.sub_edges[0]._detach_from(end)
-        '''
+                if subcon.attached_to[i_end]:
+                    subcon.detachFrom(end=i_end)
+                # the above will eventually call subcon._detach_from(i_end)
+
         # could add a check that if it isn't the highest left edge and if it 
         # isn't called from another edge's _detach_from method, then error, 
         # or go up a level...
@@ -547,23 +640,24 @@ class Edge():
     def addSubcomponents(self, items, iA=[0], iB=[-1]):
         '''If items is a list: Adds a sequences of nodes and edges 
         (alternating) as subcomponents of this edge. It also connects 
-        the sequence in the process, and saves it as a dict rather than list.
-        
-        If times is a dict: Adds them, assuming they are already assembled.
-        iA, iB : index of the end subcomponent(s) - provides as lists
+        the sequence in the process, and saves it as a dict rather than list.??        
+        If items is a list: Adds them, assuming they are already assembled.??
+        iA, iB : index of the end subcomponent(s) - provided as lists
         '''
         
         # Attach the sequency of nodes and edges to each other
         assemble(items)
         
-        # Store them as subcomponents of this edge, as a dict 0:N
+        # Store them as subcomponents of this edge
         self.subcomponents = items  # dict(enumerate(items))
         for item in items:
             item.part_of = self
         
-        # Assign ends (this feels pretty crude so far)
-        self.end_inds = [list(iA), list(iB)]
+        # Assign ends 
+        self.subcons_A = list([items[0]]) # subcomponent for end A (can be multiple)
+        self.subcons_B = list([items[-1]]) # subcomponent for end B (can be multiple)
         
+        '''
         # Make sure the subcomponents ends are connected appropriately
         # to whatever this Edge might be attached to
          >>> this seems like it shouldn't be done anymore! <<<
@@ -585,7 +679,7 @@ class Edge():
         if self.attached_to[1]:
             self._attach_to(self.attached_to[1], 1)
         '''
-    
+    """
     def getTopLevelObject(self, end):
         '''If this edge is part of a higher-level object, and the request
         corresponds to an end of that higher-level group, return the higher object,
@@ -601,6 +695,22 @@ class Edge():
         
         else:
             return self, i_end  # if not part of something bigger, just return self
+    """
+    
+    def findEnd(self, object):
+        '''Checks if object is a subcomponent of self and which end it's at.'''
+        
+        if not object in self.subcomponents:
+            raise Exception("This object is not a subcomponent of this edge!")
+        
+        if object in self.subcons_A:
+            end = 0
+        elif object in self.subcons_B:
+            end = 1
+        else:
+            end = -1  # object isn't at the end of the higher level edge so do nothing
+        
+        return end
     
     
     def setEndPosition(self, r, end):
@@ -709,7 +819,7 @@ class Poly():
         
         # Determine which end to attach
         if end == None:
-            raise Exception("Poly end must be given...)
+            raise Exception("Poly end must be given...")
         else:
             i_end = int(end) # <<>> endToIndex(end, estr='when attaching an edge to something.')
         
@@ -785,7 +895,7 @@ class Poly():
         
         # Recursively detach the ends of any sub-edges
         
-        >>> need to figure out which subcomponent would correspond to the requested end of the poly <<<
+        #>>> need to figure out which subcomponent would correspond to the requested end of the poly <<<
         
         if len(self.subcomponents) > 0:
             subcon = self.subcomponents[-i_end]  # index 0 for A, -1 for B
@@ -824,12 +934,12 @@ class Poly():
         # to whatever this Edge might be attached to
         for i in range(len(end_inds)):
             if self.attached_to[end_inds[i]]:
-                if isinstance(self.attached_to[end_inds[i], Node):
+                if isinstance(self.attached_to[end_inds[i]], Node):
                     self._attach_to(self.attached_to[end_inds[i]])
                 else:  # it's an edge, so also tell it which end should be attached
                     self._attach_to(self.attached_to[end_inds[i]], end_ends[i])
    
-    
+    """
     def getTopLevelEdge(self, end):
         '''If this edge is part of a higher-level edge group, and the request
         corresponds to an end of that higher-level group, return the higher edge,
@@ -886,7 +996,7 @@ class Poly():
         
         # next step would just be to separately remove any other references
         # to this object...
-
+    """
 
 
 # general functions
@@ -936,7 +1046,7 @@ def endToIndex(end, estr='', n=2):
         if len(end) == 1:
             end = ord(end.lower())-97  # convert letter to integer (A=0, b=1, etc)
         else:
-raise Exception("When providing 'end' as a string, it must be a single letter.")
+            raise Exception("When providing 'end' as a string, it must be a single letter.")
 
     if not type(end) == int:
         raise Exception('End must be provided as a character or integer.')
@@ -955,6 +1065,8 @@ raise Exception("When providing 'end' as a string, it must be a single letter.")
 def assemble(items):
     '''Strings together a sequence of nodes and edges'''
     
+    # >>> TODO: adjust this so it can connect parallel elements .eg. for bridles <<<
+    
     n = len(items)
     
     for i in range(n-1):
@@ -967,8 +1079,38 @@ def assemble(items):
         else:
             raise Exception('sequences is not alternating between nodes and edges')
     
+
+def rotationMatrix(x3,x2,x1):
+    '''Calculates a rotation matrix based on order-z,y,x instrinsic (tait-bryan?) angles, meaning
+    they are about the ROTATED axes. (rotation about z-axis would be (0,0,theta) )
+    (Copied from MoorPy)
     
+    Parameters
+    ----------
+    x3, x2, x1: floats
+        The angles that the rotated axes are from the nonrotated axes. Normally roll,pitch,yaw respectively. [rad]
+
+    Returns
+    -------
+    R : matrix
+        The rotation matrix
+    '''
+    # initialize the sines and cosines
+    s1 = np.sin(x1) 
+    c1 = np.cos(x1)
+    s2 = np.sin(x2) 
+    c2 = np.cos(x2)
+    s3 = np.sin(x3) 
+    c3 = np.cos(x3)
     
+    # create the rotation matrix
+    R = np.array([[ c1*c2,  c1*s2*s3-c3*s1,  s1*s3+c1*c3*s2],
+                  [ c2*s1,  c1*c3+s1*s2*s3,  c3*s1*s2-c1*s3],
+                  [   -s2,           c2*s3,           c2*c3]])
+    
+    return R    
+    
+
 # test script
 if __name__ == '__main__':
     
@@ -993,7 +1135,7 @@ if __name__ == '__main__':
     edge1.attachTo(node2, end='a')
     
     
-    # ----- make a test for super edges... -----
+    # ----- a test for super edges... -----
     
     e0 = Edge(id='e0')
     e1 = Edge(id='e1')
@@ -1012,3 +1154,99 @@ if __name__ == '__main__':
     
     E.addSubcomponents([e0,n0,e1,n1,e2])
     
+    # ----- try joining two nodes -----
+    
+    A = Node(id='Node A')
+    B = Node(id='Node B')
+    A.join(B)
+    
+    
+    # ----- tests connecting multi-level node and edge objects ----
+    '''
+    # --- Test 1 ---
+    # platform and fairlead
+    n1 = Node(id='n1')
+    n2 = Node(id='n2')
+    n1.attach(n2, r_rel=[20,0,-10])
+    # mooring and contents
+    e1 = Edge(id='e1')
+    e1_e1 = Edge(id='e1_e1')
+    e1_n2 = Node(id='e1_n2')
+    e1_e3 = Edge(id='e1_e3')
+    e1.addSubcomponents([e1_e1, e1_n2, e1_e3])
+    # attach mooring to platfrom (by lower objects, then upper will be automatic)
+    #n2.attach(e1_e1, end='A')
+    n2.attach(e1_e3, end='B')
+    
+    # --- Test 2 ---
+    # platform and fairlead
+    n1 = Node(id='n1')
+    n2 = Node(id='n2')
+    n1.attach(n2, r_rel=[20,0,-10])
+    # mooring and contents
+    e1 = Edge(id='e1')
+    e1_n1 = Node(id='e1_n1')
+    e1_e2 = Edge(id='e1_e2')
+    e1_n3 = Node(id='e1_n3')
+    e1.addSubcomponents([e1_n1, e1_e2, e1_n3])
+    # attach mooring to platfrom (by lower objects, then upper will be automatic)
+    n2.attach(e1_n1)
+    #n2.attach(e1_n3)
+    #n2.join(e1_n1)
+    #n2.join(e1_n3)
+    
+    # --- Test 3 ---
+    # platform and fairlead
+    n1 = Node(id='n1')
+    # mooring and contents
+    e1 = Edge(id='e1')
+    e1_e1 = Edge(id='e1_e1')
+    e1_n2 = Node(id='e1_n2')
+    e1_e3 = Edge(id='e1_e3')
+    e1.addSubcomponents([e1_e1, e1_n2, e1_e3])
+    # attach mooring to platfrom (by lower objects, then upper will be automatic)
+    #n1.attach(e1_e1, r_rel=[20,0,-10], end='A')
+    n1.attach(e1_e3, r_rel=[20,0,-10], end='B')
+    
+    # --- Test 4 ---
+    # platform and fairlead
+    n1 = Node(id='n1')
+    # mooring and contents
+    e1 = Edge(id='e1')
+    e1_n1 = Node(id='e1_n1')
+    e1_e2 = Edge(id='e1_e2')
+    e1_n3 = Node(id='e1_n3')
+    e1.addSubcomponents([e1_n1, e1_e2, e1_n3])
+    # attach mooring to platfrom (by lower objects, then upper will be automatic)
+    #n1.attach(e1_n1, r_rel=[20,0,-10])
+    n1.attach(e1_n3, r_rel=[20,0,-10])
+    
+    # --- Test 5 ---
+    # platform and fairlead
+    n1 = Node(id='n1')
+    n2 = Node(id='n2')
+    n1.attach(n2, r_rel=[20,0,-10])
+    # mooring and contents
+    e1_e1 = Edge(id='e1_e1')
+    e1_n2 = Node(id='e1_n2')
+    e1_n2.attach(e1_e1, end='B')
+    # attach mooring to platfrom (by lower objects, then upper will be automatic)
+    n2.attach(e1_n2)
+    '''
+    # --- Test 6 ---
+    # platform and fairlead
+    n1 = Node(id='n1')
+    n2 = Node(id='n2')
+    n1.attach(n2, r_rel=[20,0,-10])
+    # mooring and contents
+    e1_n1 = Node(id='e1_n1')
+    e1_e2 = Edge(id='e1_e2')
+    e1_n1.attach(e1_e2, end='A')
+    # attach mooring to platfrom (by lower objects, then upper will be automatic)
+    n2.attach(e1_e2, end='B')
+    # --- done tests ---
+    n1.setPosition(r=[0,0,0], theta=0)
+    #print(n1.attachments)
+    #print(e1.attached_to)
+    
+
