@@ -6,6 +6,7 @@ import numpy as np
 from famodel.famodel_base import Node
 from famodel.mooring.mooring import Mooring
 import famodel.platform.platform 
+import shapely as sh
 
 
 class Anchor(Node):
@@ -81,6 +82,8 @@ class Anchor(Node):
         # Dictionaries for additional information
         # anchor capacity
         self.anchorCapacity = {}
+        self.safety_factors = {} # calculated safety factor
+        self.safety_factors_required = {} # minimum allowable safety factor
         
         # anchor costs
         self.cost = {}
@@ -676,7 +679,10 @@ class Anchor(Node):
         else:
             return(FS)
             
-        
+    def makeBuffer(self, buff_rad=50):
+        point = sh.Point(self.r[:2])
+        buff = point.buffer(buff_rad)
+        return buff
                
     def getCost(self,costDict='default'):
         '''find costs of anchor and store in design dictionary

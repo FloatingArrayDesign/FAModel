@@ -34,7 +34,8 @@ from famodel.famodel_base import Node
 # Import select required helper functions
 from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
                             getMoorings, getAnchors, getFromDict, cleanDataTypes, 
-                            getStaticCables, getCableDesign,m2nm, loadYAML, configureAdjuster)
+                            getStaticCables, getCableDesign, m2nm, loadYAML, 
+                            configureAdjuster, route_around_anchors)
 
 
 class Project():
@@ -1900,7 +1901,7 @@ class Project():
             heads = [headingA,headingB]
             # reposition cable
             cab.reposition(project=self,headings=heads,rad_fair=[5,5])
-            
+
             coords = []
             if cableConfig:
                 ref_cables = None
@@ -1930,6 +1931,7 @@ class Project():
                 # update routing
                 cab.subcomponents[cs].updateRouting(coords) # also updates static and general cable lengths
 
+        route_around_anchors(self)
                               
     
     def updatePositions(self):
@@ -2538,7 +2540,7 @@ class Project():
                         pass
                     elif isinstance(comp,DynamicCable):
                         # create subsystem for dynamic cable
-                        comp.createSubsystem(pristine=pristineLines)  
+                        comp.createSubsystem(pristine=pristineLines) 
 
                         if pristineLines:                           
                             ssloc = comp.ss

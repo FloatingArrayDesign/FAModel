@@ -4,6 +4,7 @@ import numpy as np
 from copy import deepcopy
 from moorpy.subsystem import Subsystem
 from moorpy import helpers
+import shapely as sh
 
 from famodel.cables.dynamic_cable import DynamicCable
 from famodel.cables.static_cable import StaticCable
@@ -233,6 +234,24 @@ class Cable(Edge):
             L += cab.L
             
         self.L = L
+        
+    def makeLine(self,buff_rad=20,include_dc=True):
+        
+        coords = []
+        for sub in self.subcomponents:
+            if isinstance(sub,Joint):
+                coords.append(sub['r'][:2])
+            elif isinstance(sub,DynamicCable) and include_dc:
+                coords.append(sub.rA[:2])
+                coords.append(sub.rB[:2])
+                pass
+            elif isinstance(sub, StaticCable):
+                if len(sub.x)>0:
+                    for i in range(len(sub.x)):
+                        coords.append([sub.x[i],sub.y[i]])
+        line = sh.LineString(coords)
+
+        return(line)
     
     def updateSpan(self,newSpan):
         '''
