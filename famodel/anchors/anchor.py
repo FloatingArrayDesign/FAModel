@@ -546,6 +546,338 @@ class Anchor(Node):
             if 'Weight plate' in results:
                 self.anchorCapacity['Weight plate'] = self.mass*self.g
                    
+    def getSizeAnchor2(self, geom, geomBounds=None, loads=None,
+                          lambdap_con=[4, 6], zlug_fix=True, safety_factor={'SF_combined': 1.0}, plot=False):
+        '''
+        Grid-based optimization method for envelope anchors (suction, torpedo, plate).
+        Evaluates UC over a grid of L and D, and selects the point closest to target UC.
+        '''
+        import matplotlib.pyplot as plt
+        from matplotlib import cm
+        import matplotlib.colors as mcolor
+        import numpy as np
+
+        anchType_clean = self.dd['type'].lower().replace('', '')
+
+        if loads is None:
+            loads = self.loads
+
+        Hm = loads['Hm']
+        Vm = loads['Vm']
+
+        line_type = getattr(self, 'line_type', 'chain')
+        d = getattr(self, 'd', 0.16)
+        w = getattr(self, 'w', 5000.0)
+
+        if anchType_clean not in ['suction', 'torpedo', 'plate']:
+            raise ValueError(f"Grid-based getSizeAnchor only supports envelope anchors, not '{anchType_clean}'")
+
+        UC_target = 1.0/safety_factor.get('SF_combined', 1.0)
+
+        # Unpack bounds and generate grid
+        L_vals = np.linspace(geomBounds[0][0], geomBounds[0][1], 10)
+        D_vals = np.linspace(geomBounds[1][0], geomBounds[1][1], 10)
+
+        L_grid, D_grid = np.meshgrid(L_vals, D_vals)
+        UC_grid = np.full_like(L_grid, np.nan, dtype=float)
+        mask = np.full_like(L_grid, False, dtype=bool)
+
+        best_UC, best_L, best_D = None, None, None
+        results = []
+
+        for i in range(D_grid.shape[0]):  # loop over D
+            for j in range(D_grid.shape[1]):  # loop over L
+                D = D_grid[i, j]
+                L = L_grid[i, j]
+                lambdap = L/D
+
+                if not (lambdap_con[0] <= lambdap <= lambdap_con[1]):
+                    continue
+
+                mask[i, j] = True
+                self.dd['design']['L'] = L
+                self.dd['design']['D'] = D
+
+                if anchType_clean == 'suction' and not zlug_fix:
+                    self.dd['design']['zlug'] = (2/3)*L
+
+                try:
+                    self.getCapacityAnchor(Hm=Hm, Vm=Vm, zlug=self.dd['design']['zlug'],
+                                           line_type=line_type, d=d, w=w, 
+                                           mass_update=True, plot=False)
+                    UC = self.anchorCapacity.get('UC', np.nan)
+                    results.append({
+                        'L': L,
+                        'D': D,
+                        'UC': UC})
+
+                    if UC > 1e-2 and UC < 10.0:
+                        UC_grid[i, j] = UC
+                        # Find UC closest to target
+                        if best_UC is None or abs(UC - UC_target) < abs(best_UC - UC_target):
+                            best_UC = UC
+                            best_L = L
+                            best_D = D
+
+                except:
+                    continue
+
+        # Update best result
+        # if best_L is not None and best_D is not None:
+        self.dd['design']['L'] = best_L
+        self.dd['design']['D'] = best_D
+        if anchType_clean == 'suction' and not zlug_fix:
+            self.dd['design']['zlug'] = (2/3)*best_L
+
+        self.getCapacityAnchor(Hm=Hm, Vm=Vm, zlug=self.dd['design']['zlug'],
+                               line_type=line_type, d=d, w=w, 
+                               mass_update=True, plot=plot)
+
+        print('\nFinal Optimized Anchor (Grid-based):')
+        print('Design:', self.dd['design'])
+        print('Capacity Results:', self.anchorCapacity)
+
+        # else:
+        #     print('[Warning] No valid combination found in the grid.')
+
+        # Optional plot
+
+        if plot:
+            fig, ax = plt.subplots(figsize=(6, 8))
+            vmin, vmax = 0.01, 10
+            levels = np.logspace(np.log10(vmin), np.log10(vmax), 21)
+            cp = ax.contourf(D_grid, L_grid, UC_grid, levels=levels, cmap='coolwarm', norm=mcolor.LogNorm(vmin=vmin, vmax=vmax))
+            fig.colorbar(cp, ax=ax, label='Unity check (UC)')
+            ax.contour(D_grid, L_grid, UC_grid, levels=levels, colors='k', linewidths=0.3, alpha=0.3)
+            ax.contour(D_grid, L_grid, UC_grid, levels=[1.0], colors='red', linewidths=2, linestyles='--')
+            ax.set_xlabel('Diameter (m)')
+            ax.set_ylabel('Length (m)')
+            ax.set_title('Unity Check (UC')
+            ax.plot(best_D, best_L, 'ro', label='Best match')
+            ax.annotate('Best match', (best_D, best_L), textcoords="offset points", xytext=(10,10), ha='center', color='red')
+            ax.legend()
+            plt.grid(True)
+            plt.tight_layout()
+            plt.show()
+            
+        #UC_target = 1.0
+        closest = min(results, key=lambda x: abs(x['UC'] - UC_target))
+        print("Closest to UC_target:")
+        print(closest)
+            
+        return results
+    
+    def getSizeAnchor_BO(self, 
+                         geom=[10.0, 2.0],
+                         geomKeys=['L', 'D'],
+                         geomBounds=[(5.0, 15.0), (1.0, 4.0)],
+                         loads=None,
+                         lambdap_con=[3, 6],
+                         zlug_fix=False,
+                         safety_factor={'SF_combined': 1.0},
+                         n_calls=25,
+                         plot=False,
+                         verbose=True):
+        '''
+        Bayesian optimization to find (D, L) for UC closest to UC_target.
+        Uses scikit-optimize for surrogate model and efficient sampling.
+        '''
+        from skopt import gp_minimize
+        from skopt.space import Real
+        from skopt.utils import use_named_args
+        import numpy as np
+
+        if loads is None:
+            loads = self.loads
+
+        Hm = loads['Hm']
+        Vm = loads['Vm']
+
+        line_type = getattr(self, 'line_type', 'chain')
+        d = getattr(self, 'd', 0.16)
+        w = getattr(self, 'w', 5000.0)
+
+        UC_target = 1.0 / safety_factor.get('SF_combined', 1.0)
+
+        # Define the search space
+        space  = [
+            Real(geomBounds[1][0], geomBounds[1][1], name='D'),
+            Real(geomBounds[0][0], geomBounds[0][1], name='L')
+        ]
+
+        @use_named_args(space)
+        def objective(**params):
+            D = params['D']
+            L = params['L']
+
+            # Apply lambda constraint
+            lambdap = L/D
+            if not (lambdap_con[0] <= lambdap <= lambdap_con[1]):
+                return 100.0
+
+            self.dd['design']['D'] = D
+            self.dd['design']['L'] = L
+            if not zlug_fix:
+                self.dd['design']['zlug'] = (2/3)*L
+
+            try:
+                self.getCapacityAnchor(
+                    Hm=Hm,
+                    Vm=Vm,
+                    zlug=self.dd['design']['zlug'],
+                    line_type=line_type,
+                    d=d,
+                    w=w,
+                    mass_update=True,
+                    plot=False
+                )
+                UC = self.anchorCapacity.get('UC', np.nan)
+            except:
+                UC = np.nan
+
+            if verbose:
+                print(f"Evaluated D={D:.3f}, L={L:.3f} -> UC={UC:.3f}")
+
+            if not np.isfinite(UC):
+                return 100.0
+
+            if UC < UC_target:
+                return (UC_target - UC)**2 * 0.5  # less penalty for overdesign
+            else:
+                return (UC - UC_target)**2 * 10   # higher penalty for failure
+
+        # Run Bayesian optimization
+        res = gp_minimize(
+            objective,
+            space,
+            x0=[geom[1], geom[0]],
+            n_calls=n_calls,
+            random_state=42,
+            verbose=verbose
+        )
+
+        # Best result
+        best_D, best_L = res.x
+        self.dd['design']['D'] = best_D
+        self.dd['design']['L'] = best_L
+        if not zlug_fix:
+            self.dd['design']['zlug'] = (2/3)*best_L
+
+        self.getCapacityAnchor(
+            Hm=Hm,
+            Vm=Vm,
+            zlug=self.dd['design']['zlug'],
+            line_type=line_type,
+            d=d,
+            w=w,
+            mass_update=True,
+            plot=plot
+        )
+        UC = self.anchorCapacity.get('UC', np.nan)
+
+        print('\nBayesian Optimized Anchor:')
+        print('Design:', self.dd['design'])
+        print('Capacity Results:', self.anchorCapacity)
+        print(f'Best UC: {UC:.4f} (target: {UC_target})')
+
+        results = {'D': best_D, 'L': best_L, 'UC': UC, 'result': res}
+
+        return results
+    # PATCH for GRADIENT method: wrap getCapacityAnchor in safe evaluator
+    def safe_get_uc(self, Hm, Vm, zlug, line_type, d, w, verbose=False):
+        try:
+            self.getCapacityAnchor(Hm, Vm, zlug, line_type, d, w, True, False)
+            return self.anchorCapacity.get('UC', np.nan)
+        except Exception as e:
+            if verbose:
+                print(f"[Safe Error] {str(e)}")
+            return np.nan
+
+    def getSizeAnchor_gradient(self, 
+                               geom=[10.0, 2.0],
+                               geomKeys=['L', 'D'],
+                               geomBounds=[(5.0, 15.0), (1.0, 4.0)],
+                               loads=None,
+                               lambdap_con=[3, 6],
+                               zlug_fix=False,
+                               safety_factor={'SF_combined': 1.0},
+                               step_size=0.2,
+                               tol=0.05,
+                               max_iter=30,
+                               verbose=True):
+        '''
+        Gradient-based optimization with early stopping to match UC_target.
+        '''
+        import numpy as np
+    
+        if loads is None:
+            loads = self.loads
+    
+        Hm = loads['Hm']
+        Vm = loads['Vm']
+    
+        line_type = getattr(self, 'line_type', 'chain')
+        d = getattr(self, 'd', 0.16)
+        w = getattr(self, 'w', 5000.0)
+    
+        UC_target = 1.0 / safety_factor.get('SF_combined', 1.0)
+    
+        L, D = geom
+    
+        for iter in range(max_iter):
+            lambdap = L / D
+            if not (lambdap_con[0] <= lambdap <= lambdap_con[1]):
+                if verbose:
+                    print(f"[Iter {iter}] λ = {lambdap:.2f} out of bounds. Terminating.")
+                break
+    
+            self.dd['design']['L'] = L
+            self.dd['design']['D'] = D
+            if not zlug_fix:
+                self.dd['design']['zlug'] = (2/3)*L
+    
+            UC0 = self.safe_get_uc(Hm, Vm, self.dd['design']['zlug'], line_type, d, w, verbose=verbose)
+    
+            if not np.isfinite(UC0):
+                break
+    
+            if verbose:
+                print(f"[Iter {iter}] L={L:.2f}, D={D:.2f}, UC={UC0:.3f}")
+    
+            if abs(UC0 - UC_target) < tol:
+                print("Early stopping: UC within tolerance.")
+                break
+    
+            # Gradient estimate
+            delta = 0.1
+            UC_L = self.safe_get_uc(Hm, Vm, (2/3)*(L + delta), line_type, d, w, verbose=verbose)
+            UC_D = self.safe_get_uc(Hm, Vm, (2/3)*L, line_type, d, w, verbose=verbose)
+    
+            grad_L = (UC_L - UC0)/delta if np.isfinite(UC_L) else 0.0
+            grad_D = (UC_D - UC0)/delta if np.isfinite(UC_D) else 0.0
+    
+            # Update
+            L -= step_size * grad_L
+            D -= step_size * grad_D
+            L = np.clip(L, geomBounds[0][0], geomBounds[0][1])
+            D = np.clip(D, geomBounds[1][0], geomBounds[1][1])
+    
+            if not (lambdap_con[0] <= L/D <= lambdap_con[1]):
+                if verbose:
+                    print("Terminated: lambda constraint violated after update.")
+                break
+    
+        self.dd['design']['L'] = L
+        self.dd['design']['D'] = D
+        self.dd['design']['zlug'] = (2/3)*L
+        self.getCapacityAnchor(Hm, Vm, self.dd['design']['zlug'], line_type, d, w, True, True)
+    
+        print('\nGradient Optimized Anchor:')
+        print('Design:', self.dd['design'])
+        print('Capacity Results:', self.anchorCapacity)
+    
+        return {'D': D, 'L': L, 'UC': self.anchorCapacity.get('UC', np.nan)}
+   
     def getSafetyFactor(self):
         '''
         Calculate the safety factor based on the unity checks stored in capacity results.

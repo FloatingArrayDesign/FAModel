@@ -1,6 +1,9 @@
 """Project class for FAModel, containing information and key methods for
 the site information and design information that make up a project."""
 
+import sys
+sys.path.append(r'C:\Code\FAModel_anchors')
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,9 +18,6 @@ try:
     import raft as RAFT
 except:
     pass
-
-import sys
-sys.path.append(r'C:\Code\FAModel_anchors')
 
 #from shapely.geometry import Point, Polygon, LineString
 from famodel.seabed import seabed_tools as sbt
