@@ -310,7 +310,7 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
         delta_phi = 0.32 + 4.32*lambdap; #print(delta_phi)
     elif 1.125 <= lambdap < 2.0:
         delta_phi = 7.13 - 1.71*lambdap; #print(delta_phi)
-    elif 2.0 <= lambdap <= 6.0:
+    elif 2.0 <= lambdap <= 8.0:
         delta_phi = 2.25 - 0.25*lambdap; #print(delta_phi)
     else:
         raise ValueError('L/D out of bounds for MH ellipse.')
