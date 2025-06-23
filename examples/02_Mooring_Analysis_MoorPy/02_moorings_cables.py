@@ -4,6 +4,8 @@ Simple driver file to create an FAModel project and make a moorpy system model
 of the array including moorings and dynamic cables.
 The input file only contains the bare minimum information to build a moorpy
 array with moorings and dynamic cables (static cables are not modeled in MoorPy)
+
+For more information on MoorPy, please see MoorPy documentation at https://github.com/NREL/MoorPy
 """
 
 from famodel import Project
@@ -11,13 +13,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # define name of ontology input file
-input_file = '03_platform-hydrostatics.yaml'
+input_file = '02_moorings_cables.yaml'
 
 # initialize Project class with input file, we don't need RAFT for this so mark False
 project = Project(file=input_file,raft=False)
 
 # create moorpy array
-project.getMoorPyArray() # Platform hydrostatics information from ontology now used instead of default UMaine VolturnUS-S
+project.getMoorPyArray()
 
 # - - - Let's do a quick simulation of force on the moorpy array - - - 
 ms = project.ms                                             # create a variable shortcut to moorpy system model

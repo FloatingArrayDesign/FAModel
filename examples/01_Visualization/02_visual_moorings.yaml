@@ -6,7 +6,7 @@ array:
     keys : [ID, topsideID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
         -  [fowt0,     0,         1,           ms1,          -1600,         -1600,          180   ]
-        -  [fowt1,     0,         1,           ms1,          0,             -1600,          0     ]    # 2 array, shared moorings
+        -  [fowt1,     0,         1,           ms1,          0,             -1600,          0     ]  
         -  [fowt2,     0,         1,           ms1,          1600,           -1600,            0   ]
         -  [fowt3,     0,         1,           ms1,          -1600,          0,            0   ]
         -  [fowt4,     0,         1,           ms1,          0,              0,            45   ]

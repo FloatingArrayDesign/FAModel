@@ -6,8 +6,10 @@ import os
 import re
 from copy import deepcopy
 from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCableProps,loadBuoyProps
-import ruamel
-
+import ruamel.yaml
+import moorpy as mp
+from moorpy.helpers import loadPointProps, getPointProps
+import shapely as sh
 
 
 def cart2pol(x, y):
@@ -21,6 +23,7 @@ def pol2cart(rho, phi):
     return(x, y)
 
 def m2nm(data):
+    ''' Convert meters to nautical miles'''
     if isinstance(data,list):
         data = np.array(data)
     data = data*0.000539957
@@ -209,7 +212,6 @@ def check_headings(m_headings,c_heading,rad_buff):
     # convert negative headings to positive headings
     for i,mh in enumerate(m_headings):
         if mh<0:
-            #breakpoint()
             m_headings[i] = 2*np.pi + mh
         elif mh>2*np.pi:
             m_headings[i] = mh - 2*np.pi
@@ -247,7 +249,6 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
         headnew = np.pi*2 + heading
     else:
         headnew = heading
-    #breakpoint()
     attheadings = []
     flipheads = False # whether to flip headings ( for if you are looking at mooring headings of platform on the other end)
     for at in att:
@@ -728,14 +729,26 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
             lineLast = 1
             
         elif 'connectorType' in lc:
+            cID = lc['connectorType']
             # this is a connector
             if lineLast == 0:
                 # last item in list was a connector
                 raise Exception(f"Two connectors were specified in a row for line configuration '{lcID}', please remove one of the connectors")
             else:
+                
                 # last item in list was a line
-                c_config.append(connectorTypes[lc['connectorType']]) # add connector to list
-                c_config[-1]['type'] = lc['connectorType']
+                if cID in connectorTypes:
+                    c_config.append(connectorTypes[cID]) # add connector to list
+                    c_config[-1]['type'] = cID
+                else:
+                    # try pointProps
+                    try:
+                        props = loadPointProps(None)
+                        design = {f"num_c_{cID}":1}
+                        c_config.append(getPointProps(design, Props=props))
+                    except Exception as e: 
+                        raise Exception(f"Connector type {cID} not found in connector_types dictionary, and getPointProps raised the following exception:",e)
+                        
                 # update lineLast boolean
                 lineLast = 0
         else:
@@ -775,6 +788,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
     m_config['connectors'] = c_config  # add connectors section to the mooring dict
     
     return(m_config) #, c_config)
+    
 
 def getConnectors(c_config, mName, proj):
     '''
@@ -801,7 +815,7 @@ def getConnectors(c_config, mName, proj):
         if c_config[i] == None:                   
             # create empty connector object
             proj.mooringList[mName].dd['connectors'].append(Connector())
-        else:
+        elif c_config[i]:
             # create connector object with c_config entries
             proj.mooringList[mName].dd['connectors'].append(Connector(**c_config[i]))
 
@@ -834,6 +848,57 @@ def getAnchors(lineAnch, arrayAnchor, proj):
     
     return(ad, mass)
 
+def route_around_anchors(proj, anchor=True, cable=True, padding=50):
+    
+    # make anchor buffers with 50m radius
+    if anchor:
+        anchor_buffs = []
+        for anch in proj.anchorList.values():
+            anchor_buffs.append(anch.makeBuffer())
+      
+    # make cable linestrings including joint locs and static cable (no dynamic cable for simplicity)
+    if cable:
+        cable_line = {}
+        for name, cab in proj.cableList.items():
+            cable_line[name] = cab.makeLine(include_dc=False)
+
+    # Function to calculate angle of a point relative to a center
+    def angle(pt):
+        return np.arctan2(pt[1] - center[1], pt[0] - center[0])    
+
+    # Loop through each cable linestring and anchor buffer
+    for name,cab in cable_line.items():
+        for anch in anchor_buffs:
+            if cab.intersects(anch):
+                # Get the start and end of the detour (the two closest points to the buffer)
+                segments = []
+                # make additional points on the line on either side of anchor
+                dist_to_anch = cab.line_locate_point(anch.centroid)
+                if dist_to_anch > 100:
+                    segments.append(cab.interpolate(dist_to_anch - 100))
+                if cab.length - dist_to_anch > 100:
+                    segments.append(cab.interpolate(dist_to_anch + 100))
+
+                start = np.array(segments[0].coords[-1])
+
+                # Get buffer center and radius
+                center = np.array(anch.centroid.coords[0])
+                radius = anch.boundary.distance(sh.Point(center))+padding
+
+                # Calculate angle for start point relative to center
+                angle_start = angle(start)
+
+                # Generate point along the arc (detour)
+                arc_point = [center[0] + radius * np.cos(angle_start+np.pi/2), center[1] + radius * np.sin(angle_start+np.pi/2)]
+
+                # add new routing point in cable object
+                proj.cableList[name].subcomponents[2].updateRouting([list(segments[0].coords[1:]) + arc_point + list(segments[1].coords[:-1])])
+
+
+
+
+
+            
 def configureAdjuster(mooring, adjuster=None, method='horizontal',
                       i_line=0, span=None, project=None, target=None):
     '''Configures adjuster function for mooring object

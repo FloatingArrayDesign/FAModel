@@ -6,8 +6,14 @@ import numpy as np
 from scipy.optimize import minimize
 from famodel.famodel_base import Node
 from famodel.mooring.mooring import Mooring
+<<<<<<< HEAD
 import matplotlib.pyplot as plt
 from collections import defaultdict
+=======
+import famodel.platform.platform 
+import shapely as sh
+
+>>>>>>> upstream/main
 
 class Anchor(Node):
     
@@ -56,7 +62,39 @@ class Anchor(Node):
         self.capacity_format = None
         self.mass = dd.get('design', {}).get('mass', None) if dd else None
         self.point_num = 0  # initialize point number
-
+        
+        # get environment info
+        self.g = g # acceleration due to gravity (m/s^2)
+        self.rho = rho # density of fluid (kg/m^3)
+        
+        # anchor mass
+        if 'mass' in self.dd['design']:
+            self.mass = self.dd['design']['mass']
+        else:
+            self.mass = None
+        
+        # Dictionaries for additional information
+        # anchor capacity
+        self.anchorCapacity = {}
+        self.safety_factors = {} # calculated safety factor
+        self.safety_factors_required = {} # minimum allowable safety factor
+        
+        # anchor costs
+        self.cost = {}
+        
+        self.loads = {}
+        '''
+        {
+           Hm:      # horizontal maximum anchor loads at mudline [N]
+           Vm:      # vertical maximum anchor loads at mudline [N]
+           thetam: # angle of load at the mudline [rad]
+           Ha:      # horizontal maximum loads at lug
+           Va:      # vertical maximum loads at lug
+           thetaa:  # angle of load at lug
+           method:  # dynamic or static method of calculation
+            }
+        '''
+>>>>>>> upstream/main
         self.soilProps = {}
         self.loads = {}
         self.anchorCapacity = {}

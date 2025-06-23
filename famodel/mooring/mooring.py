@@ -130,7 +130,8 @@ class Mooring(Edge):
         # Dictionaries for additional information
         self.envelopes = {}  # 2D motion envelope, buffers, etc.
         self.loads = {}
-        self.safety_factors = {}
+        self.safety_factors = {} # calculated safety factor
+        self.safety_factors_required = {} # minimum allowable safety factor 
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
@@ -359,20 +360,30 @@ class Mooring(Edge):
                 except:
                     line_cost += 0
                     print('Could not find line cost for',self.id)
+            for point in self.ss.pointList:
+                try:
+                    if self.loads:
+                        ccost,self['MBL'],_ = point.getCost_and_MBL(peak_tension=max([val for val in self.loads.values() if isinstance(val,float)]))
+                        conn_cost += ccost
+                    elif point.cost:
+                        conn_cost += point.cost
+                except:
+                    pass
         else:
             for sub in self.subcomponents:
                 if isinstance(sub,Section):
                     if 'cost' in sub['type']:
                         line_cost += sub['type']['cost']*sub['L']
-                elif isinstance(sub,Connector):
-                    if 'cost' in sub:
-                        conn_cost += sub['cost']
+                elif isinstance(sub,Connector):                  
+                    if self.loads:
+                        conn_cost += sub.getCost(peak_tension=max([val for val in self.loads.values() if isinstance(val,float)]))
+                    elif 'cost' in sub:
+                        conn_cost += sub.cost
                         
             self.cost['connector'] = conn_cost
         
         self.cost['line'] = line_cost
-        
-        # anchor cost  (it should already be computed)
+
         
         # sum up the costs in the dictionary and return
         return sum(self.cost.values())
@@ -451,8 +462,10 @@ class Mooring(Edge):
             startNum = 0 
 
         for i in range(startNum,len(ss.pointList)):                               
-            point = ss.pointList[i]
-            point.CdA = dd['connectors'][i]['CdA']
+            dd['connectors'][i].mpConn = ss.pointList[i]
+            dd['connectors'][i].mpConn.CdA = dd['connectors'][i]['CdA']
+            dd['connectors'][i].getProps()
+            
         # solve the system
         ss.initialize()
         ss.staticSolve()
@@ -1039,3 +1052,7 @@ class Mooring(Edge):
         # Indices of connectors and sections in self.subcomponents list
         self.i_con = list(range(0, 2*self.n_sec+1, 2))
         self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+        
+    
+        
+        
