@@ -1564,8 +1564,7 @@ class Project():
             elif len(id_part)==1:
                 # anchored line
                 n_existing_moor = len(self.platformList[id_part[0]].getMoorings())
-
-                id = str(id_part)+alph[n_existing_moor]
+                id = str(id_part[0])+alph[n_existing_moor]
             else:
                 id = 'moor'+str(len(self.mooringList))
                 
