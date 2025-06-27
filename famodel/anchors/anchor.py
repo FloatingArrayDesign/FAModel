@@ -850,6 +850,10 @@ class Anchor(Node):
             self.dd['design'].update(newGeom)
             if 'suction' in self.dd['type'] and not fix_zlug:
                 self.dd['design']['zlug'] = (2/3)*newGeom['L']
+            
+            if 'Hm' in input_loads or 'Vm' in input_loads:
+                anchor_loads = self.getLugForces(mudloads=input_loads)
+                input_loads = dict(Ha=anchor_loads['Ha'], Va=anchor_loads['Va'])    # overwrite the input_loads dictionary
             # get results
             results = self.getAnchorCapacity(loads=input_loads, plot=False)
                 
@@ -859,6 +863,10 @@ class Anchor(Node):
         def conFun_LD(vars, geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs):
             newGeom = dict(zip(geomKeys, vars))
             self.dd['design'].update(newGeom)
+
+            if 'Hm' in input_loads or 'Vm' in input_loads:
+                anchor_loads = self.getLugForces(mudloads=input_loads)
+                input_loads = dict(Ha=anchor_loads['Ha'], Va=anchor_loads['Va'])    # overwrite the input_loads dictionary
 
             results = self.getAnchorCapacity(loads=input_loads, plot=False)
             
@@ -873,6 +881,9 @@ class Anchor(Node):
             return(conval)
         # constraint to ensure unity check > 1 for suction buckets
         def conFun_Suction(vars, geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs):
+            if 'Hm' in input_loads or 'Vm' in input_loads:
+                anchor_loads = self.getLugForces(mudloads=input_loads)
+                input_loads = dict(Ha=anchor_loads['Ha'], Va=anchor_loads['Va'])    # overwrite the input_loads dictionary
             results = self.getAnchorCapacity(loads=input_loads, plot=False)
             #conval = results['UC'] - 1
             conval = 1 - results['UC']
@@ -883,6 +894,9 @@ class Anchor(Node):
 
             newGeom = dict(zip(geomKeys, vars))
             self.dd['design'].update(newGeom)
+            if 'Hm' in input_loads or 'Vm' in input_loads:
+                anchor_loads = self.getLugForces(mudloads=input_loads)
+                input_loads = dict(Ha=anchor_loads['Ha'], Va=anchor_loads['Va'])    # overwrite the input_loads dictionary
             results = self.getAnchorCapacity(loads=input_loads, plot=False)
 
             return np.array([0.05*newGeom['D'] - results['Lateral displacement'] , 0.25 - results['Rotational displacement']])
@@ -894,7 +908,11 @@ class Anchor(Node):
             #     # if results['UC'] < 1:
             #     #     conval = -1*(results['UC'])
             # else:
-            FS = self.getFS(loads=input_loads)
+            if 'Hm' in input_loads or 'Vm' in input_loads:
+                anchor_loads = self.getLugForces(mudloads=input_loads)
+                input_loads = dict(Ha=anchor_loads['Ha'], Va=anchor_loads['Va'])    # overwrite the input_loads dictionary
+                minfs = dict(Ha=minfs['Hm'], Va=minfs['Vm'])
+            FS, _, _ = self.getFS(loads=input_loads, acceptance_crit=minfs)
             conval = FS['Ha'] - 1
                 # for key,val in FS.items():
                     
@@ -904,7 +922,11 @@ class Anchor(Node):
             return(conval)
         
         def conFunV(vars, geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs):
-            FS = self.getFS(loads=input_loads)
+            if 'Hm' in input_loads or 'Vm' in input_loads:
+                anchor_loads = self.getLugForces(mudloads=input_loads)
+                input_loads = dict(Ha=anchor_loads['Ha'], Va=anchor_loads['Va'])    # overwrite the input_loads dictionary
+                minfs = dict(Ha=minfs['Hm'], Va=minfs['Vm'])
+            FS, _, _ = self.getFS(loads=input_loads, acceptance_crit=minfs)
             # special case for DEAs
             if minfs['Va'] == 0:
                  conval = 1
@@ -919,6 +941,9 @@ class Anchor(Node):
             newGeom = dict(zip(geomKeys, vars))
             self.dd['design'].update(newGeom)
 
+            if 'Hm' in input_loads or 'Vm' in input_loads:
+                anchor_loads = self.getLugForces(mudloads=input_loads)
+                input_loads = dict(Ha=anchor_loads['Ha'], Va=anchor_loads['Va'])    # overwrite the input_loads dictionary
             results = self.getAnchorCapacity(loads=input_loads, plot=False)
 
             bound_L_lower = newGeom['L'] - geomBounds[0][0]
@@ -931,17 +956,9 @@ class Anchor(Node):
         # - - - - - Setup & Optimization
         from scipy.optimize import minimize
         from copy import deepcopy
-        anchType = self.dd['type']
-        if not loads:
-            loads = self.loads
-            
-        if not 'Ha' in loads:
-            loads = self.getLugForces(mudloads=loads)
-            
-        # suction bucket needs to be loads*FS because of capacity envelope calculations in capacity function
-        input_loads = {'Ha':loads['Ha']*minfs['Ha'],'Va':loads['Va']*minfs['Va']}
 
-           
+        anchType = self.dd['type']
+
         # loads['Ha'] = minfs['Ha']*loads['Ha']
         # loads['Va'] = minfs['Va']*loads['Va']
         startGeom = dict(zip(geomKeys,geom))
@@ -963,6 +980,21 @@ class Anchor(Node):
             geom.pop(zlug_loc)
             if geomBounds:
                 geomBounds.pop(zlug_loc)
+
+        if not loads:
+            loads = self.loads
+            
+        if not 'Ha' in loads:
+            loads = self.getLugForces(mudloads=loads)
+            
+        # suction bucket needs to be loads*FS because of capacity envelope calculations in capacity function
+        if ('Hm' in loads and 'Vm' in loads) and ('Hm' in minfs and 'Vm' in minfs):
+            input_loads = {'Hm':loads['Hm']*minfs['Hm'], 'Vm':loads['Vm']*minfs['Vm']}
+        else:
+            input_loads = {'Ha':loads['Ha']*minfs['Ha'],'Va':loads['Va']*minfs['Va']}
+
+           
+
         
         # Initial guess for geometry
         initial_guess = geom  # [val for val in startGeom.values()]       # Input values for geometry
@@ -975,28 +1007,30 @@ class Anchor(Node):
             
             constraints = [{'type':'ineq','fun':conFun_LD,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
                            {'type':'ineq','fun':conFun_Suction,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
-                           #{'type':'ineq','fun':conFunH,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
-                           #{'type':'ineq','fun':conFunV,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
+                           {'type':'ineq','fun':conFunH,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
+                           {'type':'ineq','fun':conFunV,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
+                           {'type':'ineq','fun':conBounds,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)}]
+        
+        elif 'dandg' in anchType:
+            constraints = [{'type':'ineq','fun':conFun_LD,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
+                           {'type':'ineq','fun':conFun_DandG,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
+                           {'type':'ineq','fun':conFunH,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
+                           {'type':'ineq','fun':conFunV,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
                            {'type':'ineq','fun':conBounds,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)}]
         
         else:
-            # bounds = None
-            constraints = [{'type':'ineq','fun':conFun_LD,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
-                           {'type':'ineq','fun':conFun_DandG,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
-                           #{'type':'ineq','fun':conFunH,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
-                           #{'type':'ineq','fun':conFunV,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
-                           {'type':'ineq','fun':conBounds,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)}]
+            constraints = [{'type':'ineq','fun':conFunH,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
+                           {'type':'ineq','fun':conFunV,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)}]
         
         # Run the optimization to find sizing that satisfy UC close to 1
         print('optimizing anchor size')
         
-        if not geomBounds:
-            solution = minimize(objective, initial_guess, args=(geomKeys, input_loads, fix_zlug), method="COBYLA",
-                                constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
+        if 'suction' in anchType or 'dandg' in anchType:
+            solution = minimize(objective, initial_guess, args=dict(geomKeys=geomKeys, input_loads=input_loads, fix_zlug=fix_zlug, LD_con=LD_con, geomBounds=geomBounds, minfs=minfs),
+                                method="COBYLA", constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
         else:
-            solution = minimize(objective, initial_guess, args=dict(geomKeys=geomKeys, input_loads=input_loads, fix_zlug=fix_zlug, LD_con=LD_con, geomBounds=geomBounds, minfs=minfs), method="COBYLA",
-                                constraints=constraints,
-                                options={'rhobeg':0.1, 'catol':0.001})
+            solution = minimize(objective, initial_guess, args=dict(geomKeys=geomKeys, input_loads=input_loads, fix_zlug=fix_zlug, LD_con=LD_con, geomBounds=geomBounds, minfs=minfs),
+                                method="COBYLA", constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
         
         FS, acceptance, FSdiff = self.getFS(loads=input_loads, acceptance_crit=minfs)
         
@@ -1024,13 +1058,12 @@ class Anchor(Node):
 
                 print('new initial guess',initial_guess)
                 # re-run optimization
-                if not geomBounds:
-                    solution = minimize(objective, initial_guess, args=(geomKeys, input_loads, fix_zlug), method="COBYLA",
-                                        constraints=constraints, options={'disp':True, 'rhobeg':0.1, 'catol':0.0001})
+                if 'suction' in anchType or 'dandg' in anchType:
+                    solution = minimize(objective, initial_guess, args=dict(geomKeys=geomKeys, input_loads=input_loads, fix_zlug=fix_zlug, LD_con=LD_con, geomBounds=geomBounds, minfs=minfs),
+                                        method="COBYLA", constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
                 else:
-                    solution = minimize(objective, initial_guess, args=(geomKeys, input_loads, fix_zlug), method="COBYLA",
-                                        constraints=constraints, bounds=geomBounds, 
-                                        options={'rhobeg':0.1, 'catol':0.001,'maxiter':400})
+                    solution = minimize(objective, initial_guess, args=dict(geomKeys=geomKeys, input_loads=input_loads, fix_zlug=fix_zlug, LD_con=LD_con, geomBounds=geomBounds, minfs=minfs),
+                                        method="COBYLA", constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
                 # re-determine FS and diff from minFS
                 FS, acceptance, FSdiff = self.getFS(loads=input_loads, acceptance_crit=minfs)  
                 count += 1
