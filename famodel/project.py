@@ -845,7 +845,6 @@ class Project():
                 self.grid_x = np.array(site['bathymetry']['x'])
                 self.grid_y = np.array(site['bathymetry']['y'])
                 self.grid_depth = np.array(site['bathymetry']['depths'])
-                # breakpoint()
                 # self.setGrid(xs,ys)
             else:
                 # assume a flat bathymetry
@@ -1000,8 +999,6 @@ class Project():
             
             r_i = r_i + u*fac  # updated seabed crossing estimate 
 
-            if any(np.isnan(r_i)):
-                breakpoint()
         
         return r_i
 
@@ -1734,7 +1731,8 @@ class Project():
     def addCablesConnections(self,connDict,cableType_def='dynamic_cable_66',oss=False,
                              substation_r=[None],ss_id=200,id_method='location',
                              keep_old_cables=False, connect_ss=True, 
-                             cableConfig=None, configType=0,heading_buffer=30):
+                             cableConfig=None, configType=0,heading_buffer=30,
+                             route_anchors=True):
         '''Adds cables and connects them to existing platforms/substations based on info in connDict
         Designed to work with cable optimization output designed by Michael Biglu
 
@@ -1868,7 +1866,7 @@ class Project():
             
                 
             # create cable object
-            cab = Cable(cableType_def+str(i+lcab),d=dd)
+            cab = Cable('cable'+str(i+lcab),d=dd)
             self.cableList[cab.id] = cab
 
             # update upstream turbines property
@@ -1930,7 +1928,10 @@ class Project():
                 # update routing
                 cab.subcomponents[cs].updateRouting(coords) # also updates static and general cable lengths
 
-        route_around_anchors(self)
+
+        if route_anchors:
+            route_around_anchors(self)
+
                               
     
     def updatePositions(self):
@@ -3832,21 +3833,27 @@ class Project():
         mapAnchNames = {}
         mscs = {}
         arrayMoor = []
+        pf_types = []
         for i,anch in enumerate(self.anchorList.values()):  
             newanch = True
             name = anch.dd['name'] if 'name' in anch.dd else str(len(anchConfigs))
             if len(anch.attachments)>1:
                 # shared anchor, add to arrayAnch list
                 arrayAnch.append([anch.id,name,anch.r[0],anch.r[1],0])
+            # add mass if available
+            aad = deepcopy(anch.dd['design'])
+            if anch.mass is not None and anch.mass>0:
+                aad['mass'] = anch.mass
+            if 'type' in anch.dd:
+                aad['type'] = anch.dd['type']
             if anchConfigs:
-                ac = [an for an,ad in anchConfigs.items() if ad==anch.dd['design']]
+                ac = [an for an,ad in anchConfigs.items() if ad==aad]
                 if len(ac)>0:
                     newanch = False
                     name = ac[0] # reset name to matching config name
             if newanch:
-                anchConfigs[name] = dict(anch.dd['design'])
-                if anch.mass is not None and anch.mass>0: 
-                    anchConfigs[name]['mass'] = anch.mass
+                anchConfigs[name] = aad
+
             mapAnchNames[anch.id] = name
         
         # build out platform info
@@ -3933,6 +3940,20 @@ class Project():
                     mscs[mname] = msys
             else:
                 mname = 0
+                
+            if not 'type' in pf.dd:
+                pf_type_info = [pf.rFair, pf.zFair, pf.entity]
+                if not pf_type_info in pf_types:
+                    pf_types.append(pf_type_info)
+                    if not self.platformTypes:
+                        self.platformTypes = []
+                    pf.dd['type'] = len(self.platformTypes)
+                    self.platformTypes.append({'rFair': pf.rFair,
+                                                         'zFair': pf.zFair,
+                                                         'type': pf.entity})
+                else:
+                    tt = [n for n,ps in enumerate(pf_types) if ps==pf_type_info]
+                    pf.dd['type'] = tt[0]
                     
                         
 
