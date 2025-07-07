@@ -31,7 +31,7 @@ def loadCableProps(source):
     elif source is None or source=="default":
         import os
         dir = os.path.dirname(os.path.realpath(__file__))
-        with open(os.path.join(dir,"CableProps_default.yaml")) as file:
+        with open(os.path.join(dir,"cableProps_default.yaml")) as file:
             source = yaml.load(file, Loader=yaml.FullLoader)
         
     elif type(source) is str:
@@ -98,9 +98,10 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     
     # deal with the source (is it a dictionary, or reading in a new yaml?)
     if not source==None:
-        cableProps = loadCableProps(source)
         if not cableProps==None:
             print('Warning: both cableProps and source arguments were passed to getLineProps. cableProps will be ignored.')
+        cableProps = loadCableProps(source)
+        
         
     # raise an error if the cable_type isn't in the source dictionary
     if not cable_type in cableProps:
@@ -129,6 +130,7 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     # Electrical properties
     power = ctd['P_A_coefs'][0] * A**(ctd['P_A_coefs'][1])  # cable rated power capacity [MW]
     resistance = ctd['R_A_coefs'][0]/A
+    voltage = ctd['kV']
     
     # Set up a main identifier for the cable type unless one is provided
     if name=="":
@@ -141,7 +143,7 @@ def getCableProps(A, cable_type, cableProps=None, source=None, name="", rho=1025
     # save dictionary (diameter converted to m)
     lineType = dict(name=typestring, d=d/1000, m=mass, EA=EA, EI=EI, w=w,
                     MBL=MBL, MBR=MBR, A=A, power=power, resistance=resistance,
-                    cost=cost, notes=notes)
+                    voltage=voltage, cost=cost, notes=notes)
     
     lineType.update(kwargs)   # add any custom arguments provided in the call to the lineType's dictionary
           
@@ -170,7 +172,7 @@ def loadBuoyProps(source):
     elif source is None or source=="default":
         import os
         dir = os.path.dirname(os.path.realpath(__file__))
-        with open(os.path.join(dir,"CableProps_default.yaml")) as file:
+        with open(os.path.join(dir,"cableProps_default.yaml")) as file:
             source = yaml.load(file, Loader=yaml.FullLoader)
         
     elif type(source) is str:
@@ -265,7 +267,7 @@ def getBuoyProps(V, buoy_type, buoyProps=None, source=None, name="", rho=1025.0,
 
 if __name__ == '__main__':
     
-    cableProps = loadCableProps('CableProps_default.yaml')
+    cableProps = loadCableProps('cableProps_default.yaml')
     
     As = [95,120, 150, 185, 200, 300, 400, 500, 630, 800]
     

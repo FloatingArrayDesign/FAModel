@@ -126,7 +126,7 @@ def getCapacityDrivenRock(profile, L, D, zlug, V, H, plot=True):
     resultsDrivenRock['Lateral displacement'] = y[2]
     resultsDrivenRock['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
     resultsDrivenRock['Axial capacity'] = DQ[-1]
-    resultsDrivenRock['Pile weight'] = PileWeight(L, D, t, (rhows + rhow))
+    resultsDrivenRock['Weight'] = PileWeight(L, D, t, (rhows + rhow))
     
     return y[2:-2], z[2:-2], resultsDrivenRock
 

@@ -22,11 +22,14 @@ filename = 'OntologySample200m_uniformArray.yaml' # yaml file to make initial pl
 os.chdir(input_directory)
 
 # load in yaml
-project = Project(file=filename)
+project = Project(file=filename,raft=True)
 project.plot2d()
 # plot the system
 project.plot3d(fowt=True)
+project.trimGrids()
+project.unload('checkyaml.yaml')
 
+proj2 = Project(file='checkyaml.yaml')
 
 #%% Update uniform array - edits in progress
 print('\nUpdating uniform array shape\n')
@@ -36,8 +39,8 @@ ncols = 5 # number of columns
 spacing_x = 1700 # spacing between columns
 spacing_y = 1600 # spacing between rows
 rotation_angle = 10 # angle to rotate the entire grid
-skew_x = 5 # skew angle in x direction
-skew_y = 5 # skew angle in y-direction
+skew_x = 2 # skew angle in x direction
+skew_y = 2 # skew angle in y-direction
 heading_pattern = [[0,180,0,180,0],[180,0,180,0,180]] # heading pattern. Length of outer list is # of rows it takes to repeat 
 # the pattern, length of inner list is either 1 (for all same heading in the row) or the # of platforms in a row
 offset_x = 600 # offset from boundary in x direction
@@ -57,18 +60,6 @@ for i,body in enumerate(model.fowtList):
     body.heading_adjust = np.degrees(project.platformList['fowt'+str(i)].phi)
 # plot again
 project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False)
-
-#%% Run RAFT
-print('\nRunning RAFT Case\n')
-model = project.array
-model.mooring_currentMod = 0
-model.ms.moorMod = 0
-print('Running RAFT case')
-# run cases
-model.analyzeCases()
-# plot results
-model.plotResponses()
-model.plot()
 
 #%% Run FLORIS
 print('\nRunning FLORIS\n')

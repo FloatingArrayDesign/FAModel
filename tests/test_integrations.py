@@ -13,15 +13,19 @@ from famodel.project import Project
 
 from famodel.mooring.mooring import Mooring
 
+import os
+
 
 def test_MoorPy_integration():
-    project = Project(file='tests/testOntology.yaml',raft=0)
+    dir = os.path.dirname(os.path.realpath(__file__))
+    project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     project.getMoorPyArray(cables=1,plt=1)
     # check a random mooring line for ss
     assert project.mooringList['FOWT1a'].ss is not None
     
 def test_RAFT_integration():
-    project = Project(file='tests/testOntology.yaml')
+    dir = os.path.dirname(os.path.realpath(__file__))
+    project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=True)
     assert project.array is not None
     
 '''def test_FLORIS_integration():'''

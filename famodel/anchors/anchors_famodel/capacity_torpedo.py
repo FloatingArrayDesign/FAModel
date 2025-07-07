@@ -90,6 +90,6 @@ def getCapacityTorpedo(D1, D2, L1, L2, zlug, soil_type, Su0, k, alpha):
     resultsTorpedo = {}
     resultsTorpedo['Horizontal max.'] = Hmax #Hmax[0]    # Capacity at specified loading angle
     resultsTorpedo['Vertical max.'] = Vmax               # Capacity at specified loading angle
-    resultsTorpedo['Pile weight'] = W                    # Dry weight of the helical pile (kN)
+    resultsTorpedo['Weight'] = W                    # Dry weight of the helical pile (kN)
    
     return resultsTorpedo

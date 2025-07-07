@@ -97,6 +97,6 @@ def getCapacityPlate(A, beta, zlug, soil_type, gamma, Su0=None, k=None):
     resultsPlate['Capacity'] = Tmax                 # Capacity at specified loading angle
     resultsPlate['Horizontal max.'] = Hmax          # Maximum horizontal capacity in clay
     resultsPlate['Vertical max.'] = Vmax            # Maximum vertical capacity in clay
-    resultsPlate['Plate weight'] = W                # Dry weight of the plate (kN)
+    resultsPlate['Weight'] = W                # Dry weight of the plate (kN)
     
     return resultsPlate

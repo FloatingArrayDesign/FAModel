@@ -1,0 +1,5 @@
+# Site condition information
+site:
+    general: {}
+    bathymetry:
+        file: './bathymetry200m_sample.txt'

@@ -30,6 +30,8 @@ class StaticCable(Edge):
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this dynamic cable
         self.dd = dd
+
+        self.voltage = dd['cable_type']['voltage']
         
         self.n_sec = 1
         
@@ -37,7 +39,7 @@ class StaticCable(Edge):
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
 
         # cable length
-        self.L = L
+        self.getLength
 
         # end point absolute coordinates, to be set later
         self.rA = rA
@@ -47,14 +49,16 @@ class StaticCable(Edge):
         self.rho = rho
         self.g = g
         
-        # Vectors of optional vertex points along the cable route. 
-        # Nonzero radius wraps around the vertex at that radius.
-        self.coordinates = routing
-        if routing:
-            # call function to update routing variables
-            self.updateRouting()
+        # call function to update routing variables
+        self.x = []
+        self.y = []
+        self.updateRouting(routing)
         
-        # Dictionaries for addition information
+        # set burial if it exists - for now just keep in dict form...
+        if burial:
+            self.burial = burial
+        
+        # Dictionaries for additional information
         self.loads = {}
         self.reliability = {}
         self.cost = {}
@@ -85,10 +89,10 @@ class StaticCable(Edge):
             
             # get L between coordinate points
             if len(self.x)>1:
-                for i in range(len(self.x)-1):                
+                for i in range(len(self.x)-1):  
                     L += get_length_between_points([self.x[i+1],self.y[i+1]],
                                                    [self.x[i],self.y[i]])
-                
+
         self.L = L                            
         
         return self.L
@@ -169,29 +173,21 @@ class StaticCable(Edge):
         Parameters
         ----------
         coords : list, optional
-            List of xy coordinates (and potentially burial and radius) for routing
+            List of xy coordinates (and potentially radius) for routing
 
         Returns
         -------
         None.
 
         '''
+
         if coords:
-            self.coordinates = coords
-           
-        if self.coordinates:
-            self.x = [coord[0] for coord in self.coordinates]  # cable route vertex global x coordinate [m]
-            self.y = [coord[1] for coord in self.coordinates]  # cable route vertex global y coordinate [m]
+            self.x = [coord[0] for coord in coords]  # cable route vertex global x coordinate [m]
+            self.y = [coord[1] for coord in coords]  # cable route vertex global y coordinate [m]
             # Check if radius available
-            if len(self.coordinates[0]) <= 2:
-                self.r = []  # cable route vertex corner radius [m]
-                self.burial = []
-            elif len(self.coordinates[0]) == 3:
-                self.burial = [coord[2] for coord in self.coordinates] # cable route depth at coordinates
-                self.r = []
-            elif len(self.coordinates[0]) == 4:
-                self.burial = [coord[2] for coord in self.coordinates] # cable route depth at coordinates
-                self.r = [coord[3] for coord in self.coordinates]  # cable route vertex corner radius [m]
+            if len(coords[0]) == 3:
+                self.r = [coord[2] for coord in coords]  # cable route vertex corner radius [m]
+
                 
         # update static cable length
         self.getLength()

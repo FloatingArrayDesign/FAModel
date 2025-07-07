@@ -47,6 +47,7 @@ class DynamicCable(Edge):
         # Store the cable type properties dict here for easy access (temporary - may be an inconsistent coding choice)
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
         # ^^^ curiuos if we can simplify this
+        self.voltage = self.dd['cable_type']['voltage']
         
         # Save some constants for use when computing buoyancy module stuff
         self.d0 = self.cableType['d_vol']  # diameter of bare dynamic cable
@@ -110,7 +111,8 @@ class DynamicCable(Edge):
         
         # Dictionaries for addition information
         self.loads = {}
-        self.safety_factors = {}
+        self.safety_factors = {} # calculated safety factor
+        self.safety_factors_required = {} # minimum allowable safety factor
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
@@ -212,6 +214,8 @@ class DynamicCable(Edge):
                 if self.shared == 2 and i == 0:
                     # adjust halfLs to be full Ls (half of the total buoyant segment length)
                     halfLs = Ls 
+                else:
+                    halfLs = Ls/2
             
             
             # update properties of the corresponding Subsystem Line
@@ -388,6 +392,7 @@ class DynamicCable(Edge):
         # go through dictionary and add up costs
         cost_cable = 0
         cost_buoys = 0
+        cost_appendages = 0
         # get cost of bare cable
         if 'cost' in self.dd['cable_type']:
             cost_cable += self.dd['cable_type']['cost']*self.L 
@@ -396,8 +401,13 @@ class DynamicCable(Edge):
             for bs in self.dd['buoyancy_sections']:
                 if 'cost' in bs['module_props']:
                     cost_buoys += bs['module_props']['cost']*bs['N_modules']
+        if 'appendages' in self.dd:
+            for app in self.dd['appendages']:
+                if 'cost' in app:
+                    cost_appendages += app['cost']
         self.cost['cable'] = cost_cable
         self.cost['buoys'] = cost_buoys
+        self.cost['appendages'] = cost_appendages
                     
         # sum up the costs in the dictionary and return       
         return sum(self.cost.values()) 
@@ -690,8 +700,6 @@ class DynamicCable(Edge):
                     rAth = 0 # exit while loop when we find thickness at low
                     count1 = 0 # counter
                     while rAth==0: # and count1 < len(th):
-                        if count1 == len(th):
-                            breakpoint()
                         if flip:
                             if high[2] <= th[count1][2]:
                                 LThick.append(th[count1][0])
@@ -789,14 +797,15 @@ class DynamicCable(Edge):
             d_ve_old = []
             cd = []
             cdAx = []
+            ca = []
             d_nom_old = []
             ve_nom_adjust = []
                                                 
             # create arrays
             # d_nom_old = np.zeros((len(LTypes),1))        
             # ve_nom_adjust = np.zeros((len(LTypes),1))
-            mu_mg = np.zeros((len(LTypes),1))
-            rho_mg = np.ones((len(LTypes),1))*1325
+            mu_mg = np.zeros((len(LTypes)))
+            rho_mg = np.ones((len(LTypes)))*1325
             # adjust rho value if alternative provided
             if 'rho' in mgDict:
                 if not type(mgDict['rho']) is list:
@@ -836,11 +845,15 @@ class DynamicCable(Edge):
                 if 'Cd' in st[linekey]:
                     cd.append(st[linekey]['Cd'])
                 else:
-                    cd.append(2)
+                    cd.append(1.2)
                 if 'CdAx' in st[linekey]:
                     cdAx.append(st[linekey]['CdAx'])
                 else:
-                    cdAx.append(0.5)
+                    cdAx.append(0)
+                if 'CA' in st[linekey]:
+                    ca.append(st[linekey]['CA'])
+                else:
+                    ca.append(1.0)
                 if LThick[j] == 0:
                     nd[j]['type'] = deepcopy(st[linekey])
                     #nd[j]['type']['name'] = j
@@ -899,8 +912,9 @@ class DynamicCable(Edge):
                     
                     # calculate new increased drag coefficient from marine growth
                     # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
-                    ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
-                    ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
+                    ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(d_nom_old[j]/ndt['d_vol']))
+                    ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(d_nom_old[j]/ndt['d_vol']))
+                    ndt['Ca'] =  float(ca[j]*ve_nom_adjust[j]*(d_nom_old[j]/ndt['d_vol'])**2)
                     
                     # add line details to dictionary
                     ndt['name'] = oldLine.lineTypes[linekey]['name']
@@ -915,6 +929,7 @@ class DynamicCable(Edge):
                         ndt['EAd'] = oldLine.lineTypes[linekey]['EAd']
                     if 'EI' in oldLine.lineTypes[linekey]:
                         ndt['EI'] = oldLine.lineTypes[linekey]['EI']
+                    
                 # add lengths                 
                 nd[j]['length'] = Lengths[j]
             
@@ -986,58 +1001,58 @@ class DynamicCable(Edge):
             newsections.extend(sections1)
             newsections.extend(deepcopy(self.dd['sections']))
             self.dd['sections'] = newsections
+        #else:
+        oldbs = self.dd['buoyancy_sections']
+        # get half length
+        halfL = self.dd['length']
+        # double dd['length']
+        self.dd['length'] = halfL*2 
+        
+        if oldbs[0]['L_mid'] == 0:
+            # ends on a buoyancy section
+            endB = 1 
         else:
-            oldbs = self.dd['buoyancy_sections']
-            # get half length
-            halfL = self.dd['length']
-            # double dd['length']
-            self.dd['length'] = halfL*2 
-            
-            if oldbs[0]['L_mid'] == 0:
-                # ends on a buoyancy section
-                endB = 1 
-            else:
-                # ends on a bare cable section
-                endB = 0
-            
-            
-            bs = []
-            if endB:
-                # update buoyancy sections
-                # add in all pre-mirrored buoyancy sections (start from end instead of middle)
-                for k in range(len(oldbs)-1,-1,-1):
-                    bs.append(deepcopy(oldbs[k]))
-                    # update L_mid - change coordinates to x starting from end A
-                    bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
-                    if k == 0:
-                        N0 = bs[-1]['N_modules']
-                        # double middle buoyancy section length while keeping buoyancy the same - spacing needs to be changed by
-                        # (2N0-2)/(2N0-1)*sp0 where sp0 is old spacing, N0 is old # of buoyancy sections 
-                        bs[-1]['spacing'] = bs[-1]['spacing']*(2*N0-2)/(2*N0-1)
-                        # double number of modules to double the buoyancy
-                        bs[-1]['N_modules'] = N0*2
-                        
-                # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
-                for k in range(1,len(oldbs)):
-                    bs.append(deepcopy(oldbs[k]))
-                    # update L_mid - change coordinates to x starting from end A
-                    bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
-            else:     
-                # update buoyancy sections
-                # add in all pre-mirrored buoyancy sections (start from end instead of middle)
-                for k in range(len(oldbs)-1,-1,-1):     
-                    bs.append(deepcopy(oldbs[k]))
-                    # update L_mid - change coordinates to x starting from end A
-                    bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
-                # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
-                for k in range(0,len(oldbs)):
-                    bs.append(deepcopy(oldbs[k]))
-                    # update L_mid - change coordinates to x starting from end A, and push L_mid up by bsEnd (length of bare cable middle section pre-mirroring)
-                    bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
-                
+            # ends on a bare cable section
+            endB = 0
+        
+        
+        bs = []
+        if endB:
+            # update buoyancy sections
+            # add in all pre-mirrored buoyancy sections (start from end instead of middle)
+            for k in range(len(oldbs)-1,-1,-1):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
+                if k == 0:
+                    N0 = bs[-1]['N_modules']
+                    # double middle buoyancy section length while keeping buoyancy the same - spacing needs to be changed by
+                    # (2N0-2)/(2N0-1)*sp0 where sp0 is old spacing, N0 is old # of buoyancy sections 
+                    bs[-1]['spacing'] = bs[-1]['spacing']*(2*N0-2)/(2*N0-1)
+                    # double number of modules to double the buoyancy
+                    bs[-1]['N_modules'] = N0*2
                     
+            # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
+            for k in range(1,len(oldbs)):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
+        else:     
+            # update buoyancy sections
+            # add in all pre-mirrored buoyancy sections (start from end instead of middle)
+            for k in range(len(oldbs)-1,-1,-1):     
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A
+                bs[-1]['L_mid'] = halfL - bs[-1]['L_mid']
+            # add in new buoyancy sections (mirrored, in same order as initial list (middle to end))
+            for k in range(0,len(oldbs)):
+                bs.append(deepcopy(oldbs[k]))
+                # update L_mid - change coordinates to x starting from end A, and push L_mid up by bsEnd (length of bare cable middle section pre-mirroring)
+                bs[-1]['L_mid'] = halfL + bs[-1]['L_mid']
+            
                 
-            self.dd['buoyancy_sections'] = bs
+            
+        self.dd['buoyancy_sections'] = bs
         # reset length
         self.L = self.L*2
         # # reset rA to -span and assume same z fairlead as rB
@@ -1046,6 +1061,38 @@ class DynamicCable(Edge):
         # call createSubsystem function if asked to
         if create_ss:
             self.createSubsystem(case=1,pristine=1)
+
+    def adjustCableForDepth(initial_z,final_z=None):
+        ''''
+        Function to adjust the dynamic cable length for a different depth. 
+        Specifically for non-suspended cables
+        Should not be used for extreme depth changes.
+
+        Parameters
+        ----------
+        initial_z : float
+            Initial depth the cable was designed for
+        final_z : float, optional
+            New depth to adjust the length for
+
+        '''
+        if not final_z:
+            # find which end is on the sea floor
+            end_bottom = self.rA if self.rA[2] < self.rB[2] else self.rB
+            final_z = end_bottom[2]
+        
+        depth_diff = final_z-initial_z
+
+        # adjust the top length (adjust total length)
+        self.L += depth_diff
+        self.z_anch = final_z
+
+
+
+
+
+
+
         
         '''
         # determine if given sections ends on a buoyancy section or a regular section

@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 input_directory = 'Inputs/' # relative location of directory for input files (yaml, bath files, etc)
 filename = 'MoorDyn_semitaut200m.dat' # moordyn file to create a moorpy system
 rep_pf_name = 'FOWT1' # platform to replicate (look at yaml file array data table to get platform names)
-new_pf_loc = [100,100]
+new_pf_loc = [-100,-1500,0]
 
 
 # change to input directory
@@ -43,5 +43,6 @@ project.loadSoil('soil_sample.txt')
 project.addPlatformMS(ms, r=new_pf_loc)
 
 # get new moorpy array and plot
-project.getMoorPyArray(plt=1)
+project.getMoorPyArray()
+project.plot3d()
 plt.show()

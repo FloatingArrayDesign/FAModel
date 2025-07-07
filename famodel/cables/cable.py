@@ -4,6 +4,7 @@ import numpy as np
 from copy import deepcopy
 from moorpy.subsystem import Subsystem
 from moorpy import helpers
+import shapely as sh
 
 from famodel.cables.dynamic_cable import DynamicCable
 from famodel.cables.static_cable import StaticCable
@@ -48,9 +49,11 @@ class Cable(Edge):
             
             for i, sec in enumerate(d['cables']):
                 Cid = id+'_'+sec['cable_type']['name']+str(i)
-                if sec['type'] == 'static':
+                if sec['type'].upper() == 'STATIC':
                     if 'routing' in sec:
                         d['cables'][i]['routing'] = sec['routing']
+                    if 'burial' in sec:
+                        d['cables'][i]['burial'] = sec['burial']
                     self.dd['cables'].append(StaticCable(Cid, dd=d['cables'][i], **d['cables'][i]))
                 else:
                     if 'routing' in sec:
@@ -80,7 +83,7 @@ class Cable(Edge):
             
         # cost dictionary
         self.cost = {}
-        # add any connector costs to cost dictionary
+        # add any connector costs to cost dictionary - TO BE MOVED INTO DYNAMIC CABLE APPENDAGES SECTION 
         if 'connector_cost' in d:
             self.cost['connector_cost'] = d['connector_cost']
 
@@ -141,10 +144,14 @@ class Cable(Edge):
         else:
             headingA = headings[0]
             headingB = headings[1]
+            
         if not rad_fair:
-            rad_fair = []
-            rad_fair.append(self.attached_to[0].rFair)
-            rad_fair.append(self.attached_to[1].rFair)
+            rad_fair = [self.attached_to[x].rFair if self.attached_to[x].rFair else 0 for x in range(2)]
+        else:
+            for i,r in enumerate(rad_fair):
+                if r==None:
+                    rad_fair[i] = self.attached_to[i].rFair if self.attached_to[i] else 0
+
         # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
         Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rad_fair[0], self.attached_to[0].r[1]+np.sin(headingA)*rad_fair[0], self.attached_to[0].zFair]
         Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*rad_fair[1], self.attached_to[1].r[1]+np.sin(headingB)*rad_fair[1], self.attached_to[1].zFair]
@@ -222,9 +229,29 @@ class Cable(Edge):
         '''
         L = 0
         for cab in self.dd['cables']:
+            if isinstance(cab,StaticCable):
+                cab.getLength()
             L += cab.L
             
         self.L = L
+        
+    def makeLine(self,buff_rad=20,include_dc=True):
+        
+        coords = []
+        for sub in self.subcomponents:
+            if isinstance(sub,Joint):
+                coords.append(sub['r'][:2])
+            elif isinstance(sub,DynamicCable) and include_dc:
+                coords.append(sub.rA[:2])
+                coords.append(sub.rB[:2])
+                pass
+            elif isinstance(sub, StaticCable):
+                if len(sub.x)>0:
+                    for i in range(len(sub.x)):
+                        coords.append([sub.x[i],sub.y[i]])
+        line = sh.LineString(coords)
+
+        return(line)
     
     def updateSpan(self,newSpan):
         '''
@@ -291,11 +318,6 @@ class Cable(Edge):
             for i,bs in enumerate(sub.dd['buoyancy_sections']):
                 bs['L_mid'] = bs['L_mid'] + addL*(i+addS)
                 
-            
-                
-                    
-                    
-                    
-                
-        
+
+
         

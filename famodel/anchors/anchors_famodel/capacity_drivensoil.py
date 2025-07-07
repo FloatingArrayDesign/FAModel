@@ -152,7 +152,7 @@ def getCapacityDrivenSoil(profile, soil_type, L, D, zlug, V, H, plot=True):
         resultsDrivenSoil['Plastic hinge'] = hinge_formed
         resultsDrivenSoil['Hinge location'] = hinge_location
         resultsDrivenSoil['Axial capacity'] = Vmax
-        resultsDrivenSoil['Pile weight'] = PileWeight(L, D, t, (rhows + rhow))
+        resultsDrivenSoil['Weight'] = PileWeight(L, D, t, (rhows + rhow))
     
     return y[2:-2], z[2:-2], resultsDrivenSoil
 

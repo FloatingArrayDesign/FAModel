@@ -1,0 +1,80 @@
+site:
+  general:
+    water_depth: 200.0
+    rho_air: 1.225
+    rho_water: 1025.0
+    mu_air: 1.81e-05
+array:
+  keys: [ID, topsideID, platformID, mooringID, x_location, y_location, z_location,
+    heading_adjust]
+  data:
+  - [fowt0, 0, 1, ms0, -1600.0, -1600.0, 0.0, 180.0]
+platform:
+  type: FOWT
+  rFair: 58
+  zFair: -14
+topsides: []
+array_mooring:
+  anchor_keys: [ID, type, x, y, embedment]
+  anchor_data: []
+  line_keys: [MooringConfigID, endA, endB, headingA, headingB, lengthAdjust]
+  line_data: []
+mooring_systems:
+  ms0:
+    keys: [MooringConfigID, heading, anchorType, lengthAdjust]
+    data:
+    - ['0', -210.0, drag-embedment1, 0]
+    - ['0', -90.0, drag-embedment1, 0]
+    - ['0', 30.0, drag-embedment1, 0]
+mooring_line_configs:
+  '0':
+    name: '0'
+    span: 642.0
+    sections:
+    - type: 0
+      length: 497.7
+    - type: 1
+      length: 199.8
+mooring_line_types:
+  0:
+    name: 0
+    d_vol: 0.27882
+    m: 479.88020000000006
+    EA: 2053741190.7845445
+    w: 4093.6781602294
+    MBL: 20893381.207590003
+    EAd: 0.0
+    EAd_Lm: 0.0
+    d_nom: 0.1549
+    cost: 2005.5584560000004
+    notes: made with getLineProps
+    material: chain
+    Cd: 1.333
+    CdAx: 0.639
+    Ca: 1.0
+    CaAx: 0.5
+  1:
+    name: 1
+    d_vol: 0.14405282886514317
+    m: 22.491196000000002
+    EA: 142830688.0
+    w: 56.75848886217392
+    MBL: 10202192.0
+    EAd: 118345427.2
+    EAd_Lm: 40.0
+    d_nom: 0.182
+    cost: 441.9688
+    notes: made with getLineProps
+    material: polyester
+    Cd: 2.021
+    CdAx: 0.0
+    Ca: 1.1
+    CaAx: 0.15
+mooring_connector_types: {}
+anchor_types:
+  drag-embedment1:
+    type: DEA
+cables: []
+dynamic_cable_configs: {}
+cable_types: {}
+cable_appendages: {}

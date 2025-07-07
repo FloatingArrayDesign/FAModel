@@ -18,19 +18,20 @@ The layout of this file is as follows:
 
 The Mooring class provides a data structure for design information of a mooring line. Design information 
 includes a design dictionary with the following details:
-- Anchoring radius
-- Anchor depth
-- Fairlead radius
-- Fairlead depth 
-- List of line segment detail dictionaries
-	- Line section type dictionary
-		- diameter (nominal and volume-equivalent)
+- zAnchor  : Anchor depth
+- rad_fair : Fairlead radius
+- z_fair   : Fairlead depth 
+- span     : 2D distance from fairlead to anchor (or fairlead to fairlead)
+- Sections: List of line segment detail dictionaries, becomes list of section objects
+	- type : Line section type dictionary
+		- d_nom, d_vol : diameter (nominal and volume-equivalent) [m]
 		- material
-		- cost
-		- mass
-		- MBL
-		- EA
-	- Line section length
+		- cost [USD]
+		- m : linear mass [g/m]
+		- w : weight [N/m]
+		- MBL : minimum breaking load [N]
+		- EA : stiffness coefficient [N]
+	- L : Line section length [m]
 	
 The Mooring object contains subcomponent objects that represent each component of the full mooring line. Line segments are Section objects, while connectors between segments and at the ends of the lines are Connector objects. These segments alternate.
 

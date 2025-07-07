@@ -18,7 +18,7 @@ class Platform(Node):
     Eventually will inherit from Node.
     '''
     
-    def __init__(self, id, r=[0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
+    def __init__(self, id, r=[0,0,0], heading=0, mooring_headings=[60,180,300],rFair=None,zFair=None):
         '''
         
         Parameters
@@ -48,14 +48,10 @@ class Platform(Node):
         
         self.n_mooring = len(mooring_headings) # number of mooring lines
         
-        self.endB = {} # dictionary with key as mooring object names and values of booleans (one for each mooring line) describing whether platform is connected to end B of the line (important for shared lines)
-        # self.anchor_rads   = np.zeros(self.n_mooring)      # anchoring radius of each mooring [m]
-        # self.anchor_coords = np.zeros([self.n_mooring, 2]) # coordinates of each anchor [m]
+        self.entity = None # describes what type of platform this is/what its topside carries (for floating wind turbine, entity = 'FOWT', for substation, entity = 'OSS')
         
         self.rc = None # optional [row,col] information in array (useful in updateUniformArray etc.)
-        # >>> replace these with the Node attachments dict? <<<
-        # self.mooringList = {}  # dictionary to be filled by references to Mooring objects
-        # self.anchorList = {} # dictionary of references to anchor objects connected to this platform
+
         
         # Dictionaries for addition information
         self.envelopes = {}  # 2D motion envelope, buffers, etc. Each entry is a dict with x,y or shape
@@ -63,13 +59,15 @@ class Platform(Node):
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
-    
+        self.raftResults = {}
     
     def setPosition(self, r, heading=None, degrees=False,project=None):
         '''
         Set the position/orientation of the platform as well as the associated
-        anchor points.
+        anchor points. 
         
+        "Note: must only be used for a platform that's only attached with anchored lines"
+
         Parameters
         ----------
         r : list
@@ -87,7 +85,8 @@ class Platform(Node):
         '''
         
         # Store updated position and orientation
-        self.r = np.array(r)
+        for i,ri in enumerate(r):
+            self.r[i] = np.array(ri)
         
         if not heading == None:
             if degrees:
@@ -108,8 +107,9 @@ class Platform(Node):
         
                 # Heading of the mooring line
                 heading_i = self.mooring_headings[count] + self.phi
-                # Reposition the whole Mooring
-                self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
+                # Reposition the whole Mooring if it is an anchored line
+                if not self.attachments[att]['obj'].shared:
+                    self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
                 
                 count += 1
                 
@@ -154,7 +154,7 @@ class Platform(Node):
             
         if project and len(project.grid_depth) > 1:
             # calculate the maximum anchor spacing
-            anchor_spacings = [np.linalg.norm(mooring.rA[0:2] - self.r) for mooring in mList]
+            anchor_spacings = [np.linalg.norm(mooring.rA[0:2] - self.r[:2]) for mooring in mList]
             # get the bathymetry range that is related to this platform
             margin = 1.2
             small_grid_x = np.linspace((self.r[0] - np.max(anchor_spacings)*margin), (self.r[0] + np.max(anchor_spacings)*margin), 10)
@@ -173,7 +173,7 @@ class Platform(Node):
         else:
             self.ms = mp.System(depth=mList[0].z_anch)
         
-        r6 = [self.r[0],self.r[1],0,0,0,0]
+        r6 = [self.r[0],self.r[1],self.r[2],0,0,0]
         # create body
         if bodyInfo:
             self.ms.addBody(0,r6,m=bodyInfo['m'],v=bodyInfo['v'],rCG=np.array(bodyInfo['rCG']),rM=np.array(bodyInfo['rM']),AWP=bodyInfo['AWP'])
@@ -216,7 +216,7 @@ class Platform(Node):
                             # attach subsystem line to the fairlead point
                             self.ms.pointList[-1].attachLine(i,1)
                             # attach fairlead point to body
-                            self.ms.bodyList[0].attachPoint(len(self.ms.pointList),self.ms.pointList[-1].r-np.append(self.r, [0]))
+                            self.ms.bodyList[0].attachPoint(len(self.ms.pointList),self.ms.pointList[-1].r-np.append(self.r[:2], [0]))
         # initialize and plot
         self.ms.initialize()
         self.ms.solveEquilibrium()
@@ -274,7 +274,7 @@ class Platform(Node):
         moorings = self.getMoorings().values()
         cables = self.getCables().values()
         for i,cab in enumerate(cables):
-            dcs.extend([sub for sub in cab.subcomponents if isinstance(sub,DynamicCable)])
+            dcs.extend([sub for sub in cab.subcomponents if hasattr(sub,'ss')])
         anchors = self.getAnchors().values()
         for i in self.attachments:
             if isinstance(self.attachments[i]['obj'],Turbine):

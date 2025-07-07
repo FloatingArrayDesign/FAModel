@@ -8,7 +8,7 @@ This package integrates various open-source array modeling tools such as [RAFT](
 and [FLORIS](https://nrel.github.io/floris/). FAModel can automatically create a model of the array in any of these tools.
 
 To enable organized storage of floating array information and functions specific to components, each component of an array 
-has a dedicated class (i.e. Mooring class, Turbine class, etc).
+has a dedicated class (i.e. Mooring class, Turbine class, etc). 
 
 
 ## Overview
@@ -31,13 +31,31 @@ The structure of the project class and component classes is described in the fol
 * [Turbine Class](#turbine-class)
 * [Substation Class](#substation-class)
 
+### Accessing Component Information and Methods
+All array information and component objects are stored in the Project object, so 
+component objects must be accessed through the Project object. 
+
+Major component classes (Platform, Mooring, Cable, Anchor, Turbine, Substation)
+are stored in a dedicated dictionary within the project class that lists each component instance in the array, with the key being the component's ID and the value pointing 
+to the object. 
+
+For example, mooringList is the Project class dictionary listing all Mooring objects in the array. To access a component object, the user can follow
+this method: ```project.mooringList[<mooring line ID>]``` where project in this case is the name of the Project class instance.
+
+Subcomponent classes (such as Section, Connector, Dynamic Cable, Static Cable, Joint) can be accessed 
+through the subcomponent list of the parent component object. For example, the static cable within a cable object can be accessed in the following way: 
+```project.cableList[<cable ID>].subcomponents[2]``` if the static cable was the third subcomponent from end A of the cable. Subcomponents are 
+always listed from end A to end B of the parent object.
+
+Each component is overviewed in a section of this ReadMe, and a full list of each component class's properties and methods is provided in the ReadMe dedicated to that specific class.
+
 ### Project Information
 A full description of the project class methods and properties is found in the following sections:
 * [Project Class Methods](#project-methods)
 * [Project Class Properties](#project-properties)
 
 ### FAModel Integration Information
-FAModel integrates a many modeling tools, and provides functions for easy transfer of information from design tools to FAModel. The [FAModel Integration](#famodel-integration) section provides an 
+FAModel integrates a variety of modeling tools, and provides functions for easy transfer of information from design tools to FAModel. The [FAModel Integration](#famodel-integration) section provides an 
 overview of the tools integrated with FAModel and how to use them.
 
 ### FAModel Ontology
@@ -132,7 +150,7 @@ DynamicCable-Joint-StaticCable-Joint-DynamicCable.
 [Back to Top](#class-structure)
 
 ## Platform Class
-The platform class contains properties and methods pertaining to a floating offshore wind turbine platform. The Platform 
+The platform class contains properties and methods pertaining to a floating platform. Platforms can be substation platforms, floating wind platforms, wave energy converters, buoys, or other floating structures. The Platform 
 class inherits from the Node class. 
 
 The Platform class is described in detail in the [Platform ReadMe file](./platform/README.md).
@@ -161,7 +179,7 @@ Detailed information on the Mooring, Section, and Connector classes is provided 
 
 ### Section Class 
 
-The section class contains information on a mooring line segment. A mooring line may have multiple materials or properties along the line, and each segment will have its own Section object.
+The section class contains information on a mooring line segment. A mooring line may have multiple materials or properties along the line, and each segment will have its own Section object. The Section class inherits from Edge and dict.
 For example: in a chain-polyester-chain line for a semi-taut mooring line, there will be 3 Section objects, one for each segment. These 
 Sections are subcomponents of the Mooring object.
 
@@ -169,7 +187,7 @@ Sections are subcomponents of the Mooring object.
 
 ### Connector Class 
 
-The Connector class contains information on a mooring line connector. Each end of a mooring line will have a Connector object, meaning the minimum number of subcomponents of a Mooring object is 3 (Connector, Section, Connector). There will also be a connector between segments of the mooring line with different properties.
+The Connector class contains information on a mooring line connector. Each end of a mooring line will have a Connector object, meaning the minimum number of subcomponents of a Mooring object is 3 (Connector, Section, Connector). There will also be a connector between segments of the mooring line with different properties. The Connector class inherits from Node and dict.
 
 [Back to Top](#class-structure)
 
@@ -179,7 +197,7 @@ The Anchor class contains properties and methods of a mooring line anchor. The A
 Anchors may be shared (multiple lines attached to the same anchor). 
 
 Capacity and load functions in the anchors folder 
-provide the capacities of an anchor and the loads at its lug location. These functions are called from the Anchor method getAnchorCapacity().
+provide the capacities of an anchor and the loads at its lug location. These functions are called from the Anchor method getAnchorCapacity(). A sizing function alters the anchor geometry until the desired factors of safety are reached.
 Various anchor types are supported, for detailed information on the Anchor class, as well as capacity and load functions see the [Anchor ReadMe file](./anchors/README.md).
 
 [Back to Top](#class-structure)
@@ -193,12 +211,12 @@ The Cable class is comprised of
 subcomponents. For a suspended cable with no static portion, there is only one subcomponent - a DynamicCable object, as shown below: 
 ![Suspended cable design](./images/suspended_cable.png)
 For cables with dynamic and static portions, there will be multiple subcomponents, as the static portion 
-of the cable willl be a StaticCable object, and there will be a Joint object at each point where the  For example, a Cable object may 
+of the cable willl be a StaticCable object, and there will be a Joint object at each end of a static cable. For example, a Cable object may 
 have subcomponents in the order DynamicCable-Joint-StaticCable-Joint-DynamicCable.
 ![Cable with dynamic and static portions](./images/array_cable.png)
 
 >[!Note]
->Unlike the Mooring class, there does not need to be a Joint at the platform/substation connections, only between a static and dynamic cable.
+>Unlike the Mooring class, there does not need to be a Joint at the platform connections, only between a static and dynamic cable.
 
 ### Dynamic Cable Class
 The DynamicCable class contains properties and methods for a cable section that will experience motion. These cables often contain buoyancy modules to create a buoyant section that relieves tensions when the platform it is connected to moves.
@@ -206,7 +224,7 @@ The DynamicCable class contains properties and methods for a cable section that 
 The segments of the dynamic cable with buoyancy modules is not split into its own subcomponents because the dynamic cable is all one portion. Instead, the design dictionary contains information on the location of buoyancy modules along the cable length. Joint locations are determined based on the heading and span of the DynamicCable.
 
 ### Static Cable Class
-The StaticCable class contains properties and methods for a cable section that will not move (generally these cables are buried or otherwise prevented from moving along the seabed). Routing can be specified for each StatiCable between its end Joints.
+The StaticCable class contains properties and methods for a cable section that will not move (generally these cables are buried or otherwise prevented from moving along the seabed). Routing can be specified for each StaticCable between its end Joints.
 
 ### Joint Class
 The Joint class contains information on a joint between cable types. The Joint locations are set based on the seabed endpoint of the connected DynamicCable.
@@ -214,15 +232,15 @@ The Joint class contains information on a joint between cable types. The Joint l
 [Back to Top](#class-structure)
 
 ## Turbine Class
-The Turbine class contains properties and methods for a floating offshore wind turbine (including RNA, tower, and any transition pieces).
+The Turbine class contains properties and methods for a floating offshore wind turbine (including RNA, tower, and any transition pieces). Turbine objects are generally attached to a platform object.
 
 For a complete description of the Turbine class, see the [Turbine ReadMe file](./turbine/README.md)
 
 [Back to Top](#class-structure)
 
 ## Substation Class
-The substation class contains information on the offshore substation. Currently, the 
-capabilities of the substation class is very minimal, but in the future will include detailed information on the substation design.
+The substation class contains information on the offshore substation topside. Currently, the 
+capabilities of the substation class are very minimal, but in the future will include detailed information on the substation topside design. Substation objects are generally attached to a platform object.
 For a complete description of the Substation class, see the [Substation ReadMe file](./substation/README.md)
 
 [Back to Top](#class-structure)
@@ -242,6 +260,7 @@ as a function of soil type. It has the following:
   soil properties
 - a general anchor capacity calculation 'switchboard' that routes to the
   appropriate functions for specified anchor and soil types.
+- a sizing function that uses COBYLA to minimize anchor cost while meeting safety factor requirements.
   
 ### Seabed
 
@@ -252,10 +271,14 @@ boundary.
 
 ## Project Methods
 
+### load
+
+Loads in information from ontology yaml and calls loadDesign and loadSite to store information and create necessary objects.
+
 ### loadDesign
 
 Load in the design information from a YAML file or dictionary. Loads in cables,
-mooring lines, anchors, platforms, turbines, and substations. Creates objects for each component in the array. Dictionaries of mooring line objects, anchor objects, and platform objects, cable objects, turbine objects, and substation objects 
+mooring lines, anchors, platforms, turbines, and substations. Creates objects for each component in the array. Dictionaries of mooring line objects, anchor objects, platform objects, cable objects, turbine objects, and substation objects 
 are created and stored in the project (array level) object.
 
 ### loadSite
@@ -340,18 +363,94 @@ Calculates the cable's length based on its routing
 
 Checks whether a cable crosses over any exclusions or other out of bounds areas
 
+### trimGrids
+
+Trims bathymetry and soil grid information that is outside the project boundaries, 
+for faster execution and plotting.
+
+### addCablesConnections
+
+Creates cable objects from a list and connects them to platforms. If a cable configuration dictionary is provided, full 3d cable designs will be loaded in and cable headings/routing will be adjusted to avoid mooring line clashing. If only list of cable connections is provided, only basic information such as cable cross-sectional properties, conductor size, and connections will be loaded. Designed to work with the output list format from FADesign/CableLayout_functions.getCableLayout(), which will be publicly available in the near future.
+
 ### plot3d
 
-Plots aspects of the Project object in matplotlib 3D
+Plots aspects of the Project object in matplotlib 3D. Depending on available information and settings, RAFT platform and turbine models, cables (dynamic and static, including routing), moorings, bathymetry, lease boundaries, and soil conditions are plotted.
 
 ### plot2d
 
-Plots aspects of the Project object into matplotlib in 2D
+Plots aspects of the Project object into matplotlib in 2D. Depending on available information and settings, moorings, cables (including routing), lease boundaries, bathymetry, and soil conditions are plotted.
 
 ### getMoorPyArray
 
-Creates an array in MoorPy based on the mooring, anchor, connector, and platform objects listed 
+Creates an array in MoorPy based on the mooring, anchor, cable, and platform objects listed 
 in the project object. Also allows the option to plot the resulting MoorPy array.
+
+### getFLORISArray
+
+Sets up a FLORIS interface and stores thrust/windspeed curve
+
+### getFLORISMPequilibrium
+
+Function to find array equilibrium with FLORIS wake losses and MoorPy platform offsets.
+
+### calcoffsetAEP
+
+Function to calculate AEP in FLORIS with moorpy platform offsets
+
+### getRAFT
+
+Create a RAFT object and store in the project class
+
+### getMarineGrowth
+
+Calls the addMarineGrowth mooring and/or cable class method for the chosen mooring and/or cable objects, and applies the specified marine growth thicknesses at the specified depth ranges for the specified marine growth densities.
+
+
+### getCorrosion
+
+Function to reduce MBL of specified lines based on corrosion thickness
+
+### updateUniformArray
+
+Function to update the array spacing, angles, platform locations and headings, etc for a uniform array
+
+### duplicate
+
+Function to duplicate a platform object and all of its associated moorings and anchors. Does not duplicate cables.
+
+
+### addPlatformMS
+
+Create a platofrm object, along with associated mooring and anchor objects from a moorpy system.
+Currently only works for regular (non-shared) moorings.
+
+
+### arrayWatchCircle
+
+Method to run watch circles on all FOWTs in the array at once from a provided thrust force.
+Determines max force on moorings, anchors, and cables and stores maximum for each.
+Can optionally determine safety factors, include dynamic amplification factors, and determine seabed disturbance from the mooring line in the watch circle.
+
+Produces mooring line shapely envelopes and platform watch circle shapely envelopes that will appear if plot2d() is called.
+
+### getArrayCost
+
+Function to sum all available costs for the array components. Eventually will produce a spreadsheet with itemized costs for each component
+
+
+### unload
+
+Function to unload information to an ontology yaml file
+
+### extractFarmInfo
+
+Function to extract farm-level information required to create FAST.Farm case simulations. 
+Currently under development.
+
+## FFarmCompatibleMDOutput
+
+Function to create a FAST.Farm-compatible MoorDyn input file.
+
 
 ### getFromDict
 

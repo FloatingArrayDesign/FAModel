@@ -1,11 +1,13 @@
 # tests anchor capacity and load functionality
 from famodel.project import Project
 import numpy as np
+import os
 
 
 def test_anchor_loads():
     # load in famodel project 
-    project = Project(file='tests/testOntology.yaml', raft=False)
+    dir = os.path.dirname(os.path.realpath(__file__))
+    project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
     
@@ -18,7 +20,8 @@ def test_anchor_loads():
 
 def test_anchor_capacities():
     # load in famodel project (suction pile anchor)
-    project = Project(file='tests/testOntology.yaml', raft=False)
+    dir = os.path.dirname(os.path.realpath(__file__))
+    project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
     
@@ -29,18 +32,19 @@ def test_anchor_capacities():
     anch.getFS(loads=loads)
     
     # try suction pile with sand
-    newdd = anch.dd
-    newdd['soil_type'] = 'sand'
-    newdd['soil_properties']['phi'] =33
-    newdd['soil_properties']['Dr'] = 50
+    soil = anch.soilProps
+    soil['sand'] = soil.pop(next(iter(soil.keys())))
+    soil['sand']['phi'] = 33
+    soil['sand']['Dr'] = 50
     # get capacity and safety factor
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
     
     # check plate anchor type   
+    newdd = anch.dd
     newdd['type'] = 'plate'
     newdd['design'] = {'type':'plate','A':20,'zlug':10,'beta':10}
-    newdd['soil_type'] = 'clay'
+    anch.soilProps['clay'] = anch.soilProps.pop('sand')
     # new loads
     loads['Ha'] = 1000000
     loads['Va'] = 0
@@ -52,26 +56,26 @@ def test_anchor_capacities():
     loads = {'Ha':4522222,'Va':3948278} # go back to original loads    
     newdd['type'] = 'dandg_pile'
     newdd['design'] = {'type':'dandg_pile','L':50,'D':3,'zlug':0}
-    newdd['soil_type'] = 'rock' # soil_properties has default rock info in there already, just change name
+    soil['rock'] = soil.pop('clay') # soil_properties has default rock info in there already, just change name
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
     
     # check driven pile anchor in rock and clay
     newdd['type'] = 'driven'
-    newdd['soil_type'] = 'weak_rock'
+    soil['weak_rock'] = soil.pop('rock')
     newdd['design'] = {'type':'driven','L':20,'D':1.5,'zlug':-3}
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
     
-    newdd['soil_type'] = 'clay'
+    soil['clay'] = soil.pop('weak_rock')
     newdd['design'] = {'type':'driven','L':30,'D':2,'zlug':3}
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
     
-    newdd['soil_type'] = 'sand'
+    soil['sand'] = soil.pop('clay')
     anch.getAnchorCapacity(loads=loads, plot=False)
     anch.getFS(loads=loads)
-    newdd['soil_properties']['Dr'] = 50
+    soil['sand']['Dr'] = 50
     
     # check helical pile anchor with sand
     newdd['type'] = 'helical_pile'
@@ -80,7 +84,7 @@ def test_anchor_capacities():
     anch.getFS(loads=loads)
     
     # check helical pile anchor with clay
-    newdd['soil_type'] = 'clay'
+    soil['clay'] = soil.pop('sand')
     newdd['type'] = 'helical_pile'
     newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01,'zlug':5}
     anch.getAnchorCapacity(loads=loads, plot=False)

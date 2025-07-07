@@ -75,11 +75,12 @@ def getAnchorLoad(Tm, thetam, zlug, d, soil_type, gamma, Su0, k):
     
     return resultsLoad
 
-def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None, gamma=None, phi= None, delta=None, w=None, plot=True):
-
-    
-    '''Calculate the transfer load from the mudline to the main padeye elevation using the DNV standards.
-    The calculation is based on the mooring line properties, anchor geometry and the load from MoorPy and RAFT.  
+def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, 
+    k=None, gamma=None, phi= None, delta=None, w=None, plot=False):
+    '''Calculate the transfer load from the mudline to the main padeye 
+    elevation using the DNV standards. The calculation is based on the 
+    mooring line properties, anchor geometry and the load from MoorPy and 
+    RAFT.
     
     Parameters
     ----------
@@ -185,6 +186,7 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
     # Plot of the line and extreme line tension
     drag_values = [-1*i for i in drag_values]
     depth_values = [-1*j for j in depth_values]
+    
     if plot:
         fig, ax = plt.subplots(figsize=(20, 5)); n = 2000000
         ax.scatter(drag_values[-1], depth_values[-1], color='g', zorder=5)
@@ -200,9 +202,9 @@ def getTransferLoad(Tm, thetam, zlug, line_type, d, soil_type, Su0=None, k=None,
         plt.ylabel('Embedded depth [m]')
         plt.suptitle('Inverse catenary profile in soil DNV')
         plt.grid(True)
-        plt.show()   
-
+    
     return resultsLoad
+
 
 if __name__ == '__main__':
     

@@ -126,7 +126,7 @@ def getCapacityDandG(profile, L, D, zlug, V, H, plot=True):
     resultsDandG['Lateral displacement'] = y[2]
     resultsDandG['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
     resultsDandG['Axial capacity'] = DQ[-1]
-    resultsDandG['Pile weight'] = PileWeight(L, D, t, (rhows + rhow))
+    resultsDandG['Weight'] = PileWeight(L, D, t, (rhows + rhow))
     
     return y[2:-2], z[2:-2], resultsDandG
 

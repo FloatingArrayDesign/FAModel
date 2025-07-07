@@ -12,37 +12,62 @@ import numpy as np
 
 def readBathymetryFile(filename, dtype=float):
 
-    f = open(filename, 'r')
-    # skip the header
-    line = next(f)
-    # collect the number of grid values in the x and y directions from the second and third lines
-    line = next(f)
-    nGridX = int(line.split()[1])
-    line = next(f)
-    nGridY = int(line.split()[1])
-    # allocate the Xs, Ys, and main bathymetry grid arrays
-    bathGrid_Xs = np.zeros(nGridX)
-    bathGrid_Ys = np.zeros(nGridY)
-    bathGrid = np.zeros([nGridY, nGridX], dtype=dtype)  # MH swapped order June 30
-    # read in the fourth line to the Xs array
-    line = next(f)
-    bathGrid_Xs = [float(line.split()[i]) for i in range(nGridX)]
-    strlist = []
-    # read in the remaining lines in the file into the Ys array (first entry) and the main bathymetry grid
-    for i in range(nGridY):
+    with open(filename, 'r') as f:
+        # skip the header
         line = next(f)
-        entries = line.split()
-        bathGrid_Ys[i] = entries[0]
-        if dtype==float:
-            bathGrid[i,:] = entries[1:]
+        # collect the number of grid values in the x and y directions from the second and third lines
+        line = next(f)
+        nGridX = int(line.split()[1])
+        line = next(f)
+        nGridY = int(line.split()[1])
+        # allocate the Xs, Ys, and main bathymetry grid arrays
+        bathGrid_Xs = np.zeros(nGridX)
+        bathGrid_Ys = np.zeros(nGridY)
+        bathGrid = np.zeros([nGridY, nGridX], dtype=dtype)  # MH swapped order June 30
+        # read in the fourth line to the Xs array
+        line = next(f)
+        bathGrid_Xs = [float(line.split()[i]) for i in range(nGridX)]
+        strlist = []
+        # read in the remaining lines in the file into the Ys array (first entry) and the main bathymetry grid
+        for i in range(nGridY):
+            line = next(f)
+            entries = line.split()
+            bathGrid_Ys[i] = entries[0]
+            if dtype==float:
+                bathGrid[i,:] = entries[1:]
+            if dtype==str:
+                strlist.append(entries[1:])
         if dtype==str:
-            strlist.append(entries[1:])
-    if dtype==str:
-        bathGrid = np.array(strlist)
+            bathGrid = np.array(strlist)
     
     return bathGrid_Xs, bathGrid_Ys, bathGrid
 
+def writeBathymetryFile(filename, grid_x, grid_y, grid_depth):
+    """
+    Writes bathymetry data to a file in the format expected by readBathymetryFile.
 
+    Parameters:
+        filename (str): The name of the file to write to.
+        grid_x (list or np.ndarray): The X coordinates of the grid.
+        grid_y (list or np.ndarray): The Y coordinates of the grid.
+        grid_depth (np.ndarray): The bathymetry grid (depth values).
+    """
+    with open(filename, 'w') as f:
+        # Write a placeholder header
+        f.write("--- MoorPy Bathymetry Input File ---\n")
+        
+        # Write the number of grid values in the x and y directions
+        f.write(f"nGridX {len(grid_x)}\n")
+        f.write(f"nGridY {len(grid_y)}\n")
+        
+        # Write the X coordinates
+        f.write(" ".join(map(str, grid_x)) + "\n")
+        
+        # Write the Y coordinates and the bathymetry grid
+        for i, y in enumerate(grid_y):
+            row = [y] + list(grid_depth[i, :])
+            f.write(" ".join(map(str, row)) + "\n")
+            
 def getSoilTypes(filename):
     '''function to read in a preliminary input text file format of soil type information'''
 
