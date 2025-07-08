@@ -12,25 +12,23 @@ The reference elevation of the pile is the pile head (z = 0 m), from here all el
 ### Soil properties
 ##### Input
 - profile_map 
-	- name: CPT or reference in the system (-)
+	- location_name: CPT or reference in the system (-)
   - x, y: coordinates of the anchor within the lease area (m), (m)
-  - layers 
-    - top, bottom: depth for top and bottom layers (m), (m)
+  - layers (at least one): 
+    - top, bottom: depth for top and bottom for each layer (m), (m)
     - soil_type: clay/mud, sand and (weak) rock (-)  
-    - soil properties: clay/mud, sand and (weak) rock, see soil properties for further details
-- location_name
-- z: depth of the layer (m)
-- soil types:
-  - clay/mud:
-    - gamma: submerged soil unit weight (kN/m³)
-    - Su: undrained shear strength (kPa)
-  - sand:
-    - gamma: submerged soil unit weight: (kN/m³)
-    - phi: internal friction angle (deg)
-    - Dr: relative density (%)
-  - rock:
-    - UCS: unconfined compressive strength at failure (MPa)
-    - Em: rock mass modulus (MPa)
+    - soil properties: 
+      - clay/mud:
+        - gamma: submerged soil unit weight (kN/m³)
+        - Su: undrained shear strength (kPa) 
+      - sand:
+        - gamma: submerged soil unit weight: (kN/m³)
+        - phi: internal friction angle (deg)
+        - Dr: relative density (%)
+      - (weak) rock, 
+        - UCS: unconfined compressive strength at failure (MPa)
+        - Em: rock mass modulus (MPa)
+
 >[!NOTE]
 Driven piles are only possible on weak rock, defined here as up to UCS = 5 MPa
 
@@ -39,7 +37,7 @@ Units within FAModel follow the SI exclusively. The input soil parameters units 
 
     profile_map = [
         {
-            'name': 'CPT_1',
+            'location_name': 'CPT_1',
             'x': 498234, 'y': 5725141,
             'layers': [
                 {
@@ -63,7 +61,7 @@ Units within FAModel follow the SI exclusively. The input soil parameters units 
     Note:
     - z0 = 1 m, meaning the pile head is 1 m above the mudline
     - soil_type: clay, sand, clay
-    - this method allows different soil types and gaps in between soil layers
+    - this method allows different soil types and gaps in between soil layers of the same or different soil type
 ##### Output
 - z0: depth of the mudline relative to the pile head (m)
 - soil types:
@@ -120,11 +118,11 @@ The supported anchor types are listed below with their associated FAModel names 
 |*SEPLA* (suction embedded plate anchors)                | Plate          | Suction      | 
 |*DEPLA* (dynamically embedded plate anchors)            | Plate          | Dynamic      |
 |*VLA* (vertically loaded anchors)                       | Plate          | Drag         |
-|*suction* (suction caisson/suction bucket anchors) | Suction        | Suction      |
-|*torpedo* (torpedo pile anchors)                   | Torpedo        | Dynamic      |
-|*helical* (helical pile anchors)                   | Helical/Driven | Torque-crowd |
-|*driven*  (driven pile anchors)                    | Driven         | Driven       |
-|*dandg* (drilled and grouted pile anchors)         | Drilled&Grout  | Drilled      |
+|*suction* (suction caisson/suction bucket anchors)      | Suction        | Suction      |
+|*torpedo* (torpedo pile anchors)                        | Torpedo        | Dynamic      |
+|*helical* (helical pile anchors)                        | Helical/Driven | Torque-crowd |
+|*driven*  (driven pile anchors)                         | Driven         | Driven       |
+|*dandg* (drilled and grouted pile anchors)              | Drilled&Grout  | Drilled      |
 
 ### Anchor geometrical properties
 #### DEA/SEPLA/DEPLA/VLA/plate
@@ -309,62 +307,103 @@ Analytical static capacity models for extreme load conditions. These models incl
 
 - **capacity_plate** : 
 	- getCapacityPlate(profile_map, location_name, D, L, zlug, Ha, Va, plot)
-  - capacityPlate dic
+  - capacityPlate dict:
+    - 'Capacity'
+    - 'Horizontal max.', 'Vertical max.'
+    - 'Unity check'
+    - 'Weight plate' 
 
 - **capacity_suction** : 
 	- getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug, psilug, plot)
-  - capacitySuction dic
+  - capacitySuction dict:
+    - 'Horizontal max.', 'Vertical max.'
+    - 'Unity check'
+    - 'Weight pile'
   
 - **capacity_torpedo** : 
 	- getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast, Ha, Va, plot)
-  - capacityTorpedo dic
+  - capacityTorpedo dict:
+    - 'Horizontal max.', 'Vertical max.'
+    - 'Unity check'
+    - 'Weight pile'
 
 - **capacity_helical** : 
 	- getCapacityHelical(profile_map, location_name, D, L, d, zlug, Ha, Va, plot)
-  - capacityHelical dic
+  - capacityHelical dict:
+    - 'Horizontal max.', 'Vertical max.'
+    - 'Lateral displacement', 'Rotational displacement'
+    - 'Bending moment'
+    - 'Plastic moment'
+    - 'Unity check (vertical)', 'Unity check (horizontal)'
+    - 'Weight pile'
 
 - **capacity_driven** : 
 	- getCapacityDriven(profile_map, location_name, L, D, zlug, Ha, Va, plot)
-  - capacityDriven dic
+  - capacityDriven dict:
+    - 'Horizontal max.', 'Vertical max.'
+    - 'Lateral displacement', 'Rotational displacement'
+    - 'Bending moment'
+    - 'Plastic moment'
+    - 'Unity check (vertical)', 'Unity check (horizontal)'
+    - 'Weight pile'
  
 - **capacity_dandg** : 
 	- getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot)
-  - capacityDandG dic
+  - capacityDandG dict:
+    - 'Horizontal max.', 'Vertical max.'
+    - 'Lateral displacement', 'Rotational displacement'
+    - 'Bending moment'
+    - 'Plastic moment'
+    - 'Unity check (vertical)', 'Unity check (horizontal)'
+    - 'Weight pile'
 
 - **capacity_load** : 
 	- getTransferFunction(profile_map, Tm, thetam, zlug, line_type, d, w, plot)
-  - capacityLoads dic
+  - capacityLoads dict:
+    - 'Tm', 'thetam'
+    - 'Hm', 'Vm'
+    - 'Ta', 'thetaa'
+    - 'Ha', 'Va'
+    - 'length'
+    - 'drag_values'
+    - 'depth_values'
 
 #### Anchor installation modules
 Analytical installation models for main anchor types.
 
 - **installation_drag** : 
 	- getInstallationPlate(profile_map, location_name, B, Lf, Ls, Lca, Lj, plot)
-  - installationDrag dic
+  - installationDrag dict
 
 - **installation_suction** : 
 	- getInstallationSuction(profile_map, location_name, D, L, plot)
-  - installationSuction dic
+  - installationSuction dict:
+    - 'Fi', 'Fo', 'Qw'
+    - 'Rsuction', 'Rretrieval'
+    - 'SWP_depth'
 
 - **buckling_suction** : 
 	- getBucklingSuction(profile_map, location_name, D, L, plot)
-  - installationBuckling dic
+  - installationBuckling dict
 
 - **installation_dynamic** : 
 	- getInstallationTorpedo(profile_map, location, D1, D2, L1, L2, ballast, drop_height, plot)
-  - installationDynamic dic
+  - installationDynamic dict
 
 - **installation_torque** : 
 	- getInstallationHelical(profile_map, location_name, D1, D2, L1, L2, zlug, ballast, Ha, Va, plot)
-  - installationTorque dic
+  - installationTorque dict:
+    - 'Force', 'Torque'
+    - 'sigma_helix', 'sigma_core', 'sigma_weld'
+    - 'failire_mode'
 
 - **installation_driven** : 
 	- getInstallationDriven(profile_map, location_name, D, L, hammer_params, J_shaft, J_toe, plot)
-  - installationDriven dic
+  - installationDriven dict
 
 - **installation_drill** : 
 	- getInstallationDrill(profile_map, location_name, D, L, driller_params, plot)
-  - installationDrill dic
+  - installationDrill dict
 
 #### Anchor support modules
 
@@ -383,34 +422,212 @@ Analytical installation models for main anchor types.
 	- py_Lovera(z, D, UCS, Em, z0, delta_grout, E_grout, delta_crushed, return_curve)
 
 - **anchor_plots** : 
-	- plot_driven()
-	- plot_suction()
-	- plot_helical()
-	- plot_plate()
-	- plot_load()
-	- plot_pycurve()
+	- plot_pile(layers, y, z, D, L, z0, zlug, hinge_location)
+	- plot_suction(layers, L, D, z0, zlug)
+  - plot_suction(layers, D1, D2, L1, L2, z0, zlug)
+  - plot_helical(layers, D, L, d, z0, zlug, n_helix, spacing)
+  - plot_plate(layers, B, L, z0, zlug, beta)
+  - plot_load(layers, drag_values, depth_values, Tm, thetam, Ta, thetaa, zlug)
+  - plot_pycurve(pycurve_data)
 
 ### Anchor class methods
 
-- **setSoilProfile()** : Assign a bilinearly interpolated soil profile from the 4 nearest CPTs
-- **makeMoorPyAnchor()** : Creates a MoorPy point object representing the anchor in a moorpy system
-- **getMudlineForces()** : Finds forces on anchor at mudline using MoorPy Point.getForces method. Use max_force=True to obtain the maximum forces on that anchor from the platform.getWatchCircle() method. 
-For more information on the getWatchCircle() calculations, see the [Platform ReadMe](../platform/README.md). An additional anchor.loads dictionary entry is included to describe the mudline load type. 
-'mudline_load_type'='max' if max_force=True, and 'mudline_load_type'='current_state' if max_force=False.
-- **getLugForces()** : Finds forces at the anchor lug location with getTransferFunction function in capacity_loads.py
-- **getCapacityAnchor()** : Calls anchor capacity functions for the correct anchor type using the getLugForces embedded in the method
-- **getSizeAnchor()** : Calls sizing anchor functions for the correct anchor type using the getLugForces embedded in the method
-- **getFS()** : Computes safety factor for loads on the anchor
-- **getCostAnchor()** : Finds costs of anchor from MoorProps and stores in design dictionary
-- **getCombinedPlot()** : Create a plot showing the anchor and the inverse catenary overlay in the same coordinate system.
+- **Anchor.setSoilProfile(profile_map)** 
+
+  Assign a soil profile directly to the anchor from a single CPT (Cone Penetration Test) record.
+
+  This method sets the internal soil_profile, extracts soil types, and organizes layer properties by soil type. It assumes that the input contains only one CPT entry.
+
+  **Parameters**
+    - **profile_map** : list of dict. A list containing exactly one dictionary representing a CPT profile. The dictionary has:
+      - 'location_name': a string indicating the name of the CPT
+      - 'x', 'y': coordinates of the CPT location
+      - 'layers': a list of layer dictionaries, each with a 'soil_type' key and relevant soil parameters.
+    
+  **Raises**
+    - **ValueError** : If profile_map contains more than one CPT.
+
+  **Attributes Updated**
+  - **self.soil_profile** : list of dict. Stores the soil layers from the CPT.
+  - **self.profile_name** : str. Name of the CPT, default is "CPT_Assigned" if not provided.
+  - **self.soil_type_list** : list of str. Unique soil types present in the profile.
+  - **self.soil_type** : str. If a single soil type is present, its name; otherwise, 'mixed'.
+  - **self.soilProps** : dict. Dictionary grouping layer properties (excluding soil_type) by soil type.
+
+- **Anchor.interpolateSoilProfile(profile_map)**  
+
+  Interpolate a soil profile for the anchor location from the four nearest CPTs using inverse distance weighting.
+
+  This method assumes all CPTs share the same layer structure. Each soil parameter is interpolated layer-by-layer based on the relative proximity of the CPTs to the anchor.
+
+  **Parameters**
+    - **profile_map** : list of dict.  A list containing at least four CPT profile dictionaries. Each dictionary has:
+      - 'location_name': a string indicating the name of the CPT
+      - 'x', 'y': coordinates of the CPT location
+      - 'layers': a list of layer dictionaries, each with a 'soil_type' key and relevant soil parameters.
+    
+  **Raises**
+    - **ValueError** : If fewer than four CPTs are provided in profile_map.
+
+  **Attributes Updated**
+  - **self.soil_profile** : list of dict. Stores the soil layers from the CPT.
+  - **self.profile_name** : str. Set to "Interpolated_2D".
+  - **self.soil_type_list** : list of str. Unique soil types present in the interpolated profile.
+  - **self.soil_type** : str. If a single soil type is present, its name; otherwise, 'mixed'.
+  - **self.soilProps** : dict. Dictionary grouping layer properties (excluding soil_type) by soil type.
+
+- **Anchor.makeMoorPyAnchor(ms)**  
+
+  Create and register a MoorPy anchor point within the given MoorPy system using the anchor's location and design properties.
+
+  The anchor is added as a fixed point in the MoorPy model (Point object) and its mass and diameter are assigned if available. The method also sets the point type based on the anchor type.
+
+    **Parameters**
+    - **ms** : MoorPy system instance. The MoorPy system in which the anchor will be created.
+    
+  **Attributes Updated**
+  - **self.mpAnchor** : MoorPy Point. Reference to the created MoorPy anchor point in the system.
+
+- **Anchor.getLineProperties()**  
+
+  Retrieve the mooring line type, diameter and unit weight from the anchor's attached mooring object.
+
+  This method inspects the attached Mooring object and extracts relevant line properties from its first section. If no chain is present, the method assumes no load transfer below the mudline and returns None for diameter and weight.
+
+    **Parameters**
+    - **line_type** : str.  Type of mooring line (e.g., 'chain', 'wire').
+    - **d** : float or None. Nominal diameter of the mooring line (m) or None if not applicable.
+    - **w** :  float or None. Unit weight of the mooring line (N/m) or None if not applicable.
+        
+    **Raises**
+    - **ValueError** : If no mooring line attachment is found for the anchor.
+
+- **Anchor.getMudlineForces(max_force=False, lines_only=False, seabed=True, xyz=False, project=None)** 
+
+  Compute the forces acting on the anchor at the mudline, either from the current state of the MoorPy system or as the maximum expected force based on platform excursion.
+
+  If max_force=True, the method retrieves the extreme load on the anchor using either the provided project’s arrayWatchCircle() method or the attached platform’s getWatchCircle() method. Otherwise, it calculates the current forces using MoorPy's getForces().
+
+    **Parameters**
+    - **max_force** : bool, optional. If True, compute the maximum expected mudline force based on platform excursion. Default is False.
+    - **lines_only** : bool, optional. If True, considers only mooring line forces (ignores seabed and body effects). Default is False.
+    - **seabed** :  bool, optional. If True, includes seabed reaction force in the calculation. Default is True.
+    - **xyz** :  bool, optional. If True, returns forces in the x, y, z directions. Otherwise returns only the relevant DOFs. Default is False
+    - **project** :  bool, optional. Project object with a arrayWatchCircle() method. Used to compute global platform excursions when max_force=True.
+
+  **Attributes Updated**
+  - **self.loads** : dict. Stores the computed mudline force components and metadata:
+      - 'Hm': horizontal force magnitude at mudline (N)
+      - 'Vm': vertical force at mudline (N)
+      - 'thetam': angle of applied load at mudline (deg)
+      - 'method': load computation method (currently 'static')
+      - 'mudline_load_type': 'current_state' or 'max_force', depending on the mode used   
+
+- **Anchor.getLugForces(Hm, Vm, zlug, line_type=None, d=None, w=None, plot=False)**  
+
+  Calculate the horizontal and vertical loads at the anchor lug (Ha, Va) based on the mudline loads and the load transfer profile along the mooring line.
+
+  If the padeye depth zlug is embedded below the mudline, the method computes the lug loads using the load transfer model. Otherwise, it assigns the mudline loads directly to the lug.
+
+  **Parameters**
+  - **Hm** : float. Horizontal mudline load (N).
+  - **Vm** : float. Vertical mudline load (N).
+  - **zlug** :  float. Padeye embedment depth (m).
+  - **line_type** :  str, optional. Type of mooring line ('chain' or 'wire'). If not provided, inferred from attachments or defaults to 'chain'.
+  - **d** :  float, optional. Mooring line diameter (m).
+  - **w** :  float, optional. Mooring line unit weight (N/m).
+  - **plot** :   bool, optional. If True, generates plots of load transfer and geometry. Default is False.
+
+  **Raises**
+  - **ValueError** : If the soil profile is not assigned to the anchor before calling this method.
+
+  **Attributes Updated**
+  - **self.anchorCapacity** : dict. Stores the anchor's computed capacity results, including:
+      - 'Hmax': maximum horizontal capacity (N).
+      - 'Vmax': maximum vertical capacity (N).
+      - 'Ha','Va': lug-level horizontal and vertical loads (N).
+      - 'UC' or 'Unity check (horizontal)', 'Unity check (vertical)' : capacity utilization checks.
+      - 'Lateral displacement', 'Rotational displacement' : optional displacement results (if available)
+      - 'Weight pile', 'Weight plate' : self-weight of pile or plate depending on type.
+      - 'zlug' : lug depth (m), and 'z0' : mudline reference elevation (m)
+
+- **Anchor.getCapacityAnchor(Hm, Vm, zlug, line_type=None, d=None, w=None, mass_update=False, plot=False)** 
+
+  Calculate the load capacity of the anchor based on its type, geometry and local soil profile.
+
+  This method computes the anchor resistance against applied horizontal and vertical loads using the appropriate capacity model for the anchor type. It optionally performs load transfer from the mudline to the lug and updates the anchor's capacity results.
+
+  **Parameters**
+  - **Hm** : float. Horizontal mudline load (N).
+  - **Vm** : float. Vertical mudline load (N).
+  - **zlug** :  float. Padeye embedment depth (m).
+  - **line_type** :  str, optional. Type of mooring line ('chain' or 'wire'). If not provided, inferred from attachments or defaults to 'chain'.
+  - **d** : float, optional. Mooring line diameter (m).
+  - **w** : float, optional. Mooring line unit weight (N/m).
+  - **mass_update** : bool, optional. If True, updates the anchor's weight based on computed capacity. Default is False.
+  - **plot** : bool, optional. Whether to generate a plot of the load transfer profile. Default is False.
+
+  **Raises**
+  - **ValueError** : If the anchor type is unknown or if the soil profile is not properly assigned.
+
+  **Attributes Updated**
+  - **layers** : list of dict. The soil profile layers used in the load transfer calculation.
+  - **Ha** : float. Horizontal load at the lug (N).
+  - **Va** : float. Vertical load at the lug (N).
+ 
+- **Anchor.getSizeAnchor(geom, geomKeys, geomBounds=None, loads=None, lambda_con=[3, 6], zlug_fix=True,      safety_factor={'SF_combined':1.0}, plot=False)** 
+
+  Generalized optimization method to determine the appropriate geometry for all anchor types based on load conditions and safety factor requirements.
+
+  For suction, torpedo, and plate-type anchors, the method minimizes the difference between the calculated and target Unity Check (UC). For driven, helical, and dandg anchors, the method iteratively searches for the smallest geometry that satisfies combined UC, lateral and rotational displacement limits.
+
+  **Parameters**
+  - **geom** : : list of float. Initial geometry values (e.g., [L, D]).
+  - **geomKeys** : list of str. Keys that define the geometry variables to optimize (e.g., ['L', 'D']).
+  - **geomBounds** :  list of tuple, optional. Bounds for geometry values, e.g., [(5.0, 20.0), (1.0, 4.0)].
+  - **loads** :  dict, optional. Dictionary containing mudline forces ('Hm', 'Vm'). Defaults to self.loads.
+  - **lambdap_con** : list of float, optional. Minimum and maximum slenderness ratio constraints [L/D_min, L/D_max]. Default is [4, 8].
+  - **zlug_fix** : float, optional. If False, allows zlug to vary with geometry. Default is True.
+  - **safety_factor** : bool, optional.  Dictionary with safety factor targets (e.g., {'SF_combined': 1.5}). Default is {'SF_combined': 1.0}.
+  - **plot** : bool, optional. If True, generates plots the final capacity results. Default is False.
+
+  **Raises**
+  - **ValueError** :  If the anchor type is not supported for this optimization method.
+
+  **Attributes Updated**
+  - **self.dd['design']** : list of dict. The soil profile layers used in the load transfer calculation.
+  - **self.anchorCapacity** : float. Horizontal load at the lug (N).
+    - Ha, Va : float. Lug loads (N).
+    - Ha, Va : float. Lug loads (N).
+    - UC or 'Unity check (horizontal)', 'Unity check (vertical)'
+    - Optional displacements and weights if applicable
+
+- **Anchor.getSafetyFactor(ms=None)** 
+
+  Estimate the material cost of the anchor using the MoorPy Point object and its getCost_and_MBL() method.
+
+  If no MoorPy system is provided, the method initializes one and registers the anchor. Cost is based on mass and design parameters, and the Minimum Breaking Load (MBL) is also computed.
+
+  **Parameters**
+  - **ms** : MoorPy system instance, optional. If provided, uses the existing system. Otherwise, creates a new MoorPy system internally.
+
+  **Raises**
+  - **KeyError** : If self.mass is not defined and neither 'Weight pile' nor 'Weight plate' is available in self.anchorCapacity. This typically indicates that getCapacityAnchor() has not been called before getCostAnchor().
+
+  **Attributes Updated**
+  - **self.cost** : dict. Stores cost-related metrics for the anchor:
+    - 'Material cost' : Estimated anchor material cost.
+    - 'MBL' : Minimum Breaking Load (from MoorPy).
+    - 'unit_cost' : Cost per unit mass (cost/mass).
+  - **self.mpAnchor.m** : float. Mass of the MoorPy anchor point (assigned if self.mass is not already set).
 
 ### Anchor Object Properties
 
-- **r** : anchor [x,y,z] position
+- **r** : anchor [x, y, z] position
 - **dd** : anchor design dictionary, containing geometric properties, soil properties at the anchor location, cost
-- **ms** : moorpy system associated with this anchor point
+- **ms** : MoorPy system associated with this anchor point
 - **aNum** : anchor index in array mooring list (generally only used for shared moorings)
-- **mpAnchor** : moorpy point object that models this anchor
+- **mpAnchor** : MoorPy point object that models this anchor
 - **anchorCapacity** : dictionary with horizontal and vertical capacity of the anchor. Generally these are loads in [N], but can also be displacements (generally for driven or drilled and grouted piles)
 - **loads** : dictionary of loads on the anchor, and the method used to obtain these loads (static or dynamic modeling). 
 Loads include mooring line tension (T) with the angle of the load (theta) as well as horizontal (H) and vertical (V) loads components. 

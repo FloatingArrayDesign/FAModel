@@ -66,7 +66,7 @@ def writeBathymetryFile(filename, grid_x, grid_y, grid_depth):
 import yaml
 import os
 
-def getSoilTypes(filename, soil_mode='uniform', profile_source=None):
+def getSoilTypes(filename, soil_mode='layered', profile_source=None):
     '''
     Load soil properties or layered profiles depending on soil_mode.
 
@@ -301,9 +301,16 @@ def processGeotiff(filename, lat, lon, outfilename="processGeotiff.txt", **kwarg
     #lats, _  = rasterio.transform.xy(tiff.transform, 0, range(tiff.width-1,-1,-1))
     height, width = tiff.shape
     cols, rows = np.meshgrid(np.arange(width), np.arange(height))
-    longs_mesh, lats_mesh = rasterio.transform.xy(tiff.transform, rows, cols)
-    longs = np.array(longs_mesh)[0,:]
-    lats = np.flip(np.array(lats_mesh)[:,0])
+    
+    # rasterio.transform.xy returns flat lists, so reshape after
+    longs_list, lats_list = rasterio.transform.xy(tiff.transform, rows, cols)
+    
+    longs_array = np.array(longs_list).reshape((height, width))
+    lats_array = np.array(lats_list).reshape((height, width))
+    
+    longs = longs_array[0, :]       # all x-coords from first row
+    lats = np.flip(lats_array[:, 0])  # all y-coords from first column (flip to make it south to north)
+
     # lats data provided from top left corner, i.e., latitudes are descending. It seems that the following interpolation functions (getDepthFromBathymetry)
     # can only work if latitudes start small and increase, meaning that the first latitude entry has to be the bottom left corner
     
@@ -742,11 +749,14 @@ def getPlotBounds(latsorlongs_boundary, zerozero, long=True):
 
 if __name__ == '__main__':
     
-    centroid = (40.928, -124.708)  #humboldt    
-    xs = np.arange(-30000,30001,400)
-    ys = np.arange(-40000,40001,400)
+    centroid = (44.1, 12.65)    
+    # Choose grid that fits within 25x22 km — e.g., ±10 km to be safe
+    xs = np.arange(-10000, 10001, 400)   # 50 x points → 20 km total
+    ys = np.arange(-10000, 10001, 400)   # 50 y points
     
-    xs, ys, depths = processGeotiff('humboldt.tif', centroid[0], centroid[1], xs=xs, ys=ys, outfilename='test output.txt')
+    xs, ys, depths = processGeotiff('gebco_2024_n44.2_s44.0_w12.5_e12.8.tif', 
+                                    centroid[0], centroid[1], xs=xs, ys=ys, 
+                                    outfilename='test output.txt')
     
     import moorpy as mp
     ms = mp.System(depth=np.max(depths), bathymetry='test output.txt')

@@ -297,26 +297,27 @@ mooring_connector_types:
 anchor_types:
 
     drag-embedment1:
-        type   :  DEA   # type of anchor
-        A      :    10 # net area of anchor's fluke [m^2]
+        type   :   DEA # type of anchor
+        B      :     3 # net area of anchor's fluke [m^2]
+        L      :     3
         zlug   :    20 # embedded depth of padeye [m]
     suction_pile1:
-        type   :  suction_pile
+        type   :  suction
         L      :     16.4  # length of pile [m]
         D      :     5.45  # diameter of pile [m]
         zlug   :     9.32  # embedded depth of padeye [m]
     dandg_pile1:
-        type   :  dandg_pile
+        type   :  dandg
         L      :     50 # length of pile [m]
         D      :     3 # diameter of pile [m]
         zlug   :     0 # embedded depth [m]
     driven_pile1:
-        type   :  driven_pile
+        type   :  driven
         L      :     20 # pile length [m]
         D      :     1.5 # pile diameter [m]
         zlug   :     3 # embedded depth [m]
     driven_pile2:
-        type   :  driven_pile
+        type   :  driven
         L      :     20 # pile length [m]
         D      :     1.5 # pile diameter [m]
         zlug   :     -3 # embedded depth [m]
@@ -1718,5 +1719,3 @@ platforms:
         CdEnd     :  0.0                       # [-]    end axial drag coefficient        (optional, scalar or list of same length as stations)
         CaEnd     :  0.0                       # [-]    end axial added mass coefficient  (optional, scalar or list of same length as stations)
         rho_shell :  7850                      # [kg/m3]
-
-

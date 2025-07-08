@@ -4,7 +4,7 @@ from .capacity_driven import getCapacityDriven, plot_pile
 from .support_soils import clay_profile, sand_profile
 from .support_plots import plot_helical
 
-def getCapacityHelical(profile_map, location_name, D, L, d, zlug, Ha, Va, plot=True):
+def getCapacityHelical(profile_map, location_name, D, L, d, zlug, Ha, Va, plot=False):
     '''Calculate the vertical and horizontal capacity of a helical pile using a soil profile.
     The calculation is based on the soil profile, anchor geometry and inclined load.
 
@@ -102,13 +102,14 @@ def getCapacityHelical(profile_map, location_name, D, L, d, zlug, Ha, Va, plot=T
     Hcap = results_lateral['Horizontal max.']
     UC_horizontal = Ha/Hcap if Hcap != 0 else np.inf
 
-    resultsHelical = {
-        'Vertical max.': Qu,
-        'Weight': Wp,
-        'Unity Check (Vertical)': UC_vertical,
+    resultsHelical = {     
         'Horizontal max.': Hcap,
-        'Unity Check (Horizontal)': UC_horizontal
-    }
+        'Vertical max.': Qu,
+        'Lateral displacement': results_lateral['Lateral displacement'],
+        'Rotational displacement': results_lateral['Rotational displacement'],
+        'Unity check (horizontal)': UC_horizontal,
+        'Unity Check (vertical)': UC_vertical,
+        'Weight pile': Wp,}
 
     if matched_layer['soil_type'] == 'clay':
         resultsHelical['Su @ helix'] = Su

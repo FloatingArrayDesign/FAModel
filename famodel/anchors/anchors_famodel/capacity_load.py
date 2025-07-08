@@ -65,7 +65,7 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Tr
             matched_layer = next((layer for layer in layers if layer['soil_type'] == 'clay' and layer['top'] <= depth <= layer['bottom']), None)
             if matched_layer is None:
                 break
-            profile = [[matched_layer['top'], matched_layer['gamma_top'], matched_layer['Su_top']],
+            profile = [[matched_layer['top'],    matched_layer['gamma_top'], matched_layer['Su_top']],
                        [matched_layer['bottom'], matched_layer['gamma_bot'], matched_layer['Su_bot']]]
             z0_local, f_gamma, f_Su, f_sigma_v_eff, f_alpha = clay_profile(profile)
 
@@ -79,7 +79,7 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Tr
             if matched_layer is None:
                 break
             
-            profile = [[matched_layer['top'], matched_layer['gamma_top'], matched_layer['phi_top'], matched_layer['Dr_top']],
+            profile = [[matched_layer['top'],    matched_layer['gamma_top'], matched_layer['phi_top'], matched_layer['Dr_top']],
                        [matched_layer['bottom'], matched_layer['gamma_bot'], matched_layer['phi_bot'], matched_layer['Dr_bot']]]
             z0_local, f_gamma, f_phi, f_Dr, f_sigma_v_eff, f_delta = sand_profile(profile)
 
@@ -111,88 +111,89 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Tr
         depth_values.append(-depth); 
 
     Ta = T; thetaa = theta
+    Hm = Tm*np.cos(np.deg2rad(thetam)); Vm = Tm*np.cos(np.deg2rad(thetam))
+    Ha = Ta*np.cos(thetaa); Va = Ta*np.sin(thetaa)
     
     print(f'Input Tm = {Tm}, thetam = {thetam}, zlug = {zlug}')
-    print(f'Output Hm = {Tm*np.cos(np.deg2rad(thetam))}, Vm = {Tm*np.sin(np.deg2rad(thetam))}')
+    print(f'Output Hm = {Hm}, Vm = {Vm}')
     print(f'Output Ta = {Ta}, thetaa = {np.rad2deg(thetaa)}')
-    print(f'Output Ha = {Ta*np.cos(thetaa)}, Va = {Ta*np.sin(thetaa)}')
+    print(f'Output Ha = {Ha}, Va = {Va}')
 
     resultsLoad = {
-        'Tm': Tm,
-        'thetam': thetam,
-        'Ta': Ta,
-        'thetaa': np.rad2deg(thetaa),
+        'Tm': Tm, 'thetam': thetam,
+        'Hm': Hm, 'Vm': Vm,
+        'Ta': Ta, 'thetaa': np.rad2deg(thetaa),
+        'Ha': Hm, 'Va': Vm,
         'length': deltas*len(drag_values),
         'drag_values': drag_values,
-        'depth_values': depth_values
-    }
+        'depth_values': depth_values}
 
     return layers, resultsLoad
 
 
 if __name__ == '__main__':
 
-    profile_map = [
-        {
-            'name': 'CPT_1',
-            'x': 498234, 'y': 5725141,
-            'layers': [
-                {
-                    'top': 1.0, 'bottom': 2.0,
-                    'soil_type': 'clay',
-                    'gamma_top': 8.0, 'gamma_bot': 8.0,
-                    'Su_top': 10, 'Su_bot': 25},
-                {
-                    'top': 2.0, 'bottom': 8.0,
-                    'soil_type': 'clay',
-                    'gamma_top': 8.0, 'gamma_bot': 8.0,
-                    'Su_top': 25, 'Su_bot': 50},
-                {
-                    'top': 8.0, 'bottom': 16.0,
-                    'soil_type': 'clay',
-                    'gamma_top': 8.0, 'gamma_bot': 8.0,
-                    'Su_top': 50, 'Su_bot': 100}
-            ]
-        }
-    ]
     # profile_map = [
     #     {
     #         'name': 'CPT_1',
     #         'x': 498234, 'y': 5725141,
     #         'layers': [
-    #             # {
-    #             #     'top': 0.0, 'bottom': 5.0,
-    #             #     'soil_type': 'sand',
-    #             #     'gamma_top': 9.5, 'gamma_bot': 9.5,
-    #             #     'phi_top': 28, 'phi_bot': 30,
-    #             #     'Dr_top': 70, 'Dr_bot': 70},
     #             {
-    #                 'top': 0.0, 'bottom': 5.0,
+    #                 'top': 1.0, 'bottom': 2.0,
     #                 'soil_type': 'clay',
     #                 'gamma_top': 8.0, 'gamma_bot': 8.0,
-    #                 'Su_top': 25, 'Su_bot': 25},
+    #                 'Su_top': 10, 'Su_bot': 25},
     #             {
-    #                 'top': 5.0, 'bottom': 10.0,
-    #                 'soil_type': 'sand',
-    #                 'gamma_top': 9.5, 'gamma_bot': 9.5,
-    #                 'phi_top': 32, 'phi_bot': 36,
-    #                 'Dr_top': 70, 'Dr_bot': 70},
+    #                 'top': 2.0, 'bottom': 8.0,
+    #                 'soil_type': 'clay',
+    #                 'gamma_top': 8.0, 'gamma_bot': 8.0,
+    #                 'Su_top': 25, 'Su_bot': 50},
     #             {
-    #                 'top': 10.0, 'bottom': 15.0,
-    #                 'soil_type': 'sand',
-    #                 'gamma_top': 9.5, 'gamma_bot': 9.5,
-    #                 'phi_top': 42, 'phi_bot': 45,
-    #                 'Dr_top': 70, 'Dr_bot': 70}
+    #                 'top': 8.0, 'bottom': 16.0,
+    #                 'soil_type': 'clay',
+    #                 'gamma_top': 8.0, 'gamma_bot': 8.0,
+    #                 'Su_top': 50, 'Su_bot': 100}
     #         ]
     #     }
     # ]
+    profile_map = [
+        {
+            'name': 'CPT_1',
+            'x': 498234, 'y': 5725141,
+            'layers': [
+                # {
+                #     'top': 0.0, 'bottom': 5.0,
+                #     'soil_type': 'sand',
+                #     'gamma_top': 9.5, 'gamma_bot': 9.5,
+                #     'phi_top': 28, 'phi_bot': 30,
+                #     'Dr_top': 70, 'Dr_bot': 70},
+                # {
+                #     'top': 0.0, 'bottom': 5.0,
+                #     'soil_type': 'clay',
+                #     'gamma_top': 8.0, 'gamma_bot': 8.0,
+                #     'Su_top': 25, 'Su_bot': 25},
+                {
+                    'top': 0.0, 'bottom': 3.0,
+                    'soil_type': 'sand',
+                    'gamma_top': 9.5, 'gamma_bot': 9.5,
+                    'phi_top': 25, 'phi_bot': 30,
+                    'Dr_top': 60, 'Dr_bot': 65},
+                {
+                    'top': 3.0, 'bottom': 15.0,
+                    'soil_type': 'sand',
+                    'gamma_top': 9.5, 'gamma_bot': 9.5,
+                    'phi_top': 32, 'phi_bot': 35,
+                    'Dr_top': 70, 'Dr_bot': 85}
+            ]
+        }
+    ]
 
-    Tm = 6e6              # Load at mudline (N)
-    thetam = 10           # Angle at mudline (deg)
-    zlug = 8              # Padeye depth (m)
+    Tm = 4978442          # Load at mudline (N)
+    thetam = 15            # Angle at mudline (deg)
+    zlug = 8.5              # Padeye depth (m)
     line_type = 'chain'
-    d = 0.16              # Chain diameter (m)
-    w = 5000              # Line weight (N/m)
+    d = 0.12              # Chain diameter (m)
+    w = 2000              # Line weight (N/m)
 
     layers, resultsLoad = getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w, plot=True)
 

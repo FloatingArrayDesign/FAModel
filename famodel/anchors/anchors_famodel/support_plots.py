@@ -3,6 +3,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plot_pile(layers, y, z, D, L, z0=None, zlug=None, hinge_location=None):
+    '''Plot the soil profile and a driven pile with deflected shape in layered soil.
+
+    Parameters
+    ----------
+        layers : list of dicts
+            Each layer has 'top', 'bottom', 'soil_type', and strength parameters
+            such as 'Su_top' (clay), 'phi_top' (sand) or 'UCS_top' (rock)
+        y : array-like
+            Lateral displacement profile from FD solution (typically y[2:-2])
+        z : array-like
+            Depth values associated with displacement points (typically z[2:-2])
+        D : float
+            Pile diameter (m)
+        L : float
+            Embedded pile length (m)
+        z0 : float, optional
+            Mudline elevation m) from pile head reference (z = 0)
+        zlug : float, optional
+            Depth of the padeye below pile head (m)
+        hinge_location : int, optional
+            Index of plastic hinge location in y/z arrays.
+    '''
     fig, ax = plt.subplots(figsize=(5, 5))
 
     lambdap = L / D
@@ -74,7 +96,7 @@ def plot_pile(layers, y, z, D, L, z0=None, zlug=None, hinge_location=None):
     plt.tight_layout()
     plt.show()
     
-def plot_suction(layers, L, D, z0=None, zlug=None, title='Suction Pile and Soil Layers'):
+def plot_suction(layers, L, D, z0=None, zlug=None):
     '''Plot the soil profile and a suction pile geometry using updated profile_map structure.
 
     Parameters:
@@ -87,8 +109,6 @@ def plot_suction(layers, L, D, z0=None, zlug=None, title='Suction Pile and Soil 
             Pile diameter (m)
         zlug : float
             Padeye depth (m, referenced to pile head = 0)
-        title : string 
-            Plot title
     '''
     fig, ax = plt.subplots(figsize=(8, 5))
     xmax = 2*D
@@ -142,13 +162,13 @@ def plot_suction(layers, L, D, z0=None, zlug=None, title='Suction Pile and Soil 
     ax.set_ylabel('Depth (m)')
     ax.set_xlim(-xmax, xmax)
     ax.set_ylim(L + 2*D, -D)
-    ax.set_title(title)
+    ax.set_title('Suction Pile and Soil Layers')
     ax.grid()
     ax.legend()
     plt.tight_layout()
     plt.show()
 
-def plot_torpedo(layers, D1, D2, L1, L2, z0, zlug, title='Torpedo Pile and Soil Layers'):
+def plot_torpedo(layers, D1, D2, L1, L2, z0, zlug):
     '''Plot the soil layers and geometry of a torpedo pile using absolute depth for soil and pile head at z=0.
 
     Parameters:
@@ -165,8 +185,6 @@ def plot_torpedo(layers, D1, D2, L1, L2, z0, zlug, title='Torpedo Pile and Soil 
             Winged length (m)
         L2 : float
             Shaft length (m)
-        title : str
-            Plot title
     '''
     fig, ax = plt.subplots(figsize=(7, 7))
 
@@ -226,13 +244,13 @@ def plot_torpedo(layers, D1, D2, L1, L2, z0, zlug, title='Torpedo Pile and Soil 
     ax.set_ylim(zmax, zmin)
     ax.set_xlabel('Horizontal extent (m)')
     ax.set_ylabel('Depth (m)')
-    ax.set_title(title)
+    ax.set_title('Torpedo Pile and Soil Layers')
     ax.grid()
     ax.legend()
     plt.tight_layout()
     plt.show()
  
-def plot_helical(layers, D, L, d, z0, zlug, n_helix=1, spacing=1.0, title='Helical Pile and Soil Layers'):
+def plot_helical(layers, D, L, d, z0, zlug, n_helix=1, spacing=1.0):
     '''Plot a helical pile in layered soil with shaft and angled helices, starting at zlug.
 
     Parameters:
@@ -251,8 +269,6 @@ def plot_helical(layers, D, L, d, z0, zlug, n_helix=1, spacing=1.0, title='Helic
         Number of helices (typically 1)
     spacing : float
         Vertical spacing between helices (m)
-    title : str
-        Plot title
     '''
     fig, ax = plt.subplots(figsize=(5, 6))
 
@@ -322,13 +338,13 @@ def plot_helical(layers, D, L, d, z0, zlug, n_helix=1, spacing=1.0, title='Helic
     ax.set_ylim(L + D, min(zlug - D, min(layer['top'] for layer in layers) - 2))
     ax.set_xlabel('Horizontal extent (m)')
     ax.set_ylabel('Depth (m)')
-    ax.set_title(title)
+    ax.set_title('Helical Pile and Soil Layers')
     ax.grid()
     ax.legend()
     plt.tight_layout()
     plt.show()
 
-def plot_plate(layers, B, L, z0, zlug, beta, title='Plate Anchor in Layered Soil'):
+def plot_plate(layers, B, L, z0, zlug, beta):
     '''Plot soil layers and an inclined plate anchor centered at zlug.
 
     Parameters:
@@ -345,8 +361,6 @@ def plot_plate(layers, B, L, z0, zlug, beta, title='Plate Anchor in Layered Soil
             Center embedment of the plate (m)
         beta : float
             Inclination angle of plate (deg)
-        title : str
-            Plot title
     '''
     fig, ax = plt.subplots(figsize=(5, 5))
     xmax = 3*B
@@ -397,7 +411,7 @@ def plot_plate(layers, B, L, z0, zlug, beta, title='Plate Anchor in Layered Soil
     ax.set_ylim(zmax, zmin)
     ax.set_xlabel("Horizontal extent (m)")
     ax.set_ylabel("Depth (m)")
-    ax.set_title(title)
+    ax.set_title('Plate Anchor in Layered Soil')
     ax.legend(loc='lower right')
     ax.grid(True)
     plt.tight_layout()

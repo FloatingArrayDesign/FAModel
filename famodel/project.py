@@ -1070,15 +1070,40 @@ class Project():
                 xs = yaml['x']
                 ys = yaml['y']
                 soil_names = yaml['type_array']
-                soilProps = yaml['soil_types']
+                raw_soil_types = yaml['soil_types']
+        
+                # Ensure all soil types have a 'layers' field
+                soilProps = {}
+                for key, entry in raw_soil_types.items():
+                    if 'layers' in entry:
+                        soilProps[key] = entry 
+                    else:
+                        # Wrap old flat format into single-layer profile (optional fallback)
+                        layer = dict(entry)
+                        layer.setdefault('top', 0)
+                        layer.setdefault('bottom', 50)
+                        layer.setdefault('soil_type', key)
+                        soilProps[key] = {'layers': [layer]}
             else:
                 print('[Warning] No soil input provided — using default values')
                 xs = [0]
                 ys = [0]
-                soil_names = ['mud']  # Assigns the soil label to soilProps dict
-                soilProps = dict(mud  = {'depth':[0], 'gamma':[10], 'Su0':[2.39], 'k':[1.41]},
-                                 sand = {'depth':[0], 'gamma':[10], 'phi':[30]},
-                                 rock = {'depth':[0], 'UCS':[5], 'Em':[7]})
+                soil_names = [['mud']]  # note: should be 2D to match grid structure
+                soilProps = {
+                    'mud': {'layers': [{
+                        'soil_type': 'clay',
+                        'top': 0, 'bottom': 50,
+                        'gamma_top': 10, 'gamma_bot': 10,
+                        'Su_top': 2.39, 'Su_bot': 59.39
+                    }]},
+                    'rock': {'layers': [{
+                        'soil_type': 'rock',
+                        'top': 0, 'bottom': 50,
+                        'UCS_top': 5, 'UCS_bot': 5,
+                        'Em_top': 7, 'Em_bot': 7
+                    }]}
+                }
+
 
         else:
             raise ValueError("Invalid combination of filename/yaml inputs")
@@ -1173,39 +1198,20 @@ class Project():
                 name, props = self.getSoilAtLocation(x,y) # update soil
                 anchor.soilProps = {name:props}
             
-
-
-    # def calcAnchorCapacity(self, anchor):
-    #     '''Compute holding capacity of a given anchor based on the soil
-    #     info at its position. The anchor object's anchor properties and
-    #     location will be used to determine the holding capacity, which
-    #     will be saved to the anchor object.
-        
-    #     Parameters
-    #     ----------
-    #     anchor : MoorPy Anchor object (derived from Point)
-    #         The anchor object in question.
-    #     '''
-
-    #     # interpolate soil properties/class based on anchor position
-    #     anchor.soilProps = self.getSoilAtLocation(anchor.r[0], anchor.r[1])
-        
-    #     # fill in generic anchor properties if anchor info not provided
-    #     if not type(anchor.anchorProps) == dict:
-    #         anchor.anchorProps = dict(type='suction', diameter=6, length=12)
-        
-    #     # apply anchor capacity model
-    #     capacity, info = anchorCapacity(anchorProps, soilProps)
-        
-    #     # save all information to the anchor (attributes of the Point)
-    #     anchor.soilProps = soilProps
-    #     anchor.anchorCapacity = capacity
-    #     anchor.anchorInfo = info
-        
-    #     # also return it
-    #     return capacity
-
+    def setSoilAtLocation(self, anchor):
+        name, props = self.getSoilAtLocation(anchor.r[0], anchor.r[1])
     
+        # Add required metadata
+        layer = dict(props)  # shallow copy of props
+        layer['soil_type'] = name  # or force to 'clay'/'rock' if needed
+        layer['top'] = props.get('top', 0)
+        layer['bottom'] = props.get('bottom', 50)  
+    
+        # Wrap in expected profile_map format
+        profile_map = [{'name': name, 'layers': [layer]}]
+        anchor.setSoilProfile(profile_map)
+
+   
     def setCableLayout(self):
 
         # 2-D

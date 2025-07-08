@@ -116,7 +116,7 @@ def getInstallationDynamic(profile_map, location_name, D1, D2, L1, L2, ballast, 
 
     return {
         'final_depth': z[-1],
-        'max_velocity': max(v),
+        'v_max': max(v),
         'v_impact': v_impact,
         'steps': i
     }

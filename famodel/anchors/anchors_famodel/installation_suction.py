@@ -18,7 +18,7 @@ def getInstallationSuction(profile_map, location_name, D, L, gamma_m_install=1.5
     rhow = 10e3                      # Water specific weight (N/m3) 
 
     WT = D/200; print(WT)
-    t = (6.35 + D*20)/1e3; print(t)            # Suction pile wall thickness (m), API RP2A-WSD
+    t = (6.35 + D*20)/1e3; print(t)  # Suction pile wall thickness (m), API RP2A-WSD
     Di = D - 2*WT
     Asi = np.pi * Di
     Aso = np.pi * D
@@ -153,9 +153,9 @@ def getInstallationSuction(profile_map, location_name, D, L, gamma_m_install=1.5
     alpha_i = alpha_o = float(f_alpha(z_mid))
     alpha_i = alpha_o = 0.3
 
-    Fi = Asi * alpha_i * int_su
-    Fo = Aso * alpha_o * int_su
-    Qw = Awall * Nc_strip_deep * su_tip
+    Fi = Asi*alpha_i*int_su
+    Fo = Aso*alpha_o*int_su
+    Qw = Awall*Nc_strip_deep*su_tip
 
     Rsuction = Fi + Fo + Qw
     Rretrieval = Rsuction
@@ -189,9 +189,7 @@ def getInstallationSuction(profile_map, location_name, D, L, gamma_m_install=1.5
         'delta_u_retrieval': delta_u_retrieval/1e3,           # kPa
         'delta_u_all_install': delta_u_all_install/1e3,       # kPa
         'delta_u_all_retrieval': delta_u_all_retrieval/1e3,   # kPa
-        'SWP_depth': SWP_depth
-    }
-
+        'SWP_depth': SWP_depth}
 
 if __name__ == '__main__':
     profile_map = [

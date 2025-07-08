@@ -73,7 +73,7 @@ def getInstallationDrag(Af, Lf, Ls, Lca, Lj, thetafs, bm, En,
     Vf = Af*tf
     Vs = Ls*ts*Ws*2
     Va = round(Vf + Vs,1) 
-    W = Va*rhos
+    Wp = Va*rhos
     
     # The Anchor Initial Condition
     Su = Su0 + k*z0         # Undrained shear strength at the initial embedded depth, kPa
@@ -159,10 +159,10 @@ def getInstallationDrag(Af, Lf, Ls, Lca, Lj, thetafs, bm, En,
         plt.show()
        
     resultsDrag = {}
-    resultsDrag['capacity'] = max(Ta_values)
-    resultsDrag['W'] = W
+    resultsDrag['Capacity'] = max(Ta_values)
     resultsDrag['embedment_depth'] = z
     resultsDrag['drag_distance'] = x
+    resultsDrag['Weight plate'] = Wp
     
     return resultsDrag
     

@@ -168,18 +168,17 @@ def getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot=True):
     ymax_index = np.argmax(y); print(ymax_index)    
     
     resultsDandG = {
-        'Weight pile': PileWeight(L, D, t, rhows + rhow),
         'Vertical max.': Vmax,
         'Lateral displacement': y[ymax_index],
         'Rotational displacement': np.rad2deg(abs(y[ymax_index - 1] - y[ymax_index])/h),
-        'Unity check (vertical)': Va/Vmax if Vmax != 0 else np.inf,
-        'Unity check (horizontal)': 0.0,  # Placeholder; no Mp or Mi in current model
         'Bending moment': None,
         'Plastic moment': None,
         'Plastic hinge': None,
-        'Hinge location': None,
-        'p-y model': 'Lovera (2023)',
-        }
+        'Hinge location': None,      
+        'Unity check (vertical)': Va/Vmax if Vmax != 0 else np.inf,
+        'Unity check (horizontal)': 0.0,  # Placeholder; no Mp or Mi in current model
+        'Weight pile': PileWeight(L, D, t, rhows + rhow),
+        'p-y model': 'Lovera (2023)'}
     
     return layers, y[2:-2], z[2:-2], resultsDandG
    

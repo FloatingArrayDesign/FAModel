@@ -456,8 +456,7 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
         'Horizontal max.': Hmax_v,
         'Vertical max.': Vmax_final,
         'Unity check': UC,
-        'Weight pile': Wp,
-    }
+        'Weight pile': Wp}
 
     return layers, resultsSuction
 

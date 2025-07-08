@@ -223,8 +223,7 @@ def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast
         'Unity check': UC,
         'Weight pile': Wp,
         'ez_global': ez_global,
-        'layer_data': layer_data
-    }
+        'layer_data': layer_data}
 
     return layers, resultsTorpedo
 

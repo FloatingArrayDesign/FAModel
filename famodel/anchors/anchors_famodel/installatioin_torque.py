@@ -122,7 +122,7 @@ def getInstallationHelical(profile_map, location_name, D, L, d, plot=True):
         F_inst = calculate_force(Dc, Dh, Fr, ph, th, dH, H)
         sigma_helix = calculate_helix(F_inst, Dh, Dc, th, k)
         sigma_core, Fy_cr = calculate_core(T, F_inst, Dc, tc, E, H)
-        sigma_eq_weld = calculate_weld_stress(F_inst, th, Dh, weld_length=np.pi*Dc)
+        sigma_weld = calculate_weld_stress(F_inst, th, Dh, weld_length=np.pi*Dc)
         Fu = calculate_axial_capacity(Dh, H)
 
         if T > Tmax:
@@ -131,7 +131,7 @@ def getInstallationHelical(profile_map, location_name, D, L, d, plot=True):
             failure_mode = 'Core buckling'
         elif sigma_helix > f_y:
             failure_mode = 'Helix stress'
-        elif sigma_eq_weld > f_y_weld:
+        elif sigma_weld > f_y_weld:
             failure_mode = 'Weld stress'
         else:
             failure_mode = 'OK'
@@ -144,7 +144,7 @@ def getInstallationHelical(profile_map, location_name, D, L, d, plot=True):
             results['SigmaHelix'].append(sigma_helix)
             results['SigmaCore'].append(sigma_core)
             results['BucklingLimit'].append(Fy_cr)
-            results['SigmaWeld'].append(sigma_eq_weld)
+            results['SigmaWeld'].append(sigma_weld)
             results['FailureMode'].append(failure_mode)
 
     if plot:

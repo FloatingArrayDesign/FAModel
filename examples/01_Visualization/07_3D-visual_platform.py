@@ -9,7 +9,7 @@ from famodel import Project
 import matplotlib.pyplot as plt
 
 # define name of ontology input file
-input_file = '07_3D-visual_platform.yaml'
+input_file = 'examples/01_Visualization/07_3D-visual_platform.yaml'
 
 # initialize Project class with input file, we don't need RAFT for this so mark False
 project = Project(file=input_file,raft=True)

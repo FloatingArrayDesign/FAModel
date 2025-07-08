@@ -124,8 +124,8 @@ def py_API(z, D, phi, sigma_v_eff, Dr, z0=None, return_curve=False):
     A = max(3 - 0.8*z/D, 0.9)
     
     # Apply API p–y formulation
-    ε = 1e-6  # prevent division by zero
-    p = A*p_ult*np.tanh(k*z*y/(A*p_ult + ε))
+    epsilon = 1e-6  # prevent division by zero
+    p = A*p_ult*np.tanh(k*z*y/(A*p_ult + epsilon))
     
     f = interp1d(y, p, kind='linear', bounds_error=False, fill_value=0.0)
     

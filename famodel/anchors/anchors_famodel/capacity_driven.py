@@ -6,7 +6,7 @@ from .support_solvers import fd_solver
 from .support_pycurves import py_Matlock, py_API, py_Reese
 from .support_plots import plot_pile, plot_pycurve
 
-def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=True):
+def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=False):
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, EI*d4y/dz4
     EI*d4y/dz4 - V*d2y/dz2 + ky = 0 using the finite difference method.
@@ -51,7 +51,7 @@ def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=True)
     layers = profile_entry['layers']
 
     n = 50; loc = 2              # Number of nodes (-)
-    tol = 1e-16; max_iter = 50   # Iteration parameters (-)
+    tol = 1e-16; max_iter = 100  # Iteration parameters (-)
     nhuc = 1; nhu = 0.3          # Resistance factor (-)
     delta_r = 0.08               # Mean roughness height (m)
     
@@ -218,22 +218,25 @@ def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=True)
         ax.legend()
 
     # Relevant index of nodes
-    zlug_index = int(zlug/h)
-    ymax_index = np.argmax(y)
+    y_pile = y[2:-2]
+    z_pile = z[2:-2]
+    ymax_index = np.argmax(np.abs(y_pile))
 
     resultsDriven = {
-        'Weight': PileWeight(L, D, t, rhows + rhow),
+        'Horizontal max.': abs(Mi)/abs(zlug) if zlug != 0 else 1e-6,
         'Vertical max.': Vmax,
-        'Lateral displacement': y[ymax_index],
-        'Rotational displacement': np.rad2deg(abs(y[ymax_index - 1] - y[ymax_index])/h),
+        'Lateral displacement': y_pile[ymax_index],
+        'Rotational displacement': np.rad2deg(abs(y_pile[ymax_index - 1] - y_pile[ymax_index])/h),
         'Bending moment': abs(Mi),
         'Plastic moment': Mp,
         'Plastic hinge': hinge_formed,
-        'Hinge location': hinge_location,
-        'Horizontal max.': abs(Mi)/abs(zlug) if zlug != 0 else 1e-6,
+        'Hinge location': hinge_location,         
         'Unity check (vertical)': Va/Vmax if Vmax != 0 else np.inf,
-        'Unity check (horizontal)': Ha/(abs(Mi)/abs(zlug)) if zlug != 0 else np.inf
-    }
+        'Unity check (horizontal)': Ha/(abs(Mi)/abs(zlug)) if zlug != 0 else np.inf,
+        'Weight pile': PileWeight(L, D, t, rhows + rhow)}
+    
+    print(f"Max lateral displacement: {y_pile[ymax_index]:.6f} m at z = {z_pile[ymax_index]:.2f} m")
+    print(f"Deflected tip: {y_pile[-1]:.6f} m at z = {z_pile[-1]:.2f} m")
 
     return layers, y[2:-2], z[2:-2], resultsDriven
 
