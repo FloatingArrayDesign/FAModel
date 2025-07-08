@@ -68,7 +68,6 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
     def zlugTilt(r, z, theta):
         Z = r*np.sin(np.deg2rad(theta)) + z*np.cos(np.deg2rad(theta))
         return Z
-<<<<<<< HEAD
     # Ellipse crossing with constant values
     def horizontal_cross(H, M, M_target):
         crossings = []
