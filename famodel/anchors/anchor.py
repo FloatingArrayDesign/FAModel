@@ -429,6 +429,7 @@ class Anchor(Node):
         results : dict
             Capacity results dictionary from the selected capacity function.
         '''
+
         from .anchors_famodel.capacity_plate import getCapacityPlate
         from .anchors_famodel.capacity_suction import getCapacitySuction
         from .anchors_famodel.capacity_torpedo import getCapacityTorpedo
@@ -1152,6 +1153,7 @@ class Anchor(Node):
         dict
             Dictionary containing safety factors.
         '''
+
         anchType_clean = self.anchType.lower().replace(' ', '')
 
         if anchType_clean in ['helical', 'driven', 'dandg']:
