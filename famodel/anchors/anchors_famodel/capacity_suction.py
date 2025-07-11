@@ -83,7 +83,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
     if soil_type == 'clay':
         # Definitions for cohesive soils
         Nc = min (6.2*(1 + 0.34*np.arctan(lambdap)),9)   # End-bearing capacity factor
-        ez = (Su0*L**2/2 + k*L**3/3)/(Su0*L + k*L**2/2); print(ez)
+        ez = (Su0*L**2/2 + k*L**3/3)/(Su0*L + k*L**2/2)#; print(ez)
         Np_fixed = 10.25; Np_free = 4                    # From Np vs L/D chart from CAISSON_VHM
         Su_av_L = Su0 + k*zlug                           # Undrained shear strength values (average) 
         Su_tip = Su0 + k*L                               # Undrained shear strength values (tip)
@@ -126,7 +126,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
         # "Leaking"        
         Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + SoilWeight(L, D, t, gamma))                  
         Vmax = min(Vmax1, Vmax2, Vmax3)
-        
+        '''
         print("\n--- Parameter-Based Version ---")
         print(f"Su_av_L        = {Su_av_L:.3f} kPa")
         print(f"sigma'_v(zlug) = {sigma_v_eff:.3f} kPa")
@@ -134,7 +134,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
         print(f"alpha (API)    = {alpha:.3f}")
         print(f"Hmax           = {Hmax[0]:.2f} kN")
         print(f"Vmax           = {Vmax:.2f} kN")
-
+        '''
                
     elif soil_type == 'sand':
         # Definition for non-cohesive soils
@@ -168,14 +168,14 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
             # return np.e**(-depth) - 1 + depth
         # Ze = D/(4*7); Zi = D/(4*5)    
         # Vmax = 7*gamma*Ze**2*y(L/Ze)*PileSurface(L, D)/L + 5*gamma*Zi**2*y(L/Zi)*PileSurface(L,(D - 2*t))/L
-        
+        '''
         print("\n--- Parameter-Based (Sand) ---")
         print(f"phi        = {phi:.2f} deg")
         print(f"gamma      = {gamma:.2f} kN/m3")
         print(f"deltastar  = {deltastar:.2f} -")
         print(f"sigma_av_L = {sigma_av_L:.2f} kN")
         print(f"sigma_tip  = {sigma_tip:.2f} kN")
-   
+        '''
     # Pile weight (inc. stiffening plus vent) assessed as a factor
     Wp = 1.10*PileWeight(L, D, t, (rhows + rhow)) 
     # Submerged weight of the soil plug
@@ -183,7 +183,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
     
     # Capacity envelope
     aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
-    print('Env. exp = ' +str(aVH)+'   '+str(bVH))
+    #print('Env. exp = ' +str(aVH)+'   '+str(bVH))
     UC = (H/Hmax)**aVH + (V/Vmax)**bVH      
     x = np.cos(np.linspace (0, np.pi/2, 100))
     y = (1 - x**bVH)**(1/aVH)
@@ -322,12 +322,12 @@ if __name__ == '__main__':
     V = 1000.0       # Vertical load in kN
     
     gamma = 8
-    Su0 = 0
-    k = 10
+    Su0 = 25
+    k = 0
     
     phi = 50
     Dr = 75
     
     results_clay = getCapacitySuction(D, L, zlug, H, V, 'clay', gamma, Su0=Su0, k=k, phi=phi, Dr=Dr, plot=True) 
     
-    results_sand = getCapacitySuction(D, L, zlug, H, V, 'sand', gamma, Su0=Su0, k=k, phi=phi, Dr=Dr, plot=True)   
+    # results_sand = getCapacitySuction(D, L, zlug, H, V, 'sand', gamma, Su0=Su0, k=k, phi=phi, Dr=Dr, plot=True)   

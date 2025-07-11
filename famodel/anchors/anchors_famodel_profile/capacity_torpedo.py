@@ -1,10 +1,10 @@
   
 import numpy as np
 import matplotlib.pyplot as plt
-from capacity_soils import clay_profile
-from capacity_plots import plot_torpedo
+from .capacity_soils import clay_profile
+from .capacity_plots import plot_torpedo
 
-def getCapacityTorpedo(profile, soil_type, D1, D2, L1, L2, zlug, ballast, H, V, plot=True):
+def getCapacityTorpedo(profile, soil_type, D1, D2, L1, L2, zlug, ballast, Ha, Va, plot=True):
     '''Calculate the inclined load capacity of a torpedo pile in clay following S. Kay methodology.
     The calculation is based on the soil profile, anchor geometry and inclined load.  
 
@@ -25,10 +25,10 @@ def getCapacityTorpedo(profile, soil_type, D1, D2, L1, L2, zlug, ballast, H, V, 
         Shaft section length (m)
     zlug : float 
         Padeye embedment depth (m)       
-    H : float
-        Horizontal load at padeye depth (N)
-    V : float
-        Vertical load at padeye depth (N)
+    Ha : float       
+        Horizontal load at pile lug elevation (N)
+    Va : float          
+        Vertical load at pile lug elevation (N)
     plot : bool
         Plot the capacity envelope if True
 
@@ -41,24 +41,42 @@ def getCapacityTorpedo(profile, soil_type, D1, D2, L1, L2, zlug, ballast, H, V, 
     rhows = 66.90e3                  # Submerged steel specific weight (N/m3)
     rhow = 10e3                      # Water specific weight (N/m3) 
     
+    # Average effective width
     L = L1 + L2
-    Dstar = (D1*L1 + (D1 + 2*D2)*L2)/L
-    lambdap = L/Dstar
-
+    A_wing_plane_1 = (D1 - D2)*L1
+    A_wing_plane_2 = (D1 - D2)*np.cos(np.deg2rad(45))/2*L1
+    A_shaft = D2*L
+    
+    # Choose based on direction:
+    plane = '1'  # or '2'
+    
+    if plane == '1':
+        Dstar = (A_wing_plane_1 + A_shaft)/L
+    elif plane == '2':
+        Dstar = (A_wing_plane_2 + A_shaft)/L
+     
     z0, f_Su, f_sigma_v_eff, f_gamma, f_alpha = clay_profile(profile)
 
     a = zlug
-    b = zlug + L1
     c = zlug + L1 + L2
+    profile_depth = profile[-1, 0]
 
-    z_vals = np.linspace(a, min(c, profile[-1, 0]), 200)
+    if c > profile_depth:
+        raise ValueError(
+            f'Soil profile does not cover the full pile length.\n'
+            f'   → Pile tip depth: {c:.2f} m\n'
+            f'   → Soil profile depth: {profile_depth:.2f} m\n'
+            f'Extend the soil profile to at least the pile tip depth to run the capacity model.'
+        )
+
+    z_vals = np.linspace(a, c, 100)
     Su_vals = f_Su(z_vals)
     alpha_vals = np.array([f_alpha(z) for z in z_vals])
 
-    ez_Su = np.trapz(z_vals * Su_vals, z_vals)/np.trapz(Su_vals, z_vals)
-    z_target = min(zlug + ez_Su, profile[-1, 0])
-    Su_e = f_Su(z_target)
-    alpha_e = f_alpha(z_target)
+    ez_soil = np.trapz(z_vals*Su_vals, z_vals)/np.trapz(Su_vals, z_vals)
+    Su_e = f_Su(ez_soil)
+    alpha_e = f_alpha(ez_soil)
+    print(f"Su_e = {Su_e:.2f} kPa, ez_soil = {ez_soil:.2f} m, alpha_e = {alpha_e:.2f}")
 
     def PileWeight(Len1, Len2, Dia1, Dia2, tw, rho):
         return ((np.pi/4)*(Dia1**2 - (Dia1 - 2*tw)**2)*(Len1 + Len2) + 4*Len2*Dia2*tw)*rho
@@ -67,15 +85,27 @@ def getCapacityTorpedo(profile, soil_type, D1, D2, L1, L2, zlug, ballast, H, V, 
         return np.pi*Dia1*(Len1 + Len2) + 8*Len2*Dia2*0.9
 
     Np_free = 3.45
-    Hmax = L*Dstar*Np_free*Su_e
+    Hmax = Np_free*L*Dstar*Su_e
     Vmax = PileSurface(L1, L2, D1, D2)*alpha_e*Su_e + PileWeight(L1, L2, D1, D2, t, rhows) + ballast
     
     # Pile weight (inc. auxiliary elements) assessed as a factor
-    Wp = 1.10*PileWeight(L1, L2, D1, D2, t, (rhows + rhow)) 
+    Wp = 1.10*PileWeight(L1, L2, D1, D2, t, (rhows + rhow)) + ballast
 
-    aVH = 4.5 + L/(2*Dstar)
-    bVH = 3.5 - L/(4*Dstar)
-    UC = (H/Hmax)**aVH + (V/Vmax)**bVH
+    # Calculate actual ez_su to L ratio
+    ez_ratio = (ez_soil - zlug)/L; print(f"ez_ratio = {ez_ratio:.2f} m")
+
+    # Assign aVH and bVH based on ez_su/L
+    if np.isclose(ez_ratio, 2/3, atol=0.05):
+        aVH = 0.5 + L/Dstar
+        bVH = 4.5 - L/(3*Dstar)
+        mode = 'deep mobilization (2/3)'
+    elif 0.45 <= ez_ratio <= 0.75:
+        aVH = 4.5 + L/(2*Dstar)
+        bVH = 3.5 - L/(4*Dstar)
+        mode = 'moderate mobilization (1/2 – 3/4)'
+    print(f'Interaction exponents set to aVH = {aVH:.2f}, bVH = {bVH:.2f} [{mode}]')
+    
+    UC = (Ha/Hmax)**aVH + (Va/Vmax)**bVH
 
     deg = np.linspace(0, 90, 20)
     x = np.cos(np.deg2rad(deg))
@@ -84,7 +114,7 @@ def getCapacityTorpedo(profile, soil_type, D1, D2, L1, L2, zlug, ballast, H, V, 
 
     if plot:
         plt.plot(X, Y, color='blue', label='VH Envelope')
-        plt.plot(H, V, '*', color='red', label='Load Point')
+        plt.plot(H, V, 'o', color='red', label='Load Point')
         plt.xlabel('Horizontal Load (N)')
         plt.ylabel('Vertical Load (N)')
         plt.title('VH torpedo pile capacity envelope')
@@ -96,7 +126,7 @@ def getCapacityTorpedo(profile, soil_type, D1, D2, L1, L2, zlug, ballast, H, V, 
     resultsTorpedo = {
         'Horizontal max.': Hmax,
         'Vertical max.': Vmax,
-        'Unity Check': UC,
+        'Unity check': UC,
         'Weight pile': Wp
     }
 
@@ -105,17 +135,17 @@ def getCapacityTorpedo(profile, soil_type, D1, D2, L1, L2, zlug, ballast, H, V, 
 if __name__ == '__main__':
     
     profile_clay = np.array([
-        [ 0.0, 10, 8.0],
-        [20.0, 25, 8.5],
-        [28.0, 45, 8.5],
+        [ 0.0, 50, 8.0],
+        [20.0, 50, 8.5],
+        [25.0, 50, 8.5],
         [50.0, 50, 9.0]
     ])
 
-    D1 = 2.5             # Wing diameter (m)
-    D2 = 0.8             # Shaft diamter (m)
-    L1 = 15.0            # Winged section length (m) 
-    L2 = 5.0             # Shaft section length (m)
-    zlug = 18.0          # Padeye depth (m)
+    D1 = 3.0             # Wing diameter (m)
+    D2 = 1.5             # Shaft diamter (m)
+    L1 = 11.0            # Winged section length (m) 
+    L2 = 10.0             # Shaft section length (m)
+    zlug = 15.0          # Padeye depth (m)
     ballast = 10000      # Ballast load (N)
     H = 6.0e6            # Horizontal load (N)
     V = 8.0e6            # Vertical load (N)

@@ -1,0 +1,135 @@
+site:
+  general:
+    water_depth: 202.0
+    rho_air: 1.225
+    rho_water: 1025.0
+    mu_air: 1.81e-05
+array:
+  keys: [ID, topsideID, platformID, mooringID, x_location, y_location, z_location,
+    heading_adjust]
+  data:
+  - [fowt0, 0, 1, 0, -1600.0, -1600.0, 0.0, 180.0]
+  - [fowt1, 0, 1, 0, 0.0, -1600.0, 0.0, 0.0]
+  - [fowt2, 0, 1, 0, 1600.0, -1600.0, 0.0, 0.0]
+  - [fowt3, 0, 1, 0, -1600.0, 0.0, 0.0, 0.0]
+  - [fowt4, 0, 1, 0, 0.0, 0.0, 0.0, 45.0]
+  - [fowt5, 0, 1, 0, 1600.0, 0.0, 0.0, 0.0]
+  - [fowt6, 0, 1, 0, -1600.0, 1600.0, 0.0, 0.0]
+  - [fowt7, 0, 1, 0, 0.0, 1600.0, 0.0, 0.0]
+  - [fowt8, 0, 1, 0, 1600.0, 1600.0, 0.0, 0.0]
+platform:
+  type: FOWT
+  rFair: 58
+  zFair: -14
+topsides: []
+array_mooring:
+  anchor_keys: [ID, type, x, y, embedment]
+  anchor_data:
+  - [fowt0a, drag-embedment1, -1949.999999999999, -993.7822173508926, 0]
+  - [fowt0b, drag-embedment1, -900.0, -1599.9999999999998, 0]
+  - [fowt0c, drag-embedment1, -1949.9999999999998, -2206.217782649107, 0]
+  - [fowt1a, drag-embedment1, 350.00000000000006, -2206.217782649107, 0]
+  - [fowt1b, drag-embedment1, -700.0, -1600.0, 0]
+  - [fowt1c, drag-embedment1, 350.00000000000006, -993.782217350893, 0]
+  - [fowt2a, drag-embedment1, 1950.0, -2206.217782649107, 0]
+  - [fowt2b, drag-embedment1, 900.0, -1600.0, 0]
+  - [fowt2c, drag-embedment1, 1950.0, -993.782217350893, 0]
+  - [fowt3a, drag-embedment1, -1250.0, -606.217782649107, 0]
+  - [fowt3b, drag-embedment1, -2300.0, -8.572527594031473e-14, 0]
+  - [fowt3c, drag-embedment1, -1250.0, 606.217782649107, 0]
+  - [fowt4a, drag-embedment1, -181.1733315717646, -676.1480784023478, 0]
+  - [fowt4b, drag-embedment1, -494.9747468305834, 494.97474683058323, 0]
+  - [fowt4c, drag-embedment1, 676.1480784023478, 181.17333157176472, 0]
+  - [fowt5a, drag-embedment1, 1950.0, -606.217782649107, 0]
+  - [fowt5b, drag-embedment1, 900.0, -8.572527594031473e-14, 0]
+  - [fowt5c, drag-embedment1, 1950.0, 606.217782649107, 0]
+  - [fowt6a, drag-embedment1, -1250.0, 993.782217350893, 0]
+  - [fowt6b, drag-embedment1, -2300.0, 1600.0, 0]
+  - [fowt6c, drag-embedment1, -1250.0, 2206.217782649107, 0]
+  - [fowt7a, drag-embedment1, 350.00000000000006, 993.782217350893, 0]
+  - [fowt7b, drag-embedment1, -700.0, 1600.0, 0]
+  - [fowt7c, drag-embedment1, 350.00000000000006, 2206.217782649107, 0]
+  - [fowt8a, drag-embedment1, 1950.0, 993.782217350893, 0]
+  - [fowt8b, drag-embedment1, 900.0, 1600.0, 0]
+  - [fowt8c, drag-embedment1, 1950.0, 2206.217782649107, 0]
+  line_keys: [MooringConfigID, endA, endB, headingA, headingB, lengthAdjust]
+  line_data:
+  - ['0', fowt0a, fowt0, NA, -210.0, 0]
+  - ['0', fowt0b, fowt0, NA, -90.0, 0]
+  - ['0', fowt0c, fowt0, NA, 29.999999999999993, 0]
+  - ['0', fowt1a, fowt1, NA, 150.00000000000003, 0]
+  - ['0', fowt1b, fowt1, NA, -90.0, 0]
+  - ['0', fowt1c, fowt1, NA, 29.99999999999998, 0]
+  - ['0', fowt2a, fowt2, NA, 150.00000000000003, 0]
+  - ['0', fowt2b, fowt2, NA, -90.0, 0]
+  - ['0', fowt2c, fowt2, NA, 29.99999999999998, 0]
+  - ['0', fowt3a, fowt3, NA, 149.99999999999997, 0]
+  - ['0', fowt3b, fowt3, NA, 270.0, 0]
+  - ['0', fowt3c, fowt3, NA, 30.000000000000004, 0]
+  - ['0', fowt4a, fowt4, NA, 150.0, 0]
+  - ['0', fowt4b, fowt4, NA, -90.00000000000003, 0]
+  - ['0', fowt4c, fowt4, NA, 29.999999999999993, 0]
+  - ['0', fowt5a, fowt5, NA, 149.99999999999997, 0]
+  - ['0', fowt5b, fowt5, NA, 270.0, 0]
+  - ['0', fowt5c, fowt5, NA, 30.000000000000004, 0]
+  - ['0', fowt6a, fowt6, NA, 150.00000000000003, 0]
+  - ['0', fowt6b, fowt6, NA, -90.0, 0]
+  - ['0', fowt6c, fowt6, NA, 29.99999999999998, 0]
+  - ['0', fowt7a, fowt7, NA, 150.00000000000003, 0]
+  - ['0', fowt7b, fowt7, NA, -90.0, 0]
+  - ['0', fowt7c, fowt7, NA, 29.99999999999998, 0]
+  - ['0', fowt8a, fowt8, NA, 150.00000000000003, 0]
+  - ['0', fowt8b, fowt8, NA, -90.0, 0]
+  - ['0', fowt8c, fowt8, NA, 29.99999999999998, 0]
+mooring_line_configs:
+  '0':
+    name: '0'
+    span: 642.0
+    sections:
+    - type: 0
+      length: 497.7
+    - type: 1
+      length: 199.8
+mooring_line_types:
+  0:
+    name: 0
+    d_vol: 0.27882
+    m: 479.88020000000006
+    EA: 2053741190.7845445
+    w: 4093.6781602294
+    MBL: 20893381.207590003
+    EAd: 0.0
+    EAd_Lm: 0.0
+    d_nom: 0.1549
+    cost: 2005.5584560000004
+    notes: made with getLineProps
+    material: chain
+    Cd: 1.333
+    CdAx: 0.639
+    Ca: 1.0
+    CaAx: 0.5
+  1:
+    name: 1
+    d_vol: 0.14405282886514317
+    m: 22.491196000000002
+    EA: 142830688.0
+    w: 56.75848886217392
+    MBL: 10202192.0
+    EAd: 118345427.2
+    EAd_Lm: 40.0
+    d_nom: 0.182
+    cost: 441.9688
+    notes: made with getLineProps
+    material: polyester
+    Cd: 2.021
+    CdAx: 0.0
+    Ca: 1.1
+    CaAx: 0.15
+mooring_connector_types: {}
+anchor_types:
+  drag-embedment1:
+    type: DEA
+cables: []
+dynamic_cable_configs: {}
+cable_types: {}
+cable_appendages: {}

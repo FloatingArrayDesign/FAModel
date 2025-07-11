@@ -3,11 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy import linalg
-from capacity_soils import clay_profile, sand_profile, rock_profile
-from capacity_pycurves import py_Matlock, py_API, py_Reese
-from capacity_plots import plot_pile
+from .capacity_soils import clay_profile, sand_profile, rock_profile
+from .capacity_pycurves import py_Matlock, py_API, py_Reese
+from .capacity_plots import plot_pile
 
-def getCapacityDriven(profile, soil_type, L, D, zlug, H, V, plot=True):   
+def getCapacityDriven(profile, soil_type, L, D, zlug, Ha, Va, plot=True):   
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, EI*d4y/dz4
     EI*d4y/dz4 - V*d2y/dz2 + ky = 0 using the finite difference method.
@@ -31,9 +31,9 @@ def getCapacityDriven(profile, soil_type, L, D, zlug, H, V, plot=True):
         Pile diameter (m)
     zlug : float
         Depth of padeye from pile head (m)
-    H : float
+    Ha : float
         Horizontal load applied at padeye (N)
-    V : float
+    Va : float
         Vertical load applied at padeye (N)
     plot : bool
         Plot the p-y curve and the deflection pile condition if True
@@ -164,7 +164,7 @@ def getCapacityDriven(profile, soil_type, L, D, zlug, H, V, plot=True):
     Vmax = Wp + Wsoil + Wshaft + Wtip
     
     for j in range(iterations):
-        y, Mi, Mp, hinge_formed, hinge_location = fd_solver(n, N, h, D, t, fy, EI, H, V, zlug, z0, k_secant)
+        y, Mi, Mp, hinge_formed, hinge_location = fd_solver(n, N, h, D, t, fy, EI, Ha, Va, zlug, z0, k_secant)
         for i in range(2, n+3):
             if callable(py_funs[i]):
                 k_secant[i] = py_funs[i](y[i])/y[i]
@@ -191,47 +191,34 @@ def getCapacityDriven(profile, soil_type, L, D, zlug, H, V, plot=True):
         ax.set_xlim([-0.1*D, 0.1*D])
         ax.set_ylim([L + 5, -2])  # Downward is positive z 
         ax.grid(ls='--')
-        ax.legend()           
+        ax.legend() 
+
+    # Relevant index of nodes
+    zlug_index = int(zlug/h); print(zlug_index)
+    ymax_index = int(np.max(y)); print(ymax_index)      
 
     resultsDriven = {
-        'Soil type': soil_type,
         'Weight pile': PileWeight(L, D, t, rhows + rhow),
-        'Vertical max.': Vmax
-    }
-    
-    if zlug <= 0:
-    
-        resultsDriven['Lateral displacement'] = y[2]
-        resultsDriven['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
-    
-    else:
-        resultsDriven.update({
-            'Lateral displacement': max(y),
-            'Bending moment': Mi,
-            'Plastic moment': Mp,
-            'Plastic hinge': hinge_formed,
-            'Hinge location': hinge_location
-        })
-    
-    # Add model metadata
-    if soil_type == 'clay':
-        resultsDriven['p-y model'] = 'Matlock (1970)'
-        resultsDriven['Soil profile'] = 'Su vs depth'
-    elif soil_type == 'sand':
-        resultsDriven['p-y model'] = 'API RP2A (1993)'
-        resultsDriven['Soil profile'] = 'phi vs depth'
-    elif soil_type in ['rock', 'weak_rock']:
-        resultsDriven['p-y model'] = 'Reese (1997)'
-        resultsDriven['Soil profile'] = 'UCS vs depth'
+        'Vertical max.': Vmax,
+        'Horizontal max.': abs(Mi)/abs(zlug) if zlug != 0 else 1e-6,
+        'Unity check (vertical)': Va/Vmax if Vmax != 0 else np.inf,
+        'Unity check (horizontal)': Ha/(abs(Mi)/abs(zlug)) if zlug != 0 else np.inf,
+        'Lateral displacement': y[ymax_index],
+        'Rotational displacement': np.rad2deg(abs(y[ymax_index - 1] - y[ymax_index])/h),
+        'Bending moment': abs(Mi),
+        'Plastic moment': Mp,
+        'Plastic hinge': hinge_formed,
+        'Hinge location': hinge_location,
+        'p-y model': 'Matlock (1970)' if soil_type == 'clay' else 'API RP2A (1993)' if soil_type == 'sand' else 'Reese (1997)',
+        }
 
     
     return y[2:-2], z[2:-2], resultsDriven
 
-def fd_solver(n, N, h, D, t, fy, EI, H, V, zlug, z0, k_secant):
+def fd_solver(n, N, h, D, t, fy, EI, Ha, Va, zlug, z0, k_secant):
     '''Solves the finite difference equations from 'py_analysis_1'. This function should be run iteratively for
     non-linear p-y curves by updating 'k_secant' using 'y'. A single iteration is sufficient if the p-y curves
     are linear.
-
 
     Parameters
     ----------
@@ -249,10 +236,10 @@ def fd_solver(n, N, h, D, t, fy, EI, H, V, zlug, z0, k_secant):
         Yield strength of pile material (Pa)
     EI : float
         Flexural rigidity of the pile (Nm²)
-    H : float
-        Horizontal load at padeye (N)
-    V : float
-        Vertical load at padeye (N)
+    Ha : float       
+        Horizontal load at pile lug elevation (N)
+    Va : float          
+        Vertical load at pile lug elevation (N)
     zlug : float
         Depth of padeye from pile head (m)
     z0 : float
@@ -280,9 +267,9 @@ def fd_solver(n, N, h, D, t, fy, EI, H, V, zlug, z0, k_secant):
     # (n+1) finite difference equations for (n+1) real nodes
     for i in range(0, n+1):
         X[i, i]   =  1.0
-        X[i, i+1] = -4.0 + V*h**2/EI
-        X[i, i+2] =  6.0 - 2*V*h**2/EI + k_secant[i+2]*h**4/EI
-        X[i, i+3] = -4.0 + V*h**2/EI
+        X[i, i+1] = -4.0 + Va*h**2/EI
+        X[i, i+2] =  6.0 - 2*Va*h**2/EI + k_secant[i+2]*h**4/EI
+        X[i, i+3] = -4.0 + Va*h**2/EI
         X[i, i+4] =  1.0
 
     # Curvature at pile head
@@ -292,9 +279,9 @@ def fd_solver(n, N, h, D, t, fy, EI, H, V, zlug, z0, k_secant):
 
     # Shear at pile head
     X[n+2, 0] = -1.0
-    X[n+2, 1] =  2.0 - V*h**2/EI
+    X[n+2, 1] =  2.0 - Va*h**2/EI
     X[n+2, 2] =  0.0
-    X[n+2, 3] = -2.0 + V*h**2/EI
+    X[n+2, 3] = -2.0 + Va*h**2/EI
     X[n+2, 4] =  1.0
 
     # Curvature at pile tip
@@ -304,9 +291,9 @@ def fd_solver(n, N, h, D, t, fy, EI, H, V, zlug, z0, k_secant):
 
     # Shear at pile tip
     X[n+4, -1] =  1.0
-    X[n+4, -2] = -2.0 + V*h**2/EI
+    X[n+4, -2] = -2.0 + Va*h**2/EI
     X[n+4, -3] =  0.0
-    X[n+4, -4] =  2.0 - V*h**2/EI
+    X[n+4, -4] =  2.0 - Va*h**2/EI
     X[n+4, -5] = -1.0
 
     # Initialize vector q
@@ -315,7 +302,7 @@ def fd_solver(n, N, h, D, t, fy, EI, H, V, zlug, z0, k_secant):
     # Always apply shear
     # Index of the node where the horizontal load is applied (padeye)
     zlug_index = int(zlug/h)
-    q[zlug_index] = 2*H*h**3
+    q[zlug_index] = 2*Ha*h**3
                  
     y = linalg.solve(EI*X, q)
 
@@ -393,24 +380,39 @@ if __name__ == '__main__':
         [30.0, 1.0, 5e4]
     ])
 
-    D = 2.0           # Diameter (m)
-    L = 15.0          # Length (m)
+    D = 2.5           # Diameter (m)
+    L = 25.0          # Length (m)
     zlug = 1          # Padeye depth (m)
     
     # === CLAY ===
-    # y_clay, z_clay, results_clay = getCapacityDriven(profile_clay, 'clay', L, D, zlug, H=5.0e6,  V=1.5e5, plot=True)
+    y_clay, z_clay, resultsDriven_clay = getCapacityDriven(profile_clay, 'clay', L, D, zlug, Ha=5.0e6,  Va=1.5e5, plot=True)
+    for key, val in resultsDriven_clay.items():
+        if isinstance(val, float):
+            print(f"{key}: {val:.3f}")
+        else:
+            print(f"{key}: {val}")
 
-    # plot_pile(profile_clay, 'clay', y_clay, z_clay, D, L, profile_clay[0, 0], zlug, results_clay.get('Hinge location'))
+    plot_pile(profile_clay, 'clay', y_clay, z_clay, D, L, profile_clay[0, 0], zlug, resultsDriven_clay.get('Hinge location'))
 
     # # === SAND ===
-    # y_sand, z_sand, results_sand = getCapacityDriven(profile_sand, 'sand', L, D, zlug, H=2.5e6, V=2.0e6, plot=True)
+    # y_sand, z_sand, resultsDriven_sand = getCapacityDriven(profile_sand, 'sand', L, D, zlug, Ha=2.5e6, Va=2.0e6, plot=True)
+    # for key, val in resultsDriven_sand.items():
+    #     if isinstance(val, float):
+    #         print(f"{key}: {val:.3f}")
+    #     else:
+    #         print(f"{key}: {val}")
 
-    # plot_pile(profile_sand, 'sand',  y_sand, z_sand, D, L, profile_sand[0, 0], zlug, results_sand.get('Hinge location'))
+    # plot_pile(profile_sand, 'sand',  y_sand, z_sand, D, L, profile_sand[0, 0], zlug, resultsDriven_sand.get('Hinge location'))
 
     # # === ROCK ===
-    y_rock, z_rock, results_rock = getCapacityDriven(profile_rock, 'rock', L, D, zlug, H=3.5e6, V=3.0e6, plot=True)
+    # y_rock, z_rock, resultsDriven_rock = getCapacityDriven(profile_rock, 'rock', L, D, zlug, Ha=3.5e6, Va=3.0e6, plot=True)
+    # for key, val in resultsDriven_rock.items():
+    #     if isinstance(val, float):
+    #         print(f"{key}: {val:.3f}")
+    #     else:
+    #         print(f"{key}: {val}")
 
-    plot_pile(profile_rock, 'rock', y_rock, z_rock, D, L, profile_rock[0, 0], zlug, results_rock.get('Hinge location'))
+    # plot_pile(profile_rock, 'rock', y_rock, z_rock, D, L, profile_rock[0, 0], zlug, resultsDriven_rock.get('Hinge location'))
 
 
 

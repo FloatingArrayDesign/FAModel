@@ -130,7 +130,8 @@ class Mooring(Edge):
         # Dictionaries for additional information
         self.envelopes = {}  # 2D motion envelope, buffers, etc.
         self.loads = {}
-        self.safety_factors = {}
+        self.safety_factors = {} # calculated safety factor
+        self.safety_factors_required = {} # minimum allowable safety factor 
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
@@ -251,7 +252,27 @@ class Mooring(Edge):
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
         if self.adjuster:
-            self.adjuster(self, r_centerB, u, project=project, **kwargs)
+            
+            #if i_line is not defined, assumed segment 0 will be adjusted
+            if not hasattr(self,'i_line'):
+                self.i_line = 0
+       
+            
+            if hasattr(self,'slope'):
+                self.adjuster(self, method = 'pretension', r=r_centerB, project=project, target = self.target, i_line = self.i_line, slope = self.slope)
+            
+            else:
+                
+                #move anchor based on set spacing then adjust line length
+                xy_loc = r_centerB[:2] + (self.span + rad_fair[1])*u
+                if project:
+                    self.dd['zAnchor'] = -project.getDepthAtLocation(xy_loc[0],xy_loc[1])
+                    self.z_anch = self.dd['zAnchor']
+                else:
+                    print('Warning: depth of mooring line, anchor, and subsystem must be updated manually.')
+                self.setEndPosition(np.hstack([r_centerB[:2] + (self.span + rad_fair[1])*u, self.z_anch]), 'a', sink=True)
+
+                self.adjuster(self, method = 'horizontal', r=r_centerB, project=project, target = self.target, i_line = self.i_line)
             
         elif self.shared == 1: # set position of end A at platform end A
             self.setEndPosition(np.hstack([r_centerA[:2] - rad_fair[0]*u, z_fair[0] + r_centerA[2]]),'a')
@@ -339,20 +360,30 @@ class Mooring(Edge):
                 except:
                     line_cost += 0
                     print('Could not find line cost for',self.id)
+            for point in self.ss.pointList:
+                try:
+                    if self.loads:
+                        ccost,self['MBL'],_ = point.getCost_and_MBL(peak_tension=max([val for val in self.loads.values() if isinstance(val,float)]))
+                        conn_cost += ccost
+                    elif point.cost:
+                        conn_cost += point.cost
+                except:
+                    pass
         else:
             for sub in self.subcomponents:
                 if isinstance(sub,Section):
                     if 'cost' in sub['type']:
                         line_cost += sub['type']['cost']*sub['L']
-                elif isinstance(sub,Connector):
-                    if 'cost' in sub:
-                        conn_cost += sub['cost']
+                elif isinstance(sub,Connector):                  
+                    if self.loads:
+                        conn_cost += sub.getCost(peak_tension=max([val for val in self.loads.values() if isinstance(val,float)]))
+                    elif 'cost' in sub:
+                        conn_cost += sub.cost
                         
             self.cost['connector'] = conn_cost
         
         self.cost['line'] = line_cost
-        
-        # anchor cost  (it should already be computed)
+
         
         # sum up the costs in the dictionary and return
         return sum(self.cost.values())
@@ -431,8 +462,10 @@ class Mooring(Edge):
             startNum = 0 
 
         for i in range(startNum,len(ss.pointList)):                               
-            point = ss.pointList[i]
-            point.CdA = dd['connectors'][i]['CdA']
+            dd['connectors'][i].mpConn = ss.pointList[i]
+            dd['connectors'][i].mpConn.CdA = dd['connectors'][i]['CdA']
+            dd['connectors'][i].getProps()
+            
         # solve the system
         ss.initialize()
         ss.staticSolve()
@@ -723,10 +756,10 @@ class Mooring(Edge):
         cdAx = []
                                             
         # create arrays
-        d_nom_old = np.zeros((len(LTypes),1))        
-        ve_nom_adjust = np.zeros((len(LTypes),1))
-        mu_mg = np.zeros((len(LTypes),1))
-        rho_mg = np.ones((len(LTypes),1))*1325
+        d_nom_old = np.zeros((len(LTypes)))        
+        ve_nom_adjust = np.zeros((len(LTypes)))
+        mu_mg = np.zeros((len(LTypes)))
+        rho_mg = np.ones((len(LTypes)))*1325
         # adjust rho value if alternative provided
         if 'rho' in mgDict:
             if not type(mgDict['rho']) is list:
@@ -1019,3 +1052,7 @@ class Mooring(Edge):
         # Indices of connectors and sections in self.subcomponents list
         self.i_con = list(range(0, 2*self.n_sec+1, 2))
         self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+        
+    
+        
+        

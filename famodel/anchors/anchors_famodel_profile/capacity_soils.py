@@ -50,9 +50,11 @@ def clay_profile(profile):
     f_psi = lambda z: f_Su(z)/np.maximum(f_sigma_v_eff(z), 1.0)  
     
     def calc_alpha(psi):
+        # Avoid divide-by-zero or log(0) by setting a floor
         psi = np.maximum(psi, 1e-6)
         if np.ndim(psi) == 0:
-            psi = float(psi)  # Cast to scalar explicitly
+            psi = float(psi)
+            # API-style adhesion factor: two regimes
             return min(0.5*psi**-0.50, 1) if psi <= 1.0 else min(0.5*psi**-0.25, 1)
         else:
             return np.where(
@@ -62,17 +64,11 @@ def clay_profile(profile):
             )
      
     # Create an interpolated adhesion factor function
+    # Create an interpolated adhesion factor function
     def f_alpha(z):
         psi_val = f_psi(z)
         alpha_val = calc_alpha(psi_val)
-        # If it's a single-element array, convert it to scalar safely
-        if isinstance(alpha_val, np.ndarray):
-            if alpha_val.size == 1:
-                return alpha_val.item()
-            else:
-                return alpha_val     
-        else:
-            return alpha_val
+        return np.atleast_1d(alpha_val)[0] if np.ndim(alpha_val) == 0 else alpha_val
 
     return z0, f_Su, f_sigma_v_eff, f_gamma, f_alpha
 

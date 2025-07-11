@@ -111,7 +111,8 @@ class DynamicCable(Edge):
         
         # Dictionaries for addition information
         self.loads = {}
-        self.safety_factors = {}
+        self.safety_factors = {} # calculated safety factor
+        self.safety_factors_required = {} # minimum allowable safety factor
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
@@ -803,8 +804,8 @@ class DynamicCable(Edge):
             # create arrays
             # d_nom_old = np.zeros((len(LTypes),1))        
             # ve_nom_adjust = np.zeros((len(LTypes),1))
-            mu_mg = np.zeros((len(LTypes),1))
-            rho_mg = np.ones((len(LTypes),1))*1325
+            mu_mg = np.zeros((len(LTypes)))
+            rho_mg = np.ones((len(LTypes)))*1325
             # adjust rho value if alternative provided
             if 'rho' in mgDict:
                 if not type(mgDict['rho']) is list:

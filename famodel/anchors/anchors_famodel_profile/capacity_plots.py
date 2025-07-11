@@ -2,15 +2,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_pile(profile, soil_type, y, z, D, L, z0=None, zlug=None, hinge_location=None, title='Slender Pile and Ground Layers'):
+def plot_pile(profile, soil_type, y, z, D, L, z0=None, zlug=None, hinge_location=None):
     '''Plots the deflected shape of the pile alongside the original vertical line.
 
     Parameters:
     ----------
-    profile : list of tuples 
+    profile :
         
-    soil_type : string
-        Select soil condition, 'clay', 'sand' or '(weak) rock'
+    soil_type : str
+        
     y : np.array
         Lateral displacements (m)
     z : np.array
@@ -21,41 +21,40 @@ def plot_pile(profile, soil_type, y, z, D, L, z0=None, zlug=None, hinge_location
         Pile length (m)
     z0 : float, optional
         Depth of the mudline from the pile head (m)
-    zlug : float
+    zlug : float, optional
         Depth of the padeye from the pile head (m)
-    hinge_location : int
+    hinge_location : int, optional
         Node index where a plastic hinge formed (if any)
-    title : string 
-        Plot title
+    label : str
+        Label for deflected shape line
+    color : str
+        Line color for deflected shape
     '''
-
     fig, ax = plt.subplots(figsize=(3, 5))
     
-    lambdap = L/D
-    
+    lambdap = L / D
+
     # Adjust horizontal scale based on slenderness
-    if lambdap >= 5:
+    if lambdap >= 4:
         xmax = 5*D     # Slender (e.g., driven pile)
-    elif lambdap <= 4:
+    elif lambdap <= 2:
         xmax = 2*D     # Stubby (e.g., drilled & grouted)
     else:
         xmax = 3*D     # Intermediate case
-   
+
     # Mudline marker 
     if z0 is not None:
         ax.axhline(z0, color='blue', linestyle='--', label=f'Mudline (z0 = {z0:.2f} m)')
-        
-    # Draw pile as rectangle (from head to tip)
-    ax.add_patch(plt.Rectangle((-D/2, 0), D, L, edgecolor='k', facecolor='none', lw=2, label='Driven Pile'))
-     
-    # Padeye marker
+        #ax.fill_betweenx(z, -0.05 * D, 0.05 * D, where=(z >= z0), color='lightgray', alpha=0.3, label='Soil zone')
+
+    # Padeye marker (on right wall of pile)
     if zlug is not None:
         ax.plot(D/2, zlug, 'ko', label=f'Padeye (zlug = {zlug:.2f} m)')
 
-    # Plastic hinge marker
-    if hinge_location is not None and 0 <= hinge_location < len(z):
-        ax.plot(y[hinge_location], z[hinge_location], 'yo', markersize=8, label='Plastic hinge')
-        
+    # Draw pile as rectangle (from head to tip)
+    pile = plt.Rectangle((-D/2, 0), D, L, edgecolor='k', facecolor='none', lw=2, label='Driven Pile')
+    ax.add_patch(pile)
+       
     seen_labels = set()
     # Plot soil layers as background fills
     for i in range(len(profile) - 1):
@@ -83,44 +82,46 @@ def plot_pile(profile, soil_type, y, z, D, L, z0=None, zlug=None, hinge_location
         else:
             ax.axhspan(z_bot, z_top, color=color, alpha=0.4)
 
-    ax.set_xlabel('Horizontal extent  (m)')
+    ax.set_xlabel('Lateral displacement (m)')
     ax.set_ylabel('Depth (m)')
-    ax.set_xlim([-xmax, xmax])
+    ax.set_xlim(-xmax, xmax)
     ax.set_ylim([L + 5, -2])  # Downward is positive z
     ax.grid(ls='--')
     ax.legend()
-    ax.set_title(title)
+    ax.set_title('Pile Deflection Profile')
     plt.tight_layout()
     plt.show()
     
     
-def plot_suction(profile, soil_type, L, D, zlug=None, title='Suction Pile and Soil Layers'):
-    '''Plot the soil profile and a suction pile geometry.
+def plot_suction(profile, soil_type, L, D, zlug=None, title='Suction Pile and Soil Layers', ax=None):
+    '''Plot the soil profile and a suction pile geometry using array structure for profile.
 
     Parameters:
     ----------
-        profile : list of tuples 
-            Each tuple is (depth, value, soil_type)
-        soil_type : string
-            Select soil condition, 'clay' or 'sand'
-        L : float 
-            embedded length (m)
-        D : float 
-            pile diameter (m)
+        profile : list or ndarray of lists (z, Su or phi or UCS, gamma)
+        soil_type : str
+            'clay', 'sand', or 'rock'
+        L : float
+            Embedded length (m)
+        D : float
+            Pile diameter (m)
         zlug : float
             Padeye depth (m, referenced to pile head = 0)
-        title : string 
+        title : string
             Plot title
     '''
-    fig, ax = plt.subplots(figsize=(5, 5))
+    import numpy as np
+    import matplotlib.pyplot as plt
 
+    profile = np.array(profile)
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(5, 5))
     xmax = 2*D
 
-    # Separate numeric part and soil types
+    # Split numerical values from profile
     z_vals = [float(row[0]) for row in profile]
     values = [float(row[1]) for row in profile]
-    z0 = z_vals[0]  # mudline
-
+    
     seen_labels = set()
     # Plot soil layers as background fills
     for i in range(len(z_vals) - 1):
@@ -129,39 +130,37 @@ def plot_suction(profile, soil_type, L, D, zlug=None, title='Suction Pile and So
         val = values[i]
 
         if soil_type == 'clay':
-            color = plt.cm.Oranges(val/max(values))
+            color = plt.cm.Oranges(val / max(values))
             label = f'Su = {val:.0f} kPa'
         elif soil_type == 'sand':
-            color = plt.cm.YlOrBr(val/max(values))
+            color = plt.cm.YlOrBr(val / max(values))
             label = f'ϕ = {val:.0f}°'
-    
-        # Only assign label if not already used
+
         if label not in seen_labels:
             ax.axhspan(z_bot, z_top, color=color, alpha=0.4, label=label)
             seen_labels.add(label)
         else:
             ax.axhspan(z_bot, z_top, color=color, alpha=0.4)
 
-    # Padeye marker
+    # Draw pile geometry
     x_left = -D/2; x_right = D/2
     z_top = 0; z_bot = L
-    
-    ax.plot([ x_left,  x_left], [z_top, z_bot], color='k', lw=2.0, label='Suction Pile')
+    ax.plot([x_left,  x_left], [z_top, z_bot], color='k', lw=2.0, label='Suction Pile')
     ax.plot([x_right, x_right], [z_top, z_bot], color='k', lw=2.0)
-    ax.plot([ x_left, x_right], [z_top, z_top], color='k', lw=2.0)
+    ax.plot([x_left, x_right], [z_top, z_top], color='k', lw=2.0)
 
     # Reference lines
-    ax.axhline(z0, color='k', linestyle='--', lw=1.5, label='Mudline')
-    ax.axhline( L, color='b', linestyle='--', lw=1.5, label='Pile Tip')
-        
-    # Draw padeye as a filled circle on the right wall
+    ax.axhline(z_vals[0], color='k', linestyle='--', lw=1.5, label='Mudline')
+    ax.axhline(L, color='b', linestyle='--', lw=1.5, label='Pile Tip')
+
+    # Padeye marker
     if zlug is not None and 0 <= zlug <= L:
         ax.plot(x_right, zlug, 'ko', label=f'Padeye (zlug = {zlug:.2f} m)')
 
     ax.set_xlabel('Horizontal extent (m)')
     ax.set_ylabel('Depth (m)')
     ax.set_xlim(-xmax, xmax)
-    ax.set_ylim(z_bot + 2*D, -D)
+    ax.set_ylim(L + 2*D, -D)
     ax.set_title(title)
     ax.grid()
     ax.legend()
@@ -174,10 +173,10 @@ def plot_torpedo(profile, soil_type, D1, D2, L1, L2, zlug, title='Torpedo Pile a
 
     Parameters:
     ----------
-        profile : list of tuples  
-            Each tuple is (z, Su, gamma)
-        soil_type : string
-            Select soil condition, 'clay' 
+        profile : 
+            list or array of (z, Su, 'clay')
+        soil_type : str
+            'clay'
         D1 : float 
             Wing diameter (at tip) (m)
         D2 : float
@@ -247,10 +246,9 @@ def plot_helical(profile, soil_type, D, L, d, zlug, n_helix=1, spacing=1.0, titl
 
     Parameters:
     ----------
-        profile : list of tuples 
-            Each tuple is (depth, value, soil_type)
-        soil_type : string
-            Select soil condition, 'clay' or 'sand'
+        profile : list or array of (z, Su or phi, ...)
+        soil_type : 
+            'clay' or 'sand'
         D : float
             Helix diameter (m)
         L : float
@@ -324,15 +322,12 @@ def plot_helical(profile, soil_type, D, L, d, zlug, n_helix=1, spacing=1.0, titl
     plt.tight_layout()
     plt.show()
 
-def plot_plate(profile, soil_type, B, L, zlug, beta, title='Plate Anchor in Clay Profile'):
+def plot_plate(profile, B, L, zlug, beta, title='Plate Anchor in Clay Profile'):
     '''Plot soil layers and an inclined plate anchor centered at zlug.
 
     Parameters:
     ----------
-        profile : list of tuples 
-            Each tuple is (depth, value, soil_type)
-        soil_type : sting
-            Select soil condition, 'clay'             
+        profile : ndarray of shape (n, 3), with (depth, Su, gamma)
         B : float
             Plate width (m)
         L : float
@@ -358,23 +353,21 @@ def plot_plate(profile, soil_type, B, L, zlug, beta, title='Plate Anchor in Clay
     plate_x = [-dx, dx]
     plate_z = [zlug - dz, zlug + dz]
 
-    seen_labels = set()  
+    seen_labels = set()
     # Plot soil layers as background fills
     for i in range(len(layer_depths) - 1):
         z_top = layer_depths[i]
         z_bot = layer_depths[i+1]
-        
-        if soil_type == 'clay':
-            Su = profile[i][1]
-            color = plt.cm.Oranges(Su/np.max(profile[:, 1]))
-            label = f'Su = {Su:.0f} kPa'
+        Su = profile[i][1]
+        color = plt.cm.Oranges(Su/np.max(profile[:, 1]))
+        label = f'Su = {Su:.0f} kPa'
         
         # Only assign label if not already used
         if label not in seen_labels:
-            ax.axhspan(z_bot, z_top, color=color, alpha=0.3, label=label)
+            ax.axhspan(z_bot, z_top, color=color, alpha=0.4, label=label)
             seen_labels.add(label)
         else:
-            ax.axhspan(z_bot, z_top, color=color, alpha=0.3)
+            ax.axhspan(z_bot, z_top, color=color, alpha=0.4)
 
     # Plot inclined plate
     ax.plot(plate_x, plate_z, color='k', lw=1.5, label='Plate')
@@ -397,68 +390,46 @@ def plot_plate(profile, soil_type, B, L, zlug, beta, title='Plate Anchor in Clay
     plt.show()
     
 def plot_load(profile, soil_type, drag_values, depth_values, Tm, thetam, Ta, thetaa, zlug):
-    '''Plot the inverse catenary profile of a mooring line with layered soil and applied load vectors.
-    
-    Parameters
-    ----------
-    profile : tuple
-        Each tuple is (depth, value, soil_type)
-    soil_type : string
-        Select soil condition, 'clay' or 'sand'
-    drag_values : list or array
-        Horizontal drag distances of the mooring line (m)
-    depth_values : list or array
-        Vertical depths of the mooring line (m)
-    Tm : float
-        Magnitude of load applied at the mudline (N)
-    thetam : float
-        Inclination angle of mudline load (deg)
-    Ta : float
-        Magnitude of load applied at the padeye (N)
-    thetaa : float
-        Inclination angle of padeye load (deg)
-    zlug : float
-        Depth of the padeye from pile head (used for marker placement)
-    '''
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    n = 2e6
+        fig, ax = plt.subplots(figsize=(12, 6))
+        n = 2e6
 
-    # Plot the inverse catenary profile
-    ax.plot(drag_values, depth_values, color='b', label='Mooring line')
+        # Plot the inverse catenary profile
+        ax.plot(drag_values, depth_values, color='b', label='Mooring line')
 
-    # Add load vectors
-    ax.arrow(0, 0, Tm*np.cos(np.deg2rad(thetam))/n, Tm*np.sin(np.deg2rad(thetam))/n,
-             head_width=0.25, head_length=0.5, color='r', label='Mudline Load')
-    ax.arrow(drag_values[-1], depth_values[-1], Ta*np.cos(thetaa)/n, Ta*np.sin(thetaa)/n,
-             head_width=0.25, head_length=0.5, color='g', label='Padeye Load')
-    
-    #ax.set_aspect('equal', adjustable='datalim')
+        # Add load vectors
+        ax.arrow(0, -profile[0][0], Tm*np.cos(np.deg2rad(thetam))/n, Tm*np.sin(np.deg2rad(thetam))/n,
+                 head_width=0.25, head_length=0.5, color='r', label='Mudline Load')
+        ax.arrow(drag_values[-1], depth_values[-1], Ta*np.cos(thetaa)/n, Ta*np.sin(thetaa)/n,
+                 head_width=0.25, head_length=0.5, color='g', label='Padeye Load')
+        
+        #ax.set_aspect('equal', adjustable='datalim')
 
-    # Plot soil layers as background fills
-    for i in range(len(profile) - 1):
-        z_top = -profile[i][0]
-        z_bot = -profile[i+1][0]
-        if soil_type == 'clay':
-            Su = profile[i][1]
-            color = plt.cm.Oranges(Su/np.max(profile[:, 1]))
-            label = f'Su = {Su:.0f} kPa'
-        elif soil_type == 'sand':
-            phi = profile[i][1]
-            gamma = profile[i][2]
-            color = plt.cm.Blues(phi/np.max(profile[:, 1]))
-            label = f'ϕ = {phi:.0f}°, γ = {gamma:.1f} kN/m³'
-        ax.axhspan(z_bot, z_top, color=color, alpha=0.4, label=label)
+        # Plot soil layers as background fills
+        for i in range(len(profile) - 1):
+            z_top = -profile[i][0]
+            z_bot = -profile[i+1][0]
+            if soil_type == 'clay':
+                Su = profile[i][1]
+                gamma = profile[i][2]
+                color = plt.cm.Oranges(Su/np.max(profile[:, 1]))
+                label = f'Su = {Su:.0f} kPa'
+            elif soil_type == 'sand':
+                phi = profile[i][1]
+                gamma = profile[i][2]
+                color = plt.cm.YlOrRd(phi/np.max(profile[:, 1]))
+                label = f'ϕ = {phi:.0f}°, γ = {gamma:.1f} kN/m³'
+            ax.axhspan(z_bot, z_top, color=color, alpha=0.4, label=label)
 
-    # Deduplicate legend entries
-    handles, labels = ax.get_legend_handles_labels()
-    unique = dict(zip(labels, handles))
-    ax.legend(unique.values(), unique.keys(), loc='lower left')
+        # Deduplicate legend entries
+        handles, labels = ax.get_legend_handles_labels()
+        unique = dict(zip(labels, handles))
+        ax.legend(unique.values(), unique.keys(), loc='lower left')
 
-    ax.set_xlabel('Drag distance [m]')
-    ax.set_ylabel('Embedded depth [m]')
-    ax.set_title('Inverse Catenary in Layered Soil')
-    ax.grid(True)
-    
-    ax.annotate(f"{Tm/1e6:.2f} MN", (Tm*np.cos(np.deg2rad(thetam))/n, Tm*np.sin(np.deg2rad(thetam))/n), color='r')
-    ax.annotate(f"{Ta/1e6:.2f} MN", (drag_values[-1] + Ta*np.cos(thetaa)/n, depth_values[-1] + Ta*np.sin(thetaa)/n), color='g')
+        ax.set_xlabel('Drag distance [m]')
+        ax.set_ylabel('Embedded depth [m]')
+        ax.set_title('Inverse Catenary in Layered Soil')
+        ax.grid(True)
+        
+        ax.annotate(f"{Tm/1e6:.2f} MN", (Tm*np.cos(np.deg2rad(thetam))/n, -profile[0][0] + Tm*np.sin(np.deg2rad(thetam))/n), color='r')
+        ax.annotate(f"{Ta/1e6:.2f} MN", (drag_values[-1] + Ta*np.cos(thetaa)/n, depth_values[-1] + Ta*np.sin(thetaa)/n), color='g')

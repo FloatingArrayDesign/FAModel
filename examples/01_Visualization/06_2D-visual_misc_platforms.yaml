@@ -1,0 +1,23 @@
+
+# ----- Array-level inputs -----
+
+# Wind turbine array layout
+array:
+    keys : [ID, topsideID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
+    data : #    ID#        ID#        ID#          [m]             [m]           [deg]
+        -  [fowt0,     0,         1,           0,          -1600,         -1600,          0   ]
+        -  [fowt1,     0,         1,           0,          0,             -1600,          0     ] 
+        -  [fowt2,     0,         1,           0,          1600,           -1600,          0   ]
+        -  [fowt3,     0,         1,         0,          -1600,          0,            0   ]
+        -  [fowt4,     0,         2,         0,          0,              0,            0   ]
+        -  [wec0,     0,          3,         0,          1600,              0,            0   ]
+        -  [wec1,     0,          3,        0,          -1600,           1600,            0   ]
+        -  [wec2,     0,          3,         0,          0,              1600,            0   ]
+        -  [oss0,     0,          4,         0,          1600,           1600,            0   ] 
+
+platforms:
+  - type         :  FOWT # identify entity of each platform type
+  - type         :  Tidal
+  - type         :  WEC 
+  - type         :  Substation
+

@@ -1,0 +1,62 @@
+name: CI_FAModel
+
+# We run CI on push commits and pull requests on all branches
+on: [push, pull_request]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+    build_conda:
+        name: Conda Build (${{ matrix.os }}) - ${{ matrix.python-version }}
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: bash -el {0}
+                
+        strategy:
+            fail-fast: false #true
+            matrix:
+                os: ["ubuntu-latest", "macOS-latest", "windows-latest"]
+                python-version: ["3.11", "3.12"]
+
+
+        steps:
+            - name: checkout repository
+              uses: actions/checkout@v4
+
+            - uses: conda-incubator/setup-miniconda@v3
+              # https://github.com/marketplace/actions/setup-miniconda
+              with:
+                  # To use mamba, uncomment here, comment out the miniforge line
+                  #mamba-version: "*"
+                  miniforge-version: "latest"
+                  auto-update-conda: true
+                  python-version: ${{ matrix.python-version }}
+                  environment-file: famodel-env.yaml
+                  activate-environment: test
+                  auto-activate-base: false
+                  channels: conda-forge
+                  channel-priority: true          
+
+            - name: Extras
+              run: |
+                  conda install -y pytest meson ninja nlopt
+                  conda info
+
+            - name: Conda Install famodel
+              run: |
+                  pip install -e .
+
+            - name: Overwrite MoorPy
+              run: |
+                  pip install git+https://github.com/NREL/MoorPy@dev
+
+            - name: Example run
+              run: |
+                  cd examples
+                  python example_driver.py false
+
+            - name: Test run
+              run: |
+                  cd tests
+                  pytest .
+

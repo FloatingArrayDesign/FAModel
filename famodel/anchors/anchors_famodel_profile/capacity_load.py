@@ -1,10 +1,10 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from capacity_soils import clay_profile, sand_profile
-from capacity_plots import plot_load
+from .capacity_soils import clay_profile, sand_profile
+from .capacity_plots import plot_load
 
-def getTransferLoad(profile, soil_type, Tm, thetam, zlug, line_type, d, w=None, plot=False):
+def getTransferLoad(profile, soil_type, Tm, thetam, zlug, line_type, d, w=None, plot=True):
     '''Calculate the transfer load from mudline to main padeye using a layered soil profile.
 
     Parameters
@@ -37,6 +37,8 @@ def getTransferLoad(profile, soil_type, Tm, thetam, zlug, line_type, d, w=None, 
     '''
     
     deltas = 0.2  # discretization step
+    
+    profile = np.array(profile)
 
     # Line mechanical properties
     if line_type == 'chain':
@@ -57,7 +59,7 @@ def getTransferLoad(profile, soil_type, Tm, thetam, zlug, line_type, d, w=None, 
     T = Tm
     theta = np.deg2rad(thetam)
     drag = 0
-    depth = 0.1
+    depth = z0 + 0.1
 
     # Tracing lists
     drag_values, depth_values = [], []
@@ -73,8 +75,9 @@ def getTransferLoad(profile, soil_type, Tm, thetam, zlug, line_type, d, w=None, 
             delta_z = f_delta(depth)
             phi = f_phi(depth)
             Nq = np.exp(np.pi*np.tan(np.deg2rad(phi)))*(np.tan(np.deg2rad(45 + phi/2)))**2
+            print(f'Nq = {Nq:.2f}, depth = {depth:.2f} m')
             dtheta = (En*d*Nq*gamma_z*depth - W*np.cos(theta))/T*deltas
-            dT = (Et*d*gamma_z * depth * np.tan(np.deg2rad(delta_z)) + W*np.sin(theta))*deltas
+            dT = (Et*d*gamma_z*depth*np.tan(np.deg2rad(delta_z)) + W*np.sin(theta))*deltas
 
         ddrag  = deltas*np.cos(theta)
         ddepth = deltas*np.sin(theta)
@@ -96,6 +99,15 @@ def getTransferLoad(profile, soil_type, Tm, thetam, zlug, line_type, d, w=None, 
     Ta = T; thetaa = theta
     # H = Ta*np.cos(thetaa)
     # V = Ta*np.sin(thetaa)
+    
+    if plot:
+        plot_load(
+            profile, soil_type,
+            drag_values, depth_values,
+            Tm, thetam,
+            Ta, thetaa,
+            zlug
+        )
 
     resultsLoads = {
         'Tm': Tm,
@@ -112,51 +124,66 @@ def getTransferLoad(profile, soil_type, Tm, thetam, zlug, line_type, d, w=None, 
 if __name__ == '__main__':
     
     # Define a clay profile: [depth (m), Su (kPa), gamma (kN/m3)]
-    profile_clay = np.array([
-        [0.0, 100, 8],
-        [2.0, 200, 8.5],
-        [5.0, 300, 9],
-        [12.0, 400, 9.5]
-    ])
+    # profile_clay = np.array([
+    # [ 0.0,   0, 0.0],  
+    # [ 2.0,  25, 8.0],
+    # [ 8.0,  50, 8.0],
+    # [16.0, 100, 8.0]
+    # ])
     
-    # Define a sand profile: [depth (m), phi (deg), gamma (kN/m3), Dr (-)]
+    # Define a sand profile: [depth (m), phi (deg), gamma (kN/m3), Dr (%)]
     profile_sand = np.array([
-        [0.0, 30, 9.5, 60],
-        [5.0, 32, 10.0, 70],
-        [10.0, 34, 10.2, 80],
-        [15.0, 35, 10.5, 90]
+        [ 0.0, 30, 9.5, 70],
+        [ 5.0, 30, 9.5, 70],
+        [10.0, 30, 9.5, 70],
+        [15.0, 30, 9.5, 70]
     ])
     
-    # Input parameters
-    soil_type = 'clay'
-    Tm = 1.2e7           # Load at mudline (N)
-    thetam = 10          # Angle at mudline (deg)
-    zlug = 8             # Padeye depth (m)
-    line_type = 'chain'
-    d = 0.16             # Chain diameter (m)
-    w = 4093             # Line weight (N/m)
+    # # Input parameters
+    # Tm = 1.2e7            # Load at mudline (N)
+    # thetam = 10           # Angle at mudline (deg)
+    # zlug = 8.3            # Padeye depth (m)
+    # line_type = 'chain'
+    # d = 0.16              # Chain diameter (m)
+    # w = 4093              # Line weight (N/m)
     
-    # Run transfer load calculation
-    results = getTransferLoad(profile_clay, soil_type, Tm, thetam, zlug, line_type, d, w, plot=True)
-    print("\n--- Transfer Load Results (Clay) ---")
+    # # Run transfer load calculation
+    # results = getTransferLoad(profile_clay, soil_type, Tm, thetam, zlug, line_type, d, w, plot=True)
+    # print("\n--- Transfer Load Results (Clay) ---")
     # for key, val in results.items():
-    #     print(f"{key}: {val:.3f}")
+    #     if isinstance(val, float):
+    #         print(f"{key}: {val:.3f}")
+    #     elif isinstance(val, list):
+    #         print(f"{key}:")
+    #         for v in val:
+    #             print(f"  {v:.3f}")
+    #     else:
+    #         print(f"{key}: {val}")
         
-    plot_load(profile_clay, soil_type, results['drag_values'], results['depth_values'], results['Tm'], results['thetam'], results['Ta'], results['thetaa'], zlug)
+    # plot_load(profile_clay, soil_type, results['drag_values'], results['depth_values'], results['Tm'], results['thetam'], results['Ta'], results['thetaa'], zlug)
       
 
-    # # Input parameters
-    # Tm = 1.2e5
-    # thetam = 5
-    # zlug = 8
-    # line_type = 'chain'
-    # d = 0.25
-    # soil_type = 'sand'
-    # w = 4093
+    # Input parameters
+    Tm = 8.2e6
+    thetam = 10
+    zlug = 8
+    line_type = 'chain'
+    d = 0.25
+    soil_type = 'sand'
+    w = 4093
     
-    # results = getTransferLoad(profile_sand, soil_type, Tm, thetam, zlug, line_type, d, w, plot=True)
+    results = getTransferLoad(profile_sand, soil_type, Tm, thetam, zlug, line_type, d, w, plot=True)
     
     # print("\n--- Transfer Load Results (Sand) ---")
     # for key, val in results.items():
-    #     print(f"{key}: {val:.3f}")
+    #     if isinstance(val, float):
+    #         print(f"{key}: {val:.3f}")
+    #     elif isinstance(val, list):
+    #         print(f"{key}:")
+    #         for v in val:
+    #             print(f"  {v:.3f}")
+    #     else:
+    #         print(f"{key}: {val}")
+    
+    plot_load(profile_sand, soil_type, results['drag_values'], results['depth_values'], results['Tm'], results['thetam'], results['Ta'], results['thetaa'], zlug)
 

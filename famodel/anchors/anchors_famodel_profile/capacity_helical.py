@@ -1,11 +1,11 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from capacity_driven import getCapacityDriven, plot_pile
-from capacity_soils import clay_profile, sand_profile
-from capacity_plots import plot_helical
+from .capacity_driven import getCapacityDriven, plot_pile
+from .capacity_soils import clay_profile, sand_profile
+from .capacity_plots import plot_helical
 
-def getCapacityHelical(profile, soil_type, D, L, d, zlug, H, V, plot=True):
+def getCapacityHelical(profile, soil_type, D, L, d, zlug, Ha, Va, plot=True):
     '''Calculate the vertical and horizontal capacity of a helical pile using a soil profile.
     The calculation is based on the soil profile, anchor geometry and inclined load.
 
@@ -13,8 +13,8 @@ def getCapacityHelical(profile, soil_type, D, L, d, zlug, H, V, plot=True):
     ----------
     profile : array
         Soil profiles (z, parameters)
-            Clay soil profile (z, Su, gamma)
-            Sand soil profile (z, phi, gamma, Dr)
+            Clay: (z (m), Su (kPa), gamma (kN/m³))
+            Sand: (z (m), phi (deg), gamma (kN/m³), Dr (%))
     soil_type : string
         Select soil condition, 'clay' or 'sand'
     D : float 
@@ -25,16 +25,16 @@ def getCapacityHelical(profile, soil_type, D, L, d, zlug, H, V, plot=True):
         Shaft diameter (m)
     zlug : float
         Depth to padeye (m)
-    H : float
-        Applied horizontal load (N)    
-    V : float
-        Applied vertical load (N)
+    Ha : float
+        Horizontal load at pile lug elevation (N)   
+    Va : float
+        Vertical load at pile lug elevation (N)
     plot : bool
-        Whether to show load condition plot
+        Plot the p-y curve and the deflection pile condition if True
 
     Returns
     -------
-    Dictionary with capacity, weight and UC.
+    Dictionary with capacity, displacements, weight and UC.
     '''
 
     t = (6.35 + D*20)/1e3            # Helical pile wall thickness (m), API RP2A-WSD
@@ -76,37 +76,37 @@ def getCapacityHelical(profile, soil_type, D, L, d, zlug, H, V, plot=True):
     Wp = 1.10*PileWeight(L, D, d, t, (rhows + rhow))    
 
     # Unity Check based only on vertical capacity
-    UC_vertical = V/Qu
+    UC_vertical = Va/Qu
 
     # Compute horizontal capacity using p-y method
-    y, z, results_lateral = getCapacityDriven(profile, soil_type, L, d, zlug, H, V, plot=True)
+    y, z, results_lateral = getCapacityDriven(profile, soil_type, L, d, zlug, Ha, Va, plot=True)
     if soil_type == 'clay':
         plot_pile(profile_clay, 'clay', y, z, D, L, z0, zlug, hinge_location=None)
     elif soil_type == 'sand':
         plot_pile(profile_sand, 'sand', y, z, D, L, z0, zlug, hinge_location=None)
 
-    Hcap = H if 'Plastic moment' not in results_lateral else results_lateral['Bending moment']/abs(zlug) if zlug != 0 else 1e-6
-    UC_horizontal = H/Hcap if Hcap != 0 else np.inf
+    Hcap = Ha if 'Plastic moment' not in results_lateral else results_lateral['Bending moment']/abs(zlug) if zlug != 0 else 1e-6
+    UC_horizontal = Ha/Hcap if Hcap != 0 else np.inf
 
     resultsHelical = {
+        'Weight pile': Wp,
         'Vertical max.': Qu,
-        'Unity Check (Vertical)': UC_vertical,
         'Horizontal max.': Hcap,
-        'Unity Check (Horizontal)': UC_horizontal,
-        'Weight pile': Wp
-    }
-
-    if soil_type == 'clay':
-        resultsHelical['Su @ helix'] = Su
-        resultsHelical['Alpha'] = alpha
-    elif soil_type == 'sand':
-        resultsHelical['Dr @ helix'] = Dr
-        resultsHelical['Delta'] = delta
-        resultsHelical['Phi'] = phi
+        'Unity check (vertical)': UC_vertical,
+        'Unity check (horizontal)': UC_horizontal,
+        'Lateral displacement': results_lateral.get('Lateral displacement', None),
+        'Rotational displacement': results_lateral.get('Rotational displacement', None),
+        'Bending moment': results_lateral.get('Bending moment', None),
+        'Plastic moment': results_lateral.get('Plastic moment', None),
+        'Plastic hinge': results_lateral.get('Plastic hinge', None),
+        'Hinge location': results_lateral.get('Hinge location', None),
+        'p-y model': results_lateral.get('p-y model', None),
+        }
 
     return resultsHelical
 
 if __name__ == '__main__':
+    
     profile_clay = np.array([
         [ 1.0, 10, 8.0],
         [ 5.0, 15, 8.5],
@@ -121,24 +121,30 @@ if __name__ == '__main__':
         [15.0, 38, 11.5, 45, 85]
     ])  
 
-    D = 1.8       # Helix diameter (m)
-    L = 12.0      # Pile length (m)
-    d = 0.8       # Shaft diameter (m)
-    zlug = 2      # Padeye depth (m)
-    V = 50e3      # Vertical load (N)
-    H = 30e3      # Horizontal load (N)
+    D = 1.8        # Helix diameter (m)
+    L = 12.0       # Pile length (m)
+    d = 0.8        # Shaft diameter (m)
+    zlug = 2       # Padeye depth (m)
+    Va = 50e3      # Vertical load (N)
+    Ha = 30e3      # Horizontal load (N)
 
-    # print("--- Clay Profile ---")
-    # results_clay = getCapacityHelical(profile_clay, 'clay', D, L, d, zlug, V, H, plot=True)
-    # for key, val in results_clay.items():
-    #     print(f"{key}: {val:.2f}")
+    # === CLAY ===
+    # resultsHelical_clay = getCapacityHelical(profile_clay, 'clay', D, L, d, zlug, Ha, Va, plot=True)
+    # for key, val in resultsHelical_clay.items():
+    #     if isinstance(val, float):
+    #         print(f"{key}: {val:.3f}")
+    #     else:
+    #         print(f"{key}: {val}")
     
     # plot_helical(profile_clay, 'clay', D, L, d, zlug, n_helix=1, spacing=1.0, title='Helical Pile in Clay Profile')
 
-    print("--- Sand Profile ---")
-    results_sand = getCapacityHelical(profile_sand, 'sand', D, L, d, zlug, V, H, plot=True)
-    for key, val in results_sand.items():
-        print(f"{key}: {val:.2f}")
+     # === SAND ===
+    resultsHelical_sand = getCapacityHelical(profile_sand, 'sand', D, L, d, zlug, Ha, Va, plot=True)
+    for key, val in resultsHelical_sand.items():
+        if isinstance(val, float):
+            print(f"{key}: {val:.3f}")
+        else:
+            print(f"{key}: {val}")
         
     plot_helical(profile_sand, 'sand', D, L, d, zlug, n_helix=1, spacing=1.0, title='Helical Pile in Sand Profile')
     

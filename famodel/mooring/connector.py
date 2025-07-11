@@ -2,7 +2,7 @@
 
 import numpy as np
 from famodel.famodel_base import Node, Edge
-from moorpy.helpers import getFromDict
+from moorpy.helpers import getFromDict, getPointProps, loadPointProps
 
 class Connector(Node, dict):
     '''
@@ -41,6 +41,11 @@ class Connector(Node, dict):
         # dictionary of failure probabilities
         self.failure_probability = {}
         
+        # cost dictionary
+        self.cost = {}
+        
+        self.getProps()
+        
     def makeMoorPyConnector(self, ms):
         '''Create a MoorPy connector object in a MoorPy system
         Parameters
@@ -56,6 +61,7 @@ class Connector(Node, dict):
         '''
         # create connector as a point in MoorPy system
         ms.addPoint(0,self.r)
+        
         # assign this point as mpConn in the anchor class instance
         self.mpConn = ms.pointList[-1]
 
@@ -63,8 +69,55 @@ class Connector(Node, dict):
         self.mpConn.v = self['v']
         self.mpConn.CdA = self['CdA']
         
+        # set point type in ms
+        self.getProps()
+            
+        
 
         return(ms)
+    
+    def getProps(self):
+        '''
+        Wrapper function to get moorpy point props dictionary
+        and set the point type in the moorpy system
+        (if it exists)'''
+        # get point type information if possible
+        pt = {}
+        if 'type' in self:
+            try:
+                design = {f"num_c_{self['type']}":1}
+                details = {}
+                if self['m']>0:
+                    details['m'] = self['m']
+                if self['v']>0:
+                    details['v'] = self['v']
+                if self['CdA']>0:
+                    details['CdA'] = self['CdA']
+                if self.mpConn:
+                    pt = self.mpConn.sys.setPointType(design,**details)
+                else:
+                    props = loadPointProps(None)
+                    pt = getPointProps(design, Props=props, **details)
+                self.required_safety_factor = pt['FOS']
+            except:
+                pass
+            
+        return(pt)
+    
+    def getCost(self,update=True, fx=0.0, fz=0.0, peak_tension=None, MBL=None):
+        '''Get cost of the connector from MoorPy pointProps.
+        Wrapper for moorpy's getCost_and_MBL helper function'''
+        if update:
+            if self.mpConn:
+                # use pointProps to update cost
+                try:
+                    self.getProps()
+                    self.cost['materials'], MBL, info = self.mpConn.getCost_and_MBL(fx=fx, fz=fz, peak_tension=peak_tension)
+                except:
+                    print('Warning: unable to find cost from MoorPy pointProps, cost dictionary not updated')
+        # if update == False, just return existing costs
+                
+        return sum(self.cost.values())
 
 
 class Section(Edge, dict):

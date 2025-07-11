@@ -104,7 +104,7 @@ array:
         -  [FOWT1,     1,         1,         ms3,          0,         0,          180   ]    # 2 array, shared moorings
         -  [FOWT2,     1,         1,         ms2,          1600,           0,            0   ] 
         -  [FOWT3,     1,         1,         ms1,          0,           1656,            180   ]
-        -  [FOWT4,     1,         1,         ms4,          1600,        1600,             0]
+        -  [FOWT4,     1,         1,         ms4,          1600,        1600,             180]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
         # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
@@ -138,7 +138,7 @@ array_cables:
     keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB,  headingA, headingB, cableType, lengthAdjust]
     data: 
       - [ FOWT1, FOWT3, suspended_1, NONE, 180,  0,   NONE, 0]
-      - [ FOWT3, FOWT4,  lazy_wave1, lazy_wave1, 90,   270, static_cable_36, 0] 
+      - [ FOWT3, FOWT4,  lazy_wave1, lazy_wave1, 90,   90, static_cable_36, 0] 
 
 
 # ----- turbines and platforms -----

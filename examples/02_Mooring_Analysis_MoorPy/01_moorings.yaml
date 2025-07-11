@@ -1,0 +1,68 @@
+# Site inputs
+site:
+    general: 
+        water_depth: 200
+# ----- Array-level inputs -----
+
+# Wind turbine array layout
+array:
+    keys : [ID, topsideID, platformID, mooringID,   x_location,     y_location,   heading_adjust]
+    data : #    ID#        ID#        ID#          [m]             [m]           [deg]
+        -  [fowt0,     0,         1,           ms1,          -1600,         -1600,          180   ]
+        # -  [fowt1,     0,         1,           ms1,          0,             -1600,          0     ]    # 2 array, shared moorings
+        # -  [fowt2,     0,         1,           ms1,          1600,           -1600,            0   ]
+        # -  [fowt3,     0,         1,           ms1,          -1600,          0,            0   ]
+        # -  [fowt4,     0,         1,           ms1,          0,              0,            45   ]
+        # -  [fowt5,     0,         1,           ms1,          1600,              0,            0   ]
+        # -  [fowt6,     0,         1,           ms1,          -1600,           1600,            0   ]
+        # -  [fowt7,     0,         1,           ms1,          0,              1600,            0   ]
+        # -  [fowt8,     0,         1,           ms1,          1600,           1600,            0   ] 
+
+platform:
+  type         :  FOWT
+  rFair        :  58
+  zFair        :  -14
+
+
+
+# ----- Mooring system -----
+
+# Mooring system descriptions (each for an individual FOWT with no sharing)
+mooring_systems:
+ 
+    ms1:
+        name: 2-line semi-taut polyester mooring system with a third line shared
+        
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        data:
+          - [  semitaut-poly_1,  150 ,    drag-embedment1,   0 ]
+          - [  semitaut-poly_1,  270 ,    drag-embedment1,   0 ]
+          - [  semitaut-poly_1,  30 ,     drag-embedment1,   0 ]
+
+
+# Mooring line configurations
+mooring_line_configs:
+
+    semitaut-poly_1:  # mooring line configuration identifier, matches MooringConfigID
+    
+        name: Semitaut polyester configuration 1  # descriptive name
+        
+        span: 642 # 2D x-y distance from fairlead to anchor
+        
+        sections:                 #in order from anchor to fairlead
+          - mooringFamily: chain      # ID of a mooring line section type
+            d_nom: .1549              # nominal diameter of material [m]
+            length: 497.7            # [m] usntretched length of line section
+          - mooringFamily: polyester        # ID of a mooring line section type
+            d_nom: .182              # nominal diameter of material [m]
+            length: 199.8           # [m] length (unstretched)
+
+
+
+# Anchor type properties
+anchor_types:
+
+    drag-embedment1:
+        type   :  DEA   # type of anchor (drag-embedment anchor)
+
+

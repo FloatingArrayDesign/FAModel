@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 #### INPUTS ####
 input_directory = 'Inputs/' # relative location of directory for input files (yaml, bath files, etc)
-filename = 'OntologySample200m_noshared.yaml' # yaml file to make initial platform(s)
+filename = 'OntologySample200m.yaml' # yaml file to make initial platform(s)
 rep_pf_name = 'FOWT1' # platform to replicate (look at yaml file array data table to get platform names)
 new_pf_loc = [0,0]
 

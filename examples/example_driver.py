@@ -29,6 +29,7 @@ ontology_file = 'OntologySample200m.yaml'
 
 #%% Section 1: Project without RAFT
 print('Creating project without RAFT\n')
+print(os.getcwd())
 # create project object
 project = Project(file=ontology_file,raft=False)
 # create moorpy system of the array, include cables in the system
@@ -42,7 +43,7 @@ print('\nCreating project with RAFT \n')
 #create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
 project = Project(file=ontology_file,raft=True)
 # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
-project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False)
+project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False,save=True)
 
 # get location of RAFT model (stored as array property in project class)
 model = project.array
@@ -111,7 +112,6 @@ mg_line_d = project.mooringList['FOWT1a'].ss_mod.lineList[-1].type['d_nom']
 print('\nPristine line polyester nominal diameter just below surface: ',reg_line_d)
 print('Marine growth line polyester nominal diameter just below surface: ',mg_line_d)
 
-plt.show()
 
 
 

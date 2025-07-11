@@ -34,7 +34,8 @@ from famodel.famodel_base import Node
 # Import select required helper functions
 from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
                             getMoorings, getAnchors, getFromDict, cleanDataTypes, 
-                            getStaticCables, getCableDesign)
+                            getStaticCables, getCableDesign, m2nm, loadYAML, 
+                            configureAdjuster, route_around_anchors)
 
 
 class Project():
@@ -91,9 +92,15 @@ class Project():
         self.lat0  = lat  # lattitude of site reference point [deg]
         self.lon0  = lon  # longitude of site reference point [deg]
         self.g = 9.81
+        self.rho_water = 1025 # density of water (default to saltwater) [kg/m^3]
+        self.rho_air = 1.225 # density of air [kg/m^3]
+        self.mu_air = 1.81e-5 # dynamic viscosity of air [Pa*s]
 
         # Project boundary (vertical stack of x,y coordinate pairs [m])
         self.boundary = np.zeros([0,2])
+        
+        # Exclusion zones
+        self.exclusion = []
         
         # Seabed grid
         self.grid_x      = np.array([0])  # coordinates of x grid lines [m]
@@ -104,6 +111,7 @@ class Project():
         self.seabed_type = 'clay'  # switch of which soil property set to use ('clay', 'sand', or 'rock')
         
         # soil parameters at each grid point
+        self.soilProps = {}
         self.soil_mode  = 0                # soil/anchor model level to use (0: none; 1: simple categories; 2: quantitative)
         self.soil_class = [["none"]]       # soil classification name ('clay', 'sand', or 'rock' with optional modifiers)
         self.soil_gamma = np.zeros((1,1))  # soil effective unit weight [kPa] (all soils)
@@ -126,7 +134,7 @@ class Project():
     
 
 
-    def load(self, info,raft=1):
+    def load(self, info, raft=True):
         '''
         Load a full set of project information from a dictionary or 
         YAML file. This calls other methods for each part of it.
@@ -138,16 +146,19 @@ class Project():
         '''
         # standard function to load dict if input is yaml
         if isinstance(info,str):
-            with open(info) as file:
-                project = yaml.load(file, Loader=yaml.FullLoader)
-                if not project:
-                    raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
+            
+            # with open(info) as file:
+            #     project = yaml.load(file, Loader=yaml.FullLoader)
+            #     if not project:
+            #         raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
+            project = loadYAML(info)
         else:
             project = info
         
         # look for site section
         # call load site method
-        self.loadSite(project['site'])
+        if 'site' in project:
+            self.loadSite(project['site'])
         
         # look for design section
         # call load design method
@@ -158,7 +169,7 @@ class Project():
 
     # ----- Design loading/processing methods -----
     
-    def loadDesign(self, d, raft=1):
+    def loadDesign(self, d, raft=True):
         '''Load design information from a dictionary or YAML file
         (specified by input). This should be the design portion of
         the floating wind array ontology.'''
@@ -172,6 +183,7 @@ class Project():
         # ===== load FAM-specific model parts =====
         
         # array table
+        arrayInfo = []
         if 'array' in d and d['array']['data']:
             arrayInfo = [dict(zip(d['array']['keys'], row)) for row in d['array']['data']]
         elif 'uniform_array' in d and d['uniform_array']:
@@ -340,7 +352,10 @@ class Project():
             elif type(d['platform']) is list and len(d['platform'])>1:
                 raise Exception("'platform' section keyword must be changed to 'platforms' if multiple platforms are listed")
             else:
-                platforms.append(d['platform'])
+                if isinstance(d['platform'],list):
+                    platforms.append(d['platform'][0])
+                else:
+                    platforms.append(d['platform'])
                 RAFTDict['platform'] = d['platform']
         # load list of platform dictionaries into RAFT dictionary
         elif 'platforms' in d and d['platforms']:
@@ -371,14 +386,20 @@ class Project():
                     r = [arrayInfo[i]['x_location'],arrayInfo[i]['y_location'],arrayInfo[i]['z_location']]
 
                 elif 'z_location' in platforms[pfID]:
-                    r = [arrayInfo[i]['x_location'], arrayInfo[i]['y_location'],platforms[pfID]['z_location']],
+                    r = [arrayInfo[i]['x_location'], arrayInfo[i]['y_location'],platforms[pfID]['z_location']]
                 else: # assume 0 depth
                     r = [arrayInfo[i]['x_location'],arrayInfo[i]['y_location'],0]
+                    
+                if 'hydrostatics' in platforms[pfID]:
+                    hydrostatics = platforms[pfID]['hydrostatics']
+                else:
+                    hydrostatics = {}
 
                 # add platform 
                 self.addPlatform(r=r, id=arrayInfo[i]['ID'], phi=arrayInfo[i]['heading_adjust'], 
-                                 entity=platforms[pfID]['type'], rFair=platforms[pfID]['rFair'],
-                                 zFair=platforms[pfID]['zFair'],platform_type=pfID)
+                                 entity=platforms[pfID]['type'], rFair=platforms[pfID].get('rFair',0),
+                                 zFair=platforms[pfID].get('zFair',0),platform_type=pfID,
+                                 hydrostatics=hydrostatics)
                                  
         # check that all necessary sections of design dictionary exist
         if arrayInfo and lineConfigs:
@@ -824,7 +845,6 @@ class Project():
                 self.grid_x = np.array(site['bathymetry']['x'])
                 self.grid_y = np.array(site['bathymetry']['y'])
                 self.grid_depth = np.array(site['bathymetry']['depths'])
-                # breakpoint()
                 # self.setGrid(xs,ys)
             else:
                 # assume a flat bathymetry
@@ -979,8 +999,6 @@ class Project():
             
             r_i = r_i + u*fac  # updated seabed crossing estimate 
 
-            if any(np.isnan(r_i)):
-                breakpoint()
         
         return r_i
 
@@ -1159,14 +1177,17 @@ class Project():
         '''
         
         # NEW: finds the specific soil grid point that the xy point is closest to and assigns it that soil type
-        ix = np.argmin([abs(x-soil_x) for soil_x in self.soil_x])
-        iy = np.argmin([abs(y-soil_y) for soil_y in self.soil_y])
-
-        soil_name = self.soil_names[iy, ix]
-
-        soil_info = self.soilProps[soil_name]
-
-        return soil_name, soil_info
+        if self.soil_x is not None:
+            ix = np.argmin([abs(x-soil_x) for soil_x in self.soil_x])
+            iy = np.argmin([abs(y-soil_y) for soil_y in self.soil_y])
+    
+            soil_name = self.soil_names[iy, ix]
+    
+            soil_info = self.soilProps[soil_name]
+    
+            return soil_name, soil_info
+        else:
+            pass
         
         '''
         # SIMPLE HACK FOR NOW        
@@ -1226,8 +1247,9 @@ class Project():
                 else:
                     att['obj'].rB[2] = anchor.r[2]
                 
-            name, props = self.getSoilAtLocation(x,y) # update soil
-            anchor.soilProps = {name:props}
+            if hasattr(self,'soil_x') and self.soil_x is not None:
+                name, props = self.getSoilAtLocation(x,y) # update soil
+                anchor.soilProps = {name:props}
             
 
 
@@ -1346,7 +1368,16 @@ class Project():
             self.boundary = np.vstack([self.boundary, self.boundary[0,:]])
         
         # figure out masking to exclude grid data outside the project boundary
-    
+        
+    def setExclusionZone(self, Xs, Ys):
+        '''
+        Set exclusion zones of the project based on x-y verts
+        '''
+        self.exclusion.append(np.vstack([[Xs[i],Ys[i]] for i in range(len(Xs))]))
+        
+        # if the exclusion doesn't repeat the first vertex at the end, add it
+        if not all(self.exclusion[-1][0,:] == self.exclusion[-1][-1,:]):
+            self.exclusion[-1] = np.vstack([self.exclusion[-1], self.exclusion[-1][0,:]])
     
     def trimGrids(self, buffer=100):
         '''Trims bathymetry and soil grid information that is outside the
@@ -1432,10 +1463,10 @@ class Project():
         if id==None:
             id = 'fowt'+len(self.platformList)
         # optional information to add
-        platformType = getFromDict(kwargs, 'platform_type', dtype=int, default=None)
-        moor_headings = getFromDict(kwargs,'mooring_headings', default=[])
-        RAFTDict = getFromDict(kwargs,'raft_platform_dict', default = {})
-        hydrostatics = getFromDict(kwargs, 'hydrostatics', default= {})
+        platformType = getFromDict(kwargs, 'platform_type', dtype=int, default=[])
+        moor_headings = getFromDict(kwargs,'mooring_headings',shape = -1, default = []) 
+        RAFTDict = kwargs.get('raft_platform_dict', {})
+        hydrostatics = kwargs.get('hydrostatics', {})
         
         # create platform object & fill in properties
         platform = Platform(id, r=r, heading=phi)
@@ -1465,7 +1496,10 @@ class Project():
      
     def addMooring(self, id=None, endA=None, endB=None, heading=0, dd={}, 
                    section_types=[], section_lengths=[], 
-                   connectors=[], span=0, shared=0, reposition=False):
+                   connectors=[], span=0, shared=0, reposition=False, subsystem=None, 
+                   **adjuster_settings):
+        # adjuster=None,
+        # method = 'horizontal', target = None, i_line = 0,
         '''
         Function to create a mooring object  and save in mooringList
         Optionally does the following:
@@ -1502,7 +1536,14 @@ class Project():
             The default is 0. Used to develop a dd, unused if dd provided.
         shared : int, optional
             Describes if a mooring line is shared (1), sahred half line (2) or anchored (0). The default is 0.
-
+        adjuster : Function, optional
+            Function to adjust mooring lines for different depths. The default is none
+        method : str, optional
+            Method 'horizontal' or 'pretension' for adjuster function
+        target : float, optional
+            Target pretension or horizontal tension for adjuster function. if none, will calculate
+        i_line: int, optional
+            The index of the line segment to adjust. default is 0
         Returns
         -------
         mooring : mooring object
@@ -1519,12 +1560,12 @@ class Project():
                 id = str(id_part[0])+'_'+str(id_part[1])
             elif len(id_part)==1:
                 # anchored line
-                n_existing_moor = len(self.platformList[id_part].getMoorings())
-                id = str(id_part)+alph[n_existing_moor]
+                n_existing_moor = len(self.platformList[id_part[0]].getMoorings())
+                id = str(id_part[0])+alph[n_existing_moor]
             else:
                 id = 'moor'+str(len(self.mooringList))
                 
-        if not dd:
+        if not dd and len(section_types) > 0:
             sections = [{'type':section_types[i],'L':section_lengths[i]} for i in range(len(section_types))]
             if len(connectors) == 0 and len(sections) != 0:
                 connectors = [{}]*len(sections)+1
@@ -1535,7 +1576,8 @@ class Project():
                   'rad_fair':self.platformList[id_part[0]].rFair if id_part else 0,
                   'z_fair':self.platformList[id_part[0]].zFair if id_part else 0}
         
-        mooring = Mooring(dd=dd, id=id) # create mooring object
+        mooring = Mooring(dd=dd, id=id, subsystem=subsystem) # create mooring object
+
         # update shared prop if needed
         if len(id_part)==2 and shared<1:
             shared = 1
@@ -1562,10 +1604,20 @@ class Project():
                 mooring.z_anch = -zAnew
         else:
             mooring.heading = np.degrees(heading)
-                
+        
+        #add mooring adjuster if porivded
+        adjuster = adjuster_settings.get('adjuster',None)
+        method = adjuster_settings.get('method', None)
+        i_line = adjuster_settings.get('i_line', None)
+        target = adjuster_settings.get('target', None)
+        mooring = configureAdjuster(mooring, adjuster=adjuster, method=method,
+                                    i_line=i_line, target=target, span=span, 
+                                    project=self)
+        
         self.mooringList[id] = mooring
         
         return(mooring)
+    
         
     
     def addAnchor(self, id=None, dd=None, design=None, cost=0, atype=None, platform=None,
@@ -1679,7 +1731,8 @@ class Project():
     def addCablesConnections(self,connDict,cableType_def='dynamic_cable_66',oss=False,
                              substation_r=[None],ss_id=200,id_method='location',
                              keep_old_cables=False, connect_ss=True, 
-                             cableConfig=None, configType=0,heading_buffer=30):
+                             cableConfig=None, configType=0,heading_buffer=30,
+                             route_anchors=True):
         '''Adds cables and connects them to existing platforms/substations based on info in connDict
         Designed to work with cable optimization output designed by Michael Biglu
 
@@ -1715,7 +1768,6 @@ class Project():
         None.
 
         '''
-        
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
         # create substation object with id 
         if oss:
@@ -1814,7 +1866,7 @@ class Project():
             
                 
             # create cable object
-            cab = Cable(cableType_def+str(i+lcab),d=dd)
+            cab = Cable('cable'+str(i+lcab),d=dd)
             self.cableList[cab.id] = cab
 
             # update upstream turbines property
@@ -1846,7 +1898,7 @@ class Project():
             heads = [headingA,headingB]
             # reposition cable
             cab.reposition(project=self,headings=heads,rad_fair=[5,5])
-            
+
             coords = []
             if cableConfig:
                 ref_cables = None
@@ -1876,6 +1928,10 @@ class Project():
                 # update routing
                 cab.subcomponents[cs].updateRouting(coords) # also updates static and general cable lengths
 
+
+        if route_anchors:
+            route_around_anchors(self)
+
                               
     
     def updatePositions(self):
@@ -1904,7 +1960,13 @@ class Project():
         edgecolor = kwargs.get('env_color',[.5,0,0,.8])
         color = kwargs.get('fenv_color',[.6,.3,.3,.6])
         alpha = kwargs.get('alpha',0.5)
-        
+        return_contour = kwargs.get('return_contour',False)
+        cmap_cables = kwargs.get('cmap_cables',None)
+        plot_platforms = kwargs.get('plot_platforms',True)
+        plot_anchors = kwargs.get('plot_anchors',True)
+        plot_moorings = kwargs.get('plot_moorings',True)
+        plot_cables = kwargs.get('plot_cables',True)
+        cable_labels = kwargs.get('cable_labels', False)
         
         
         # if axes not passed in, make a new figure
@@ -1921,14 +1983,19 @@ class Project():
                 X, Y = np.meshgrid(self.grid_x, self.grid_y)
                 
                 contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
-                #contourf.norm.autoscale([0,1])
-                #contourf.set_clim(0, 1000)
             
                 if not bare:  # Add colorbar with label
                     cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)')
+        # if plot_seabed:
+        #     if len(self.soil_x) > 1 and len(self.soil_y) > 1:
+        #         sX, sY = np.meshgrid(self.soil_x, self.soil_y)
+        #         ax.scatter(sX, sY, self.soil_names)
                     
         if plot_boundary:
-            ax.plot(self.boundary[:,0], self.boundary[:,1], 'b-.',label='Lease Boundary')
+            if len(self.boundary) > 1:
+                ax.plot(self.boundary[:,0], self.boundary[:,1], 'b-.',label='Lease Boundary')
+                for ez in self.exclusion:
+                    ax.plot(ez[:,0], ez[:,1], 'r-.', label='Exclusion Zone')
             
         
         # Seabed ground/soil type (to update)
@@ -1939,96 +2006,119 @@ class Project():
         
         
         # Plot any object envelopes
-        from shapely import Point
-        for platform in self.platformList.values():
+        if plot_platforms:
+            from shapely import Point
+            for platform in self.platformList.values():
+                for name, env in platform.envelopes.items():
+                    ax.fill(env['x'], env['y'], edgecolor=edgecolor, facecolor='none', linestyle='dashed', lw=0.8, label='Platform envelope')
+        
+        if plot_moorings:
+            for mooring in self.mooringList.values():
+                for name, env in mooring.envelopes.items():
+                    #if 'shape' in env:  # if there's a shapely object
+                    #    pass  # do nothing for now...
+                    #elif 'x' in env and 'y' in env:  # otherwise just use coordinates
+                    ax.fill(env['x'], env['y'], color=color,label='Mooring envelope',alpha=alpha)
+        
+        
+            # Plot moorings one way or another (eventually might want to give Mooring a plot method)
+            for mooring in self.mooringList.values():
             
-            for name, env in platform.envelopes.items():                 
-                ax.fill(env['x'], env['y'], edgecolor=edgecolor, facecolor='none', linestyle='dashed', lw=0.8, label='Platform envelope')
-        
-        for mooring in self.mooringList.values():
-            for name, env in mooring.envelopes.items():
-                #if 'shape' in env:  # if there's a shapely object
-                #    pass  # do nothing for now...
-                #elif 'x' in env and 'y' in env:  # otherwise just use coordinates
-                ax.fill(env['x'], env['y'], color=color,label='Mooring envelope',alpha=alpha)
-        
-        
-        # Plot moorings one way or another (eventually might want to give Mooring a plot method)
-        for mooring in self.mooringList.values():
-        
-            if mooring.ss:  # plot with Subsystem if available
-                mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
-                                      Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')        
-            else: # simple line plot
-                ax.plot([mooring.rA[0], mooring.rB[0]], 
-                        [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5)
+                if mooring.ss:  # plot with Subsystem if available
+                    mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
+                                          Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')        
+                else: # simple line plot
+                    ax.plot([mooring.rA[0], mooring.rB[0]], 
+                            [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
                 
-        for anchor in self.anchorList.values():
-            
-            ax.plot(anchor.r[0],anchor.r[1], 'mo',ms=2, label='Anchor')
+        if plot_anchors:
+            for anchor in self.anchorList.values():
+                ax.plot(anchor.r[0],anchor.r[1], 'mo',ms=2, label='Anchor')
         
         # Plot cables one way or another (eventually might want to give Mooring a plot method)
-        if self.cableList:
+        if self.cableList and plot_cables:
             maxcableSize = max([cab.dd['cables'][0].dd['A'] for cab in self.cableList.values()])
-        for cable in self.cableList.values():
-            # get cable color
-            import matplotlib.cm as cm
-            cmap = cm.get_cmap('plasma_r')
-            cableSize = int(cable.dd['cables'][0].dd['A'])
-            Ccable = cmap(cableSize/(1.1*maxcableSize))
-            # # simple line plot for now
-            # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
-            #         [cable.subcomponents[0].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
-            
-            # add in routing if it exists
-            for sub in cable.subcomponents:
-                if isinstance(sub,StaticCable):
-                    if hasattr(sub,'x'):
-                        # has routing  - first plot rA to sub.coordinate[0] connection
-                        ax.plot([sub.rA[0],sub.x[0]],
-                                [sub.rA[1],sub.y[0]],':',color = Ccable,
-                                lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
-                        # now plot route
-                        if len(sub.x) > 1:
-                            for i in range(1,len(sub.x)):
-                                ax.plot([sub.x[i-1],sub.x[i]],
-                                        [sub.y[i-1],sub.y[i]],
-                                        ':', color=Ccable, lw=1,
-                                        label='Buried Cable '+str(cableSize)+' mm$^{2}$')
-                        # finally plot sub.coordinates[-1] to rB connection
-                        ax.plot([sub.x[-1],sub.rB[0]],
-                                [sub.y[-1],sub.rB[1]],':',color=Ccable,
-                                lw=1,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
-                    else:
-                        # if not routing just do simple line plot
-                        ax.plot([sub.rA[0],sub.rB[0]], 
-                                [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1,
-                                label='Buried Cable '+str(cableSize)+' mm$^{2}$')
-                elif isinstance(sub,DynamicCable):
-                        ax.plot([sub.rA[0],sub.rB[0]], 
-                                [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1,
-                                label='Cable '+str(cableSize)+' mm$^{2}$')
+            for cable in self.cableList.values():
+                # get cable color
+                import matplotlib.cm as cm
+                if not cmap_cables:
+                    cmap = cm.get_cmap('plasma_r')
+                else:
+                    cmap = cm.get_cmap(cmap_cables)
+                cableSize = int(cable.dd['cables'][0].dd['A'])
+                Ccable = cmap(cableSize/(1.1*maxcableSize))
+                # # simple line plot for now
+                # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
+                #         [cable.subcomponents[0].rA[1], cable.subcomponents[-1].rB[1]],'--',color = Ccable, lw=1,label='Cable '+str(cableSize)+' mm$^{2}$')
+                
+                # add in routing if it exists
+                for sub in cable.subcomponents:
+                    if isinstance(sub,StaticCable):
+                        if len(sub.x)>0:
+                            # has routing  - first plot rA to sub.coordinate[0] connection
+                            ax.plot([sub.rA[0],sub.x[0]],
+                                    [sub.rA[1],sub.y[0]],':',color = Ccable,
+                                    lw=1.2,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                            # now plot route
+                            if len(sub.x) > 1:
+                                for i in range(1,len(sub.x)):
+                                    ax.plot([sub.x[i-1],sub.x[i]],
+                                            [sub.y[i-1],sub.y[i]],
+                                            ':', color=Ccable, lw=1.2,
+                                            label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                            # finally plot sub.coordinates[-1] to rB connection
+                            ax.plot([sub.x[-1],sub.rB[0]],
+                                    [sub.y[-1],sub.rB[1]],':',color=Ccable,
+                                    lw=1.2,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                        else:
+                            # if not routing just do simple line plot
+                            ax.plot([sub.rA[0],sub.rB[0]], 
+                                    [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1.2,
+                                    label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                        
+                        # if cable_labels:
+                        #     x = np.mean([sub.rA[0],sub.rB[0]])
+                        #     y = np.mean([sub.rA[1],sub.rB[1]])
+                        #     if '_' in cable.id:
+                        #         label = cable.id.split('_')[-1]
+                        #     else:
+                        #         label = cable.id
+                        #     ax.text(x,y, label)
+                    elif isinstance(sub,DynamicCable):
+                            ax.plot([sub.rA[0],sub.rB[0]], 
+                                    [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1.2,
+                                    label='Cable '+str(cableSize)+' mm$^{2}$')
+                            
+                            if cable_labels:
+                                x = np.mean([sub.rA[0],sub.rB[0]])
+                                y = np.mean([sub.rA[1],sub.rB[1]])
+                                if '_' in cable.id:
+                                    label = cable.id.split('_')[-1]
+                                else:
+                                    label = cable.id
+                                ax.text(x,y, label)
             
                 # ax.plot([cable.subcomponents[0].rA[0], cable.subcomponents[-1].rB[0]], 
                 #         [cable.subcomponents[0].rA[1], cable.subcomponents[0].rB[1]], 'r--', lw=0.5)
         
         # Plot platform one way or another (might want to give Platform a plot method)
-        for platform in self.platformList.values():
-            entity = platform.entity
-            if 'FOWT' in entity.upper():
-                plotstring = 'ko'
-            elif 'SUBSTATION' in entity.upper():
-                plotstring = 'go'
-            elif 'WEC' in entity.upper():
-                plotstring = 'ro'
-            else:
-                plotstring = 'bo'
-                
-            ax.plot(platform.r[0], platform.r[1], plotstring ,label=entity)
-
-            
+        if plot_platforms:
+            for platform in self.platformList.values():
+                entity = platform.entity
+                if 'FOWT' in entity.upper():
+                    plotstring = 'ko'
+                elif 'SUBSTATION' in entity.upper():
+                    plotstring = 'go'
+                elif 'WEC' in entity.upper():
+                    plotstring = 'ro'
+                else:
+                    plotstring = 'bo'
+                    
+                ax.plot(platform.r[0], platform.r[1], plotstring ,label=entity)
+  
         ax.set_xlabel('X (m)')
         ax.set_ylabel('Y (m)')
+
         if axis_equal:
             ax.set_aspect('equal',adjustable='box')
 
@@ -2039,14 +2129,17 @@ class Project():
             plt.savefig('2dfarm.png', dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
             
             # TODO - add ability to plot from RAFT FOWT
-        return(ax)   
+        if return_contour:
+            return(ax,contourf)
+        else:
+            return(ax)   
         
         
 
     def plot3d(self, ax=None, figsize=(10,8), fowt=False, save=False,
                draw_boundary=True, boundary_on_bath=True, args_bath={}, 
                draw_axes=True, draw_bathymetry=True, draw_soil=False,
-               colorbar=True, boundary_only=False):
+               colorbar=True, boundary_only=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2063,7 +2156,9 @@ class Project():
         # color map for soil plotting
         import matplotlib.cm as cm
         # from matplotlib.colors import Normalize
-        
+        cmap_cables = kwargs.get('cmap_cables','plasma_r')
+        alpha = kwargs.get('alpha',1)
+        orientation = kwargs.get('orientation',[20, -130])
             
         
 
@@ -2140,7 +2235,9 @@ class Project():
                 ####################
                 bath = ax.plot_surface(X, Y, plot_depths, rstride=1, cstride=1, **args_bath)
                 if colorbar:
-                    fig.colorbar(bath,ax=ax,shrink=0.5,aspect=10)
+                    cb = fig.colorbar(bath,ax=ax,shrink=0.5,aspect=10)
+                    cb.ax.get_yaxis().labelpad = 15
+                    cb.ax.set_ylabel('Water Depth (m)', rotation=270)
         
         if draw_soil:
             if draw_bathymetry:
@@ -2185,7 +2282,7 @@ class Project():
         for cable in self.cableList.values():
             # get cable color
             import matplotlib.cm as cm
-            cmap = cm.get_cmap('plasma_r')
+            cmap = cm.get_cmap(cmap_cables)
             cableSize = cable.dd['cables'][0].dd['A']
             Ccable = cmap(cableSize/maxA)
             
@@ -2199,7 +2296,7 @@ class Project():
                         
                 elif isinstance(sub,StaticCable):
                     # add static cable routing if it exists
-                    if hasattr(sub,'x'):
+                    if len(sub.x)>0:
                         # burial = sub.burial
                         # bur = []
                         # if burial and 'station' in burial:
@@ -2254,11 +2351,10 @@ class Project():
                     line.lw = lw
                 mooring.ss.drawLine(0, ax, color='self')
                         
-        
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if fowt:
             for pf in self.array.fowtList:
-                pf.plot(ax,zorder=6)
+                pf.plot(ax,zorder=6,plot_ms=False)
             # for i in range(self.nt):
             #     xy = self.turb_coords[i,:]
             #     fowt.setPosition([xy[0], xy[1], 0,0,0,0])
@@ -2273,19 +2369,13 @@ class Project():
         set_axes_equal(ax)
         if not draw_axes:
             ax.axis('off')
+        else:
+            ax.set_xlabel("X (m)")
+            ax.set_ylabel("Y (m)")
+            ax.set_zlabel("Depth (m)")
         
-        ax.view_init(20, -130)
+        ax.view_init(orientation[0],orientation[1])
         
-        # # Remove x-axis tick labels
-        # ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-        # ax.set_xticks([])
-        # ax.set_yticks([])
-        # # # # Remove y-axis tick labels
-        # # # ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
-        # ax.set_zticks([])
-        ax.set_axis_off()
-        # ax.tick_params(axis='z', labelsize=0)
-        # ax.dist -= 3
         fig.tight_layout()
         
         # ----- Save plot with an incremented number if it already exists
@@ -2450,7 +2540,8 @@ class Project():
                         pass
                     elif isinstance(comp,DynamicCable):
                         # create subsystem for dynamic cable
-                        comp.createSubsystem(pristine=pristineLines)
+                        comp.createSubsystem(pristine=pristineLines) 
+
                         if pristineLines:                           
                             ssloc = comp.ss
                         else:
@@ -3227,7 +3318,7 @@ class Project():
         return(pf2)
             
         
-    def addPlatformMS(self,ms,r=[0,0]):
+    def addPlatformMS(self,ms,r=[0,0,0]):
         '''
         Create a platform object, along with associated mooring and anchor objects
         from a moorpy system
@@ -3360,13 +3451,14 @@ class Project():
                                                             mList[-1].rA[1])
                             mList[-1].rA[2] = -zAnew
                             mList[-1].dd['zAnchor'] = -zAnew
+                            mList[-1].z_anch = -zAnew
                             self.anchorList[mList[-1].id].r = mList[-1].rA
                         
                 count += 1
                             
                 
         # add platform at ms.body location       
-        self.platformList[pfid] = Platform(pfid, r=ms.bodyList[0].r6[0:2],
+        self.platformList[pfid] = Platform(pfid, r=ms.bodyList[0].r6[0:3],
                                                      mooring_headings=mhead,
                                                      rFair=rFair, zFair=zFair)
         # attach moorings
@@ -3374,7 +3466,7 @@ class Project():
             self.platformList[pfid].attach(moor,end=endB[i])
             
         # update location
-        self.platformList[pfid].setPosition(r=r)
+        self.platformList[pfid].setPosition(r=r,project=self)
             
         return(self.platformList[pfid])
             
@@ -3535,6 +3627,7 @@ class Project():
                         anch.loads['Vm'] = F[j][2]
                         anch.loads['thetam'] = np.degrees(np.arctan(anch.loads['Vm']/anch.loads['Hm'])) #[deg]
                         anch.loads['mudline_load_type'] = 'max'
+                        anch.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
                             
                 # get tensions on mooring line
                 for j, moor in enumerate(self.mooringList.values()):
@@ -3735,10 +3828,41 @@ class Project():
         arrayData = [] #np.zeros((len(arrayKeys),len(self.platformList)))
         pf_type = []
         
+        anchConfigs = {}
+        arrayAnch = []
+        mapAnchNames = {}
+        mscs = {}
+        arrayMoor = []
+        pf_types = []
+        for i,anch in enumerate(self.anchorList.values()):  
+            newanch = True
+            name = anch.dd['name'] if 'name' in anch.dd else str(len(anchConfigs))
+            if len(anch.attachments)>1:
+                # shared anchor, add to arrayAnch list
+                arrayAnch.append([anch.id,name,anch.r[0],anch.r[1],0])
+            # add mass if available
+            aad = deepcopy(anch.dd['design'])
+            if anch.mass is not None and anch.mass>0:
+                aad['mass'] = anch.mass
+            if 'type' in anch.dd:
+                aad['type'] = anch.dd['type']
+            if anchConfigs:
+                ac = [an for an,ad in anchConfigs.items() if ad==aad]
+                if len(ac)>0:
+                    newanch = False
+                    name = ac[0] # reset name to matching config name
+            if newanch:
+                anchConfigs[name] = aad
+
+            mapAnchNames[anch.id] = name
+        
         # build out platform info
-        topList = []        
+        topList = []   
+        allconfigs = []
         for i,pf in enumerate(self.platformList.values()):
             ts_loc = 0
+            msys = []
+            newms = True
             # determine any connected topsides
             for att in pf.attachments.values():
                 if not isinstance(att['obj'],(Mooring, Cable)):
@@ -3755,9 +3879,86 @@ class Project():
                     else:
                         topList.append(att['obj'].dd)
                         ts_loc = len(topList)
-                
+                elif isinstance(att['obj'], Mooring):
+                    newcon = True
+                    # check if shared
+                    moor = att['obj']
+                    atts = np.array(moor.attached_to)
+                    is_pf = np.array([isinstance(at, Platform) for at in atts])
+                    is_anch = np.array([isinstance(at, Anchor) for at in atts])
+                    # get end B heading (needed for all mooring lines)
+                    angB = np.pi/2 - np.arctan2(moor.rB[1]-moor.attached_to[1].r[1],moor.rB[0]-moor.attached_to[1].r[0])
+                    headB = np.degrees(angB - moor.attached_to[1].phi) # remove platform heading
+                    if headB<0:
+                        headB = headB +360 # make angle positive
+                    # create dict describing configuration
+                    config = {'span':float(moor.dd['span']),'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
+                    
+                    # check if an existing mooring configuration matches the current configuration
+                    if allconfigs:
+                        pc = [ii for ii,mc in enumerate(allconfigs) if mc==config]
+                        for j in pc:
+                            # this config already exists, don't add to config list
+                            current_config = str(j)
+                            newcon = False
+                    if newcon:
+                        # add to config list
+                        allconfigs.append(config)
+                        current_config = str(len(allconfigs) - 1) # make new name
+                    if all(is_pf) or moor.shared:
+                        # write in array_mooring section
+                        ang = np.pi/2 - np.arctan2(moor.rA[1]-atts[0].r[1],moor.rB[0]-atts[0].r[0]) # calc angle of mooring end A
+                        headA = float(np.degrees(ang - atts[0].phi)) # get heading without platform influence
+                        if headA<0:
+                            headA = headA + 360 # make heading positive
+                        amc = [current_config,atts[0].id, atts[1].id, headA,headB,int(0)] # create array mooring eentry
+                        if not amc in arrayMoor:
+                            arrayMoor.append(amc) # append entry to arrayMoor list if it's not already in there
+                    elif any([len(at.attachments)>1 for at in atts[is_anch]]):
+                        # we have a shared anchor here, put mooring in array_mooring
+                        headA = 'None' # no heading at end A because it's an anchor
+                        # append mooring line to array_moor section
+                        arrayMoor.append([current_config,moor.attached_to[0].id, moor.attached_to[1].id, headA,headB,int(0)])
+                    else:
+                        # not shared anchor or shared mooring, add line to mooring system 
+                        msys.append([current_config,
+                                     np.round(headB,2),
+                                     mapAnchNames[atts[is_anch][0].id],
+                                     0])
 
-            arrayData.append([pf.id, ts_loc, int(pf.dd['type']+1), 0, float(pf.r[0]), 
+            # check if an existing mooring system matches the current        
+            if len(msys)>0:
+                if mscs:
+                    pc = [n for n,ms in mscs.items() if sorted(ms)==sorted(msys)]
+                    if len(pc)>0:
+                        # this system already exists, don't add to mooring_systems dict
+                        mname = pc[0]
+                        newms = False
+                if newms:
+                    # add to mooring_system list
+                    mname = 'ms'+str(len(mscs))
+                    mscs[mname] = msys
+            else:
+                mname = 0
+                
+            if not 'type' in pf.dd:
+                pf_type_info = [pf.rFair, pf.zFair, pf.entity]
+                if not pf_type_info in pf_types:
+                    pf_types.append(pf_type_info)
+                    if not self.platformTypes:
+                        self.platformTypes = []
+                    pf.dd['type'] = len(self.platformTypes)
+                    self.platformTypes.append({'rFair': pf.rFair,
+                                                         'zFair': pf.zFair,
+                                                         'type': pf.entity})
+                else:
+                    tt = [n for n,ps in enumerate(pf_types) if ps==pf_type_info]
+                    pf.dd['type'] = tt[0]
+                    
+                        
+
+            # put all information for array data table together
+            arrayData.append([pf.id, ts_loc, int(pf.dd['type']+1), mname, float(pf.r[0]), 
                               float(pf.r[1]), float(pf.r[2]), float(np.degrees(pf.phi))])
             pf_type.append(pf.dd['type'])
             
@@ -3774,13 +3975,14 @@ class Project():
            
         # build out site info
         site = {}
+        
         sps = deepcopy(self.soilProps)
         for ks,sp in sps.items():
             for k,s in sp.items():
                 if not isinstance(s,list) and not 'array' in type(s).__name__:
                     sp[k] = [s]
             sps[ks] = sp
-        if hasattr(self,'soilProps'):                       
+        if hasattr(self,'soilProps') and self.soilProps:
             if len(self.soil_x)>1:
                 site['seabed'] = {'x':[float(x) for x in self.soil_x],'y':[float(x) for x in self.soil_y],'type_array':self.soil_names.tolist(),
                                   'soil_types': sps}# [[[float(v[0])] for v in x.values()] for x in self.soilProps.values()]}
@@ -3794,71 +3996,16 @@ class Project():
         
          
             
-        # build out array mooring and array anchor section
-        arrayMoor = []
-        allconfigs = []
-        arrayAnch = []
-        anchConfigs = {}
+        # # build out mooring and anchor sections
+ 
         anchKeys = ['ID','type','x','y','embedment']
         lineKeys = ['MooringConfigID','endA','endB','headingA','headingB','lengthAdjust']
         
-        for moor in self.mooringList.values():
-            newcon = True
-            newanch = True
-            # get connected objects
-            endA = moor.attached_to[0]
-            endB = moor.attached_to[1]
-            # get heading(s)
-            if not moor.shared:  #  and type(endA) != Connector:
-                headA = 'NA'
-                # add anchor
-                arrayAnch.append([endA.id, endA.dd['name'], float(endA.r[0]), float(endA.r[1]),0])
-                if anchConfigs:
-                    if any([endA.dd['name']==k for k in anchConfigs]):
-                        newanch = False
-                        current_anch = endA.dd['name']
-                if newanch:
-                    anchConfigs[endA.dd['name']] = dict(endA.dd['design'])
-                    if endA.mass>0: 
-                        anchConfigs[endA.dd['name']]['mass'] = endA.mass
-            # elif type(endA)==Connector:
-            #     # get connector info & store like anchors
-            #     pass
-            
-            else:
-                # shared line - get end A heading
-                # relloc = np.array(endA.r) - np.array(moor.rA)
-                # fairleadA = np.where(endA.fairleads[ii] == relloc[ii] for ii in range(3))
-                ang = np.pi/2 - np.arctan2(moor.rA[1]-endA.r[1],moor.rB[0]-endA.r[0])
-                headA = float(np.degrees(ang - endA.phi))
-                
-            # get end B heading
-            angB = np.pi/2 - np.arctan2(moor.rB[1]-endB.r[1],moor.rB[0]-endB.r[0])
-            headB = np.degrees(angB - endB.phi)
-
-            # if type(endB)==Connector:
-            #     # get connector info & store like anchors
-            #     pass
-            # else:
-            #     relloc = np.array(endB.r) - np.array(moor.rB)
-            #     fairleadB = np.where(endB.fairlead[ii] == relloc[ii] for ii in range(3))
-            # get mooring configuration
-            config = {'span':float(moor.dd['span']),'sections':moor.dd['sections'],'connectors':moor.dd['connectors']}
-            
-            # check if an existing mooring configuration matches the current configuration
-            if allconfigs:
-                pc = np.where([config['span']==x['span'] for x in allconfigs] and [len(y['sections'])==len(config['sections']) for y in allconfigs])[0]
-                for j in pc:
-                    if all([allconfigs[j]['sections'][k]==config['sections'][k] for k in range(len(config['sections']))]):
-                        if all([allconfigs[j]['connectors'][k]==config['connectors'][k] for k in range(len(config['connectors']))]):
-                            current_config = str(j)
-                            newcon = False
-            if newcon:
-                allconfigs.append(config)
-                current_config = str(len(allconfigs) - 1)
-
-            arrayMoor.append([current_config,endA.id, endB.id, headA,headB,int(0)])
-            # arrayMoor.append([current_config,endA.id, endB.id, fairleadA,fairleadB,int(0)])
+        msyskeys = ['MooringConfigID','heading','anchorType','lengthAdjust']
+        moor_systems = {}
+        for name,sys in mscs.items():
+            moor_systems[name] = {'keys':msyskeys,
+                                  'data':sys}
 
         # set up mooring configs, connector and section types dictionaries
         connTypes = {}  
@@ -3964,7 +4111,7 @@ class Project():
 
                     
                     # check for routing coordinates
-                    if hasattr(sub,'x'):
+                    if hasattr(sub,'x') and len(sub.x)>0:
                         if hasattr(sub,'r'):
                             coords.extend([[sub.x[aa],sub.y[aa],sub.r[aa]] for aa in range(len(sub.x))])
                         else:
@@ -4088,6 +4235,7 @@ class Project():
                   'topsides': topList, 
                   'array_mooring':{'anchor_keys':anchKeys, 'anchor_data':arrayAnch,
                                    'line_keys':lineKeys, 'line_data':arrayMoor},
+                  'mooring_systems':moor_systems,
                   'mooring_line_configs':mooringConfigs,
                   'mooring_line_types':secTypes, 
                   'mooring_connector_types':connTypes,
@@ -4095,9 +4243,10 @@ class Project():
                   'cables':cables,'dynamic_cable_configs':cableConfigs,'cable_types':cableTypes, 
                   'cable_appendages':appendageTypes}
 
-        output = cleanDataTypes(output)
+        output = cleanDataTypes(output, convert_lists=True)
         import ruamel.yaml
         yaml = ruamel.yaml.YAML()
+        
         # write out to file
         with open(file,'w') as f:    
             yaml.dump(output,f)
@@ -4391,6 +4540,41 @@ class Project():
                     self.getRAFT(self.RAFTDict,pristine=1)        
         
         self.getMoorPyArray()
+        
+    def repositionArray(self,platform_locs,platform_headings,anch_resize=False,
+                        return_costs=False):
+        '''
+        Method to reposition all platforms in the array at once with input arrays of positions and headings
+
+        Parameters
+        ----------
+        platform_locs : array
+            2D or 3D (x,y or x,y,z) positions for each platform in an array
+            Each row represents the position of the corresponding platform in the platformList.
+            PlatformList is a dictionary, but it is ordered. It therefore follows this order
+        platform_headings : array
+            Each entry represents the heading of the corresponding platform in the platformList
+
+        Returns
+        -------
+        None.
+
+        '''
+        # reset platform, moorings, and anchor positions. If adjuster function available for moorings, adjust mooring for new depth
+        for i,pf in enumerate(self.platformList.values()):
+            pf.setPosition(platform_locs[i],heading=platform_headings[i],project=self)
+
+        if anch_resize:
+            # get some preliminary max loads for the anchors
+            self.arrayWatchCircle()
+            # resize the anchors as needed
+            for anch in self.anchorList.values():
+                anch.getSize(anch.dd['design'].values(), anch.dd['design'].keys(), loads=None, minfs={'Ha':1.6,'Va':2},
+                            LD_con=[4,8], fix_zlug=False, FSdiff_max={'Ha':.05,'Va':.05}, plot=False)
+
+        if return_costs:
+            total_cost = self.getArrayCost()
+            return(total_cost['anchor cost'], total_cost['moor cost'])
 
     def updateFailureProbability(self):
         '''
