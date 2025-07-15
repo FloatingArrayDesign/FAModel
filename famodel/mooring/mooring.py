@@ -239,18 +239,20 @@ class Mooring(Edge):
             r_centerA = self.attached_to[0].r
             r_centerB = self.attached_to[1].r
             
-        # create fairlead radius list for end A and end B if needed
-        if not rad_fair:
-            rad_fair = [self.attached_to[x].rFair if (hasattr(self.attached_to[x],'rFair') and self.attached_to[x].rFair) else 0 for x in range(2)]
-        # create fairlead depth list for end A and end B if needed
-        if not z_fair:
-            z_fair = [self.attached_to[x].zFair if (hasattr(self.attached_to[x],'zFair') and self.attached_to[x].zFair) else 0 for x in range(2)]
+        # if there is no fairlead object, use traditional method to determine new fairlead location and set it, otherwise end B should be set already
+        if not len(self.subcons_B[0].attachments) > 1:
+            # create fairlead radius list for end A and end B if needed
+            if not rad_fair:
+                rad_fair = [self.attached_to[x].rFair if (hasattr(self.attached_to[x],'rFair') and self.attached_to[x].rFair) else 0 for x in range(2)]
+            # create fairlead depth list for end A and end B if needed
+            if not z_fair:
+                z_fair = [self.attached_to[x].zFair if (hasattr(self.attached_to[x],'zFair') and self.attached_to[x].zFair) else 0 for x in range(2)]
+                
+            # Set the updated end B location
+            self.setEndPosition(np.hstack([r_centerB[:2] + rad_fair[1]*u, z_fair[1] + r_centerB[2]]), 'b')
             
-        # Set the updated end B location
-        self.setEndPosition(np.hstack([r_centerB[:2] + rad_fair[1]*u, z_fair[1] + r_centerB[2]]), 'b')
         
         # Run custom function to update the mooring design (and anchor position)
-        # this would also szie the anchor maybe?
         if self.adjuster:
             
             #if i_line is not defined, assumed segment 0 will be adjusted
@@ -264,27 +266,29 @@ class Mooring(Edge):
             else:
                 
                 #move anchor based on set spacing then adjust line length
-                xy_loc = r_centerB[:2] + (self.span + rad_fair[1])*u
+                xy_loc = self.rB[:2] + self.span*u #r_centerB[:2] + (self.span + rad_fair[1])*u
                 if project:
                     self.dd['zAnchor'] = -project.getDepthAtLocation(xy_loc[0],xy_loc[1])
                     self.z_anch = self.dd['zAnchor']
                 else:
                     print('Warning: depth of mooring line, anchor, and subsystem must be updated manually.')
-                self.setEndPosition(np.hstack([r_centerB[:2] + (self.span + rad_fair[1])*u, self.z_anch]), 'a', sink=True)
+
+                self.setEndPosition(np.hstack([self.rB[:2] + self.span*u, self.z_anch]), 'a', sink=True)
 
                 self.adjuster(self, method = 'horizontal', r=r_centerB, project=project, target = self.target, i_line = self.i_line)
             
-        elif self.shared == 1: # set position of end A at platform end A
-            self.setEndPosition(np.hstack([r_centerA[:2] - rad_fair[0]*u, z_fair[0] + r_centerA[2]]),'a')
+        elif self.shared == 1: # set position of end A at platform end A if no fairlead objects
+            if not len(self.subcons_A[0].attachments) > 1:
+                self.setEndPosition(np.hstack([r_centerA[:2] - rad_fair[0]*u, z_fair[0] + r_centerA[2]]),'a')
         
         else: # otherwise just set the anchor position based on a set spacing (NEED TO UPDATE THE ANCHOR DEPTH AFTER!)
-            xy_loc = r_centerB[:2] + (self.span + rad_fair[1])*u
+            xy_loc = self.rB[:2] + self.span*u #r_centerB[:2] + (self.span + rad_fair[1])*u
             if project:
                 self.dd['zAnchor'] = -project.getDepthAtLocation(xy_loc[0],xy_loc[1])
                 self.z_anch = self.dd['zAnchor']
             else:
                 print('Warning: depth of mooring line, anchor, and subsystem must be updated manually.')
-            self.setEndPosition(np.hstack([r_centerB[:2] + (self.span + rad_fair[1])*u, self.z_anch]), 'a', sink=True)
+            self.setEndPosition(np.hstack([xy_loc, self.z_anch]), 'a', sink=True)
 
         # Update the mooring profile given the repositioned ends
         if self.ss:
@@ -1032,14 +1036,14 @@ class Mooring(Edge):
             self.subcomponents[ii].detachFrom('A')
             self.subcomponents[ii].detachFrom('B')
             
-        # detach end connectors from platforms/anchors just in case
-        if len(self.subcomponents)>0:
-            endattsA = [att['obj'] for att in self.subcomponents[0].attachments.values()]
-            endattsB = [att['obj'] for att in self.subcomponents[-1].attachments.values()]
-            for att in endattsA:
-                self.subcomponents[0].detach(att)
-            for att in endattsB:
-                self.subcomponents[-1].detach(att)
+        # # detach end connectors from platforms/anchors just in case
+        # if len(self.subcomponents)>0:
+        #     endattsA = [att['obj'] for att in self.subcomponents[0].attachments.values()]
+        #     endattsB = [att['obj'] for att in self.subcomponents[-1].attachments.values()]
+        #     for att in endattsA:
+        #         self.subcomponents[0].detach(att)
+        #     for att in endattsB:
+        #         self.subcomponents[-1].detach(att)
             
         # Now connect the new set of subcomponents and store them in self(Edge).subcomponents!
         subcons = []  # temporary list of node-edge-node... to pass to the function

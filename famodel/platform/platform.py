@@ -74,31 +74,20 @@ class Platform(Node):
             x and y coordinates to position the node at [m].
         heading, float (optional)
             The heading of the platform [deg or rad] depending on
-            degrees parameter (True or False).
+            degrees parameter (True or False) in compass direction
         '''
         
-        '''
-        # Future approach could be
+
         # first call the Node method to take care of the platform and what's directly attached
-        Node.setPosition(self, r, heading=heading)
-        # then also adjust the anchor points
-        '''
-        
-        # Store updated position and orientation
-        for i,ri in enumerate(r):
-            self.r[i] = np.array(ri)
-        
-        if not heading == None:
-            if degrees:
+        if heading: # save compass heading in radians
+            if degrees == True:
                 self.phi = np.radians(heading)
             else:
                 self.phi = heading
-        
-        # correction for xy coords
-        corr = np.radians(90)
-        
-        # Get 2D rotation matrix
-        self.R = np.array([[np.cos(corr-self.phi), -np.sin(corr-self.phi)],[np.sin(corr-self.phi), np.cos(corr-self.phi)]])
+        # send in cartesian heading to node.setPosition (+ rotations CCW here)    
+        Node.setPosition(self, r, theta=-self.phi)
+        # then also adjust the anchor points
+
         
         # Update the position of any Moorings
         count = 0 # mooring counter (there are some attachments that aren't moorings)
@@ -117,8 +106,9 @@ class Platform(Node):
                 
                 cab = self.attachments[att]['obj']
                 
-                # update headings stored in subcomponents
-                headings = [cab.subcomponents[0].headingA + self.phi, cab.subcomponents[-1].headingB + self.phi]
+                # update heading stored in subcomponent for attached end
+                pf_phis = [cab.attached_to[0].phi, cab.attached_to[1].phi]
+                headings = [cab.subcomponents[0].headingA + pf_phis[0], cab.subcomponents[-1].headingB + pf_phis[1]]
                 
                 # reposition the cable
                 cab.reposition(headings=headings,project=project)

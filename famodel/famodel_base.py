@@ -99,7 +99,7 @@ class Node():
     
         # position/orientation variables
         self.r = np.zeros(2)  # position [m]
-        self.theta = 0  # heading [rad]
+        self.theta = 0  # heading [rad] CCW+
         self.R = np.eye(2)  # rotation matrix
     
         # installation dictionary [checks for installation status]
@@ -175,12 +175,14 @@ class Node():
         
         elif isinstance(self.part_of, Edge) and isinstance(object.attached_to, Node):
             end = self.part_of.findEnd(self)
-            object.attached_to.attach(self.part_of, end=end)
+            object.attached_to.attach(self.part_of, end=end, 
+                                      r_rel=object.attached_to.attachments[object.id]['r_rel'])
             #self.part_of._attach_to(object.part_of, end=end)
             
         elif isinstance(self.attached_to, Node) and isinstance(object.part_of, Edge):
             end = object.part_of.findEnd(object)
-            self.attached_to.attach(object.part_of, end=end)
+            self.attached_to.attach(object.part_of, end=end, 
+                                    r_rel=self.attached_to.attachments[self.id]['r_rel'])
             
         elif isinstance(self.attached_to, Node) and isinstance(object.attached_to, Node):
             raise Exception("This would attach two higher-level nodes, which is not supported.")
@@ -275,7 +277,10 @@ class Node():
         if isinstance(object.part_of, Edge):  # attached object is part of an edge
         
             # figure out which end of the edge object corresponds to
-            if object in object.part_of.subcons_A:
+            if object in object.part_of.subcons_A and object in object.part_of.subcons_B:
+                # there is only one subcomponent, keep end that was passed in
+                i_end = end
+            elif object in object.part_of.subcons_A:
                 end = 0
             elif object in object.part_of.subcons_B:
                 end = 1
@@ -425,17 +430,21 @@ class Node():
             raise Exception("Can't setPosition of an object that's part of a higher object unless force=True.")
         
         # Store updated position and orientation
-        self.r = np.array(r)
+        if len(r) > len(self.r):
+            self.r = np.array(r)
+        else:
+            self.r[:len(r)] = r
+
         self.theta = theta
         
         # Get rotation matrix...
-        if len(r) == 2:
+        if len(self.r) == 2:
             self.R = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
-        elif len(r) == 3:
+        elif len(self.r) == 3:
             if np.isscalar(theta):
-                angles = np.array([theta, 0, 0])
+                angles = np.array([ 0, 0, theta])
             elif len(theta)==1:
-                angles = np.array([theta[0], 0, 0])
+                angles = np.array([0, 0, theta[0]])
             elif len(theta)==3:
                 angles = np.array(theta)
             else:
@@ -443,14 +452,14 @@ class Node():
         
             self.R = rotationMatrix(*angles)
         else:
-            raise Exception("Length or r must be 2 or 3.")
+            raise Exception("Length of r must be 2 or 3.")
         
         # Update the position of any attach objects
         for att in self.attachments.values():
         
-            if len(r) == len(att['r_rel']):
+            if len(self.r) == len(att['r_rel']):
                 pass  # all good
-            elif len(r) == 3 and len(att['r_rel']) == 2:  # pad r_rel with z=0 if needed
+            elif len(self.r) == 3 and len(att['r_rel']) == 2:  # pad r_rel with z=0 if needed
                 att['r_rel'] = np.hstack([att['r_rel'], [0]])
             else:
                 raise Exception("r and attachment r_rel values have mismatched dimensions.")
@@ -458,11 +467,15 @@ class Node():
             # Compute the attachment's position
             r_att = self.r + np.matmul(self.R, att['r_rel'])
             
+            # set position of any attached node that isn't subordinate to another node
+            # (prevents infinite loop of setPositioning for nodes)
             if isinstance(att['obj'], Node):
-                att['obj'].setPosition(r_att, theta=theta, force=True)
+                if not isinstance(att['obj'].attached_to, Node) or att['obj'].attached_to == self:
+                    att['obj'].setPosition(r_att, theta=theta, force=True)
                 
             elif isinstance(att['obj'], Edge):
                 att['obj'].setEndPosition(r_att, att['end'])
+                
 
 
 
@@ -712,9 +725,9 @@ class Edge():
         if not object in self.subcomponents:
             raise Exception("This object is not a subcomponent of this edge!")
         
-        if object in self.subcons_A:
+        if any([object is con for con in self.subcons_A]):
             end = 0
-        elif object in self.subcons_B:
+        elif any([object is con for con in self.subcons_B]):
             end = 1
         else:
             end = -1  # object isn't at the end of the higher level edge so do nothing
