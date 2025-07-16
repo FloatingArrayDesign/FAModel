@@ -17,7 +17,7 @@ for label, props in proj.soilProps.items():
 
 # Step 2: Create and register an anchor at a known position in the grid
 anchor = Anchor(
-    dd = {'type': 'suction', 'design': {'D': 2.5, 'L': 15.0, 'zlug': 10.67}},
+    dd = {'type': 'suction', 'design': {'D': 3.5, 'L': 12.0, 'zlug': 9.67}},
     r  = [54.0, -4450.0, 0.0])
 
 # Step 3: Assign local soil profile from project (nearest neighbor lookup)
@@ -47,17 +47,15 @@ anchor.getCapacityAnchor(
 anchor.getCostAnchor()
 print(f'Material cost: {anchor.cost["Material cost"]:.2f} USD [2024]')
 
-results = anchor.getSizeAnchor_gradient(
-    geom=[anchor.dd['design']['L'], anchor.dd['design']['D']], 
-    geomKeys= ['L','D'],
-    geomBounds=[(12.0, 18.0), (1.5, 3.5)],
-    safety_factor={'SF_combined': 1}, 
-    zlug_fix=False, 
-    lambdap_con=[4, 6], 
-    step_size=0.2,
-    tol=0.05,
-    max_iter=30,
-    verbose=True)
+results = anchor.getSizeAnchor(
+    geom = [anchor.dd['design']['L'], anchor.dd['design']['D']],
+    geomKeys = ['L', 'D'],
+    geomBounds = [(8.0, 15.0), (2.0, 4.0)],
+    loads = None,
+    lambdap_con = [3, 6],
+    zlug_fix = False,
+    safety_factor = {'SF_combined': 1},
+    plot = True)
 
 # Step 6: Report
 print('\nFinal Optimized Anchor:')

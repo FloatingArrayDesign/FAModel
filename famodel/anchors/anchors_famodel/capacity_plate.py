@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from .support_soils import clay_profile
 from .support_plots import plot_plate
 
-def getCapacityPlate(profile_map, location_name, B, L, zlug, beta, Ha, Va, plot=True):
+def getCapacityPlate(profile_map, location_name, B, L, zlug, beta, Ha, Va, plot=False):
     '''Calculate the plate anchor capacity using clay soil layers from profile_map.
     The calculation is based on the soil profile, anchor geometry and inclined load.
 

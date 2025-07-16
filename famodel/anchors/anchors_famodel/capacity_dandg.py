@@ -6,7 +6,7 @@ from .support_solvers import fd_solver
 from .support_pycurves import py_Lovera
 from .support_plots import plot_pile, plot_pycurve
 
-def getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot=True):
+def getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot=False):
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, 
     EI*d4y/dz4 - V*d2y/dz2 + ky = 0 using the finite difference method.
@@ -193,19 +193,19 @@ if __name__ == '__main__':
                 {
                     'top': 2.0, 'bottom': 5.0,
                     'soil_type': 'rock',
-                    'UCS_top': 1.0, 'UCS_bot': 2.0,    # MPa
+                    'UCS_top': 8.0, 'UCS_bot': 8.0,    # MPa
                     'Em_top': 100, 'Em_bot': 200       # MPa
                 },
                 {
                     'top': 5.0, 'bottom': 9.0,
                     'soil_type': 'rock',
-                    'UCS_top': 2.0, 'UCS_bot': 3.0,    # MPa
+                    'UCS_top': 10.0, 'UCS_bot': 10.0,  # MPa
                     'Em_top': 200, 'Em_bot': 300       # MPa
                 },
                 {
                     'top': 9.0, 'bottom': 30.0,
                     'soil_type': 'rock',
-                    'UCS_top': 3.0, 'UCS_bot': 6.0,    # MPa
+                    'UCS_top': 20.0, 'UCS_bot': 20.0,  # MPa
                     'Em_top': 300, 'Em_bot': 400       # MPa
                 }
             ]
@@ -215,8 +215,8 @@ if __name__ == '__main__':
     D = 3.0           # Diameter (m)
     L = 10.0          # Length (m)
     zlug = 1          # Padeye elevation (m)
-    Ha = 8.0e6        # Horizontal load (N)
-    Va = 3.0e6        # Vertical load (N)
+    Ha = 5.0e6        # Horizontal load (N)
+    Va = 3.0e5        # Vertical load (N)
 
     layers, y, z, results = getCapacityDandG(profile_map, 'CPT_rock_1', L, D, zlug, Ha, Va, plot=True)
 

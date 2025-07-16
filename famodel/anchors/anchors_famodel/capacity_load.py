@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from .support_soils import clay_profile, sand_profile
 from .support_plots import plot_load
 
-def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=True):
+def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=False):
     '''Calculate the transfer load from mudline to main padeye using a layered soil profile.
 
     Parameters
@@ -45,6 +45,12 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Tr
     layers = profile_map[0]['layers']
     z0 = min(layer['top'] for layer in layers)
     Nc = 8.5
+    
+    if all(layer['soil_type'] in ['rock', 'weak_rock'] for layer in layers):
+        print('[Bypass] Skipping load transfer — soil is all rock.')
+        Ha = Tm*np.cos(np.deg2rad(thetam)) 
+        Va = Tm*np.cos(np.deg2rad(thetam))
+        return Ha, Va
 
     # Initial values
     z0 = min(layer['top'] for layer in layers)
@@ -55,7 +61,7 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Tr
 
     # Tracing lists
     drag_values, depth_values = [], []
-
+    
     while (zlug - depth) >= 0:
         matched_layer = next((layer for layer in layers if layer['top'] <= depth <= layer['bottom']), None)
         if matched_layer is None:
@@ -87,12 +93,12 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Tr
             delta_z = f_delta(depth)
             phi = f_phi(depth)
             Nq = np.exp(np.pi*np.tan(np.deg2rad(phi)))*(np.tan(np.deg2rad(45 + phi/2)))**2
-            print(f'Nq = {Nq:.2f}, depth = {depth:.2f} m')
+            # print(f'Nq = {Nq:.2f}, depth = {depth:.2f} m')
             d_theta = (En*d*Nq*gamma_z*depth - W*np.cos(theta))/T*deltas
             dT = (Et*d*gamma_z*depth*np.tan(np.deg2rad(delta_z)) + W*np.sin(theta))*deltas
             
-        else:
-            raise ValueError(f"Unsupported soil type: {matched_layer['soil_type']}")
+        elif matched_layer['soil_type'] in ['rock', 'weak_rock']:
+            raise ValueError(f"Unsupported soil type: {matched_layer['soil_type']}. Mooring line cannot be embedded in rock.")
 
         d_drag  = deltas*np.cos(theta)
         d_depth = deltas*np.sin(theta)
@@ -105,19 +111,23 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Tr
         if abs(Tm - T) > 0.75*Tm:
             raise Exception(f"Load transfer unrealistic: Tm = {Tm/1e6:.2f} MN vs T = {T/1e6:.2f} MN")
         if not (0 < np.rad2deg(theta) < 90):
-            raise Exception(f"Load angle unrealistic: {np.rad2deg(theta):.2f} deg")
+            print(f"[Warning] Line angle reached {np.rad2deg(theta):.2f}°, stopping at drag = {-drag:.2f} m")
+            break
 
         drag_values.append(-drag); 
         depth_values.append(-depth); 
 
+    if np.rad2deg(theta) >= 90:
+        print(f"[Correction] Clipping angle to 90° to avoid negative horizontal load (Ha).")
+        theta = np.deg2rad(90)
     Ta = T; thetaa = theta
     Hm = Tm*np.cos(np.deg2rad(thetam)); Vm = Tm*np.cos(np.deg2rad(thetam))
     Ha = Ta*np.cos(thetaa); Va = Ta*np.sin(thetaa)
     
-    print(f'Input Tm = {Tm}, thetam = {thetam}, zlug = {zlug}')
-    print(f'Output Hm = {Hm}, Vm = {Vm}')
-    print(f'Output Ta = {Ta}, thetaa = {np.rad2deg(thetaa)}')
-    print(f'Output Ha = {Ha}, Va = {Va}')
+    print(f'Input Tm = {Tm} N, thetam = {thetam}°, zlug = {zlug} m')
+    print(f'Output Hm = {Hm} N, Vm = {Vm} N')
+    print(f'Output Ta = {Ta} N, thetaa = {np.rad2deg(thetaa)}°')
+    print(f'Output Ha = {Ha} N, Va = {Va} N')
 
     resultsLoad = {
         'Tm': Tm, 'thetam': thetam,
@@ -167,46 +177,35 @@ if __name__ == '__main__':
                 #     'gamma_top': 9.5, 'gamma_bot': 9.5,
                 #     'phi_top': 28, 'phi_bot': 30,
                 #     'Dr_top': 70, 'Dr_bot': 70},
+                {
+                    'top': 0.0, 'bottom': 5.0,
+                    'soil_type': 'clay',
+                    'gamma_top': 8.0, 'gamma_bot': 8.0,
+                    'Su_top': 25, 'Su_bot': 25},
                 # {
-                #     'top': 0.0, 'bottom': 5.0,
-                #     'soil_type': 'clay',
-                #     'gamma_top': 8.0, 'gamma_bot': 8.0,
-                #     'Su_top': 25, 'Su_bot': 25},
+                #     'top': 0.0, 'bottom': 3.0,
+                #     'soil_type': 'sand',
+                #     'gamma_top': 9.5, 'gamma_bot': 9.5,
+                #     'phi_top': 30, 'phi_bot': 38,
+                #     'Dr_top': 65, 'Dr_bot': 75},
                 {
-                    'top': 0.0, 'bottom': 3.0,
+                    'top': 5.0, 'bottom': 15.0,
                     'soil_type': 'sand',
                     'gamma_top': 9.5, 'gamma_bot': 9.5,
-                    'phi_top': 25, 'phi_bot': 30,
-                    'Dr_top': 60, 'Dr_bot': 65},
-                {
-                    'top': 3.0, 'bottom': 15.0,
-                    'soil_type': 'sand',
-                    'gamma_top': 9.5, 'gamma_bot': 9.5,
-                    'phi_top': 32, 'phi_bot': 35,
-                    'Dr_top': 70, 'Dr_bot': 85}
+                    'phi_top': 35, 'phi_bot': 40,
+                    'Dr_top': 77, 'Dr_bot': 85}
             ]
         }
     ]
 
     Tm = 4978442          # Load at mudline (N)
-    thetam = 15            # Angle at mudline (deg)
-    zlug = 8.5              # Padeye depth (m)
+    thetam = 30           # Angle at mudline (deg)
+    zlug = 8.5            # Padeye depth (m)
     line_type = 'chain'
-    d = 0.12              # Chain diameter (m)
-    w = 2000              # Line weight (N/m)
+    d = 0.25              # Chain diameter (m)
+    w = 5000              # Line weight (N/m)
 
     layers, resultsLoad = getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w, plot=True)
-
-    # print("\n--- Transfer Load Results ---")
-    # for key, val in resultsLoad.items():
-    #     if isinstance(val, float):
-    #         print(f"{key}: {val:.3f}")
-    #     elif isinstance(val, list):
-    #         print(f"{key}:")
-    #         for v in val:
-    #             print(f"  {v:.3f}")
-    #     else:
-    #         print(f"{key}: {val}")
 
     plot_load(layers, resultsLoad['drag_values'], resultsLoad['depth_values'], 
               resultsLoad['Tm'], resultsLoad['thetam'], resultsLoad['Ta'], 

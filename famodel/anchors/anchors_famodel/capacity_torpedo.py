@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from .support_soils import clay_profile
 from .support_plots import plot_torpedo
 
-def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast, Ha, Va, plot=True):
+def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast, Ha, Va, plot=False):
     '''Calculate the inclined load capacity of a torpedo pile in clay following S. Kay methodology.
     The calculation is based on the soil profile, anchor geometry and inclined load.  
 
@@ -102,8 +102,8 @@ def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast
             Su_vals = f_Su(z_vals)
             alpha_vals = np.array([f_alpha(z) for z in z_vals])
 
-            Su_total = np.trapz(Su_vals, z_vals)
-            Su_moment = np.trapz(z_vals*Su_vals, z_vals)
+            Su_total = np.trapezoid(Su_vals, z_vals)
+            Su_moment = np.trapezoid(z_vals*Su_vals, z_vals)
             print("xxxxxxxxxxxxxxxxxxxxxxxxx")
             Su_av_z = Su_total/dz_seg
             print(f"Su_av_z = {Su_av_z:.2f} Pa")
@@ -268,4 +268,4 @@ if __name__ == '__main__':
     #     if key != 'layer_data':
     #         print(f"{key}: {val:.2f}")
             
-    plot_torpedo(layers, D1, D2, L1, L2, z0 = layers[0]['top'], zlug=zlug, title='Torpedo Pile in Clay Profile')
+    plot_torpedo(layers, D1, D2, L1, L2, z0 = layers[0]['top'], zlug=zlug)

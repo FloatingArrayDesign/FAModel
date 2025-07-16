@@ -185,13 +185,13 @@ def py_Reese(z, D, UCS, Em, z0=None, return_curve=False):
    
     # Normalized lateral displacement
     N = 20
-    y = np.concatenate((-np.logspace(4,-3,N),[0],np.logspace(-3,4,N)))
-    y = np.linspace(-0.02*D, 0.02*D, 200)  # ±2 cm
+    y = np.concatenate((-np.logspace(.1,-2,N),[0],np.logspace(-2,.1,N)))
+    # y = np.linspace(-0.2*D, 0.2*D, 200)  # ±2 cm
     
     p = []
     for val in y:
         if abs(val) < y_a:
-            p_val = np.sign(val)*Kir*val
+            p_val = Kir*val
         else:
             p_val = np.sign(val)*min((p_ur/2)*(abs(val)/y_rm)**0.25, p_ur)
         p.append(p_val)                                  

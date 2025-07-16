@@ -124,8 +124,8 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             # Calculate properties over clipped dz
             z_vals = np.linspace(z_top_clip, z_bot_clip, npts)
             Su_vals = f_Su(z_vals)
-            Su_total = np.trapz(Su_vals, z_vals)
-            Su_moment = np.trapz(Su_vals*z_vals, z_vals)
+            Su_total = np.trapezoid(Su_vals, z_vals)
+            Su_moment = np.trapezoid(Su_vals*z_vals, z_vals)
             
             ez_layer = Su_moment/Su_total
             Su_av_z = f_Su(ez_layer)
@@ -224,6 +224,8 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             delta_av = np.mean(delta_vals)
         
             sigma_tip = f_sigma_v_eff(z_bot_clip)
+            gamma_vals = f_gamma(z_vals)
+            gamma_av = np.mean(gamma_vals)
             
             Nq = np.e**(np.pi*np.tan(np.radians(phi_av)))*(np.tan(np.radians(45) + np.radians(phi_av)/2))**2
         
@@ -255,6 +257,9 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             nhuV = Ha/To 
             nhuVstar = np.sqrt(nhuV**2 - nhuT**2) 
             deltastar = delta_av*(nhuVstar/nhuV) 
+            
+            # Constant weight
+            Pile_Head = PileWeight(z0, D, t, rhows)
                
             # Vertical failure modes
             Vmax2 = Pile_Head + PileWeight(dz_clip, D, t, rhows) + PileSurface(dz_clip, D)*deltastar*sigma_av + PileSurface(dz_clip, D - 2*t)*deltastar*sigma_av
@@ -397,33 +402,31 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             print('[WARNING] No valid Hmax crossing found for moment cut.')
     else:
         print('[WARNING] No intersection between moment line and ellipse.') 
-            
-    H_v_roots = horizontal_cross(H_rot_prime, M_rot_prime, 0.0)
-    plt.scatter(H_v_roots[0], 0.0, s=25, facecolors='white', edgecolors='blue', 
-                marker='s',label=f'Ho ≈ {H_v_roots[0]/1e6:.1f} MN', zorder=10)
-    plt.legend(loc='lower left', fontsize='small')
-
     
+    # Find relevant intercept
+    H_v_roots = horizontal_cross(H_rot_prime, M_rot_prime, 0.0)
     M_v_roots = vertical_cross(H_rot_prime, M_rot_prime, 0.0)
-    plt.scatter(0.0, M_v_roots[0], s=25, facecolors='white', edgecolors='blue', 
-                marker='s', label=f'Mo ≈ {M_v_roots[0]/1e6:.1f} MNm', zorder=10)
-    plt.legend(loc='lower left', fontsize='small')
-           
-    # Find and plot maximum H 
     idx_maxH = np.argmax(H_rot_prime)
     H_at_maxH = H_rot_prime[idx_maxH]
     M_at_maxH = M_rot_prime[idx_maxH]
-    plt.scatter(H_at_maxH, M_at_maxH, s=25, facecolors='white', edgecolors='blue',
-                marker='D', label=f'Hmax ≈ {H_at_maxH/1e6:.1f} MN', zorder=10)
-    plt.legend(loc='lower left', fontsize='small')
-    
-    # Find and plot minimum M (vertical axis intercept)
     idx_minM = np.argmin(M_rot_prime)
     H_at_minM = H_rot_prime[idx_minM]
     M_at_minM = M_rot_prime[idx_minM]
-    plt.scatter(H_at_minM, M_at_minM, s=25, facecolors='white', edgecolors='blue',
-                marker='D', label=f'Mmax ≈ {M_at_minM/1e6:.1f} MNm', zorder=10)
-    plt.legend(loc='lower left', fontsize='small')
+    
+    # Plotting
+    if plot:
+        plt.scatter(H_v_roots[0], 0.0, s=25, facecolors='white', edgecolors='blue', 
+                    marker='s',label=f'Ho ≈ {H_v_roots[0]/1e6:.1f} MN', zorder=10)
+        plt.legend(loc='lower left', fontsize='small')
+        plt.scatter(0.0, M_v_roots[0], s=25, facecolors='white', edgecolors='blue', 
+                    marker='s', label=f'Mo ≈ {M_v_roots[0]/1e6:.1f} MNm', zorder=10)
+        plt.legend(loc='lower left', fontsize='small')
+        plt.scatter(H_at_maxH, M_at_maxH, s=25, facecolors='white', edgecolors='blue',
+                    marker='D', label=f'Hmax ≈ {H_at_maxH/1e6:.1f} MN', zorder=10)
+        plt.legend(loc='lower left', fontsize='small')
+        plt.scatter(H_at_minM, M_at_minM, s=25, facecolors='white', edgecolors='blue',
+                    marker='D', label=f'Mmax ≈ {M_at_minM/1e6:.1f} MNm', zorder=10)
+        plt.legend(loc='lower left', fontsize='small')
     
     # Constant weight
     pile_head = PileWeight(z0, D, t, rhows); print(f"pile_head    = {pile_head:.2f} N")
@@ -515,4 +518,4 @@ if __name__ == '__main__':
     # print(f"Unity check (UC) = {resultsSuction['UnityCheck']:.4f}")
     # print(f"Total Moment (M_total) = {resultsSuction['M_total']:.2f} Nm")
 
-    # plot_suction(layers, L, D, z0 = layers[0]['top'], zlug=zlug, title='Suction Pile and Soil Layers')
+    # plot_suction(layers, L, D, z0 = layers[0]['top'], zlug=zlug)
