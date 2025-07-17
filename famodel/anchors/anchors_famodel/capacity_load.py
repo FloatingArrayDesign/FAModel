@@ -108,8 +108,6 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Fa
         drag += d_drag
         depth += d_depth
 
-        if abs(Tm - T) > 0.75*Tm:
-            raise Exception(f"Load transfer unrealistic: Tm = {Tm/1e6:.2f} MN vs T = {T/1e6:.2f} MN")
         if not (0 < np.rad2deg(theta) < 90):
             print(f"[Warning] Line angle reached {np.rad2deg(theta):.2f}°, stopping at drag = {-drag:.2f} m")
             break
