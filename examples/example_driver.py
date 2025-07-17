@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 os.chdir('./Inputs/')
 
 # set yaml file location and name
-ontology_file = 'OntologySample200mbis.yaml'
+ontology_file = 'OntologySample200m.yaml'
 
 #%% Section 1: Project without RAFT
 print('Creating project without RAFT\n')
