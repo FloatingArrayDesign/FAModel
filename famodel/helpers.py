@@ -701,6 +701,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
     m_config = {'sections':[],'anchor':{},'span':{},'zAnchor':{}}#,'EndPositions':{}}
     # set up connector dictionary
     c_config = []
+    config = []
                 
     lineLast = 1    # boolean whether item with index k-1 is a line. Set to 1 for first run through of for loop
     ct = 0   # counter for number of line types
@@ -712,6 +713,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
             # this is a line
             if lineLast: # previous item in list was a line (or this is the first item in a list)
                 # no connector was specified for before this line - add an empty connector
+                config.append({})
                 c_config.append({})                        
             # set line information
             lt = MooringProps(lc, proj.lineTypes, proj.rho_water, proj.g)                                             
@@ -723,6 +725,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
             m_config['sections'][ct]['type']['EA'] = float(lt['EA'])  
             # set line length
             m_config['sections'][ct]['L'] = lc['length']
+            config.append(m_config['sections'][ct])
             # update counter for line types 
             ct = ct + 1
             # update line last boolean
@@ -740,22 +743,59 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                 if cID in connectorTypes:
                     c_config.append(connectorTypes[cID]) # add connector to list
                     c_config[-1]['type'] = cID
+                    config.append(c_config[-1])
                 else:
                     # try pointProps
                     try:
                         props = loadPointProps(None)
                         design = {f"num_c_{cID}":1}
                         c_config.append(getPointProps(design, Props=props))
+                        config.append(c_config[-1])
                     except Exception as e: 
                         raise Exception(f"Connector type {cID} not found in connector_types dictionary, and getPointProps raised the following exception:",e)
                         
                 # update lineLast boolean
                 lineLast = 0
+        elif 'subsections' in lc:
+            # TODO: LHS: ERROR CHECKING FOR ORDER OF COMPONENTS PROVIDED WITHIN SUBSECTIONS, ADD IN NEEDED CONNECTORS!!
+            c_config.append([])
+            m_config.append([])
+            sublineLast = [lineLast]*len(lc['subsections']) # to check if there was a connector provided before this
+            for ii,sub in enumerate(lc['subsections']):
+                c_config[-1].append([])
+                m_config[-1].append([])
+                config.append([])
+                for subsub in sub:
+                    if 'connectorType' in subsub:
+                        if cID in connectorTypes:
+                            cID = subsub['connectorType']
+                            c_config[-1][-1].append(connectorTypes[cID])
+                            config[-1][-1].append(connectorTypes[cID])
+                        else:
+                            # try pointProps
+                            try:
+                                props = loadPointProps(None)
+                                design = {f"num_c_{cID}":1}
+                                c_config[-1][-1].append(getPointProps(design, Props=props))
+                                config[-1][-1].append(c_config[-1][-1])
+                            except Exception as e: 
+                                raise Exception(f"Connector type {cID} not found in connector_types dictionary, and getPointProps raised the following exception:",e)
+                        sublineLast[ii] = 0
+                    elif 'type' or 'mooringFamily' in subsub:
+                        lt = MooringProps(subsub)
+                        m_config[-1][-1].append({'type':lt,
+                                               'L': subsub['length']})
+                        config[-1][-1].append(m_config[-1][-1])
+                        sublineLast[ii] = 1
+                    else:
+                        raise Exception(f"keys in subsection line definitions must either be 'type', 'mooringFamily', or 'connectorType'")
+            lineLast = sublineLast[-1] # TODO: LHS: think how to handle this situation for error checking...
         else:
             # not a connector or a line
-            raise Exception(f"Please make sure that all section entries for line configuration '{lcID}' are either line sections (which must have a 'type' key) or connectors (which must have a 'connectorType' key")
+            raise Exception(f"Please make sure that all section entries for line configuration '{lcID}' are either line sections (which must have a 'type' key), connectors (which must have a 'connectorType' key, or subsections")
 
     # check if line is a shared symmetrical configuration
+    # TODO: LHS figure out subsections with symmetrical lines... or just ban symmetrical for situations with subsections...
     if 'symmetric' in lineConfigs[lcID] and lineConfigs[lcID]['symmetric']:
         if not lineLast: # check if last item in line config list was a connector
             for ii in range(0,ct):
@@ -787,7 +827,8 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
     
     m_config['connectors'] = c_config  # add connectors section to the mooring dict
     
-    return(m_config) #, c_config)
+    return(m_config, config) #, c_config)
+
     
 
 def getConnectors(c_config, mName, proj):
@@ -871,15 +912,16 @@ def route_around_anchors(proj, anchor=True, cable=True, padding=50):
         for anch in anchor_buffs:
             if cab.intersects(anch):
                 # Get the start and end of the detour (the two closest points to the buffer)
-                segments = []
+                new_points = []
                 # make additional points on the line on either side of anchor
                 dist_to_anch = cab.line_locate_point(anch.centroid)
                 if dist_to_anch > 100:
-                    segments.append(cab.interpolate(dist_to_anch - 100))
+                    new_points.append(cab.interpolate(dist_to_anch - 100))
                 if cab.length - dist_to_anch > 100:
-                    segments.append(cab.interpolate(dist_to_anch + 100))
+                    new_points.append(cab.interpolate(dist_to_anch + 100))
 
-                start = np.array(segments[0].coords[-1])
+                # pull out the coordinates of the first new point
+                start = np.array(new_points[0].coords[-1])
 
                 # Get buffer center and radius
                 center = np.array(anch.centroid.coords[0])
@@ -891,8 +933,21 @@ def route_around_anchors(proj, anchor=True, cable=True, padding=50):
                 # Generate point along the arc (detour)
                 arc_point = [center[0] + radius * np.cos(angle_start+np.pi/2), center[1] + radius * np.sin(angle_start+np.pi/2)]
 
+                # determine relative positions of new routing points among other routing points
+                rel_dist = []
+                orig_coords = []
+                breakpoint()
+                for i,x in enumerate(proj.cableList[name].subcomponents[2].x):
+                    y = proj.cableList[name].subcomponents[2].y[i]
+                    rel_dist.append(cab.line_locate_point(sh.Point([x,y])))
+                    orig_coords.append([x,y])
+                all_dists = np.hstack((rel_dist,dist_to_anch-100, dist_to_anch+100, dist_to_anch))
+                all_points = np.vstack((orig_coords,[coord.coords[0] for coord in new_points],arc_point))
+                sorted_idxs = np.argsort(all_dists)
+                final_points = all_points[sorted_idxs]
+
                 # add new routing point in cable object
-                proj.cableList[name].subcomponents[2].updateRouting([list(segments[0].coords[1:]) + arc_point + list(segments[1].coords[:-1])])
+                proj.cableList[name].subcomponents[2].updateRouting(final_points)
 
 
 

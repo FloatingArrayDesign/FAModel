@@ -16,7 +16,7 @@ class Mooring(Edge):
     '''
     
     def __init__(self, dd=None, subsystem=None, anchor=None,
-                 rho=1025, g=9.81,id=None,shared=0):
+                 rho=1025, g=9.81,id=None,shared=0,subcons=None):
         '''
         Parameters
         ----------
@@ -91,18 +91,38 @@ class Mooring(Edge):
             self.i_con = []
             self.i_sec = []
             # Turn what's in dd and turn it into Sections and Connectors
+            con_i = 0
             for i, con in enumerate(self.dd['connectors']):
-                if con and 'type' in con:
-                    Cid = con['type']+str(i)
-                else:
-                    Cid = None
-                self.addConnector(con, i, id=Cid, insert=False)
-            
+                if isinstance(self.dd['connectors'][i],list):
+                    for j,subcon in enumerate(self.dd['connectors'][i]):
+                        if isinstance(self.dd['connectors'][i][j],list):
+                            if con and 'type' in con:
+                                Cid = con['type']+str(con_i)
+                            else:
+                                Cid = None
+                            self.addConnector(con, con_i, id=Cid, insert=False)
+                            con_i += 1
+                else:            
+                    if con and 'type' in con:
+                        Cid = con['type']+str(con_i)
+                    else:
+                        Cid = None
+                    self.addConnector(con, con_i, id=Cid, insert=False)
+                    con_i += 1
+            sub_i = 0
             for i, sec in enumerate(self.dd['sections']):
-                self.addSection(sec['L'],sec['type'],i, insert=False)
+                if isinstance(self.dd['sections'][i],list):
+                    for j,subcon in enumerate(self.dd['sections'][i]):
+                        if isinstance(self.dd['sections'][i][j],list):
+                            self.addSection(sec['L'],sec['type'],sub_i, insert=False)
+                            sub_i += 1
+                else:
+                    self.addSection(sec['L'],sec['type'],sub_i, insert=False)
+                    sub_i += 1
+                
             
             # connect subcomponents and update i_sec and i_conn lists
-            self.connectSubcomponents()
+            self.connectSubcomponents(subcons)
 
         
         
@@ -1030,7 +1050,7 @@ class Mooring(Edge):
         
         return(newconn)
     
-    def connectSubcomponents(self):
+    def connectSubcomponents(self, subcons=None):
         
         # first disconnect any current subcomponents
         for ii in self.i_sec:
@@ -1047,11 +1067,12 @@ class Mooring(Edge):
         #         self.subcomponents[-1].detach(att)
             
         # Now connect the new set of subcomponents and store them in self(Edge).subcomponents!
-        subcons = []  # temporary list of node-edge-node... to pass to the function
-        for i in range(self.n_sec):
-            subcons.append(self.dd['connectors'][i])
-            subcons.append(self.dd['sections'][i])
-        subcons.append(self.dd['connectors'][-1])
+        if subcons is None:
+            subcons = []  # temporary list of node-edge-node... to pass to the function
+            for i in range(self.n_sec):
+                subcons.append(self.dd['connectors'][i])
+                subcons.append(self.dd['sections'][i])
+            subcons.append(self.dd['connectors'][-1])
         self.addSubcomponents(subcons)  # Edge method to connect and store em
         
         # Indices of connectors and sections in self.subcomponents list

@@ -142,11 +142,11 @@ mooring_systems:
     ms3:
         name: 3-line semi-taut polyester mooring system
         
-        keys: [MooringConfigID,  heading, anchorType, fairlead] # fairlead listing is optional; if not specified, fairlead list follows order of fairleads in the platform definition
+        keys: [MooringConfigID,  heading, anchorType, fairlead, lug] # fairlead and lug listings are optional; if not specified, fairlead list follows order of fairleads in the platform definition
         data:
-          - [  semitaut-poly_1,  30 ,    drag-embedment1,   1 ]
-          - [  semitaut-poly_1,  150 ,     drag-embedment1,   2 ]
-          - [  semitaut-poly_1,  270,     drag-embedment1,   3 ]
+          - [  semitaut-poly_1,  30 ,    drag-embedment1,   [1,4], 1 ]
+          - [  semitaut-poly_1,  150 ,     drag-embedment1,   2,   1 ]
+          - [  semitaut-poly_1,  270,     drag-embedment1,   3,    [2,1] ]
 
 
 # Mooring line configurations
@@ -159,23 +159,39 @@ mooring_line_configs:
 
         
         sections:
+          - subsections: # subsections are used to define segments of mooring that run in parallel, such as a bridle
+              - - connectorType: h_link # end A connector to the fairlead A0
+                - type: chain_185 # each outer list is a separate subsection, each inner list is the segments of the subsection that are connected in series
+                  length: 40 
+              - - connectorType: h_link # end A connector to the fairlead A1
+                - type: chain_185
+                  length: 40  
           - connectorType: h_link
           - type: rope
-            length: 150
+            length: 110
           - connectorType: clump_weight_80
           - type: rope
-            length: 1172
+            length: 500
+          - connectorType: triplate
+          - subsections: # a subsection that is not on the end of a mooring connects back to the connector on either side
+              - - type: chain_185
+                  length: 180
+              - - type: chain_185
+                  length: 180 
+          - connectorType: triplate
+          - type: rope
+            length: 500
           - connectorType: clump_weight_80
           - type: rope
-            length: 150
+            length: 110
           - connectorType: h_link
-        
-        bridle_sections:
-          bridle_radius: 
-          - type: 
-          - connectorType:
-          - type:
-            length:
+          - subsections:
+              - - type: chain_185
+                  length: 40 
+                - connectorType: h_link # end B connector to the fairlead B0
+              - - type: chain_185
+                  length: 40  
+                - connectorType: h_link # end B connector to the fairlead B1
 
     
     semitaut-poly_1:  # mooring line configuration identifier
