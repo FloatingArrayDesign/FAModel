@@ -483,7 +483,8 @@ class Mooring(Edge):
             # save to modified ss (may have marine growth, corrosion, etc)
             self.ss_mod = ss
             return(self.ss_mod)
-        
+    
+    
     def mirror(self,create_subsystem=True):
         ''' Mirrors a half design dictionary. Useful for symmetrical shared mooring lines where 
         only half of the line is provided 
@@ -1056,7 +1057,4 @@ class Mooring(Edge):
         # Indices of connectors and sections in self.subcomponents list
         self.i_con = list(range(0, 2*self.n_sec+1, 2))
         self.i_sec = list(range(1, 2*self.n_sec+1, 2))
-        
-    
-        
         

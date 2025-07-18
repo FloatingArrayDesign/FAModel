@@ -61,6 +61,7 @@ class Platform(Node):
         self.failure_probability = {}
         self.raftResults = {}
     
+    
     def setPosition(self, r, heading=None, degrees=False,project=None):
         '''
         Set the position/orientation of the platform as well as the associated

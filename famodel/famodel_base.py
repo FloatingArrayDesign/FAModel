@@ -673,7 +673,11 @@ class Edge():
         # Store them as subcomponents of this edge
         self.subcomponents = items  # dict(enumerate(items))
         for item in items:
-            item.part_of = self
+            if isinstance(item, list):
+                for subitem in item:
+                    subitem.part_of = self
+            else:    
+                item.part_of = self
         
         # Assign ends 
         self.subcons_A = list([items[0]]) # subcomponent for end A (can be multiple)
@@ -1089,10 +1093,42 @@ def assemble(items):
     
     # >>> TODO: adjust this so it can connect parallel elements .eg. for bridles <<<
     
+    '''
+    # If the provided items isn't a list, there's nothing to assemble so return
+    if not isinstance(items[i], List):
+        print('Not a list - returning!')
+        return
+    '''
     n = len(items)
     
     for i in range(n-1):
-        if isinstance(items[i], Node) and isinstance(items[i+1], Edge):
+    
+        if isinstance(items[i], list):
+            for subitem in items[i]:  # go through each parallel subitem
+            
+                if isinstance(subitem, list):  # if it's a concatenation of multiple things
+                    assemble(subitem) # make sure that any sublist is assembled
+                    
+                    # attach the end objects of the subitem to the nodes before and after
+                    if i > 0 and isinstance(items[i-1], Node):  # attach to previous node
+                        items[i-1].attach(subitem[0], end='a')
+                    if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
+                        items[i+1].attach(subitem[-1], end='b')
+                    # note: this requires the end objects to be edges
+                
+                elif isinstance(subitem, Edge): # if the subitem is just one edge
+                    if i > 0 and isinstance(items[i-1], Node):  # attach to previous node
+                        items[i-1].attach(subitem, end='a')
+                    if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
+                        items[i+1].attach(subitem, end='b')
+                else:
+                    raise Exception("Unsupported situation ... parallel subitems must be edges or concatenations")
+                
+        elif isinstance(items[i], Node) and isinstance(items[i+1], list):
+            pass  # this node connects to a bridle or doubled section, 
+            # so it will be hooked up in the next step
+            
+        elif isinstance(items[i], Node) and isinstance(items[i+1], Edge):
             items[i].attach(items[i+1], end='a')
         
         elif isinstance(items[i], Edge) and isinstance(items[i+1], Node):
@@ -1174,7 +1210,24 @@ if __name__ == '__main__':
     
     assemble([A, E, B])
     
-    E.addSubcomponents([e0,n0,e1,n1,e2])
+    E.addSubcomponents([e0,n0,e1,n1,e2])    
+    
+    
+    # ----- a test for bridles etc -----
+    
+    e0 = Edge(id='e0')
+    n0 = Node(id='n0')
+    e1 = Edge(id='e1')
+    n1 = Node(id='n1')
+    e2a = Edge(id='e2a')
+    e2b = Edge(id='e2b')
+    
+    
+    thelist = [e0, n0, e1, n1, [e2a, e2b]]
+    
+    E = Edge(id='big edge')
+    
+    E.addSubcomponents(thelist)
     
     # ----- try joining two nodes -----
     
@@ -1184,7 +1237,7 @@ if __name__ == '__main__':
     
     
     # ----- tests connecting multi-level node and edge objects ----
-    '''
+    
     # --- Test 1 ---
     # platform and fairlead
     n1 = Node(id='n1')
@@ -1254,7 +1307,7 @@ if __name__ == '__main__':
     e1_n2.attach(e1_e1, end='B')
     # attach mooring to platfrom (by lower objects, then upper will be automatic)
     n2.attach(e1_n2)
-    '''
+    
     # --- Test 6 ---
     # platform and fairlead
     n1 = Node(id='n1')
