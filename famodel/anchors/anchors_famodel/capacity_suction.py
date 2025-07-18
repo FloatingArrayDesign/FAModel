@@ -2,7 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from support_soils import clay_profile, sand_profile
+from .support_soils import clay_profile, sand_profile
 
 def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=5, psilug=7.5, plot=False):
     '''Calculate the inclined load capacity of a suction pile in sand or clay following S. Kay methodology.
