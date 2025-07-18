@@ -102,8 +102,8 @@ def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast
             Su_vals = f_Su(z_vals)
             alpha_vals = np.array([f_alpha(z) for z in z_vals])
 
-            Su_total = np.trapezoid(Su_vals, z_vals)
-            Su_moment = np.trapezoid(z_vals*Su_vals, z_vals)
+            Su_total = np.trapz(Su_vals, z_vals)
+            Su_moment = np.trapz(z_vals*Su_vals, z_vals)
             print("xxxxxxxxxxxxxxxxxxxxxxxxx")
             Su_av_z = Su_total/dz_seg
             print(f"Su_av_z = {Su_av_z:.2f} Pa")
