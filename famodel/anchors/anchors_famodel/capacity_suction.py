@@ -2,7 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from .support_soils import clay_profile, sand_profile
+from support_soils import clay_profile, sand_profile
 
 def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=5, psilug=7.5, plot=False):
     '''Calculate the inclined load capacity of a suction pile in sand or clay following S. Kay methodology.
@@ -124,8 +124,8 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             # Calculate properties over clipped dz
             z_vals = np.linspace(z_top_clip, z_bot_clip, npts)
             Su_vals = f_Su(z_vals)
-            Su_total = np.trapezoid(Su_vals, z_vals)
-            Su_moment = np.trapezoid(Su_vals*z_vals, z_vals)
+            Su_total = np.trapz(Su_vals, z_vals)
+            Su_moment = np.trapz(Su_vals*z_vals, z_vals)
             
             ez_layer = Su_moment/Su_total
             Su_av_z = f_Su(ez_layer)
@@ -354,7 +354,7 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
     # Define colormap
     cmap = plt.colormaps['Greys']  
     norm = mcolors.Normalize(vmin=min(shrink_factors), vmax=max(shrink_factors))
-   
+    
     for s_f in shrink_factors:
         color = cmap(norm(s_f))
         x_ellipse = Hmax_final*s_f*np.cos(theta)
@@ -509,7 +509,7 @@ if __name__ == '__main__':
         D, L, zlug,                   # Pile geometrical properties
         Ha, Va,                       # Pile loading conditions   
         thetalug=theta, psilug=psi,   # Pile misaligment tolerances 
-        plot=True
+        plot=False
     )
 
     # print('\n--- Suction Pile Capacity Results ---')
