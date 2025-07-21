@@ -674,8 +674,9 @@ class Edge():
         self.subcomponents = items  # dict(enumerate(items))
         for item in items:
             if isinstance(item, list):
-                for subitem in item:
-                    subitem.part_of = self
+                for branch in item:
+                    for subitem in branch:
+                        subitem.part_of = self
             else:    
                 item.part_of = self
         
@@ -737,6 +738,53 @@ class Edge():
             end = -1  # object isn't at the end of the higher level edge so do nothing
         
         return end
+    
+    
+    def getSubcomponent(self, index):
+        '''Returns the subcomponent of the edge corresponding to the provided
+        index. An index with multiple entries can be used to refer to parallel
+        subcomponents.
+        
+        Parameters
+        ----------
+        index: list
+            The index of the subcomponent requested to be returned. Examples:
+            [2]: return the third subcomponent in the series (assuming there
+            are no parallel subcomponents).
+            [2,1,0]: Return the first (or only) object along the second 
+            parallel string at the third serial position.  Same as [2,1].
+            [1,0,2]: Return the third object along the first paralle string
+            at the first serial position.
+        '''
+    
+        if np.isscalar(index):
+            index = [index]  # put into a common list format if not already
+        
+        if len(index) == 2:  # assume length 2 is for a parallel branch with 
+            index.append(0)  # with just one edge object, so add that 0 index.
+        
+        # Only one index means the simple case without a parallel string here
+        if len(index) == 1:
+            if isinstance(self.subcomponents[index[0]], list):
+                raise Exception('There is a parallel string at the requested index.')
+            
+            object = self.subcomponents[index[0]]
+        
+        # Three indices means an object along a parallel string
+        elif len(index) == 3:
+            if not isinstance(self.subcomponents[index[0]], list):
+                raise Exception('There is not a parallel string at the requested index.')
+            if len(self.subcomponents[index[0]]) < index[1]+1:
+                raise Exception('The number of parallel strings is less than the requested index.')
+            if len(self.subcomponents[index[0]][index[1]]) < index[2]+1:
+                raise Exception('The number of objects along the parallel string is less than the requested index.')
+            
+            object = self.subcomponents[index[0]][index[1]][index[2]]    
+        
+        else:  # other options are not yet supported
+            raise Exception('Index must be length 1 or 3.')
+        
+        return object
     
     
     def setEndPosition(self, r, end):
@@ -1117,6 +1165,8 @@ def assemble(items):
                     # note: this requires the end objects to be edges
                 
                 elif isinstance(subitem, Edge): # if the subitem is just one edge
+                    print("THIS CASE SHOULDN'T HAPPEN - the list should be nested more")
+                    breakpoint()
                     if i > 0 and isinstance(items[i-1], Node):  # attach to previous node
                         items[i-1].attach(subitem, end='a')
                     if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
@@ -1219,18 +1269,22 @@ if __name__ == '__main__':
     n0 = Node(id='n0')
     e1 = Edge(id='e1')
     n1 = Node(id='n1')
-    e2a = Edge(id='e2a')
-    e2b = Edge(id='e2b')
+    e2a1 = Edge(id='e2a')
+    e2a2 = Node(id='e2a')
+    e2a3 = Edge(id='e2a')
+    e2b  = Edge(id='e2b')
     
     
-    thelist = [e0, n0, e1, n1, [e2a, e2b]]
+    thelist = [e0, n0, e1, n1, [[e2a1, e2a2, e2a3], [e2b]]]
     
     E = Edge(id='big edge')
     
     E.addSubcomponents(thelist)
     
-    # ----- try joining two nodes -----
+    s = E.getSubcomponent([4,0,2])
     
+    # ----- try joining two nodes -----
+    """
     A = Node(id='Node A')
     B = Node(id='Node B')
     A.join(B)
@@ -1323,5 +1377,9 @@ if __name__ == '__main__':
     n1.setPosition(r=[0,0,0], theta=0)
     #print(n1.attachments)
     #print(e1.attached_to)
-    
+    """
 
+
+         
+    
+    
