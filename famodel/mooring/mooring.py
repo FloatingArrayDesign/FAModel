@@ -16,7 +16,7 @@ class Mooring(Edge):
     '''
     
     def __init__(self, dd=None, subsystem=None, anchor=None,
-                 rho=1025, g=9.81,id=None,shared=0,subcons=None):
+                 rho=1025, g=9.81,id=None,shared=0):
         '''
         Parameters
         ----------
@@ -74,55 +74,74 @@ class Mooring(Edge):
             if not 'z_fair' in self.dd:
                 self.dd['z_fair'] = self.ss.z_fair
                 
-            self.dd['sections'] = []
-            self.dd['connectors'] = []
-            for ls in self.ss.lineList:
-                self.dd['sections'].append({'type':ls.type,'L':ls.L})
+            self.dd['subcomponents'] = []
+
             for lp in self.ss.pointList:
-                self.dd['connectors'].append({'CdA':lp.CdA, 'm':lp.m, 'v':lp.v})
+                if not any(lp.attachedEndB):
+                    # this is the starting point at end A
+                    self.dd['subcomponents'].append({'CdA':lp.CdA, 'm':lp.m, 'v':lp.v})
+                    break
+            for s in range(len(self.ss.lineList)):
+                endA = [lp.attachedEndB[i] for i in lp.attachedEndB if i==0][0]
+                line_num = lp.attached[endA]
+                ls = self.ss.lineList[line_num-1]
+                self.dd['subcomponents'].append({'type':ls.type, 'L':ls.L})
+                for lb in self.ss.pointList:
+                    if line_num in lb.attached and lb != lp:
+                        lp = lb
+                        self.dd['subcomponents'].append({'CdA':lp.CdA, 'm':lp.m, 'v':lp.v})
+            
+
+                
                 
 
         # let's turn the dd into something that holds subdict objects of connectors and sections
         if self.dd:
             # >>> list of sections ?  And optional of section types (e,g, chian, poly) 
             # and dict of scaling props (would be used by linedesign) ?
-            self.n_sec = len(self.dd['sections'])
-            
+            # self.n_sec = len(self.dd['sections'])
+
             self.i_con = []
             self.i_sec = []
-            # Turn what's in dd and turn it into Sections and Connectors
-            con_i = 0
-            for i, con in enumerate(self.dd['connectors']):
-                if isinstance(self.dd['connectors'][i],list):
-                    for j,subcon in enumerate(self.dd['connectors'][i]):
-                        if isinstance(self.dd['connectors'][i][j],list):
-                            if con and 'type' in con:
-                                Cid = con['type']+str(con_i)
-                            else:
-                                Cid = None
-                            self.addConnector(con, con_i, id=Cid, insert=False)
-                            con_i += 1
-                else:            
-                    if con and 'type' in con:
-                        Cid = con['type']+str(con_i)
-                    else:
-                        Cid = None
-                    self.addConnector(con, con_i, id=Cid, insert=False)
-                    con_i += 1
-            sub_i = 0
-            for i, sec in enumerate(self.dd['sections']):
-                if isinstance(self.dd['sections'][i],list):
-                    for j,subcon in enumerate(self.dd['sections'][i]):
-                        if isinstance(self.dd['sections'][i][j],list):
-                            self.addSection(sec['L'],sec['type'],sub_i, insert=False)
-                            sub_i += 1
-                else:
-                    self.addSection(sec['L'],sec['type'],sub_i, insert=False)
-                    sub_i += 1
+                            
+            # # Turn what's in dd and turn it into Sections and Connectors
+            # con_i = 0
+            # for i, con in enumerate(self.dd['connectors']):
+            #     if isinstance(self.dd['connectors'][i],list):
+            #         for j,subcon in enumerate(self.dd['connectors'][i]):
+            #             if isinstance(self.dd['connectors'][i][j],list):
+            #                 if con and 'type' in con:
+            #                     Cid = con['type']+str(con_i)
+            #                 else:
+            #                     Cid = None
+            #                 self.addConnector(con, con_i, id=Cid, insert=False)
+            #                 con_i += 1
+            #     else:            
+            #         if con and 'type' in con:
+            #             Cid = con['type']+str(con_i)
+            #         else:
+            #             Cid = None
+            #         self.addConnector(con, con_i, id=Cid, insert=False)
+            #         con_i += 1
+            # sub_i = 0
+            # for i, sec in enumerate(self.dd['sections']):
+            #     if isinstance(self.dd['sections'][i],list):
+            #         for j,subcon in enumerate(self.dd['sections'][i]):
+            #             if isinstance(self.dd['sections'][i][j],list):
+            #                 self.addSection(sec['L'],sec['type'],sub_i, insert=False)
+            #                 sub_i += 1
+            #     else:
+            #         self.addSection(sec['L'],sec['type'],sub_i, insert=False)
+            #         sub_i += 1
                 
+            # convert subcomponents list into actual objects
+            self.convertSubcomponents(self.dd['subcomponents'])
             
-            # connect subcomponents and update i_sec and i_conn lists
-            self.connectSubcomponents(subcons)
+            # connect subcomponents
+            self.addSubcomponents(self.dd['subcomponents'])
+            
+            # point dd['subcomponents'] list to self.subcomponents
+            self.dd['subcomponents'] = self.subcomponents
 
         
         
@@ -168,9 +187,12 @@ class Mooring(Edge):
         
         if not dd == None:  # if dd passed in
             self.dd.update(dd)  # move contents of dd into Mooring.dd
-        
+            self.convertSubcomponents(dd['subcomponents'])
+            self.addSubcomponents(self.dd['subcomponents'])
         # Update section lengths and types
-        for i, sec in enumerate(dd['sections']):
+        for i in range(len(self.i_sec)):
+            sec = self.getSubcomponent(self.i_sec[i])
+            
             if self.ss:
                 self.ss.lineList[i].setL(sec[i]['L'])
                 self.ss.lineTypes[i] = sec[i]['type']
@@ -181,8 +203,8 @@ class Mooring(Edge):
     def setSectionLength(self, L, i):
         '''Sets length of section, including in the subdsystem if there is
         one.'''
-        
-        self.dd['sections'][i]['L'] = L  # set length in dd (which is also Section/subcomponent)
+        sec = self.getSubcomponents(self.i_sec[i])
+        sec['L'] = L  # set length in dd (which is also Section/subcomponent)
         
         if self.ss:  # is Subsystem exists, adjust length there too
             self.ss.lineList[i].setL(L)
@@ -199,9 +221,9 @@ class Mooring(Edge):
     def setSectionType(self, lineType, i):
         '''Sets lineType of section, including in the subdsystem 
         if there is one.'''
-        
+        sec = self.getSubcomponents(self.i_sec[i])
         # set type dict in dd (which is also Section/subcomponent)
-        self.dd['sections'][i]['type'] = lineType  
+        sec['type'] = lineType  
         
         if self.ss:  # is Subsystem exists, adjust length there too
             self.ss.lineTypes[i] = lineType
@@ -446,6 +468,7 @@ class Mooring(Edge):
         mooringSys : MoorPy System, optional
             MoorPy system this subsystem is a part of
         '''
+        # TODO: Figure out how to handle subsystems for lines with subsections (esp when double chain in middle...)
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:
             dd = self.dd
@@ -462,17 +485,22 @@ class Mooring(Edge):
         lengths = []
         types = []
         # run through each line section and collect the length and type
-        for i, sec in enumerate(dd['sections']):
+        for i in self.i_sec:
+            sec = self.getSubcomponent(i)
             lengths.append(sec['L'])
             # points to existing type dict in self.dd for now
             types.append(sec['type']) # list of type names
             #types.append(sec['type']['name']) # list of type names
             #self.ss.lineTypes[i] = sec['type']  
+        conns = []
+        for i in self.i_con:
+            conns.append(self.getSubcomponent(i))
+            
 
         
         # make the lines and set the points 
         ss.makeGeneric(lengths, types, 
-            connectors=[dd['connectors'][ic+1] for ic in range(len(dd['connectors'])-2)], 
+            connectors=[conns[ic+1] for ic in range(len(conns)-2)], 
             suspended=case)
         ss.setEndPosition(self.rA,endB=0)
         ss.setEndPosition(self.rB,endB=1)
@@ -485,10 +513,11 @@ class Mooring(Edge):
         else: # no anchor - need to include all connections
             startNum = 0 
 
-        for i in range(startNum,len(ss.pointList)):                               
-            dd['connectors'][i].mpConn = ss.pointList[i]
-            dd['connectors'][i].mpConn.CdA = dd['connectors'][i]['CdA']
-            dd['connectors'][i].getProps()
+        for i in range(startNum,len(ss.pointList)): 
+            conn = self.getSubcomponent(self.i_con[i])                             
+            conn.mpConn = ss.pointList[i]
+            conn.mpConn.CdA = conns[i]['CdA']
+            conn.getProps()
             
         # solve the system
         ss.initialize()
@@ -516,9 +545,11 @@ class Mooring(Edge):
             Default is True
         '''
         # disconnect all sections and connectors
-        for i, sec in enumerate(self.dd['sections']):
-            self.dd['sections'][i].detachFrom(end='a')
-            self.dd['sections'][i].detachFrom(end='b')
+        # TODO: update to work with dd['subcomponents']
+        for i in self.i_sec:
+            sec = self.getSubcomponent(i)
+            sec.detachFrom(end='a')
+            sec.detachFrom(end='b')
         # find out if the connector at end A (center of line) is empty 
         if not self.dd['connectors'][0] or self.dd['connectors'][0]['m']==0:
             # do not double the middle section length
@@ -919,7 +950,8 @@ class Mooring(Edge):
         None.
 
         '''
-        for i,sec in enumerate(self.dd['sections']):
+        for i in self.i_sec:
+            sec = self.getSubcomponent[i]
             if sec['material']=='chain':
                 MBL_cor = sec['MBL']*( (sec['d_nom']-(corrosion_mm/1000))/sec['d_nom'] )**2  # corroded MBL
             else:
@@ -992,27 +1024,47 @@ class Mooring(Edge):
             Length of new section in [m]
         section_type : dict
             Dictionary of section properties
-        index : int
+        index : list
             New index of section in the mooring design dictionary sections list
+            List of length 1 or 3 depending on if part of a subsection or not
         id : str/int, optional
             Id of section
         '''
         if not id:
             if insert:
-                for i,sec in enumerate(self.dd['sections']):
-                    # update ids of sections
-                    if i>=index and isinstance(sec, Section):
-                        sec.id = 'Section'+str(i+1)
-            id='Section'+str(index)
+                for i in self.i_sec:
+                    # update ids of connectors after this in series
+                    if len(i)==len(index) and i[-1]>index[-1]:
+                        if np.all([i[j]>=index[j] for j in range(len(i))]) and i[-1]>index[-1]:
+                            sec = self.getSubcomponent(i)
+                            sec.id = '_'.join(['S',*[str(j) for j in i]])
+            id='_'.join(['S',*[str(j) for j in index]])
         newsection_dd = {'type':section_type,'L':section_length}
-        newsection = Section(id,**newsection_dd)
+        newsec = Section(id,**newsection_dd)
         if insert:
-            self.dd['sections'].insert(index, newsection)
+            if len(index)==1:
+                self.dd['subcomponents'].insert(index[0], 
+                                                newsec)
+            elif len(index)==2:
+                self.dd['subcomponents'][index[0]][index[1]].insert(0, 
+                                                                    newsec)
+            elif len(index)==3:
+                self.dd['subcomponents'][index[0]][index[1]].insert(index[2], 
+                                                                    newsec)
+            else:
+                raise Exception('Length of index must be 1 or 3')
         else:
-            self.dd['sections'][index] = newsection
+            if len(index)==1:
+                self.dd['subcomponents'][index[0]] =  newsec
+            elif len(index)==2:
+                self.dd['subcomponents'][index[0]][index[1]][0] = newsec
+            elif len(index)==3:
+                self.dd['subcomponents'][index[0]][index[1]][index[2]] = newsec
+            else:
+                raise Exception('Length of index must be 1 or 3')
         
         
-        return(newsection)
+        return(newsec)
     
     def addConnector(self, conn_dd, index, id=None, insert=True):
         '''
@@ -1023,7 +1075,7 @@ class Mooring(Edge):
         conn_dd : dict
             Connector design dictionary
         index : int
-            New index of connector in the mooring design dictionary connectors list
+            New index of connector in the mooring design dictionary subcomponents list
         id : str or int, optional
             ID of new connector
         insert : bool, optional
@@ -1037,45 +1089,116 @@ class Mooring(Edge):
         '''
         if not id:
             if insert:
-                for i,conn in enumerate(self.dd['connectors']):
-                    # update ids of connectors
-                    if i>=index and isinstance(conn, Connector):
-                        conn.id = 'Conn'+str(i+1)
-            id = 'Conn'+str(index)
+                for i in self.i_con:
+                    # update ids of connectors after this in series
+                    if len(i)==len(index) and i[-1]>index[-1]:
+                        if np.all([i[j]>=index[j] for j in range(len(i))]) and i[-1]>index[-1]:
+                            conn = self.getSubcomponent(i)
+                            conn.id = '_'.join(['C',*[str(j) for j in i]])
+            id = '_'.join(['C',*[str(j) for j in index]])
         newconn = Connector(id, **conn_dd)
         if insert:
-            self.dd['connectors'].insert(index, newconn)
+            if len(index)==1:
+                self.dd['subcomponents'].insert(index[0], 
+                                                newconn)
+            elif len(index)==2:
+                self.dd['subcomponents'][index[0]][index[1]].insert(0, 
+                                                                    newconn)
+            elif len(index)==3:
+                self.dd['subcomponents'][index[0]][index[1]].insert(index[2], 
+                                                                    newconn)
+            else:
+                raise Exception('Length of index must be 1 or 3')
         else:
-            self.dd['connectors'][index] = newconn
+            if len(index)==1:
+                self.dd['subcomponents'][index[0]] =  newconn
+            elif len(index)==2:
+                self.dd['subcomponents'][index[0]][index[1]][0] = newconn
+            elif len(index)==3:
+                self.dd['subcomponents'][index[0]][index[1]][index[2]] = newconn
+            else:
+                raise Exception('Length of index must be 1 or 3')
         
         return(newconn)
     
-    def connectSubcomponents(self, subcons=None):
+    # def connectSubcomponents(self, subcons=None):
         
-        # first disconnect any current subcomponents
-        for ii in self.i_sec:
-            self.subcomponents[ii].detachFrom('A')
-            self.subcomponents[ii].detachFrom('B')
+    #     # first disconnect any current subcomponents
+    #     for ii in self.i_sec:
+    #         self.subcomponents[ii].detachFrom('A')
+    #         self.subcomponents[ii].detachFrom('B')
             
-        # # detach end connectors from platforms/anchors just in case
-        # if len(self.subcomponents)>0:
-        #     endattsA = [att['obj'] for att in self.subcomponents[0].attachments.values()]
-        #     endattsB = [att['obj'] for att in self.subcomponents[-1].attachments.values()]
-        #     for att in endattsA:
-        #         self.subcomponents[0].detach(att)
-        #     for att in endattsB:
-        #         self.subcomponents[-1].detach(att)
+    #     # # detach end connectors from platforms/anchors just in case
+    #     # if len(self.subcomponents)>0:
+    #     #     endattsA = [att['obj'] for att in self.subcomponents[0].attachments.values()]
+    #     #     endattsB = [att['obj'] for att in self.subcomponents[-1].attachments.values()]
+    #     #     for att in endattsA:
+    #     #         self.subcomponents[0].detach(att)
+    #     #     for att in endattsB:
+    #     #         self.subcomponents[-1].detach(att)
             
-        # Now connect the new set of subcomponents and store them in self(Edge).subcomponents!
-        if subcons is None:
-            subcons = []  # temporary list of node-edge-node... to pass to the function
-            for i in range(self.n_sec):
-                subcons.append(self.dd['connectors'][i])
-                subcons.append(self.dd['sections'][i])
-            subcons.append(self.dd['connectors'][-1])
-        self.addSubcomponents(subcons)  # Edge method to connect and store em
+    #     # Now connect the new set of subcomponents and store them in self(Edge).subcomponents!
+    #     if subcons is None:
+    #         subcons = []  # temporary list of node-edge-node... to pass to the function
+    #         for i in range(self.n_sec):
+    #             subcons.append(self.dd['connectors'][i])
+    #             subcons.append(self.dd['sections'][i])
+    #         subcons.append(self.dd['connectors'][-1])
+    #     self.addSubcomponents(subcons)  # Edge method to connect and store em
+
         
-        # Indices of connectors and sections in self.subcomponents list
-        self.i_con = list(range(0, 2*self.n_sec+1, 2))
-        self.i_sec = list(range(1, 2*self.n_sec+1, 2))
+    def convertSubcomponents(self, subs_list):
+        for i,sub in enumerate(subs_list):
+            if isinstance(sub,list):
+                for j,subsub in enumerate(sub):
+                    if isinstance(subsub, list):
+                        for k, subsubsub in enumerate(subsub):
+                            
+                            if 'L' in sub:
+                                id = '_'.join(['S',*[str(l) for l in [i,j,k]]])
+                                # this is a section
+                                subs_list[i][j][k] = self.addSection(subsubsub['L'], 
+                                                                     subsubsub['type'],
+                                                                     [i,j,k],
+                                                                     id=id,
+                                                                     insert=False)
+                                self.i_sec.append([i, j, k])
+                            else:
+                                id = '_'.join(['C',*[str(l) for l in [i,j,k]]])
+                                subs_list[i][j][k] = self.addConnector(subsubsub,
+                                                                       [i,j,k],
+                                                                       id=id,
+                                                                       insert=False)
+                                self.i_con.append([i, j, k])
+                    else:
+                        raise Exception('subcomponent list entry must be length 1 or 3')
+            elif 'L' in sub:
+                id = 'S'+str(i)
+                subs_list[i] = self.addSection(sub['L'], 
+                                               sub['type'], 
+                                               [i], 
+                                               id=id,
+                                               insert=False)
+                self.i_sec.append([i])
+            else:
+                id = 'C'+str(i)
+                subs_list[i] = self.addConnector(sub, [i], id=id, insert=False)
+                self.i_con.append([i])
+    
+    # def convertSubcomponents(self,subs_list, level=0, index=[0]):
+    #     ind = index
+    #     for i,sub in enumerate(subs_list):
+    #         if isinstance(sub, list):
+    #             lvl = level+1
+    #             if len
+    #             ind.append(0)
+    #             self.convertSubcomponents(sub,level=lvl, index=ind)
+    #         elif 'L' in sub:
+    #             # this is a section
+    #             id = '_'.join([str(j) for j in ind])
+    #             self.addSection(sub['L'], sub['type'], ind, id=id)
+    #             ind[level] += 1
+    #         else:
+    #             self.addConnector(sub, ind)
+    #             ind[level] += 1
         

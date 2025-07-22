@@ -517,12 +517,12 @@ class Project():
                         lineconfig = mySys[j]['MooringConfigID']
                    
                         # create mooring and connector dictionary
-                        m_config, config = getMoorings(lineconfig, lineConfigs, connectorTypes, arrayInfo[i]['ID'], self)
+                        mdd = getMoorings(lineconfig, lineConfigs, connectorTypes, arrayInfo[i]['ID'], self)
                         
                         # create mooring object, attach ends, reposition
                         moor = self.addMooring(id=name,
                                         heading=headings[j]+platform.phi,
-                                        dd=m_config, subcons=config, 
+                                        dd=mdd, 
                                         reposition=False)
                         
                         anch = self.addAnchor(id=name, dd=ad, mass=mass)
@@ -586,11 +586,11 @@ class Project():
                     lineconfig = arrayMooring[j]['MooringConfigID']       
                     
                     # create mooring and connector dictionary for that line
-                    m_config, config = getMoorings(lineconfig, lineConfigs, connectorTypes, PF[0].id, self)
+                    mdd = getMoorings(lineconfig, lineConfigs, connectorTypes, PF[0].id, self)
                     
                     # create mooring class instance
                     moor = self.addMooring(id=str(PF[1].id)+'-'+str(PF[0].id), 
-                                           dd=m_config, subcons=config,
+                                           dd=mdd,
                                            shared=1)
                     
                     # attach ends
@@ -614,13 +614,13 @@ class Project():
                     # get configuration for that line 
                     lineconfig = arrayMooring[j]['MooringConfigID']                       
                     # create mooring and connector dictionary for that line
-                    m_config, config = getMoorings(lineconfig, lineConfigs, connectorTypes, PF[0].id, self)
+                    mdd = getMoorings(lineconfig, lineConfigs, connectorTypes, PF[0].id, self)
                     # get letter number for mooring line
                     ind = len(PF[0].getMoorings())
                     
-                    # create mooring class instance, attach to end A and end B objects, reposition
+                    # create mooring class instance
                     moor = self.addMooring(id=str(PF[0].id)+alph[ind], 
-                                           dd=m_config, subcons=config)
+                                           dd=mdd)
 
                     # check if anchor instance already exists
                     if any(tt == arrayMooring[j]['endA'] for tt in self.anchorList): # anchor name exists already in list
@@ -1695,7 +1695,7 @@ class Project():
                   'rad_fair':self.platformList[id_part[0]].rFair if id_part else 0,
                   'z_fair':self.platformList[id_part[0]].zFair if id_part else 0}
         
-        mooring = Mooring(dd=dd, id=id, subsystem=subsystem, subcons=subcons) # create mooring object
+        mooring = Mooring(dd=dd, id=id, subsystem=subsystem) # create mooring object
 
         # update shared prop if needed
         if len(id_part)==2 and shared<1:

@@ -307,7 +307,8 @@ Additionally, a list of mooring lines can be input in the line_data table with s
 If there is an anchor connected to this line, it must be listed 
 in end A, not end B. All anchors listed in line_data end A must have a matching ID in the anchor_data table, and all FOWTs listed in line_data end A or end B 
 must have a matching ID in the array_data table. The anchor and fowt IDs must all be unique. The mooring lines each have a mooring configuration ID which links to the [Mooring Line Configs](#mooring-line-configurations) section. 
-There is also an option to adjust the length of the line, depending on the spacing. 
+
+The fairlead connection point for end A and end B is represented with an integer value in fairleadA and fairlead respectively. This integer value maps to an index in the list of fairleads within the platform definition of the associated platform type in [Platforms](#platforms). For lines with shared anchors, the fairleadA is listed as None. The fairleadA and fairleadB keys are optional; if not provided, the moorings will attach to the platform at the platform's fairlead radius and depth based on the angle of the mooring line.
 
 ```yaml
 array_mooring:
@@ -318,11 +319,11 @@ array_mooring:
         - [  anch2,  suction1,   ,   ,     ]
     
     line_keys : 
-          [MooringConfigID  ,  end A,   end B,  lengthAdjust]
+          [MooringConfigID  ,  endA,    endB,  fairleadA, fairleadB]
     line_data :
-        - [ semitaut-poly_1 ,  anch1,    fowt1,   0]
-        - [ semitaut-poly_1 ,  anch2,    fowt1,   0]
-        - [ semitaut-poly_2 ,  fowt1,    f2,      0]
+        - [ semitaut-poly_1 ,  anch1,    fowt1,   None,        1]
+        - [ semitaut-poly_1 ,  anch2,    fowt3,   None,        2]
+        - [ semitaut-poly_2 ,  fowt1,    f2,      2,           3]
 ```
 
 ### Array Cables
@@ -330,7 +331,7 @@ There are two locations to list cables, either or both may be used. Cables liste
 
 This section provides a straightforward and compact way to define the power
 cables in the array. The CableID refers to an entry in the [Top Level Cables](#top-level-cables) section. For each end (A and B) of the cable, it specifies the
-platform (matching an ID in the [array table](#array-layout)) it is attached to, the dynamic cable attached at either end (matching an ID in the [Dynamic Cable Configurations](#dynamic-cable-configurations) section), and the heading of the cable at the attachment of each end, using headings relative to the heading of the platform or substation it is connected to, running clockwise. 
+platform (matching an ID in the [array table](#array-layout)) it is attached to, the dynamic cable attached at either end (matching an ID in the [Dynamic Cable Configurations](#dynamic-cable-configurations) section), the heading of the dynamic cable at the attachment of each end, using headings relative to the heading of the platform or substation it is connected to, running clockwise, and the index in the platform J-tube list each end is attached to. The JtubeA and JtubeB keys in the table are optional to implement; if not provided it is assumed that the cable attaches to the platform at the center of the platform.
 
 The static cable type is listed under 'cableType', referencing either an entry in the [Cable Cross Sectional Properties](#cable-cross-sectional-properties) section or a cable type name in the FAModel CableProps yaml. Length adjustment information is also included.
 
@@ -339,10 +340,10 @@ If a cable does not have a feature (for example, a suspended cable would not hav
 
 ```yaml
 array_cables:   
-    keys:  [  AttachA, AttachB,  DynCableA,   DynCableB,  headingA, headingB, cableType,    lengthAdjust]
+    keys:  [  AttachA, AttachB,  DynCableA,   DynCableB,  headingA, headingB, JtubeA, JtubeB, cableType           ]
     data:
-      - [     f2,      substation1, lazy_wave1,  lazy_wave2, 270,      270,      static_cable_66, 0     ] 
-      - [     fowt1,   f2,          suspended_1, None,       90,       270,      None,            0     ]  
+      - [     f2,      substation1, lazy_wave1,  lazy_wave2, 270,      270,   1,      1,      static_cable_66     ] 
+      - [     fowt1,   f2,          suspended_1, None,       90,       270,   2,      3,      None                ]  
 ```
 
 ## Topside(s)
@@ -389,8 +390,12 @@ by [WEIS](https://weis.readthedocs.io).
 This section defines the floating support structures used in the design. As in
 the previous section, it can contain a single platform or a list of platforms. 
 By default, the format here follows that used by 
-[RAFT](https://openraft.readthedocs.io) input files, with the addition of 'rFair', 'zFair', and 'type' entries to the 
-dictionary for each platform in the first level of each platform listed. In this case, rFair is the fairlead radius, zFair is the fairlead depth with respect to the platform depth, and type describes the kind of platform (i.e. FOWT for a floating wind turbine, Substation, WEC). An optional input is z_location, which describes the nominal depth of the platform. If the z_location is not provided here or as a column in the array table, it is assumed to be 0.
+[RAFT](https://openraft.readthedocs.io) input files, with the addition of 'type', and the optional entries of 'fairleads', 'Jtubes', 'rFair' and 'zFair' to the 
+dictionary for each platform in the first level of each platform listed. In this case, type describes the kind of platform (i.e. FOWT for a floating wind turbine, Substation, WEC).
+
+Optional entries include:
+ - fairleads : a list of dictionaries providing information on the relative fairlead locations of the platform. The relative positions can be listed for each fairlead, or the fairlead radius, depth, and headings (relative to 0 platform heading) can be provided. If a list of fairlead headings is provided in one fairlead entry, the heading list indices are added to the list of fairlead indices referenced in mooring_systems or array_mooring.
+rFair is the fairlead radius, zFair is the fairlead depth with respect to the platform depth. An optional input is z_location, which describes the nominal depth of the platform. If the z_location is not provided here or as a column in the array table, it is assumed to be 0.
 
 However, support will be added for also linking to platform descriptions that follow
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
