@@ -468,7 +468,7 @@ def plot_load(layers, drag_values, depth_values, Tm, thetam, Ta, thetaa, zlug):
         elif soil == 'sand':
             phi = layer.get('phi_top', 30)
             gamma = layer.get('gamma_top', 10)
-            color_fill = plt.cm.YlOrBr(phi/max_phi)
+            color_fill = plt.cm.YlOrBr(phi / max_phi)
             label_soil = f'ϕ = {phi:.0f}°, γ = {gamma:.1f} kN/m³'
         else:
             color = 'gray'
@@ -499,14 +499,6 @@ def plot_load(layers, drag_values, depth_values, Tm, thetam, Ta, thetaa, zlug):
     if zlug is not None:
         ax.plot(drag_values[-1], -zlug, 'go', label=f'Padeye (zlug = {zlug:.2f} m)')
     
-    # Coordinates of lug arrow tail
-    xlug = drag_values[-1]
-    ylug = depth_values[-1]
-    
-    # Mark the base of the lug vector with a green dot and depth label
-    ax.plot(xlug, ylug, 'go', zorder=5)
-    ax.annotate(f'z = {-ylug:.2f} m', (xlug - 0.5, ylug - 0.75), color='g')
-
     # Add mudline and padeye markers
     ax.axhline(-layers[0]['top'], color='b', linestyle='--', lw=1.5, label=f'Mudline')
 
@@ -539,7 +531,7 @@ def plot_pycurve(pycurve_data):
     pycurve_data : list of tuples
         Each tuple must be (y_vals, p_vals, z_depth, soil_type)
     '''
-    fig, ax = plt.subplots(figsize=(6, 5), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(6, 5))
 
     for y, p, z, soil in pycurve_data:
         label = f'{soil.capitalize()} @ z = {z:.1f} m'
@@ -549,5 +541,6 @@ def plot_pycurve(pycurve_data):
     ax.set_ylabel('Soil resistance p (N/m)')
     ax.set_title('p–y Curves at Various Depths')
     ax.grid(True)
-    # ax.legend(fontsize='small')
+    ax.legend()
+    plt.tight_layout()
     plt.show()

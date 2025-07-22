@@ -3,20 +3,6 @@ from famodel.project import Project
 import numpy as np
 import os
 
-# --- Helper goes at module level ---
-def assign_soil(anchor, soil_label, project):
-    soil_def = project.soilProps[soil_label]
-    layers = soil_def['layers']
-    print('[DEBUG] assign_soil: soil_label =', soil_label)
-    print('[DEBUG] assign_soil: soil_def =', soil_def)
-    profile_map = [{
-        'name': 'CPT_Assigned',
-        'x': 0, 'y': 0,
-        'layers': layers}]
-    
-    anchor.setSoilProfile(profile_map)
-    anchor.profile_name = 'CPT_Assigned'
-
 
 def test_anchor_loads():
     # load in famodel project 
@@ -24,137 +10,93 @@ def test_anchor_loads():
     project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
-   
-    assign_soil(anch, 'mud_soft', project)
     
-    # Force calculation
-    anch.getMudlineForces(max_force=False)
+    # get lug loads on anchor
+    anch.getLugForces(plot=False)
     
-    # Extract mudline loads
-    Hm = anch.loads.get('Hm')
-    Vm = anch.loads.get('Vm')
-    zlug = anch.dd['design']['zlug']
+    assert('Ha' in anch.loads)
+    assert('Hm' in anch.loads)
+    assert(anch.loads['Ha'] != anch.loads['Hm'])
 
-    # Compute lug loads
-    _, Ha, Va = anch.getLugForces(Hm, Vm, zlug, plot=False)
-    anch.loads['Ha'] = Ha
-    anch.loads['Va'] = Va
-
-    # Assertions
-    assert 'Ha' in anch.loads
-    assert 'Hm' in anch.loads
-    assert anch.loads['Ha'] != anch.loads['Hm']
-    
 def test_anchor_capacities():
     # load in famodel project (suction pile anchor)
     dir = os.path.dirname(os.path.realpath(__file__))
     project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
-
-    assign_soil(anch, 'mud_firm', project)
     
     # fill in load dictionary to skip watch circle run
-    loads = {'Ha':4.5e6, 'Va':1.9e6}
+    loads = {'Ha':4522222,'Va':3948278}
     # get capacity and safety factor
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
-
-    # try SUCTION PILE with sand
-    assign_soil(anch, 'sand', project)
-    # get capacity and safety factor
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
     
-    # check PLATE ANCHOR type   
-    anch.dd['type'] = 'plate'
-    anch.dd['design'] = {'B':5, 'L':2, 'zlug':10, 'beta':10}
-    assign_soil(anch, 'mud_soft', project)
-    # new horizontal load
-    loads['Ha'] = 2e6
+    # try suction pile with sand
+    soil = anch.soilProps
+    soil['sand'] = soil.pop(next(iter(soil.keys())))
+    soil['sand']['phi'] = 33
+    soil['sand']['Dr'] = 50
+    # get capacity and safety factor
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
+    
+    # check plate anchor type   
+    newdd = anch.dd
+    newdd['type'] = 'plate'
+    newdd['design'] = {'type':'plate','A':20,'zlug':10,'beta':10}
+    anch.soilProps['clay'] = anch.soilProps.pop('sand')
+    # new loads
+    loads['Ha'] = 1000000
     loads['Va'] = 0
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
     # get capacity and safety factor
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
-       
-    # check DRILLED & GROUTED PILE (need to change material to rock)
-    loads = {'Ha':4.5e5, 'Va':1.9e5} # again assign new loads    
-    anch.dd['type'] = 'dandg'
-    anch.dd['design'] = {'L':10, 'D':3, 'zlug':0}
-    assign_soil(anch, 'weak_rock', project)
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
     
-    # check DRIVEN PILES in soils and rock
-    anch.dd['type'] = 'driven'
-    anch.dd['design'] = {'L':20, 'D':1.5, 'zlug': 3}
-    assign_soil(anch, 'mud_firm', project)
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
+    # check drilled and grouted anchor type (need to change material to rock)
+    loads = {'Ha':4522222,'Va':3948278} # go back to original loads    
+    newdd['type'] = 'dandg_pile'
+    newdd['design'] = {'type':'dandg_pile','L':50,'D':3,'zlug':0}
+    soil['rock'] = soil.pop('clay') # soil_properties has default rock info in there already, just change name
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
     
-    anch.dd['design'] = {'L':30, 'D':2, 'zlug':3}
-    assign_soil(anch, 'sand', project)
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
+    # check driven pile anchor in rock and clay
+    newdd['type'] = 'driven'
+    soil['weak_rock'] = soil.pop('rock')
+    newdd['design'] = {'type':'driven','L':20,'D':1.5,'zlug':-3}
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
     
-    assign_soil(anch, 'weak_rock', project)
-    Ha = loads['Ha']
-    Va = loads['Va']
-    # change the padeye back to mudline elevation in rock
-    anch.dd['design']['zlug'] = 0
-    zlug = anch.dd['design']['zlug'] 
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
-       
-    # check HELICAL PILE with sand
-    anch.dd['type'] = 'helical'
-    anch.dd['design'] = {'L':15, 'd':1.25, 'D':2.00, 'zlug':3}
-    assign_soil(anch, 'sand', project)
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
+    soil['clay'] = soil.pop('weak_rock')
+    newdd['design'] = {'type':'driven','L':30,'D':2,'zlug':3}
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
     
-    # check HELICAL PILE with clay
-    anch.dd['type'] = 'helical'
-    anch.dd['design'] = {'L':12, 'd':0.5, 'D':1.5, 'zlug':3}
-    assign_soil(anch, 'mud_firm', project)
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
+    soil['sand'] = soil.pop('clay')
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
+    soil['sand']['Dr'] = 50
     
-    # check TORPEDO PILE
-    anch.dd['type'] = 'torpedo'
-    anch.dd['design'] = {'D1':3, 'D2':1.1, 'L1':10, 'L2':4, 'zlug':16}
-    assign_soil(anch, 'mud_soft', project)
-    Ha = loads['Ha']
-    Va = loads['Va']
-    zlug = anch.dd['design']['zlug']
-    anch.getCapacityAnchor(Ha, Va, zlug=zlug, plot=False)
-    anch.getSafetyFactor()
+    # check helical pile anchor with sand
+    newdd['type'] = 'helical_pile'
+    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01,'zlug':5}
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
     
-
+    # check helical pile anchor with clay
+    soil['clay'] = soil.pop('sand')
+    newdd['type'] = 'helical_pile'
+    newdd['design'] = {'type':'helical_pile','L':25.1,'d':1,'D':5.01,'zlug':5}
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
+    
+    # check torpedo anchor
+    newdd['type'] = 'torpedo_pile'
+    newdd['design'] = {'type':'torpedo_pile','D1':3,'D2':1.1,'L1':10,'L2':4,'zlug':16}
+    anch.getAnchorCapacity(loads=loads, plot=False)
+    anch.getFS(loads=loads)
+    
+    
     
     
 

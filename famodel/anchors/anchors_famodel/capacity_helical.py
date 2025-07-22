@@ -95,10 +95,9 @@ def getCapacityHelical(profile_map, location_name, D, L, d, zlug, Ha, Va, plot=F
     UC_vertical = Va/Qu
 
     # Compute horizontal capacity using p-y method
-    layers, y, z, results_lateral = getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=False)
-    # Plotting
-    if plot:
-        plot_pile(layers, y, z, D, L, z0=layers[0]['top'], zlug=zlug, hinge_location=None)
+    layers, y, z, results_lateral = getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=True)
+
+    plot_pile(layers, y, z, D, L, z0=layers[0]['top'], zlug=zlug, hinge_location=None)
 
     Hcap = results_lateral['Horizontal max.']
     UC_horizontal = Ha/Hcap if Hcap != 0 else np.inf
@@ -114,11 +113,11 @@ def getCapacityHelical(profile_map, location_name, D, L, d, zlug, Ha, Va, plot=F
 
     if matched_layer['soil_type'] == 'clay':
         resultsHelical['Su @ helix'] = Su
-        resultsHelical['alpha'] = alpha
+        resultsHelical['Alpha'] = alpha
     elif matched_layer['soil_type'] == 'sand':
         resultsHelical['Dr @ helix'] = Dr
-        resultsHelical['delta'] = delta
-        resultsHelical['phi'] = phi
+        resultsHelical['Delta'] = delta
+        resultsHelical['Phi'] = phi
 
     return layers, resultsHelical
 
@@ -134,17 +133,17 @@ if __name__ == '__main__':
                     'soil_type': 'clay',
                     'gamma_top': 8.0, 'gamma_bot': 9.0,
                     'Su_top': 60, 'Su_bot': 50},
-                # {
-                #     'top': 3.0, 'bottom': 7.0,
-                #     'soil_type': 'clay',
-                #     'gamma_top': 15.0, 'gamma_bot': 25.0,
-                #     'Su_top': 100, 'Su_bot': 150},
                 {
                     'top': 3.0, 'bottom': 7.0,
-                    'soil_type': 'sand',
-                    'gamma_top': 8.0, 'gamma_bot': 8.0,
-                    'phi_top': 32, 'phi_bot': 38,
-                    'Dr_top': 70, 'Dr_bot': 75},
+                    'soil_type': 'clay',
+                    'gamma_top': 15.0, 'gamma_bot': 25.0,
+                    'Su_top': 100, 'Su_bot': 150},
+                # {
+                #     'top': 6.0, 'bottom': 15.0,
+                #     'soil_type': 'sand',
+                #     'gamma_top': 8.0, 'gamma_bot': 8.0,
+                #     'phi_top': 32, 'phi_bot': 38,
+                #     'Dr_top': 70, 'Dr_bot': 75},
                 {
                     'top': 7.0, 'bottom': 15.0,
                     'soil_type': 'clay',
@@ -160,6 +159,7 @@ if __name__ == '__main__':
     Ha = 30e3      # Horizontal load (N)
     Va = 50e3      # Vertical load (N)
 
+    print("--- Clay Profile ---")
     layers, resultsHelical = getCapacityHelical(profile_map, 'CPT_1', D, L, d, zlug, Ha, Va, plot=True)
     for key, val in resultsHelical.items():
         if isinstance(val, float):
@@ -167,7 +167,7 @@ if __name__ == '__main__':
         else:
             print(f"{key}: {val}")
     
-    plot_helical(layers, D=D, L=L, d=d, z0=layers[0]['top'], zlug=zlug, n_helix=1, spacing=1.0)
+    plot_helical(layers, D=D, L=L, d=d, z0=layers[0]['top'], zlug=zlug, n_helix=1, spacing=1.0, title='Helical Pile in Sand Profile')
   
 
 

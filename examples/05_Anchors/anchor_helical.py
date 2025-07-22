@@ -31,8 +31,8 @@ anchor = Anchor(
 # --- Assign mooring loads and properties ---
 anchor.loads = {
     'Hm': 80e4,
-    'Vm': 50e5}
-
+    'Vm': 50e3
+}
 anchor.line_type = 'chain'
 anchor.d = 0.16
 anchor.w = 5000.0

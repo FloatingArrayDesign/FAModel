@@ -50,11 +50,8 @@ def fd_solver(n, N, h, D, t, fy, EI, Ha, Va, zlug, z0, k_secant):
         Index of the node with hinge formation
     '''  
     
-    # Initialize 
-    N = n + 5 
+    # Initialize and assemble matrix
     X = np.zeros((N, N))
-    q = np.zeros(N)
-    # k_secant = np.zeros(N)
 
     # (n+1) finite difference equations for (n+1) real nodes
     for i in range(0, n+1):
@@ -87,11 +84,13 @@ def fd_solver(n, N, h, D, t, fy, EI, Ha, Va, zlug, z0, k_secant):
     X[n+4, -3] =  0.0
     X[n+4, -4] =  2.0 - Va*h**2/EI
     X[n+4, -5] = -1.0
+
+    # Initialize vector q
+    q = np.zeros(N)
     
     # Always apply shear
     # Index of the node where the horizontal load is applied (padeye)
     zlug_index = int(zlug/h)
-    #zlug_index = max(1, int(zlug/h))  # avoid node 0
     q[zlug_index] = 2*Ha*h**3
                  
     y = linalg.solve(EI*X, q)

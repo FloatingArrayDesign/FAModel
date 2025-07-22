@@ -83,7 +83,7 @@ Units within FAModel follow the SI exclusively. The input soil parameters units 
 
 Soil classification for clay, sand and rock can be found in [Soil Classification Parameters](#soil-classification-parameters).
 >[!NOTE] 
->Some anchor capacity functions require input loads at the anchor lug point. These loads can be sent in to the getLugLoads() method, or the getAnchorCapacity() method will calculate the loads by calling getLugLoads(). 
+>Some anchor capacity functions require input loads at the anchor lug point. These loads can be sent in to the getAnchorCapacity() method, or the getAnchorCapacity() method will calculate the loads by calling getLugLoads(). 
 The input loads must be maximum or large loads on the anchor.
 		
 ### Soil classification parameters
@@ -126,7 +126,7 @@ The supported anchor types are listed below with their associated FAModel names 
 
 ### Anchor geometrical properties
 #### DEA/SEPLA/DEPLA/VLA/plate
-##### Short definition of the anchor concepts included in plates. Variables involved in the design:
+##### Input
 - soil condition: 
     - z, gamma, Su: clay soil parameters (m), (kN/m3), (kPa) 
 - geometry:
@@ -136,9 +136,11 @@ The supported anchor types are listed below with their associated FAModel names 
    - beta: angle of plate with horizontal plane (deg)
 - loads:
   - Ha, Va: horizontal and vertical loads on padeye of anchor (N), (N)
+##### Output
+
   
 #### suction_pile (suction caisson/ suction bucket anchors)
-##### Short definition of the suction anchor. Variables involved in the design:
+##### Input
 - soil condition:
     - location_name:
     - x, y: CPT or reference name
@@ -152,9 +154,10 @@ The supported anchor types are listed below with their associated FAModel names 
     - zlug: embedded depth of padeye below mudline (m)
 - loads:
     - Ha, Va: horizontal and vertical loads on padeye of anchor (N), (N)
+##### Output
   
 #### torpedo_pile (torpedo pile anchors)
-##### Short definition of the suction anchor. Variables involved in the design:
+##### Input
 - soil condition: 
     - z, gamma, Su: clay soil parameters () 
 - geometry
@@ -167,7 +170,7 @@ The supported anchor types are listed below with their associated FAModel names 
   - Ha, Va: horizontal and vertical loads on padeye of anchor (N), (N)
 
 #### helical_pile (helical pile anchors)
-##### Short definition of the helical anchor. Variables involved in the design:
+##### Input
 - soil condition: 
     - z, gamma, Su: clay soil parameters (m), (kN/m3), (kPa) 
     - z, gamma, phi, Dr: sand soil parameters (m), (kN/m3), (deg), (%) 
@@ -180,7 +183,7 @@ The supported anchor types are listed below with their associated FAModel names 
     - Ha, Va: horizontal and vertical loads on padeye of anchor (N), (N)
   
 #### driven_pile (driven pile anchors)
-##### Short definition of the helical anchor. Variables involved in the design:
+##### Input
 - soil condition: 
     - z, gamma, Su: clay soil parameters (m), (kN/m3), (kPa) 
     - z, gamma, phi, Dr: sand soil parameters (m), (kN/m3), (deg), (%) 
@@ -191,13 +194,15 @@ The supported anchor types are listed below with their associated FAModel names 
     - zlug: embedded depth of padeye below mudline (m)
 - loads
     - Ha, Va: horizontal and vertical loads on padeye of anchor (N), (N)
+##### Output
 
-> [IMPORTANT!] The general output is a lateral and rotational displacement. In getCapacityAnchor, the driven pile capacity function is called in a while loop with variable (increase or decrease) input geometrical properties until at least one of the accepting criteria past set failure criteria, thus providing a horizontal force capacity output.
+> [IMPORTANT!] The general output is a lateral and rotational displacement or bending moment. In getCapacityAnchor, the driven pile capacity function is called in a while loop with incremented horizontal 
+ input forces until one of the displacements goes past set failure criteria, thus providing a horizontal force capacity output [N]. Vertical capacity [N] is already calculated within the driven pile capacity function.
   
- > [NOTE!] For non-rock soil, the hinge (bending moment) is also considered as a failure mode along with the lateral and rotational displacement 
+ For non-rock soil, the hinge (bending moment) is also considered as a failure mode along with the lateral and rotational displacement 
  
 #### dandg_pile (drilled and grouted pile anchors)
-##### Short definition of the helical anchor. Variables involved in the design:
+##### Input
 - soil condition: 
     - z, UCS, Em: (weak) rock parameters (m), (MPa), (MPa)  
 - geometry
@@ -208,9 +213,8 @@ The supported anchor types are listed below with their associated FAModel names 
    - Ha, Va: horizontal and vertical loads on padeye of anchor
    
 ## Loads
-Loads derived from MoorPy and DRAFT are considered at a fixed point at mudline elevation. These loads need to be transfered from mudline to lug penetration when the main padeye is below the mudline. The transfer function uses soil properties (profile), mooring line properties (line_type, d and w), loads and lueg depth (zlug) to calculate loads at lug elevation (main padeye) 
-
-> [!NOTE] It is cautious to condiser as input the tension load magnitude at mudline since the load will be equal or larger to the tension at lug penetration. Conversely, the angle of the load at lug penetration will equal or larger to the angle at mudline. Therefore, yielding to more vertical componenent. Therefore, Tm >= Ta and thetam <= thetaa 
+Loads derived from MoorPy and DRAFT are considered at a fixed point at mudline elevation. These loads need to be transfered from mudline to lug penetration when the main padeye is below the mudline. Transfer function: soil properties (profile)  mooring line properties (line_type, d and w), loads and zlug 
+> [!IMPORTANT] It is cautious to condiser as input load the tension load at mudline since the load will be equal or larger to the tension at lug penetration. Conversely, the angle of the load at lug penetration will equal or larger to the angle at mudline. Therefore, yielding to more vertical componenent. Therefore, Tm >= Ta and thetam <= thetaa 
 
 ##### Input
 - profile_map: soil profile 
@@ -221,34 +225,31 @@ Loads derived from MoorPy and DRAFT are considered at a fixed point at mudline e
 - d: mooring line diameter (m)
 - w: mooring line unit weight (N/m)
 	
+> [NOTE] Load components: Hm, Vm: horizontal and vertical load components on mudline (N), (N) and Ha, Va: horizontal and vertical load components on padeye of anchor (N), (N)
 ##### Output
 - Ta: tension of the load on padeye of anchor (N)
 - thetaa: angle of the load on padeye of anchor (deg)
-- Ha: horizontal component of the load on padeye (N)
-- Va: vertical component of the load on padeye (N) 
 - length: length of the embedded line (m)
-- drag: depth of the embedded line (m)
 
 
-The getTransferLoad function expects maximum mudline forces as input. These can be:
+> [!NOTE] check getLugForces for more details on this transfer function from mudline to lug elevation (below the seabed)
+The getTransferLoad function requires **maximum** mudline forces as an input. These forces can be sent in as a dictionary, or anchor.loads dictionary will be searched for 'Hm' and 'Vm' values with additional 
+key-value pair 'mudline_force_type':'max' to indicate these mudline forces are maximums.
+ 
+If there are no max mudline forces in the anchor.loads dictionary, getMudlineForces(max_force=True) will be called. Stores results in loads dictionary. 
+If lug is at mudline or no lug provided, equates mudline forces with lug forces. 
+>[!NOTE]
+>The getTransferFunction function called by getLugForces() is tuned to work with maximum loads on the anchor. Some anchor configuration, load, and soil condition combinations may produce invalid results in getTransferFunction. 
+For example, the output Va may show as negative. In that case, getLugForces() will warn the user of the invalidity of the result and assign the anchor lug forces = mudline forces.
+>[!NOTE] 
+>Some anchor capacity functions require input loads at the anchor lug point. These loads can be sent in to the getAnchorCapacity() method, or the getAnchorCapacity() method will calculate the loads by calling getLugLoads(). 
+The input loads must be maximum or large loads on the anchor.
 
-  - Passed directly as a dictionary
-  - Retrieved from the anchor.loads dictionary using the keys 'Hm' and 'Vm', with the flag 'mudline_force_type': 'max'.
+------------------------------------------------------------------------------
 
-If no such values are found, getMudlineForces(max_force=True) will be called automatically to obtain them.
-
-When the lug is located at the mudline, or no lug depth is specified, the function assumes lug forces are equal to mudline forces.
-
->[!NOTE] See getLugForces() (#anchor-capacity-modules) for more details on the load transfer mechanism from mudline to lug elevation (i.e., below the seabed).
-
-The getTransferFunction, used internally by getLugForces, is calibrated for **maximum load conditions**. In some cases—depending on anchor geometry, load magnitude, and soil conditions—the function may produce invalid results (e.g., negative vertical load Va).
-When this occurs, getLugForces() issues a warning and defaults to assigning **lug forces equal to mudline forces.**
-
->[!NOTE] Some anchor capacity functions (e.g., suction, driven, helical) require loads to be applied at the lug elevation. These can be passed directly into getCapacityAnchor(), or if not provided, the method will internally compute them using getLugForces().
-
-Always ensure that the loads used in these methods represent maximum or near-maximum force levels to ensure valid and conservative capacity estimates.
-
-
+> [!NOTE] 
+> Load inputs to the capacity functions (with the exception of driven & drilled and grouted anchors) are in kN, while the anchor loads dictionary is in N. This conversion is automatically completed in the getAnchorCapacity() 
+function so no manual load conversion is required. Load outputs are automatically converted in the getAnchorCapacity function where necessary. 
 
 ## Equipment
 
@@ -372,11 +373,7 @@ Analytical installation models for main anchor types.
 
 - **installation_drag** : 
 	- getInstallationPlate(profile_map, location_name, B, Lf, Ls, Lca, Lj, plot)
-  - installationDrag dict:
-    - 'Capacity'
-    - 'embedment_depth'
-    - 'drag_distance'
-    - 'Weight plate'
+  - installationDrag dict
 
 - **installation_suction** : 
 	- getInstallationSuction(profile_map, location_name, D, L, plot)
@@ -387,15 +384,11 @@ Analytical installation models for main anchor types.
 
 - **buckling_suction** : 
 	- getBucklingSuction(profile_map, location_name, D, L, plot)
-  - installationBuckling dict:
-    - 'UC'
-    - 'PE'
+  - installationBuckling dict
 
 - **installation_dynamic** : 
 	- getInstallationTorpedo(profile_map, location, D1, D2, L1, L2, ballast, drop_height, plot)
-  - installationDynamic dict:
-    - 'final_depth'
-    - 'v_max', 'v_impact'
+  - installationDynamic dict
 
 - **installation_torque** : 
 	- getInstallationHelical(profile_map, location_name, D1, D2, L1, L2, zlug, ballast, Ha, Va, plot)
@@ -415,26 +408,18 @@ Analytical installation models for main anchor types.
 #### Anchor support modules
 
 - **anchor_soils** : 
-	- clay_profile(profile)
-        -  **return:** z0, f_gamma, f_Su, f_sigma_v_eff, f_alpha 
+	- clay_profile(profile) 
 	- sand_profile(profile) 
-        -  **return:** z0, f_gamma, f_phi, f_Dr, f_sigma_v_eff, f_delta
 	- rock_profile(profile)
-        - **return:** z0, f_UCS, f_Em
 
 - **anchor_solvers** : 
-	- fd_solver(n, N, h, D, t, fy, EI, Ha, Va, zlug, z0, k_secant)
-        - **return:** y, Mi, Mp, hinge_formed, hinge_location
+	- fd_solver(n, N, h, D, t, fy, EI, Ha, Va, zlug, z0, k_secant) 
 
 - **anchor_pycurves** : 
 	- py_Matlock(z, D, Su, sigma_v_eff, gamma, z0, return_curve)
-        - **return:**  f, (y, p)
 	- py_API(z, D, phi, sigma_v_eff, Dr, z0, return_curve)
-        - **return:**  f, (y, p)
-	- py_Reese(z, D, UCS, Em, z0, return_curve)
-        - **return:**  f, (y, p) 
+	- py_Reese(z, D, UCS, Em, z0, return_curve) 
 	- py_Lovera(z, D, UCS, Em, z0, delta_grout, E_grout, delta_crushed, return_curve)
-        - **return:**  f, (y, p)
 
 - **anchor_plots** : 
 	- plot_pile(layers, y, z, D, L, z0, zlug, hinge_location)

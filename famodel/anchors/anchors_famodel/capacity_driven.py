@@ -101,7 +101,7 @@ def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=False
             continue
 
         soil_type = matched_layer['soil_type']
-        
+
         if soil_type == 'clay':
             profile = [[matched_layer['top'],    matched_layer['Su_top'], matched_layer['gamma_top']],
                        [matched_layer['bottom'], matched_layer['Su_bot'], matched_layer['gamma_bot']]]
@@ -168,7 +168,7 @@ def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=False
             k_secant[i] = k_val/y[i] if y[i] != 0 else 0.0
             
         else:
-            raise ValueError(f"Unsupported soil type: {matched_layer.get('soil_type')} at depth z = {z_depth:.2f} m")
+            raise ValueError(f"Unsupported soil type: {matched_layer['soil_type']}")
 
     for i in [n+3, n+4]:
         z[i] = (i - 2)*h
@@ -251,33 +251,28 @@ if __name__ == '__main__':
                     'top': 1.0, 'bottom': 6.0,
                     'soil_type': 'clay',
                     'gamma_top': 8.0, 'gamma_bot': 8.0,
-                    'Su_top': 60, 'Su_bot': 80},
-                {
-                    'top': 6.0, 'bottom': 15.0,
-                    'soil_type': 'clay',
-                    'gamma_top': 8.0, 'gamma_bot': 8.0,
-                    'Su_top': 80, 'Su_bot': 400},
+                    'Su_top': 60, 'Su_bot': 200},
                 # {
                 #     'top': 6.0, 'bottom': 15.0,
-                #     'soil_type': 'sand',
+                #     'soil_type': 'clay',
                 #     'gamma_top': 8.0, 'gamma_bot': 8.0,
-                #     'phi_top': 32, 'phi_bot': 38,
-                #     'Dr_top': 70, 'Dr_bot': 75},
+                #     'Su_top': 200, 'Su_bot': 400},
+                {
+                    'top': 6.0, 'bottom': 15.0,
+                    'soil_type': 'sand',
+                    'gamma_top': 8.0, 'gamma_bot': 8.0,
+                    'phi_top': 32, 'phi_bot': 38,
+                    'Dr_top': 70, 'Dr_bot': 75},
                 {
                     'top': 15.0, 'bottom': 30.0,
                     'soil_type': 'clay',
-                    'gamma_top': 8.0, 'gamma_bot': 8.0,
+                    'gamma_top': 8.0, 'gamma_bot': 9.0,
                     'Su_top': 200, 'Su_bot': 400}]
-                # {
-                #     'top': 0.0, 'bottom': 30.0,
-                #     'soil_type': 'rock',
-                #     'UCS_top': 5.0, 'UCS_bot': 5.0,
-                #     'Em_top': 7.0, 'Em_bot': 7.0}]
         }
     ]
 
     D = 2.5           # Diameter (m)
-    L = 15.0          # Length (m)
+    L = 25.0          # Length (m)
     zlug = 3          # Padeye depth (m)
     Ha = 5.0e5        # Horizontal load (N)
     Va = 1.5e5        # Vertical load (N)

@@ -32,53 +32,27 @@ site:
         file:   #'../bathymetry200m_sample.txt'
     
     seabed:
-        x : [-1901,    0,    1900 ]
-        y : [-1900,    2,    1900 ]
+        x : [-1901,    0,    1900]
+        y : [-1900,     2,  1900 ]
         
         type_array:
           - [mud_soft ,  mud_firm ,   mud_soft]  
-          - [mud_soft ,  mud_soft ,   mud_soft]  
+          - [mud_soft ,  mud_soft     ,   mud_soft]  
           - [mud_soft ,  mud_firm ,   mud_soft]  
-    
-        soil_types:  
-           mud_soft:
-            layers: 
-            - soil_type: clay
-              top: 0
-              bottom: 50
-              gamma_top: 10.0
-              gamma_bot: 10.0
-              Su_top: 2.39
-              Su_bot: 59.39
-           mud_firm:
-            layers:
-            - soil_type: clay            
-              top: 0
-              bottom: 50
-              gamma_top: 10.0
-              gamma_bot: 50.0
-              Su_top: 23.4
-              Su_bot: 157.44
-           sand: 
-            layers:
-            - soil_type: sand           
-              top: 1
-              bottom: 50
-              gamma_top: 8.5
-              gamma_bot: 8.5
-              phi_top: 28.0
-              phi_bot: 32.00
-              Dr_top: 50.0
-              Dr_bot: 85.00               
-           weak_rock:
-            layers:
-            - soil_type: rock
-              top: 0
-              bottom: 50
-              UCS_top: 5.0
-              UCS_bot: 5.0
-              Em_top: 7.0
-              Em_bot: 7.0 
+
+        soil_types:   # dictionary-based approach
+          mud_soft:
+            Su0 : [2.39]  # [kPa]
+            k : [1.41]    # [kPa/m]
+            depth: [0]    # [m]
+          mud_firm:
+            Su0 : [23.94] # [kPa]
+            k : [2.67]    # [kPa/m]
+            depth: [0]    # [m]
+          rock:
+            UCS : [7]     # [MPa]
+            Em  : [50]    # [MPa]
+            depth: [0]    # [m]   
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)
@@ -108,7 +82,7 @@ site:
             -  [    10.5,         0,            0.01,    operating,          0,        JONSWAP,         12,         6,         0       ]
 
     RAFT_settings:   
-        min_freq     :  0.001   #  [Hz]       lowest frequency to consider, also the frequency bin width     
+        min_freq     :  0.001    #  [Hz]       lowest frequency to consider, also the frequency bin width     
         max_freq     :  0.10    #  [Hz]       highest frequency to consider
         XiStart      :   0      # sets initial amplitude of each DOF for all frequencies
         nIter        :   4      # sets how many iterations to perform in Model.solveDynamics()
@@ -1510,17 +1484,17 @@ mooring_connector_types:
 # Anchor type properties
 anchor_types:
   suction_pile1:
-    type   :  suction
+    type   :  suction_pile
     L      :     16.4  # length of pile [m]
     D      :     5.45  # diameter of pile [m]
     zlug   :     9.32  # embedded depth of padeye [m]
   d-g_pile1:
-    type   :  dandg
+    type   :  dandg_pile
     L      :     50 # length of pile [m]
     D      :     3 # diameter of pile [m]
     zlug   :     0 # embedded depth [m]
   driven_pile1:
-    type   :  driven
+    type   :  driven_pile
     L      :     20 # pile length [m]
     D      :     1.5 # pile diameter [m]
     zlug   :     3 # embedded depth [m
@@ -1530,14 +1504,14 @@ anchor_types:
     zlug : 10
     #beta: 30
   torpedo_pile1:
-    type: torpedo 
+    type: torpedo_pile 
     D1 : 3
     D2: 1.1
     L1: 10
     L2: 4
     zlug: 16
   helical_pile1:
-    type: helical
+    type: helical_pile
     L : 25.1
     d : 1
     D : 5.01
