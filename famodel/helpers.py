@@ -877,6 +877,85 @@ def getAnchors(lineAnch, arrayAnchor, proj):
     
     return(ad, mass)
 
+def attachFairleads(moor, end, platform, fair_ID_start=None, fair_ID=None, fair_inds=None):
+    '''
+    helper function for loading, attaches fairleads to mooring objects
+    and runs some error checks
+
+    Parameters
+    ----------
+    fair_inds : int/list
+        Fairlead index/indices to attach to mooring line
+    moor : Mooring class instance
+        Mooring that will attach to fairlead(s)
+    end : int or str
+        must be in [0,a,A] for end A or [1,b,B] for end B
+    platform : Platform class instance
+        Platform that is associated with the fairlead
+    fair_ID_start : str, optional
+        start of fairlead ID, the index will be appended to this. Not needed if fair_ID provided
+    fair_ID : list, optional
+        fairlead ID list for each fairlead. If fair_ID_start is not provided, fair_ID must be provided
+
+
+    Returns
+    -------
+    None.
+
+    '''
+    # convert to list if needed
+    if fair_inds is not None :
+        if not isinstance(fair_inds,list):
+            fair_inds = list([fair_inds])
+        # check lengths are the same
+        if not len(moor.subcons_B)==len(fair_inds):
+            raise Exception(f'Number of fairleads must equal number of parallel sections at end {end}')
+    elif fair_ID is not None: 
+        if not isinstance(fair_ID, list):
+            fair_ID = list([fair_ID])
+        # check lengths are the same
+        if not len(moor.subcons_B)==len(fair_ID):
+            raise Exception(f'Number of fairleads must equal number of parallel sections at end {end}')
+    else:
+        raise Exception('Either fairlead indices or fairlead IDs must be provided')
+    # grab correct end
+    end_subcons = moor.subcons_B if end in [1,'b','B'] else moor.subcons_A
+    
+    # put together fairlead ids as needed
+    if fair_ID_start != None and fair_inds != None:
+        fair_ID = []
+        for i in fair_inds:
+            fair_ID.append(fair_ID_start+str(i))
+    # attach each fairlead to the end subcomponent
+    fairs = []
+    for ii,con in enumerate(end_subcons):
+        fairs.append(platform.attachments[fair_ID[ii]]['obj'])
+        end_subcons[ii].join(fairs[-1])
+        
+    return(fairs)
+        
+def calc_heading(pointA, pointB):
+    '''calculate a heading from points, if pointA or pointB is a list of points,
+       the average of those points will be used for that end'''
+    if isinstance(pointA[0],list) or isinstance(pointA[0],np.ndarray):
+        pointAx = sum([x[0] for x in pointA])/len(pointA)
+        pointAy = sum([x[1] for x in pointA])/len(pointA)
+    else:
+        pointAx = pointA[0]
+        pointAy = pointA[1]
+    if isinstance(pointB[0],list) or isinstance(pointB[0],np.ndarray):
+        pointBx = sum([x[0] for x in pointB])/len(pointB)
+        pointBy = sum([x[1] for x in pointB])/len(pointB)
+    else:
+        pointBx = pointB[0]
+        pointBy = pointB[1]
+        
+    dists = np.array([pointAx,pointAy]) - np.array([pointBx,pointBy])
+    headingB = np.pi/2 - np.arctan2(dists[1], dists[0])
+    
+    return(headingB)
+    
+
 def route_around_anchors(proj, anchor=True, cable=True, padding=50):
     
     # make anchor buffers with 50m radius

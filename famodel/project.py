@@ -36,7 +36,8 @@ from famodel.famodel_base import Node
 from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
                             getMoorings, getAnchors, getFromDict, cleanDataTypes, 
                             getStaticCables, getCableDesign, m2nm, loadYAML, 
-                            configureAdjuster, route_around_anchors)
+                            configureAdjuster, route_around_anchors, attachFairleads,
+                            calc_heading)
 
 
 class Project():
@@ -530,19 +531,21 @@ class Project():
                         # attach ends
                         moor.attachTo(anch, end='A')
                         if 'fairlead' in mySys[j]:
-                            flID = platform.id+'_F'+str(mySys[j]['fairlead'])
-                            moor.subcomponents[-1].join(platform.attachments[flID]['obj'])
+                            attachFairleads(moor,
+                                            1,
+                                            platform,
+                                            fair_ID_start=platform.id+'_F',
+                                            fair_inds=mySys[j]['fairlead'])
+                            
                         elif pf_fairs:
-                            flID = pf_fairs[j].id    
-                            moor.subcomponents[-1].join(platform.attachments[flID]['obj'])
+                            attachFairleads(moor,
+                                            1,
+                                            platform,
+                                            fair_ID = pf_fairs[j].id)
+
                         else:
                             moor.attachTo(platform, r_rel=[platform.rFair,0,platform.zFair], end='b')
                         
-                        # # reposition mooring
-                        # moor.reposition(r_center=platform.r, heading=headings[j]+platform.phi, project=self)
-                        
-                        # # update anchor depth and soils
-                        # self.updateAnchor(anch=anch)
 
                         # update counter
                         mct += 1
@@ -594,15 +597,22 @@ class Project():
                                            shared=1)
                     
                     # attach ends
-                    flIDB = PF[0].id+'_F'+str(arrayMooring[j]['fairleadB'])
-                    moor.subcomponents[-1].join(PF[0].attachments[flIDB]['obj'])
-                    flIDA = PF[1].id+'_F'+str(arrayMooring[j]['fairleadA'])
-                    moor.subcomponents[0].join(PF[1].attachments[flIDA]['obj'])
+                    fairsB = attachFairleads(moor,
+                                    1,
+                                    PF[0],
+                                    fair_ID_start=PF[0].id+'_F',
+                                    fair_inds=arrayMooring[j]['fairleadB'])
+                    fairsA = attachFairleads(moor,
+                                    0,
+                                    PF[1],
+                                    fair_ID_start=PF[1].id+'_F',
+                                    fair_inds=arrayMooring[j]['fairleadA'])
 
                     
                     # determine heading
-                    dists = PF[1].attachments[flIDA]['obj'].r[:2] - PF[0].attachments[flIDB]['obj'].r[:2]
-                    headingB = np.pi/2 - np.arctan2(dists[1], dists[0])
+                    points = [[f.r[:2] for f in fairsA], 
+                              [f.r[:2] for f in fairsB]]
+                    headingB = calc_heading(points[0], points[1])
                     moor.reposition(r_center=[PF[1].r,
                                               PF[0].r],
                                     heading=headingB, project=self)
@@ -644,11 +654,15 @@ class Project():
                     # attach anchor
                     moor.attachTo(anchor,end='A')
                     # attach platform
-                    flID = PF[0].id+'_F'+str(arrayMooring[j]['fairleadB'])
-                    moor.subcomponents[-1].join(PF[0].attachments[flID]['obj'])
+                    fairsB = attachFairleads(moor,
+                                            1,
+                                            PF[0],
+                                            fair_ID_start=PF[0].id+'_F',
+                                            fair_inds=arrayMooring[j]['fairleadB'])
+
                     # determine heading
-                    dists = anchor.r[:2] - PF[0].attachments[flID]['obj'].r[:2]
-                    headingB = np.pi/2 - np.arctan2(dists[1],dists[0])
+                    headingB = calc_heading(anchor.r[:2],[f.r[:2] for f in fairsB])
+
                     # reposition mooring
                     moor.reposition(r_center=PF[0].r, heading=headingB, project=self)
                     # update depths
