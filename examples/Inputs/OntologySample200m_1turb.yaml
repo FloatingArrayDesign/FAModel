@@ -1163,7 +1163,7 @@ platform:
       rB        :  [ 0, 0,  15]              # [m]    and B coordinates
       shape     :  circ                      # [-]    circular or rectangular
       gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-      potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+      potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
       # --- outer shell including hydro---
       stations  :  [0, 1]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
       d         :  10.0                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1186,7 +1186,7 @@ platform:
       heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
       shape     :  circ                      # [-]    circular or rectangular
       gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-      potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+      potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
       # --- outer shell including hydro---
       stations  :  [0, 35]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
       d         :  12.5                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1295,7 +1295,7 @@ anchor_types:
         zlug   :    10 # embedded depth of padeye [m]
 
     suction1:
-        type   :  suction_pile
+        type   :  suction
         L      :     16.4  # length of pile [m]
         D      :     5.45  # diameter of pile [m]
         zlug   :     9.32  # embedded depth of padeye [m]

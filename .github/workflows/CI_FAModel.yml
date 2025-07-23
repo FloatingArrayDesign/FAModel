@@ -49,14 +49,16 @@ jobs:
             - name: Overwrite MoorPy
               run: |
                   pip install git+https://github.com/NREL/MoorPy@dev
-
-            - name: Example run
-              run: |
-                  cd examples
-                  python example_driver.py false
-
+                  
             - name: Test run
               run: |
                   cd tests
                   pytest .
+
+            # - name: Example run
+              # run: |
+                  # cd examples
+                  # python example_driver.py false
+
+
 

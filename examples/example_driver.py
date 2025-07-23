@@ -77,27 +77,35 @@ for moor in project.mooringList.values():
 # plot motion envelopes with 2d plot
 project.plot2d(save=True,plot_bathymetry=False)
 
-
+#%% Section 5: Anchor capabilities
 #### get anchor capacities, loads, and safety factors ####
 print('\nGetting anchor capacities, loads, and safety factors\n')
 # let's look at one anchor in the farm
 
 # define anchor to analyze
 anchor = project.anchorList['FOWT1a']
-# get anchor capacity
-anchor.getAnchorCapacity()
+
+name, soil_def = project.getSoilAtLocation(anchor.r[0], anchor.r[1])
+profile_map = [{'name': name, 'layers': soil_def['layers']}]
+anchor.setSoilProfile(profile_map)
+
+Hm = anchor.loads['Hm']
+Vm = anchor.loads['Vm']
+zlug = anchor.dd['design']['zlug']
+
+# Now use these in lug and capacity checks
+anchor.getLugForces(Hm, Vm, zlug)
+anchor.getCapacityAnchor(Hm, Vm, zlug)
 capacities = anchor.anchorCapacity
-# get anchor loads at mudline and anchor lug depth (if applicable)
-loads = anchor.getLugForces()
+
 # size an anchor
-starting_geometry = [15,20] # geometry values
-starting_geom_labels = ['A','zlug'] # corresponding labels for the geometry list
-min_safety_factors = {'Ha':2,'Va':2} # minimum safety factors
-FSdiff_max = {'Ha':.1,'Va':.1} # allowable difference between actual and desired FS for final result
-anchor.getSize(starting_geometry, starting_geom_labels, minfs=min_safety_factors,
-               FSdiff_max=FSdiff_max)
+geom_start = [anchor.dd['design']['B'], anchor.dd['design']['L']] # geometry values
+geom_labels = ['B','L'] # corresponding labels for the geometry list
+geom_bounds = [(0.5, 4.0), (0.5, 4.0)]
+safety_factor = {'SF_combined': 1.0} # minimum safety factors
+anchor.getSizeAnchor(geom_start, geom_labels, geom_bounds, loads = None, safety_factor={'SF_combined': 1.0})
 # get safety factor
-sfs = anchor.getFS()
+sfs = anchor.getSafetyFactor()
     
 print('\nAnchor safety factors: ',sfs) # NOTE that Va will show as 'inf' because there is no vertical force on the anchor.
     

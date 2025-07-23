@@ -3,28 +3,16 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
 import moorpy as mp
 from moorpy.helpers import set_axes_equal
 import yaml
-
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, LineString
-
-
-
-
 import famodel.seabed.seabed_tools as sbt
-
-
-
-
 from pyproj import CRS
 from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
-
-
 
 def getLatLongCRS(epsg_code=4326):
     '''Returns a coordinate reference system (CRS) object from the pyproj package of a 'wordly' CRS with units of latitude and longitude
@@ -92,7 +80,6 @@ def getTargetCRS(longitudes, latitudes):
 
     return target_crs
 
-
 def getCustomCRS(long, lat):
     '''Seemingly way too simple of a method to create a pyproj CRS centered around a custom geographical point
 
@@ -112,8 +99,6 @@ def getCustomCRS(long, lat):
     custom_crs = f'+proj=tmerc +lat_0={lat} +lon_0={long} +ellps=WGS84 +units=m +no_defs'
 
     return custom_crs
-
-
 
 def getLeaseCoords(lease_name):
 
@@ -140,17 +125,17 @@ def getLeaseCoords(lease_name):
         raise ValueError(f"The lease area name '{lease_area}' is not supported yet")
     
     # extract the longitude and latitude coordinates of the lease area
-    area_longs, area_lats = lease_area.geometry.unary_union.exterior.coords.xy
+    #area_longs, area_lats = lease_area.geometry.unary_union.exterior.coords.xy
+    area_longs, area_lats = lease_area.geometry.union_all().exterior.coords.xy
+
 
     # calculate the centroid of the lease area
     centroid = ( lease_area.geometry.centroid.values.x[0], lease_area.geometry.centroid.values.y[0] )
 
+
+
     return area_longs, area_lats, centroid
         
-
-
-
-
 def convertLatLong2Meters(longs, lats, centroid, latlong_crs, target_crs, return_centroid=False):
     '''input longs/lats need to be in EPSG:4326 CRS
     Longs and Lats need to be in pairs, i.e., the first entry to longs and 
@@ -206,7 +191,6 @@ def convertLatLong2Meters(longs, lats, centroid, latlong_crs, target_crs, return
     else:
         return xs, ys
 
-
 def convertMeters2LatLong(xs, ys, centroid, latlong_crs, target_crs, mesh=False):
     '''Input xs and ys need to be in the target CRS
     Xs and Ys need to be in pairs, i.e. the first entry to xs and the 
@@ -250,9 +234,6 @@ def convertMeters2LatLong(xs, ys, centroid, latlong_crs, target_crs, mesh=False)
     
     return longs, lats
 
-
-
-
 def getMapBathymetry(gebcofilename):
 
     # load the GEBCO bathymetry file
@@ -276,7 +257,6 @@ def getMapBathymetry(gebcofilename):
     lats  = np.linspace(yllcorner, yllcorner+nrows*cellsize, nrows)
 
     return longs, lats, depths, ncols, nrows
-
 
 def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm, 
                              latlong_crs, target_crs, ncols, nrows,
@@ -331,8 +311,6 @@ def convertBathymetry2Meters(longs, lats, depths, centroid, centroid_utm,
 
     return bathXs, bathYs, bath_depths
 
-        
-        
 def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths, soil=False):
     '''Write a MoorDyn/MoorPy-style bathymetry text file based on provided
     x and y grid line values and a 2D array of depth values.'''
@@ -355,8 +333,6 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths,
         f.write('\n')
     f.close()
 
-
-
 def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows=100):
 
     # initialize the conventional lat/long CRS
@@ -369,12 +345,15 @@ def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows
     custom_crs = getCustomCRS(centroid[0], centroid[1])
     
     # convert the lease boundary to meters
-    lease_xs, lease_ys, centroid_utm = convertLatLong2Meters(lease_longs, lease_lats, centroid, latlong_crs, custom_crs, return_centroid=True)
+    lease_xs, lease_ys, centroid_utm = convertLatLong2Meters(lease_longs, lease_lats, centroid, 
+                                                             latlong_crs, custom_crs, return_centroid=True)
 
     # get bathymetry information from a GEBCO file (or other)
     bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry(gebco_file)
+    
     # convert bathymetry to meters
-    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, custom_crs, bath_ncols, bath_nrows)
+    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, 
+                                                             latlong_crs, custom_crs, bath_ncols, bath_nrows)
     # export to MoorPy-readable file
     bathymetryfile = f'bathymetry_{bath_ncols}x{bath_nrows}.txt'
     writeBathymetryFile(bathymetryfile, bath_xs, bath_ys, bath_depths)
@@ -392,10 +371,6 @@ def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows
     info['bath_depths'] = bath_depths
 
     return info
-
-
-
-
 
 def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
     """Function to return the name of the soil below a specific x/y coordinate by creating shapely polygons based on the shapefile data.
@@ -438,8 +413,6 @@ def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
             break
 
     return soil_type
-
-
 
 def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file, nrows=100, ncols=100, xbound=None, ybound=None):
     """Note: can make the outer shapely shape have 'holes' of the inner shapely shapes"""
@@ -486,6 +459,7 @@ def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file, nrows=100, ncols=1
         ys = np.linspace(ybound[0], ybound[-1], nrows)
     else:
         ys = np.linspace( np.min([np.min(soil_ys[i]) for i in range(len(soil_shapes))]),  np.max([np.max(soil_ys[i]) for i in range(len(soil_shapes))]),  nrows)
+    
     soil_grid = np.zeros([len(ys), len(xs)])
 
     # for each manmade grid point, loop through all the polygons and determine whether that grid point is within the shape or not
@@ -507,8 +481,6 @@ def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file, nrows=100, ncols=1
     soil_grid = np.array(soil_grid_list)        # saving to list and then changing to np.array because I couldn't figure out how else to do it with strings
 
     return xs, ys, soil_grid
-
-
         
 def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath={}, xbounds=None, ybounds=None, zbounds=None):
     '''Plot aspects of the Project object in matplotlib in 3D'''
@@ -520,12 +492,12 @@ def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath
     fig = plt.figure(figsize=(6,4))
     ax = plt.axes(projection='3d')
 
-    if xbounds != None:
-        ax.set_xlim(xbounds[0], xbounds[1])
-    if ybounds != None:
-        ax.set_ylim(ybounds[0], ybounds[1])
-    if zbounds != None:
-        ax.set_zlim(zbounds[0], zbounds[1])
+    # if xbounds != None:
+    #     ax.set_xlim(xbounds[0], xbounds[1])
+    # if ybounds != None:
+    #     ax.set_ylim(ybounds[0], ybounds[1])
+    # if zbounds != None:
+    #     ax.set_zlim(zbounds[0], zbounds[1])
 
     # plot the lease area in a red color, if desired
     ax.plot(lease_xs, lease_ys, np.zeros(len(lease_xs)), color='r', zorder=100)
@@ -535,7 +507,7 @@ def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath
     # !!!! include option to plot entire bathymetry file or not
 
     if isinstance(bathymetryfilename, str):
-        bathGrid_Xs, bathGrid_Ys, bathGrid = sbt.readBathymetryFile(bathymetryfilename)         # parse through the MoorDyn/MoorPy-formatted bathymetry file
+        bathGrid_Xs, bathGrid_Ys, bathGrid = sbt.readBathymetryFile(bathymetryfilename) # parse through the MoorDyn/MoorPy-formatted bathymetry file
         X, Y = np.meshgrid(bathGrid_Xs, bathGrid_Ys)                                    # create a 2D mesh of the x and y values
         bath = ax.plot_surface(X, Y, -bathGrid, rstride=1, cstride=1,
                                vmin=args_bath['zlim'][0], vmax=args_bath['zlim'][1], 
@@ -557,8 +529,6 @@ def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath
     ax.axis('off')
 
     return fig, ax
-
-
 
 def projectAlongSeabed(x, y, bathXs, bathYs, bath_depths):
     '''Project a set of x-y coordinates along a seabed surface (grid),
@@ -925,7 +895,7 @@ if __name__ == '__main__':
     # get bathymetry information from a GEBCO file (or other)
     bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry('bathymetry/gebco_2023_n41.3196_s40.3857_w-125.2881_e-123.9642.asc')
     # convert bathymetry to meters
-    ncols = 500
+    ncols = 500C:/Users/fmoreno/Downloads/GEBCO_25_Jun_2025_3c682d73375c/GEBCO_25_Jun_2025_3c682d73375c/gebco_2024_n44.2_s44.0_w12.5_e12.8.asc
     nrows = 500
     bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, custom_crs, ncols, nrows)
     # export to MoorPy-readable file
@@ -942,11 +912,73 @@ if __name__ == '__main__':
     lease_name = 'GulfofMaine_ResearchArray'
     gebco_file = __location__+'\\..\\geography\\gebco_2024_n44.1458_s41.4761_w-70.9497_e-66.2146.asc'
     info = getLeaseAndBathymetryInfo(lease_name, gebco_file)
+    
+    x_center = np.mean(info['lease_xs'])
+    y_center = np.mean(info['lease_ys'])
+    
+    zoom = 8000  
 
+    xbounds = [x_center - zoom, x_center + zoom]
+    ybounds = [y_center - zoom, y_center + zoom]
+    
+    fig, ax = plot3d(info['lease_xs'], info['lease_ys'], 'bathymetry_100x100.txt',
+        area_on_bath=True, args_bath={'cmap': 'gist_earth', 'zlim': [-500, 50]},
+        xbounds=xbounds, ybounds=ybounds)
+    
+    plt.show()
+    
+    # Load bathymetry data manually
+    with open('GulfOfMaine_bathymetry_100x100.txt', 'r') as f:
+        lines = f.readlines()
+    
+    nGridX = int(lines[1].split()[1])
+    nGridY = int(lines[2].split()[1])
+    x_vals = np.array([float(val) for val in lines[3].split()])
+    y_vals = []
+    z_matrix = []
+    
+    for line in lines[4:4+nGridY]:
+        parts = line.split()
+        y_vals.append(float(parts[0]))
+        z_matrix.append([float(z) for z in parts[1:]])
+
+    
+    # Extract y and z
+    z_vals = np.array(z_matrix)
+    y_vals = np.array(y_vals)
+
+    
+    # Now crop using xbounds and ybounds
+    xmask = (x_vals >= xbounds[0]) & (x_vals <= xbounds[1])
+    ymask = (y_vals >= ybounds[0]) & (y_vals <= ybounds[1])
+    
+    x_crop = x_vals[xmask]
+    y_crop = y_vals[ymask]
+    z_crop = z_vals[ymask][:, xmask]
+    
+    # Plot manually using Axes3D
+    X, Y = np.meshgrid(x_crop, y_crop)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(X, Y, z_crop, cmap='gist_earth')
+    ax.set_title('Zoomed Bathymetry')
+    
+    lease_xs = info['lease_xs']
+    lease_ys = info['lease_ys']
+
+    ax.plot(lease_xs, lease_ys, zs=200, zdir='z', color='r', linewidth=2, label='Lease Area')
+    ax.legend()
 
     plt.show()
 
-    a = 2
+
+ 
+    # plot3d(info['lease_xs'], info['lease_ys'], 'bathymetry_100x100.txt', area_on_bath=False, args_bath={'zlim':[-3000, 500], 'cmap': 'gist_earth'})
+           # xbounds=(info['bath_xs'].min(), info['bath_xs'].min()),
+           # ybounds=(info['bath_ys'].min(), info['bath_ys'].min()),
+           # zbounds=(info['bath_depths'].min(), info['bath_depths'].min())
+
+
 
 
 
