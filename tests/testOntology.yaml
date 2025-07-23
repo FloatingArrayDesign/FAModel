@@ -1484,17 +1484,17 @@ mooring_connector_types:
 # Anchor type properties
 anchor_types:
   suction_pile1:
-    type   :  suction_pile
+    type   :  suction
     L      :     16.4  # length of pile [m]
     D      :     5.45  # diameter of pile [m]
     zlug   :     9.32  # embedded depth of padeye [m]
   d-g_pile1:
-    type   :  dandg_pile
+    type   :  dandg
     L      :     50 # length of pile [m]
     D      :     3 # diameter of pile [m]
     zlug   :     0 # embedded depth [m]
   driven_pile1:
-    type   :  driven_pile
+    type   :  driven
     L      :     20 # pile length [m]
     D      :     1.5 # pile diameter [m]
     zlug   :     3 # embedded depth [m

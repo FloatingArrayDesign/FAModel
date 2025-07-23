@@ -1,53 +1,54 @@
 
-import yaml      
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import fsolve
-#from famodel.anchors.capacity_load import getAnchorLoad
-#from famodel.anchors.anchors_famodel.capacity_load import getTransferLoad
+import matplotlib.colors as mcolors
+from .support_soils import clay_profile, sand_profile
 
-def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi=None, Dr=None, plot=True):
-    
+def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=5, psilug=7.5, plot=False):
     '''Calculate the inclined load capacity of a suction pile in sand or clay following S. Kay methodology.
-    The calculation is based on the soil properties, anchor geometry and inclined load.  
+    The calculation is based on the soil profile, anchor geometry and inclined load.  
     
     Parameters
     ----------
-    D : float 
-        Suction pile diameter [m]
-    L : float 
-        Suction anchor length [m]
-    zlug: float
-        Embedded depth of the main padeye [m]
+    profile : array
+        Soil profile as a 2D array: (z, parameters)
+            Clay soil profile (z (m), Su (kPa), gamma (kN/m³))
+            Sand soil profile (z (m), phi (deg), gamma (kN/m³), Dr (%))
     soil_type : string
-        Select soil condition, 'clay' or 'sand'              
-    gamma: float 
-        The effective unit weight of the soil. [kN/m3]
-    Su0 : float 
-        Undrained shear strength at the mudline (clay only) [kPa]
-    k : float 
-        Undrained shear strength gradient (clay only) [kPa/m]
-    phi : float
-        Angle of internal friction (sand only) [deg]
-    Dr : float
-        Relative density of the soil (%) (sand only) [-]       
-    
+        Select soil condition, 'clay' or 'sand'
+    D : float 
+        Suction pile diameter (m)
+    L : float 
+        Suction pile length from pile head (m)
+    zlug: float
+        Embedded depth of the main padeye (m)
+    thetalug: float
+        Angle of tilt misaligment (deg) (default value: 5.0)
+    psilug: float
+        Angle of twist misaligment (deg) (default value: 7.5)
+    Ha : float       
+        Horizontal load at pile lug elevation (N)
+    Va : float          
+        Vertical load at pile lug elevation (N)
+    plot : bool
+        Plot the capacity envelope if True
+                    
     Returns
     -------
-    Hmax : float 
-        Maximum horizontal capacity [kN]
-    Vmax : float 
-        Maximum vertical capacity [kN]
-    '''  
-            
-    lambdap = L/D; m = 2/3;         # Suction pile slenderness ratio
+    Dictionary with capcity, weigths and UC.
+    ''' 
+    
+    # Retrieve soil layers from map
+    profile_entry = next(p for p in profile_map if p['name'] == location_name)
+    layers = profile_entry['layers']
+    
+    z0 = layers[0]['top']            # Mudline elevation    
+    lambdap = (L - z0)/D             # Suction pile slenderness ratio
     t = (6.35 + D*20)/1e3            # Suction pile wall thickness (m), API RP2A-WSD
     rlug = D/2                       # Radial position of the lug
-    thetalug = 5                     # Angle of tilt misaligment, default is 5. (deg)
-    psilug = 7.5                     # Angle of twist misaligment, default is 7.5. (deg)
-    rhows = 66.90                    # Submerged steel specific weight (kN/m3)
-    rhow = 10                        # Water specific weight (kN/m3) 
-    
+    rhows = 66.90e3                  # Submerged steel specific weight (N/m3)
+    rhow = 10e3                      # Water specific weight (N/m3) 
+      
     # Outer and inner surface of the pile skirt
     def PileSurface(Len, Dia):
         Sp = np.pi*Dia*Len
@@ -67,267 +68,451 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
     def zlugTilt(r, z, theta):
         Z = r*np.sin(np.deg2rad(theta)) + z*np.cos(np.deg2rad(theta))
         return Z
-    # Define delta as a function of Dr
-    def calc_delta(Dr_val):
-        if 35 <= Dr_val < 50:
-            return 0.29
-        elif 50 <= Dr_val < 65:
-            return 0.37
-        elif 65 <= Dr_val < 85:
-            return 0.46
-        elif Dr_val >= 85:
-            return 0.56
-        else:
-            return 0  # Default or error value for very low Dr values
-       
-    if soil_type == 'clay':
-        # Definitions for cohesive soils
-        Nc = min (6.2*(1 + 0.34*np.arctan(lambdap)),9)   # End-bearing capacity factor
-        ez = (Su0*L**2/2 + k*L**3/3)/(Su0*L + k*L**2/2)#; print(ez)
-        Np_fixed = 10.25; Np_free = 4                    # From Np vs L/D chart from CAISSON_VHM
-        Su_av_L = Su0 + k*zlug                           # Undrained shear strength values (average) 
-        Su_tip = Su0 + k*L                               # Undrained shear strength values (tip)
-        sigma_v_eff = gamma*zlug                         # Effective soil stress (kN/m2)
-        psi_val = Su_av_L/sigma_v_eff                    # Su/p0' for point in question (API DP 2A-WSD)
-        #zlug = ez                                       # Optimized depth of the lug 
- 
-        if psi_val <= 1.0:
-            alpha = min(0.5*psi_val**-0.50, 1)
-        else:
-            alpha = min(0.5*psi_val**-0.25, 1)
- 
-        Hmax = Np_fixed*L*D*Su_av_L; 
-        H0 = Np_free*L*D*Su_av_L;
-        Mmax = Np_fixed*L*L*D*Su_av_L; 
-        
-        # M modifies the Hmax capacity
-        M = - V*rlugTilt(rlug,zlug,thetalug) - H*(zlugTilt(rlug,zlug,thetalug) - ez)
-        def f(Hmax):
-             return m*(Hmax/(L*D*(Su0 + k*zlug)) - Np_fixed) + M*(Hmax/(L*D*(Su0 + k*zlug))/(Hmax*L))
-        Hmax = fsolve(f,5)
-        
-        # Torsion capacity
-        Fo = PileSurface(L, D)*alpha*Su_av_L
-        To = Fo
-        Ti = PileSurface(L,(D - 2*t))*alpha*Su_av_L
-        Tbase = np.pi*D**3*Su_tip/12
-        Tmax = min(To + Ti, To + Tbase) 
-        
-        # Introduce twist effects due to installation misaligment
-        T = H*rlug*np.sin(np.deg2rad(psilug))
-        nhuT = T/Tmax; nhuV = H/Fo;
-        nhuVstar = np.sqrt(nhuV**2 - nhuT**2)
-        alphastar = alpha*(nhuVstar/nhuV)
-        
-        # "Plugged" (Reverse end bearing capacity - passive suction) 
-        Vmax1 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + Nc*Su_tip*(np.pi/4)*D**2)
-        # "Coring"        
-        Vmax2 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + PileSurface(L,(D - 2*t))*alphastar*Su_av_L)
-        # "Leaking"        
-        Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alphastar*Su_av_L + SoilWeight(L, D, t, gamma))                  
-        Vmax = min(Vmax1, Vmax2, Vmax3)
-        '''
-        print("\n--- Parameter-Based Version ---")
-        print(f"Su_av_L        = {Su_av_L:.3f} kPa")
-        print(f"sigma'_v(zlug) = {sigma_v_eff:.3f} kPa")
-        print(f"psi_val        = {psi_val:.3f}")
-        print(f"alpha (API)    = {alpha:.3f}")
-        print(f"Hmax           = {Hmax[0]:.2f} kN")
-        print(f"Vmax           = {Vmax:.2f} kN")
-        '''
-               
-    elif soil_type == 'sand':
-        # Definition for non-cohesive soils
-        Nq = np.e**(np.pi*np.tan(np.radians(phi)))*np.tan(np.radians(45) + np.radians(phi)/2)**2 # Lateral-bearing capacity factor
-        sigma_av_L = gamma*L/2                        # Effective stress (average)
-        sigma_tip = gamma*L                           # Effective stress (tip)
-        Hmax = 0.5*D*Nq*gamma*L**2
+    # Ellipse crossing with constant values
+    def horizontal_cross(H, M, M_target):
+        crossings = []
+        for i in range(len(M_rot) - 1):
+            if (M[i] - M_target) * (M[i+1] - M_target) < 0:
+                # Interpolation to get more precise value at crossing
+                H_cross = np.interp(M_target, [M[i], M[i+1]], [H[i], H[i+1]])
+                crossings.append(H_cross)
+        return crossings  
+    def vertical_cross(H, M, H_target):
+        crossings = []
+        for i in range(len(H) - 1):
+            if (H[i] - H_target) * (H[i+1] - H_target) < 0:
+                # Interpolation to get more precise value at crossing
+                M_cross = np.interp(H_target, [H[i], H[i+1]], [M[i], M[i+1]])
+                crossings.append(M_cross)
+        return crossings
+    
+    Np_fixed = 11.65
+    Np_free = 3.5
+    Nc = min(6.2*(1 + 0.34*np.arctan(lambdap)), 9)
+    
+    # Initialize
+    sum_ez_weighted = 0.0
+    Hmax_final = 0.0
+    Vmax_final = 0.0
+    layer_data = []
 
-        M = - V*rlugTilt(rlug,zlug,thetalug) - H*(zlugTilt(rlug,zlug,thetalug) - zlug)
-        
-        # Torsion capacity
-        delta = calc_delta(Dr)
-        To = PileSurface(L, D)*delta*sigma_av_L
-        Ti = PileSurface(L, (D -2*t))*delta*sigma_av_L
-        Tbase = np.pi*D**3*sigma_tip/12
-        Tmax = min(To + Ti, To + Tbase) 
-        
-        # Introduce twist effects due to installation misaligment
-        T = H*rlug*np.sin(np.deg2rad(psilug))
-        Fo = delta*sigma_av_L*L*np.pi*D
-        nhuT = T/Tmax; nhuV = H/Fo;
-        nhuVstar = np.sqrt(nhuV**2 - nhuT**2)
-        deltastar = delta*(nhuVstar/nhuV)
+    # Profile check points
+    npts = 10
+
+    for layer in layers:
+        soil_type = layer['soil_type']
+        z_top = layer['top']
+        z_bot = layer['bottom']
+
+        if soil_type == 'clay':
+            # Prepare soil profile for clay
+            profile = [
+                [z_top, layer['gamma_top'], layer['Su_top']],
+                [z_bot, layer['gamma_bot'], layer['Su_bot']]
+            ]
     
-        # "Coring"        
-        Vmax2 = PileWeight(L, D, t, rhows) + PileSurface(L, D)*deltastar*sigma_av_L + PileSurface(L,(D - 2*t))*deltastar*sigma_av_L
-        # "Leaking"        
-        Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*deltastar*sigma_av_L + SoilWeight(L, D, t, gamma))
-        Vmax = min(Vmax2, Vmax3)
-        # def y(depth):
-            # return np.e**(-depth) - 1 + depth
-        # Ze = D/(4*7); Zi = D/(4*5)    
-        # Vmax = 7*gamma*Ze**2*y(L/Ze)*PileSurface(L, D)/L + 5*gamma*Zi**2*y(L/Zi)*PileSurface(L,(D - 2*t))/L
-        '''
-        print("\n--- Parameter-Based (Sand) ---")
-        print(f"phi        = {phi:.2f} deg")
-        print(f"gamma      = {gamma:.2f} kN/m3")
-        print(f"deltastar  = {deltastar:.2f} -")
-        print(f"sigma_av_L = {sigma_av_L:.2f} kN")
-        print(f"sigma_tip  = {sigma_tip:.2f} kN")
-        '''
-    # Pile weight (inc. stiffening plus vent) assessed as a factor
-    Wp = 1.10*PileWeight(L, D, t, (rhows + rhow)) 
-    # Submerged weight of the soil plug
-    Ws = SoilWeight(L, D, t, gamma)
+            z_ref, f_gamma, f_Su, f_sigma_v_eff, f_alpha = clay_profile(profile)
     
-    # Capacity envelope
-    aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
-    #print('Env. exp = ' +str(aVH)+'   '+str(bVH))
-    UC = (H/Hmax)**aVH + (V/Vmax)**bVH      
-    x = np.cos(np.linspace (0, np.pi/2, 100))
-    y = (1 - x**bVH)**(1/aVH)
-    X = Hmax*x; Y = Vmax*y
-    if plot:
-        plt.plot(X, Y, color = 'b')
-        plt.plot(H, V, '*', color = 'r')
+            # Clip the layer first
+            z_top_clip = max(z_top, z0)
+            z_bot_clip = min(z_bot, z0 + (L - z0))
+            dz_clip = z_bot_clip - z_top_clip; print(f'dz_clip  = {dz_clip:.2f} m')
+    
+            if dz_clip <= 0:
+                continue  # Skip layers fully above or below
+    
+            # Calculate properties over clipped dz
+            z_vals = np.linspace(z_top_clip, z_bot_clip, npts)
+            Su_vals = f_Su(z_vals)
+            Su_total = np.trapz(Su_vals, z_vals)
+            Su_moment = np.trapz(Su_vals*z_vals, z_vals)
             
-        # Set labels and title
-        plt.xlabel('Horizontal capacity [kN]')
-        plt.ylabel('Vertical capacity [kN]')
-        plt.suptitle('VH suction pile capacity envelope')
-        plt.axis([0, 1.3*max(X[0], H), 0, 1.3*max(Y[-1], V)]) 
-        plt.grid(True)
-        plt.show()
+            ez_layer = Su_moment/Su_total
+            Su_av_z = f_Su(ez_layer)
+            
+            print(f'ez_layer = {ez_layer:.2f} m')
+            print(f'Su_av_z (at ez_layer) = {Su_av_z:.2f} Pa')
+            
+            Su_bot = f_Su(z_bot_clip)
+            gamma_vals = f_gamma(z_vals)
+            gamma_av = np.mean(gamma_vals)
+
+            # Calculate Hmax for clay
+            Hmax_layer = Np_fixed*D*dz_clip*Su_av_z;
     
-    resultsSuction = {}
-    if soil_type == 'clay':
-        resultsSuction['Horizontal max.'] = Hmax[0] # Maximum horizontal capacity in clay
-    elif soil_type == 'sand':   
-        resultsSuction['Horizontal max.'] = Hmax    # Maximum horizontal capacity in sand 
-    resultsSuction['Vertical max.'] = Vmax          # Maximum vertical capacity 
-    if soil_type == 'clay':
-        resultsSuction['UC'] = UC[0]                # Unity check in clay
-    elif soil_type == 'sand':
-        resultsSuction['UC'] = UC                   # Unity check in sand
-    resultsSuction['Weight'] = Wp                   # Dry weight of the suction pile (kN)
-    resultsSuction['Weight Soil'] = Ws              # Submerged weight of the soil plug (kN)
-    resultsSuction['t'] = t                         # Pile thikness in [m]
+            layer_data.append({
+                'z_top': z_top_clip,
+                'z_bot': z_bot_clip,
+                'dz': dz_clip,
+                'Hmax_layer': Hmax_layer,
+                'ez_layer': ez_layer
+            })
     
-    return resultsSuction
+            sigma_v_eff = f_sigma_v_eff(np.mean(z_vals))
+            alpha_av = float(f_alpha(np.mean(z_vals)))
+            
+            # Side shear To and Ti
+            To = PileSurface(dz_clip, D)*alpha_av*Su_av_z
+            Ti = PileSurface(dz_clip, D - 2*t)*alpha_av*Su_av_z
+            
+            # Tip resistance
+            if abs(z_bot_clip - (z0 + (L - z0))) < 1e-3:  # tip check
+                Tbase = (np.pi/12)*D**3*Su_bot
+            else:
+                Tbase = 0.0
+            
+            Tmax = min(To + Ti, To + Tbase)
+            
+            # Torque induced by horizontal load
+            T = Ha*rlug*np.sin(np.deg2rad(psilug))
+            
+            nhuT = T/Tmax 
+            nhuV = Ha/To 
+            nhuVstar = np.sqrt(nhuV**2 - nhuT**2) 
+            alphastar = alpha_av*(nhuVstar/nhuV); print(f"alphastar   = {alphastar:.3f}")
+            
+            # Constant weight
+            Pile_Head = PileWeight(z0, D, t, rhows)
+            
+            # Vertical failure modes
+            Vmax1 = None
+            if np.isclose(z_bot_clip, z0 + (L - z0), atol=0.1):
+                Vmax1 = PileWeight(dz_clip, D, t, rhows) + PileSurface(dz_clip, D)*alphastar*Su_av_z + Nc*Su_bot*(np.pi/4)*D**2
+            # else:
+            #     Vmax1 = np.inf  # No tip resistance unless at tip
+            
+            Vmax2 = PileWeight(dz_clip, D, t, rhows) + PileSurface(dz_clip, D)*alphastar*Su_av_z + PileSurface(dz_clip, D - 2*t)*alphastar*Su_av_z
+            Vmax3 = PileWeight(dz_clip, D, t, rhows) + PileSurface(dz_clip, D)*alphastar*Su_av_z + SoilWeight(dz_clip, D, t, gamma_av)
+            
+            Vmax_candidates = [v for v in [Vmax1, Vmax2, Vmax3] if v is not None]
+            Vmax_layer = max(Vmax_candidates)
+
+            # Sum vertical capacities
+            Vmax_final += Vmax_layer
+            
+            # Print layer debug info
+            print(f"Vmax_layer    = {Vmax_layer:.2f} N")
+            print(f"Vmax1   = {Vmax1:.2f} N" if Vmax1 is not None else "Vmax1   = not applicable")
+            print(f"Vmax2   = {Vmax2:.2f} N")
+            print(f"Vmax3   = {Vmax3:.2f} N")
+            
+        elif soil_type == 'sand':
+            # Prepare soil profile for sand
+            profile = [
+                [z_top, layer['gamma_top'], layer['phi_top'], layer['Dr_top']],
+                [z_bot, layer['gamma_bot'], layer['phi_bot'], layer['Dr_bot']]
+            ]
         
-def getCapacitySuctionSimp(D, L, zlug, H, V, gamma, Su0, k, alpha):
+            z_ref, f_gamma, f_phi, _, f_sigma_v_eff, f_delta = sand_profile(profile)
+        
+            # Clip the layer within pile embedded length
+            z_top_clip = max(z_top, z0)
+            z_bot_clip = min(z_bot, z0 + (L - z0))
+            dz_clip = z_bot_clip - z_top_clip
+        
+            if dz_clip <= 0:
+                continue  # Skip non-overlapping layers
+        
+            # Calculate properties over clipped dz
+            z_vals = np.linspace(z_top_clip, z_bot_clip, npts)
+            phi_vals = f_phi(z_vals)
+            sigma_vals = f_sigma_v_eff(z_vals)
+            delta_vals = f_delta(z_vals)
+        
+            phi_av = np.mean(phi_vals)
+            sigma_av = np.mean(sigma_vals)
+            delta_av = np.mean(delta_vals)
+        
+            sigma_tip = f_sigma_v_eff(z_bot_clip)
+            
+            Nq = np.e**(np.pi*np.tan(np.radians(phi_av)))*(np.tan(np.radians(45) + np.radians(phi_av)/2))**2
+        
+            # Calculate Hmax for sand
+            Hmax_layer = 0.5*Nq*D*gamma_av*dz_clip**2
+        
+            layer_data.append({
+                'z_top': z_top_clip,
+                'z_bot': z_bot_clip,
+                'dz': dz_clip,
+                'Hmax_layer': Hmax_layer,
+                'ez_layer': np.mean(z_vals)
+            })
+        
+            # Side friction
+            To = PileSurface(dz_clip, D)*delta_av*sigma_av
+            Ti = PileSurface(dz_clip, D - 2*t)*delta_av*sigma_av
+        
+            if abs(z_bot_clip - (z0 + (L - z0))) < 1e-3:
+                Tbase = np.pi/4*D**2*sigma_tip
+            else:
+                Tbase = 0.0
+        
+            Tmax = min(To + Ti, To + Tbase)
+        
+            # Torque induced by horizontal load
+            T = Ha*rlug*np.sin(np.deg2rad(psilug))
+            nhuT = T/Tmax 
+            nhuV = Ha/To 
+            nhuVstar = np.sqrt(nhuV**2 - nhuT**2) 
+            deltastar = delta_av*(nhuVstar/nhuV) 
+               
+            # Vertical failure modes
+            Vmax2 = Pile_Head + PileWeight(dz_clip, D, t, rhows) + PileSurface(dz_clip, D)*deltastar*sigma_av + PileSurface(dz_clip, D - 2*t)*deltastar*sigma_av
+            Vmax3 = Pile_Head + PileWeight(dz_clip, D, t, rhows) + PileSurface(dz_clip, D)*deltastar*sigma_av + SoilWeight(dz_clip, D, t, gamma_av)
+        
+            Vmax_layer = min(Vmax2, Vmax3)
+            
+            # Sum vertical capacities
+            Vmax_final += Vmax_layer
+        
+            print(f"Vmax_layer (sand) = {Vmax_layer:.2f} N")
+            print(f"Vmax2 (sand) = {Vmax2:.2f} N")
+            print(f"Vmax3 (sand) = {Vmax3:.2f} N")
 
-    '''
-    Parameters
-    ----------
-    D : float 
-        Suction pile diameter [m]
-    L : float 
-        Suction anchor length [m]
-    Tm : float 
-        Mooring line load at mudlevel [kN]
-    thetam : float 
-        Mooring line angle at mudlevel [deg]
-    zlug : float 
-        Embedded depth of the lug [m]
-    gamma: float
-    
-    Su0 : float 
-        Undrained shear strength at the mudline (clay only)[kPa]
-    k : float 
-        Undrained shear strength gradient (clay only) [kPa/m]
-    alpha : float 
-        Skin friction coefficient (outer and inner - clay only) [-] 
-    rhows : float
-        Submerged steel density [t/m3]
+    # Hmax_final and weighted ez
+    for data in layer_data:
+        z_top = data['z_top']
+        z_bot = data['z_bot']
+        Hmax_layer = data['Hmax_layer']
+        ez_layer = data['ez_layer']
+        dz_layer = data['dz']
 
-    Returns
-    -------
-    Hmax : float 
-        Maximum horizontal capacity [kN]
-    Vmax : float 
-        Maximum vertical capacity [kN]
-    UC: float
-        Capacity unity check for given load [-]
-    ''' 
+        z_embedded_start = z0
+        z_embedded_end = L - z0
+
+        if z_top >= z_embedded_start and z_bot <= z_embedded_end:
+            sum_ez_weighted += Hmax_layer*ez_layer
+            Hmax_final += Hmax_layer
+            print(f'Hmax_layer  = {Hmax_layer:.2f} m')
+
+        elif z_top < z_embedded_end and z_bot > z_embedded_start:
+            dz_inside = min(z_bot, z_embedded_end) - max(z_top, z_embedded_start)
+            if dz_inside > 0:
+                ratio = dz_inside/dz_layer
+                sum_ez_weighted += Hmax_layer*ratio*ez_layer
+                Hmax_final += Hmax_layer*ratio
+                # print(f'ez_layer (partial) = {ez_layer:.2f} m')
+   
+    ez_global = sum_ez_weighted/Hmax_final 
+    print(f'ez_global   = {ez_global:.2f} m')
+    print(f'Hmax_final  = {Hmax_final:.2f} m')
+
+    # Calculate coupled moment 
+    M  = -Va*rlugTilt(rlug, zlug, thetalug) - Ha*(zlugTilt(rlug, zlug, thetalug) - ez_global)
+    Mv = -Va*rlugTilt(rlug, zlug, thetalug)
+    print(f"rlug_eff = {rlugTilt(rlug, zlug, thetalug):.2f} m")
+    print(f"zlug_eff = {zlugTilt(rlug, zlug, thetalug):.2f} m")
+    print(f"M = {M:.2f} Nm")
     
-    lambdap = L/D;                       # Suction pile slenderness ratio   
-    t = 10*D/1e3                         # Thickness of the pile
-    Np_fixed = 10.25;                    # From Np vs L/D chart from CAISSON_VHM
-    rhows=66.90
+    # MH Ellipse Parameters for Clay (Kay 2014)
+    # ΔφMH (piecewise based on L/D)
+    if 0.5 <= lambdap < 1.125:
+        delta_phi = 0.32 + 4.32*lambdap; #print(delta_phi)
+    elif 1.125 <= lambdap < 2.0:
+        delta_phi = 7.13 - 1.71*lambdap; #print(delta_phi)
+    elif 2.0 <= lambdap <= 8.0:
+        delta_phi = 2.25 - 0.25*lambdap; #print(delta_phi)
+    else:
+        raise ValueError('L/D out of bounds for MH ellipse.')
+
+    phi_MH = -np.arctan(ez_global/(L - z0)) - np.deg2rad(delta_phi)
+    a_MH = Np_fixed/np.cos(phi_MH)
+    delta_bMH = 0.45*(lambdap)**(-0.9) if lambdap <= 1.5 else 0
+    b_MH = -Np_free*np.sin(phi_MH) + delta_bMH
+    print(f"delta_phi = {delta_phi:.2f} deg")
+    print(f"phi_MH = {np.rad2deg(phi_MH):.2f} deg")
+    print(f"a_MH = {a_MH:.2f}")
+    print(f"b_MH = {b_MH:.2f}")
+
+    # MH Ellipse Parameters for Clay (Kay 2015)
+    # VH (piecewise based on L/D)
+    if 0.5 <= lambdap < 1.5:
+        a_VH = 9/4 + (5/3)*lambdap; 
+    elif 0.5 <= lambdap < 1.25:
+        b_VH = 23/4 - (13/5)*lambdap; 
+    elif 1.5 <= lambdap <= 6.0:
+        a_VH = 47/12 - (5/9)*lambdap; 
+        b_VH = 50/19 - (2/19)*lambdap;
+    else:
+        raise ValueError('L/D ratio out of bounds for MH ellipse formulation.')
+    a_VH = 0.5 + lambdap;   b_VH = 4.5 + lambdap/3
+    # a_VH = 4.5 + lambdap/2; b_VH = 4.5 + lambdap/4
+    print(f"a_VH = {a_VH:.2f}")
+    print(f"b_VH = {b_VH:.2f}")
+
+    # Scale VH ellipse based on vertical load ratio (Kay 2015) 
+    shrink_factor = 1 - ((Va/Vmax_final)**b_VH)**(2/a_VH)
+
+    plt.figure(figsize=(10, 5))
+    theta = np.linspace(0, 2*np.pi, 400)        
+    shrink_factors = np.linspace(0.0, 1.0, 5)  
+    # Define colormap
+    cmap = plt.colormaps['Greys']  
+    norm = mcolors.Normalize(vmin=min(shrink_factors), vmax=max(shrink_factors))
     
-    Su_av_L = Su0 + k*zlug;              # Undrained shear strength values (average)
-    Su_tip = Su0 + k*L;                  # Undrained shear strength values (tip)
-    Nc = min (6.2*(1 + 0.34*np.arctan(lambdap)),9)  # End-bearing capacity factor
+    for s_f in shrink_factors:
+        color = cmap(norm(s_f))
+        x_ellipse = Hmax_final*s_f*np.cos(theta)
+        y_ellipse = Vmax_final*s_f*np.sin(theta)
+        H_rot = np.cos(phi_MH)*x_ellipse - np.sin(phi_MH)*y_ellipse
+        M_rot = np.sin(phi_MH)*x_ellipse + np.cos(phi_MH)*y_ellipse
+        plt.plot(H_rot, M_rot, color=color, alpha=0.5)
     
-    # Outer and inner surface of the pile skirt
-    def PileSurface(Len, Dia):
-        Sp = np.pi*Dia*Len
-        return Sp    
-    # Dry and wet mass of the pile    
-    def PileWeight(Len, Dia, tw, rho):
-        Wp = ((np.pi/4)*((Dia**2 - (Dia - 2*tw)**2)*Len + (np.pi/4)*Dia**2*tw))*rho
-        return Wp 
-    # Weight of the soil plug      
-    def SoilWeight(Len, Dia, tw, gamma_soil): 
-        Wsoil =(np.pi/4)*(Dia - 2*tw)**2*Len*gamma_soil
-        return Wsoil
+    x_ellipse_prime = Hmax_final*shrink_factor*np.cos(theta)
+    y_ellipse_prime = Vmax_final*shrink_factor*np.sin(theta)
+    H_rot_prime = np.cos(phi_MH)*x_ellipse_prime - np.sin(phi_MH)*y_ellipse_prime
+    M_rot_prime = np.sin(phi_MH)*x_ellipse_prime + np.cos(phi_MH)*y_ellipse_prime
+    Hlim = 1.2*Hmax_final  
+    plt.xlim(-Hlim, Hlim)
+    plt.ylim(-Hlim, Hlim)
+    plt.grid(True, color='gray', linestyle='--', lw=0.5, alpha=0.8)
     
-    Hmax = Np_fixed*L*D*Su_av_L
-    # "Plugged" (Reverse end bearing capacity - passive suction) 
-    Vmax1 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + Nc*Su_tip*(np.pi/4)*D**2)
-    # "Coring"        
-    Vmax2 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + PileSurface(L,(D - 2*t))*alpha*Su_av_L)
-    # "Leaking"        
-    Vmax3 = (PileWeight(L, D, t, rhows) + PileSurface(L, D)*alpha*Su_av_L + SoilWeight(L, D, t, gamma)) 
-    # print(Vmax1); print(Vmax2); print(Vmax3)                  
-    Vmax = min(Vmax1,Vmax2,Vmax3)
+    # Highlight the actual one
+    plt.plot(H_rot_prime, M_rot_prime, 'b', label= f'MH ellipse w/ V/Vmax = {shrink_factor:.3f}')
+    plt.axhline(0, color='k', linestyle='--', lw=1.0)
+    plt.axvline(0, color='k', linestyle='--', lw=1.0)
     
-    # Submerged pile weight (inc. stiffening plus vent) assessed as a factor
-    Wp = 1.00*PileWeight(L, D, t, (rhows)) 
-    # Submerged weight of the soil plug
-    Ws = SoilWeight(L, D, t, gamma) 
+    # Plot horizontal line at constant M and Mv
+    H_plot = np.linspace(min(1.3*H_rot), max(1.3*H_rot), 100)
+    M_plot  = np.full_like(H_plot,  M)  # Constant moment
+    Mv_plot = np.full_like(H_plot, Mv)  # Constant moment
+    plt.plot(H_plot,  M_plot, 'r', lw=1.0, label='Moment line') 
+    plt.plot(H_plot, Mv_plot, 'r', lw=0.5, label='Vertical moment line') 
+    plt.legend(loc='lower left', fontsize='small')
+   
+    H_roots = horizontal_cross(H_rot_prime, M_rot_prime, M)
+    Hmax_v = 0.1 
+    if H_roots:
+        Hmax_pos = max([r for r in H_roots if r >= 0], default=None)
+        Hmax_neg = min([r for r in H_roots if r <  0], default=None)
+        if M > 0 and Hmax_neg is not None:
+            Hmax_v = abs(Hmax_neg)
+            plt.plot(Hmax_neg, M, 'ro', label=f'Hmax,v = {Hmax_neg/1e6:.1f} MN', zorder=20)
+            plt.legend(loc='lower left')
+        elif M <= 0 and Hmax_pos is not None:
+            Hmax_v = abs(Hmax_pos)
+            plt.plot(Hmax_pos, M, 'ro', label=f'Hmax,v = {Hmax_pos/1e6:.1f} MN', zorder=20)
+            plt.legend(loc='lower left')
+        else:
+            print('[WARNING] No valid Hmax crossing found for moment cut.')
+    else:
+        print('[WARNING] No intersection between moment line and ellipse.') 
+            
+    H_v_roots = horizontal_cross(H_rot_prime, M_rot_prime, 0.0)
+    plt.scatter(H_v_roots[0], 0.0, s=25, facecolors='white', edgecolors='blue', 
+                marker='s',label=f'Ho ≈ {H_v_roots[0]/1e6:.1f} MN', zorder=10)
+    plt.legend(loc='lower left', fontsize='small')
+
     
-    # H = Tm*np.cos(np.deg2rad(thetam)); V = Tm*np.sin(np.deg2rad(thetam))
+    M_v_roots = vertical_cross(H_rot_prime, M_rot_prime, 0.0)
+    plt.scatter(0.0, M_v_roots[0], s=25, facecolors='white', edgecolors='blue', 
+                marker='s', label=f'Mo ≈ {M_v_roots[0]/1e6:.1f} MNm', zorder=10)
+    plt.legend(loc='lower left', fontsize='small')
+           
+    # Find and plot maximum H 
+    idx_maxH = np.argmax(H_rot_prime)
+    H_at_maxH = H_rot_prime[idx_maxH]
+    M_at_maxH = M_rot_prime[idx_maxH]
+    plt.scatter(H_at_maxH, M_at_maxH, s=25, facecolors='white', edgecolors='blue',
+                marker='D', label=f'Hmax ≈ {H_at_maxH/1e6:.1f} MN', zorder=10)
+    plt.legend(loc='lower left', fontsize='small')
+    
+    # Find and plot minimum M (vertical axis intercept)
+    idx_minM = np.argmin(M_rot_prime)
+    H_at_minM = H_rot_prime[idx_minM]
+    M_at_minM = M_rot_prime[idx_minM]
+    plt.scatter(H_at_minM, M_at_minM, s=25, facecolors='white', edgecolors='blue',
+                marker='D', label=f'Mmax ≈ {M_at_minM/1e6:.1f} MNm', zorder=10)
+    plt.legend(loc='lower left', fontsize='small')
+    
+    # Constant weight
+    pile_head = PileWeight(z0, D, t, rhows); print(f"pile_head    = {pile_head:.2f} N")
+    Vmax_final += pile_head; print(f"Vmax_final   = {Vmax_final:.2f} N")
+    
+    Wp = 1.10*PileWeight(L, D, t, rhows + rhow) 
     
     # Capacity envelope
-    aVH = 0.5 + lambdap; bVH = 4.5 + lambdap/3 
-    # print('Env. exp =' +str(aVH)+str(bVH))
-    UC = (H/Hmax)**aVH + (V/Vmax)**bVH
+    a_VH = 0.5 + lambdap; b_VH = 4.5 + lambdap/3
+    # Unity check
+    UC = (Ha/Hmax_v)**a_VH + (Va/Vmax_final)**b_VH 
+    plt.figure(figsize=(6, 5))
+    x = np.linspace(0, 1, 100)
+    y = (1 - x**b_VH)**(1/a_VH)
 
-    x = np.cos(np.linspace (0,np.pi/2,1000))
-    y = (1 - x**bVH)**(1/aVH)
-    X = Hmax*x; Y = Vmax*y
+    # Plotting
+    if plot:
+        plt.figure(figsize=(6, 5))
+        plt.plot(Hmax_v*x, Vmax_final*y, 'b', label='VH Envelope')
+        plt.plot(Ha, Va, 'go', label='Applied load')
+        plt.xlabel('Horizontal capacity (N)')
+        plt.ylabel('Vertical capacity (N)')
+        plt.title('VH suction pile capacity envelope')
+        plt.axis([0, 1.3*max(Hmax_v, Ha), 0, 1.3*max(Vmax_final, Va)]) 
+        plt.grid(True)
+        plt.legend()
+        plt.show()
 
-    #H_good = Hmax*np.exp(np.log(0.5)/aVH)
-    #V_good = Vmax*np.exp(np.log(0.5)/bVH)
-   
-    resultsSuctionSimp = {}
-    resultsSuctionSimp['Horizontal max.'] = Hmax    # Capacity at specified loading angle
-    resultsSuctionSimp['Vertical max.'] = Vmax      # Capacity at specified loading angle
-    resultsSuctionSimp['UC'] = UC                   # Unity check
-    resultsSuctionSimp['Weight'] = Wp               # Pile weight in kN
-    resultsSuctionSimp['Weight Soil'] = Ws          # in kN
-    resultsSuctionSimp['t'] = t
-    
-    return resultsSuctionSimp  
+    resultsSuction = {
+        'Horizontal max.': Hmax_v,
+        'Vertical max.': Vmax_final,
+        'Unity check': UC,
+        'Weight pile': Wp}
+
+    return layers, resultsSuction
 
 if __name__ == '__main__':
-    
-    D = 2.0          # Diameter in meters
-    L = 10.0         # Length in meters
-    zlug = (2/3)*L   # Padeye depth
-    H = 1500.0       # Horizontal load in kN
-    V = 1000.0       # Vertical load in kN
-    
-    gamma = 8
-    Su0 = 25
-    k = 0
-    
-    phi = 50
-    Dr = 75
-    
-    results_clay = getCapacitySuction(D, L, zlug, H, V, 'clay', gamma, Su0=Su0, k=k, phi=phi, Dr=Dr, plot=True) 
-    
-    # results_sand = getCapacitySuction(D, L, zlug, H, V, 'sand', gamma, Su0=Su0, k=k, phi=phi, Dr=Dr, plot=True)   
+
+    profile_map = [
+    {
+        'name': 'CPT_1',
+        'x': 498234, 'y': 5725141,
+        'layers': [
+            {
+                'top': 0.0, 'bottom': 20.0,
+                'soil_type': 'clay',
+                'gamma_top': 8.5, 'gamma_bot': 8.5,
+                'Su_top': 2.4, 'Su_bot': 30.3}]
+            # {
+            #     'top': 10.0, 'bottom': 20.0,
+            #     'soil_type': 'clay',
+            #     'gamma_top': 8.5, 'gamma_bot': 8.5,
+            #     'Su_top': 13.95, 'Su_bot': 30.3}]
+            # {
+            #     'top': 30.0, 'bottom': 36.0,
+            #     'soil_type': 'clay',
+            #     'gamma_top': 9.0, 'gamma_bot': 9.5,
+            #     'Su_top': 75, 'Su_bot': 100},
+            # {
+            #     'top': 36.0, 'bottom': 55.0,
+            #     'soil_type': 'clay',
+            #     'gamma_top': 9.5, 'gamma_bot': 9.5,
+            #     'Su_top': 100, 'Su_bot': 100}]
+        }
+    ]
+
+
+    # Pile and load properties
+    D = 3.34                          # Pile diameter (m)
+    L = 20.0                          # Pile length (m)
+    zlug = (2/3)*L                    # Lug depth (m)
+    theta = 5                         # Tilt misalignment angle (deg)
+    psi = 7.5                         # Twist misalignment angle (deg)
+    Ha = 1e6                        # Applied horizontal load (N)
+    Va = 5.7e6                        # Applied vertical load (N)
+
+    # Calculate
+    layers, resultsSuction = getCapacitySuction(
+        profile_map, 'CPT_1',         # Soil properties and location of the pile
+        D, L, zlug,                   # Pile geometrical properties
+        Ha, Va,                       # Pile loading conditions   
+        thetalug=theta, psilug=psi,   # Pile misaligment tolerances 
+        plot=False
+    )
+
+    # print('\n--- Suction Pile Capacity Results ---')
+    # print(f"Hmax_final = {resultsSuction['Hmax_final']:.2f} N")
+    # print(f"Vmax_final = {resultsSuction['Vmax_final']:.2f} N")
+    # print(f"Unity check (UC) = {resultsSuction['UnityCheck']:.4f}")
+    # print(f"Total Moment (M_total) = {resultsSuction['M_total']:.2f} Nm")
+
+    # plot_suction(layers, L, D, z0 = layers[0]['top'], zlug=zlug, title='Suction Pile and Soil Layers')
