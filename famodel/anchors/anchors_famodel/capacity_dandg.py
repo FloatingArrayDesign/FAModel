@@ -1,17 +1,13 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
-from scipy import linalg
-import inspect
+from .support_soils import rock_profile
+from .support_solvers import fd_solver
+from .support_pycurves import py_Lovera
+from .support_plots import plot_pile, plot_pycurve
 
-###################################
-#### Pile Geometry and Loading ####
-###################################
-
-def getCapacityDandG(profile, L, D, zlug, V, H, plot=True):
-    '''
-    Models a laterally loaded pile using the p-y method. The solution for
+def getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot=False):
+    '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, 
     EI*d4y/dz4 - V*d2y/dz2 + ky = 0 using the finite difference method.
     EI*d4y/dz4 - V*d2y/dz2 + K*z*dy/dz + ky = 0 using the finite difference method.
@@ -19,43 +15,46 @@ def getCapacityDandG(profile, L, D, zlug, V, H, plot=True):
     Assumes that EI remains constant with respect to curvature i.e. pile
     material remains in the elastic region.
 
-    Input:
-    -----
-    profile     - A 2D array of depths (m) and corresponding undrained shear strength(Pa)
-                  Eg: array([[z1,UCS1],[z2,UCS2],[z3,UCS3]...])
-                  Use small values for Su (eg: 0.001) instead of zeros to avoid divisions 
-                  by zero but always start z at 0.0
-                  Example of a valid data point at the mudline is [0.0, 0.001]
-    L           - Length of pile (m)
-    D           - Outer diameter of pile (m)
-    V           - Axial force at pile head (N)
-    H           - Force at pile head (N)
-    M           - Moment at pile head (N*m)
-    n           - Number of elements (50 by default)
-    iterations  - Number of iterations to repeat calculation in order obtain convergence of 'y'
-                  (A better approach is to iterate until a predefined tolerance is achieved)
+    Parameters
+    ----------
+    profile : array
+        Rock profile as a 2D array: (z (m), UCS (MPa), Em (MPa))
+    soil_type : string
+        Select soil condition, 'rock'
+    L : float 
+        Pile length (m)
+    D : float 
+        Pile diameter (m)
+    zlug : float
+        Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
+    Ha : float       
+        Horizontal load at pile lug elevation (N)
+    Va : float          
+        Vertical load at pile lug elevation (N)
+    plot : bool
+        Plot the p-y curve and the deflection pile condition if True
 
-    Output:
-    ------
-    y           - Lateral displacement at each node, length = n + 5, (n+1) real nodes and 4 imaginary nodes
-    z           - Vector of node locations along pile
-    resultsDandG- Dictionary with results
+    Returns
+    -------
+    y : array
+        Lateral displacement at each node (n+1 real + 4 imaginary)
+    z : array
+        Node location along pile (m)
+    resultsDandG : dict
+        Dictionary with lateral, rotational, vertical and pile weight results
     '''
-    
-    # Extract optional keyword arguments
-    # ls = 'x'
 
-    n = 50; iterations = 10; loc = 2
-
-    # Resistance factor
-    nhuc = 1; nhu = 0.3
-    delta_r = 0.08               # Mean roughness height [m]
+    profile_entry = next(p for p in profile_map if p['name'] == location_name)
+    layers = profile_entry['layers']
+      
+    n = 50; loc = 2              # Number of nodes (-)
+    tol = 1e-16; max_iter = 50   # Iteration parameters (-)
+    nhuc = 1; nhu = 0.3          # Resistance factor (-)
+    delta_r = 0.08               # Mean roughness height (m)
     
-    # Convert L and D to floating point numbers to avoid rounding errors
-    L = float(L)
-    D = float(D)
     t = (6.35 + D*20)/1e3        # Pile wall thickness (m), API RP2A-WSD
     E = 200e9                    # Elastic modulus of pile material (Pa)
+    fy = 350e6                   # Steel's yield strength (Pa)
     rhows = 66.90e3              # Submerged steel specific weight (N/m3)
     rhow = 10e3                  # Water specific weight (N/m3) 
     
@@ -75,299 +74,159 @@ def getCapacityDandG(profile, L, D, zlug, V, H, plot=True):
 
     # Initialize and assemble array/list of p-y curves at each real node
     z = np.zeros(N)
-    py_funs = []
     k_secant = np.zeros(N)
-    DQ = []
+    py_funs = []
+    DQ = []; pycurve_data = []
 
-    for i in [0,1]:              # Top two imaginary nodes
+    z0 = min(layer['top'] for layer in layers)
+    
+    for i in [0, 1]:              # Top two imaginary nodes
         z[i] = (i - 2)*h
         py_funs.append(0)
         k_secant[i] = 0.0
    
-    for i in range(2,n+3):       # Real nodes
+    for i in range(2, n+3):       # Real nodes
         z[i] = (i - 2)*h
-        # Extract rock profile data
-        zlug, f_UCS, f_Em = rock_profile(profile)
-        UCS, Em = f_UCS(z[i]), f_Em(z[i])
-        py_funs.append(py_Reese(z[i], D, zlug, UCS, Em, plot=plot))
-        k_secant[i] = py_funs[i](y[i])/y[i]
+        z_depth = z[i]
+        
+        matched_layer = next((layer for layer in layers if layer['top'] <= z_depth <= layer['bottom']), None)
+        if matched_layer is None or z_depth < matched_layer['top']:
+            py_funs.append(lambda y_val: np.zeros_like(y_val))
+            k_secant[i] = 0.0
+            DQ.append(0.0)
+            continue
+        
+        profile = [[matched_layer['top'],    matched_layer['UCS_top'], matched_layer['Em_top']],
+                   [matched_layer['bottom'], matched_layer['UCS_bot'], matched_layer['Em_bot']]]
+        z0_local, f_UCS, f_Em = rock_profile(profile)
+        
+        if z_depth < z0_local:
+            py_funs.append(lambda y_val: np.zeros_like(y_val))
+            k_secant[i] = 0.0
+            DQ.append(0.0)
+            continue
+
+        UCS = f_UCS(z_depth)
+        Em = f_Em(z_depth)
+        py_f, (y_vals, p_vals) = py_Lovera(z_depth, D, UCS, Em, zlug, z0, return_curve=True)
+        py_funs.append(py_f)
+        pycurve_data.append((y_vals, p_vals, z_depth, 'rock'))
+        # print(f"z_depth = {z_depth:.2f} m, UCS = {f_UCS(z_depth):.2e} Pa, Em = {f_Em(z_depth):.2e} Pa")
+        
         SCR = nhuc*Em/(UCS*(1 + nhu))*delta_r/D
         alpha = 0.36*SCR - 0.0005
         fs = alpha*UCS
-        Dq = np.pi*D*fs*z[i]
+        Dq = np.pi*D*fs*z_depth
         DQ.append(Dq)
+        k_val = py_funs[i](y[i])
+        k_secant[i] = k_val/y[i] if y[i] != 0 else 0.0
 
     for i in [n+3, n+4]:         # Bottom two imaginary nodes
         z[i] = (i - 2)*h
         py_funs.append(0)
         k_secant[i] = 0.0
-
-    # Track k_secant and current displacements
-
-    y1 = np.linspace(-2.*D, 2.*D, 500)
-    if plot:
-        plt.plot(y1, py_funs[loc](y1))
-        plt.xlabel('y (m)'), plt.ylabel('p (N/m)')
-        plt.grid(True)
-
-    for j in range(iterations):
-        # if j == 0: print 'FD Solver started!'
-        y = fd_solver(n, N, h, EI, V, H, zlug, k_secant)
-        if plot:
-            plt.plot(y[loc], k_secant[loc]*y[loc])
-
+        
+    Wp = PileWeight(L, D, t, rhows + rhow)
+    Wtip = DQ[-1] if DQ else 0.0
+    Vmax = Wp + Wtip    
+        
+    for j in range(max_iter):
+        y_old = y.copy()
+        y, *_ = fd_solver(n, N, h, D, t, fy, EI, Ha, Va, zlug, z0, k_secant)
+        
+        # Update stiffness
         for i in range(2, n+3):
-            k_secant[i] = py_funs[i](y[i])/y[i]
-
-    # print(f'y_max = {max(y):.3f} m')
-    # print(f'rot_max = {np.rad2deg((y[2] - y[3])/h):.3f} deg')
-
-    resultsDandG = {}
-    resultsDandG['Lateral displacement'] = y[2]
-    resultsDandG['Rotational displacement'] = np.rad2deg((y[2] - y[3])/h)
-    resultsDandG['Axial capacity'] = DQ[-1]
-    resultsDandG['Weight'] = PileWeight(L, D, t, (rhows + rhow))
+            if callable(py_funs[i]):
+                k_secant[i] = py_funs[i](y[i])/y[i] if y[i] != 0 else 0.0
     
-    return y[2:-2], z[2:-2], resultsDandG
-
-#################
-#### Solvers ####
-#################
-
-def fd_solver(n, N, h, EI, V, H, zlug, k_secant):
-    '''
-    Solves the finite difference equations from 'py_analysis_1'. This function should be run iteratively for
-    non-linear p-y curves by updating 'k_secant' using 'y'. A single iteration is sufficient if the p-y curves
-    are linear.
-
-    Input:
-    -----
-    n        - Number of elements
-    N        - Total number of nodes
-    h        - Element size
-    EI       - Flexural rigidity of pile
-    V        - Axial force at pile head
-    H        - Shear at pile head/tip
-    M        - Moment at pile head/tip
-    k_secant - Secant stiffness from p-y curves
-
-    Output:
-    ------
-    y        - Lateral displacement at each node
-    '''
-    M = H*zlug
-    
-    # Initialize and assemble matrix
-    X = np.zeros((N,N))
-
-    # (n+1) finite difference equations for (n+1) real nodes
-    for i in range(0,n+1):
-        X[i,i]   =  1.0
-        X[i,i+1] = -4.0 + V*h**2/EI
-        X[i,i+2] =  6.0 - 2*V*h**2/EI + k_secant[i+2]*h**4/EI
-        X[i,i+3] = -4.0 + V*h**2/EI
-        X[i,i+4] =  1.0
-
-    # Curvature at pile head
-    X[n+1,1] =  1.0
-    X[n+1,2] = -2.0
-    X[n+1,3] =  1.0
-
-    # Shear at pile head
-    X[n+2,0] = -1.0
-    X[n+2,1] =  2.0 - V*h**2/EI
-    X[n+2,2] =  0.0
-    X[n+2,3] = -2.0 + V*h**2/EI
-    X[n+2,4] =  1.0
-
-    # Curvature at pile tip
-    X[n+3,-2] =  1.0
-    X[n+3,-3] = -2.0
-    X[n+3,-4] =  1.0
-
-    # Shear at pile tip
-    X[n+4,-1] =  1.0
-    X[n+4,-2] = -2.0 + V*h**2/EI
-    X[n+4,-3] =  0.0
-    X[n+4,-4] =  2.0 - V*h**2/EI
-    X[n+4,-5] = -1.0
-
-    # Initialize vector q
-    q = np.zeros(N)
-
-    # Populate q with boundary conditions
-    q[-3] = 2*H*h**3      # Shear at pile head
-    # q[-4] = M*h**2        # Moment at pile head
-
-    y = linalg.solve(EI*X, q)
-
-    return y
-
-###############################
-#### P-Y Curve Definitions ####
-###############################
-
-
-def py_Reese(z, D, zlug, UCS, Em, plot=True):
-
-    '''
-    Returns an interp1d interpolation function which represents the Reese (1997) p-y curve at the depth of interest.
-
-    Important: Make sure to import the interp1 function by running 'from scipy.interpolate import interp1d' in the main program.
-
-    Input:
-    -----
-    z      - Depth relative to pile head (m)
-    D      - Pile diameter (m)
-    zlug   - Load eccentricity above the mudline or depth to mudline relative to the pile head (m)
-    UCS    - Undrained shear strength (Pa)
-    Em     - Effectve vertical stress (Pa)
-    RQD    - Rock quality designation, measures the quality of the rock core taken from a borehole.
-             Typically ranges from 25% (very weathered rock) to 100% (fresh rock).
-
-    Output:
-    ------
-    Returns an interp1d interpolation function which represents the p-y curve at the depth of interest.
-    'p' (N/m) and 'y' (m).
-    '''
-    z0 = 0
-    
-    #from scipy.interpolate import interp1d
-    #global var_Reese
-    
-    RQD = 69                     # Assumed good rock quality (hard rock)  
-    Dref = 0.305; nhu = 0.3; E = 200e9
-    t = (6.35 + D*20)/1e3        # Pile wall thickness (m), API RP2A-WSD
-    I  = np.pi*(D**4 - (D - 2*t)**4)/64.0
-    EI = E*I
-    alpha = -0.00667*RQD + 1
-    krm = 0.0005
-    
-    if (z - z0) < 0:
-        p_ur = 0
+        # Check convergence
+        if np.linalg.norm(y - y_old, ord=2) < tol:
+            print(f'[Converged in {j+1} iterations]')
+            break
     else:
-        if z < 3*D:
-            p_ur = alpha*UCS*D*(1 + 1.4*z/D)
-            #kir = (100 +400*z/(3*D))
-        else:
-            p_ur = 5.2*alpha*UCS*D
-            #kir = 500
-        
-    kir = (D/Dref)*2**(-2*nhu)*(EI/(Em*D**4))**0.284
-    Kir = kir*Em     
-    y_rm = krm*D
-    y_a = (p_ur/(2*y_rm**0.25*Kir))**1.333    
-   
-    # Normalized lateral displacement
-    N = 20
-    y = np.concatenate((-np.logspace(5,-3,N),[0],np.logspace(-3,5,N)))
+        print('[Warning: Solver did not converge]')
+
+
+    if plot:
+        plot_pycurve(pycurve_data)
+
+        fig, ax = plt.subplots(figsize=(3, 5))
+        y0 = np.zeros_like(z[2:-2])
+        ax.plot(y0, z[2:-2], 'k', label='Original pile axis')
+        ax.plot(y[2:-2], z[2:-2], 'r', label='Deflected shape')
+        ax.plot(0, zlug, 'ko', label=f'Padeye (zlug = {zlug:.2f} m)')
+        ax.axhline(z0, color='blue', linestyle='--', label=f'Mudline (z0 = {z0:.2f} m)')
+        ax.set_xlabel('Lateral displacement (m)')
+        ax.set_ylabel('Depth (m)')
+        ax.set_xlim([-0.1*D, 0.1*D])
+        ax.set_ylim([L + 5, -2])
+        ax.grid(ls='--')
+        ax.legend() 
+            
+    # Relevant index of nodes
+    zlug_index = int(zlug/h); print(zlug_index)
+    ymax_index = np.argmax(y); print(ymax_index)    
     
-    p=[]; P=[];
-    for i in range (len(y)):
-        if abs(y[i]) < y_a: 
-            P = np.sign(y[i])*Kir*y[i]
-        elif abs(y[i]) > y_a:
-            P = min((p_ur/2)*(abs(y[i])/y_rm)**0.25,p_ur)
-        p.append(P)    
-   
-    p = np.array(p).squeeze()     
-    for j in range(len(y)):
-        if y[j] < 0:
-            p[j] = -1*p[j]
-        elif y[j] > 0:
-            p[j] = p[j]                            
- 
-    #var_Reese = inspect.currentframe().f_locals          
+    resultsDandG = {
+        'Vertical max.': Vmax,
+        'Lateral displacement': y[ymax_index],
+        'Rotational displacement': np.rad2deg(abs(y[ymax_index - 1] - y[ymax_index])/h),
+        'Bending moment': None,
+        'Plastic moment': None,
+        'Plastic hinge': None,
+        'Hinge location': None,      
+        'Unity check (vertical)': Va/Vmax if Vmax != 0 else np.inf,
+        'Unity check (horizontal)': 0.0,  # Placeholder; no Mp or Mi in current model
+        'Weight pile': PileWeight(L, D, t, rhows + rhow),
+        'p-y model': 'Lovera (2023)'}
     
-    f = interp1d(y, p)   # Interpolation function for p-y curve
-    if plot:    
-        plt.plot(y, p) 
-        plt.xlabel('y (m)') 
-        plt.ylabel('p (N/m)'),
-        plt.title('PY Curves - Reese (1997)')
-        plt.grid(True)
-        plt.xlim([-0.03*D, 0.03*D])
-        plt.ylim([min(p), max(p)])     
-        
-    return f      # This is f (linear interpolation of y-p)
+    return layers, y[2:-2], z[2:-2], resultsDandG
    
-#######################
-#### Rock Profile #####
-#######################
-
-def rock_profile(profile):
-    '''
-    Define the (weak) rock profile used by the p-y analyzer. Outputs 'interp1d' functions containing 
-    UCS and Em profiles to be used by the p-y curve functions.
-
-    Input:
-    -----
-    profile - A 2D tuple in the following format: ([depth (m), UCS (MPa), Em (MPa), py-model])
-              The soil profile should be defined relative to the pile/tower head (i.e. point of lateral load application)
-              so that any load eccentricities can be taken into account. An example soil profile is shown below.
-              Eg: array([[z0,UCS0,Em0, 'Reese'],
-                         [z1,UCS1,Em1, 'Reese'],
-                         [z2,UCS2,Em2, 'Reese'],
-                          ...])
-              *The current program cannot define layers with different p-y models. But it will added in the future.
-
-    Output:
-    ------
-    z0       - Depth of mudline relative to the pile head (m)
-    f_UCS    - 'interp1d' function containing undrained shear strength profile (Pa)
-    f_Em     - 'interp1d' function containing effective vertical stress profile (Pa)
-    '''
-
-    # Depth of mudline relative to pile head
-    z0 = float(profile[0][0])
-
-    # Extract data from soil_profile array and zero strength virtual soil layer
-    # from the pile head down to the mudline
-    depth = np.concatenate([np.array([z0]),np.array([row[0] for row in profile],dtype=float)])  # m  
-    UCS   = np.concatenate([np.array([0]), np.array([row[1] for row in profile],dtype=float)])  # MPa
-    Em    = np.concatenate([np.array([0]), np.array([row[2] for row in profile],dtype=float)])  # MPa
-
-    # Define interpolation functions
-    f_UCS = interp1d(depth, UCS*1e6, kind='linear')  # Pa
-    f_Em  = interp1d(depth, Em*1e6, kind='linear')   # Pa
-    
-    #var_rock_profile = inspect.currentframe().f_locals
-
-    return z0, f_UCS, f_Em
-
 if __name__ == '__main__':
 
-    profile = np.array([[0.0,  5, 7, 'Name of p-y model'],
-                        [25.0, 5, 7, 'Name of p-y model']])
-    
-    L = 15
-    D = 1
-    zlug = 0
-    H0 = 318763.5
-    V0 = 297554.3 
-    
-    H = 1e4; V = 1e4
+    profile_map = [
+        {
+            'name': 'CPT_rock_1',
+            'x': 502000,
+            'y': 5725000,
+            'layers': [
+                {
+                    'top': 2.0, 'bottom': 5.0,
+                    'soil_type': 'rock',
+                    'UCS_top': 8.0, 'UCS_bot': 8.0,    # MPa
+                    'Em_top': 100, 'Em_bot': 200       # MPa
+                },
+                {
+                    'top': 5.0, 'bottom': 9.0,
+                    'soil_type': 'rock',
+                    'UCS_top': 10.0, 'UCS_bot': 10.0,  # MPa
+                    'Em_top': 200, 'Em_bot': 300       # MPa
+                },
+                {
+                    'top': 9.0, 'bottom': 30.0,
+                    'soil_type': 'rock',
+                    'UCS_top': 20.0, 'UCS_bot': 20.0,  # MPa
+                    'Em_top': 300, 'Em_bot': 400       # MPa
+                }
+            ]
+        }
+    ]
 
-    values_H =[]; values_V =[]      
-    
-    y, z, results = getCapacityDandG(profile, L=L, D=D, zlug=zlug, V=V0, H=H0)
+    D = 3.0           # Diameter (m)
+    L = 10.0          # Length (m)
+    zlug = 1          # Padeye elevation (m)
+    Ha = 5.0e6        # Horizontal load (N)
+    Va = 3.0e5        # Vertical load (N)
 
-    while results['Lateral displacement']< 0.05*D and results['Rotational displacement'] < 0.25:
-               
-        y, z, results = getCapacityDandG(profile, L=L, D=D, zlug=zlug, V=V, H=H)
+    layers, y, z, results = getCapacityDandG(profile_map, 'CPT_rock_1', L, D, zlug, Ha, Va, plot=True)
+
+    print('\n--- Results for DandG Pile in Layered Rock ---')
+    for key, val in results.items():
+        print(f'{key}: {val:.3f}' if isinstance(val, float) else f'{key}: {val}')
         
-        H += 10000
-                   
-    values_H.append(H); H_ratio = np.array(values_H)/H0
-          
-    y0 = np.zeros(len(z))
-    #Plot deflection profile of pile
-    fig, ax = plt.subplots(figsize=(3,5))    
-    ax.plot(y0,z,'black')
-    ax.plot(y,z,'r')
-    ax.set_xlabel('Displacement [m]')
-    ax.set_ylabel('Depth below pile head [m]')
-    ax.set_ylim([L + 2, -2])
-    ax.set_xlim([-0.1*D, 0.1*D])
-    ax.grid(ls='--')
-    fig.show()
+    plot_pile(layers, y, z, D, L, layers[0]['top'], zlug)    
+
+    
+
+    
+    
