@@ -655,10 +655,10 @@ class Project():
                     moor.attachTo(anchor,end='A')
                     # attach platform
                     fairsB = attachFairleads(moor,
-                                            1,
-                                            PF[0],
-                                            fair_ID_start=PF[0].id+'_F',
-                                            fair_inds=arrayMooring[j]['fairleadB'])
+                                             1,
+                                             PF[0],
+                                             fair_ID_start=PF[0].id+'_F',
+                                             fair_inds=arrayMooring[j]['fairleadB'])
 
                     # determine heading
                     headingB = calc_heading(anchor.r[:2],[f.r[:2] for f in fairsB])
@@ -2187,8 +2187,15 @@ class Project():
                     mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
                                           Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')        
                 else: # simple line plot
-                    ax.plot([mooring.rA[0], mooring.rB[0]], 
-                            [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
+                    if len(mooring.subcons_B[0].attachments)>1:
+                        # there are fairleads, plot from their locations
+                        for i in mooring.i_sec:
+                            sec = mooring.getSubcomponent(i)
+                            ax.plot([sec.rA[0],sec.rB[0]],
+                                    [sec.rA[1],sec.rB[1]])
+                    else:
+                        ax.plot([mooring.rA[0], mooring.rB[0]], 
+                                [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
                 
         if plot_anchors:
             for anchor in self.anchorList.values():

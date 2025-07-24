@@ -244,7 +244,9 @@ class Node():
         '''
         # Make sure it's not already attached (note this doesn't distinguish end A/B)
         if object.id in self.attachments:
-            raise Exception(f"Object {object.id} is already attached to {self.id}")
+            return # for bridles, the mooring will already be attached to platform
+            # for second bridle section
+            # raise Exception(f"Object {object.id} is already attached to {self.id}")
         
         
         # Attach the object
@@ -679,10 +681,16 @@ class Edge():
                         subitem.part_of = self
             else:    
                 item.part_of = self
-        
         # Assign ends 
-        self.subcons_A = list([items[0]]) # subcomponent for end A (can be multiple)
-        self.subcons_B = list([items[-1]]) # subcomponent for end B (can be multiple)
+        if isinstance(items[0],list):
+            self.subcons_A = [it[0] for it in items[0]] # subcomponent for end A (can be multiple)
+        else:
+            self.subcons_A = list([items[0]]) # subcomponents for end A (can be multiple)
+        if isinstance(items[-1],list):
+            self.subcons_B = [it[-1] for it in items[-1]] # subcomponent for end B (can be multiple)
+        else:
+            self.subcons_B = list([items[-1]]) # subcomponent for end B (can be multiple)
+ 
         
         '''
         # Make sure the subcomponents ends are connected appropriately
@@ -728,7 +736,15 @@ class Edge():
         '''Checks if object is a subcomponent of self and which end it's at.'''
         
         if not object in self.subcomponents:
-            raise Exception("This object is not a subcomponent of this edge!")
+            obj_in = False
+            for sub in self.subcomponents:
+                if isinstance(sub,list):
+                    for subsub in sub:
+                        if object in subsub:
+                            obj_in = True
+                            break
+            if not obj_in:                          
+                raise Exception("This object is not a subcomponent of this edge!")
         
         if any([object is con for con in self.subcons_A]):
             end = 0

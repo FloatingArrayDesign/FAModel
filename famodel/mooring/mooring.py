@@ -6,6 +6,7 @@ from moorpy.subsystem import Subsystem
 from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge
+from famodel.helpers import calc_midpoint
 
 class Mooring(Edge):
     '''
@@ -281,8 +282,9 @@ class Mooring(Edge):
             r_centerA = self.attached_to[0].r
             r_centerB = self.attached_to[1].r
             
+        fairs = True if len(self.subcons_B[0].attachments)>1 else False
         # if there is no fairlead object, use traditional method to determine new fairlead location and set it, otherwise end B should be set already
-        if not len(self.subcons_B[0].attachments) > 1:
+        if not fairs:
             # create fairlead radius list for end A and end B if needed
             if not rad_fair:
                 rad_fair = [self.attached_to[x].rFair if (hasattr(self.attached_to[x],'rFair') and self.attached_to[x].rFair) else 0 for x in range(2)]
@@ -324,7 +326,10 @@ class Mooring(Edge):
                 self.setEndPosition(np.hstack([r_centerA[:2] - rad_fair[0]*u, z_fair[0] + r_centerA[2]]),'a')
         
         else: # otherwise just set the anchor position based on a set spacing (NEED TO UPDATE THE ANCHOR DEPTH AFTER!)
-            xy_loc = self.rB[:2] + self.span*u #r_centerB[:2] + (self.span + rad_fair[1])*u
+            if not fairs:          
+                xy_loc = self.rB[:2] + self.span*u #r_centerB[:2] + (self.span + rad_fair[1])*u
+            else:
+                xy_loc = calc_midpoint([sub.r[:2] for sub in self.subcons_B]) + self.span*u
             if project:
                 self.dd['zAnchor'] = -project.getDepthAtLocation(xy_loc[0],xy_loc[1])
                 self.z_anch = self.dd['zAnchor']
@@ -1154,7 +1159,7 @@ class Mooring(Edge):
                     if isinstance(subsub, list):
                         for k, subsubsub in enumerate(subsub):
                             
-                            if 'L' in sub:
+                            if 'L' in subsubsub:
                                 id = '_'.join(['S',*[str(l) for l in [i,j,k]]])
                                 # this is a section
                                 subs_list[i][j][k] = self.addSection(subsubsub['L'], 

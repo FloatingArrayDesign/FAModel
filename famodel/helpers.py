@@ -753,12 +753,18 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                 lineLast = 0
         elif 'subsections' in lc:
             # TODO: LHS: ERROR CHECKING FOR ORDER OF COMPONENTS PROVIDED WITHIN SUBSECTIONS, ADD IN NEEDED CONNECTORS!!
+            
+            if lineLast and k != 0:
+                # if this is not the first section AND last section was a line, add a empty connector first
+                config.append({})
+                lineLast = 0
             config.append([])
             sublineLast = [lineLast]*len(lc['subsections']) # to check if there was a connector provided before this
             for ii,sub in enumerate(lc['subsections']):
                 config[-1].append([])
                 for subsub in sub:
-                    if 'connectorType' in subsub:
+                    if 'connectorType' in subsub and sublineLast[ii]:
+                        cID = subsub['connectorType']
                         if cID in connectorTypes:
                             cID = subsub['connectorType']
                             config[-1][-1].append(connectorTypes[cID])
@@ -771,8 +777,13 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                             except Exception as e: 
                                 raise Exception(f"Connector type {cID} not found in connector_types dictionary, and getPointProps raised the following exception:",e)
                         sublineLast[ii] = 0
+                    elif 'connectorType' in subsub and not sublineLast[ii]:
+                        raise Exception('Previous section had a connector, two connectors cannot be listed in a row')
                     elif 'type' or 'mooringFamily' in subsub:
-                        lt = MooringProps(subsub)
+                        if sublineLast[ii]:
+                            # add empty connector
+                            config[-1][-1].append({})
+                        lt = MooringProps(subsub,proj.lineTypes, proj.rho_water, proj.g)
                         config[-1][-1].append({'type':lt,
                                                'L': subsub['length']})
                         sublineLast[ii] = 1
@@ -937,23 +948,24 @@ def attachFairleads(moor, end, platform, fair_ID_start=None, fair_ID=None, fair_
 def calc_heading(pointA, pointB):
     '''calculate a heading from points, if pointA or pointB is a list of points,
        the average of those points will be used for that end'''
-    if isinstance(pointA[0],list) or isinstance(pointA[0],np.ndarray):
-        pointAx = sum([x[0] for x in pointA])/len(pointA)
-        pointAy = sum([x[1] for x in pointA])/len(pointA)
-    else:
-        pointAx = pointA[0]
-        pointAy = pointA[1]
-    if isinstance(pointB[0],list) or isinstance(pointB[0],np.ndarray):
-        pointBx = sum([x[0] for x in pointB])/len(pointB)
-        pointBy = sum([x[1] for x in pointB])/len(pointB)
-    else:
-        pointBx = pointB[0]
-        pointBy = pointB[1]
-        
-    dists = np.array([pointAx,pointAy]) - np.array([pointBx,pointBy])
+    # calculate the midpoint of the point(s) on each end first
+    pointAmid = calc_midpoint(pointA) 
+    pointBmid = calc_midpoint(pointB)
+    dists = np.array(pointAmid) - np.array(pointBmid)
     headingB = np.pi/2 - np.arctan2(dists[1], dists[0])
     
     return(headingB)
+
+def calc_midpoint(point):
+    '''Calculates the midpoint of a list of points'''
+    if isinstance(point[0],list) or isinstance(point[0],np.ndarray):
+        pointx = sum([x[0] for x in point])/len(point)
+        pointy = sum([x[1] for x in point])/len(point)
+    else:
+        pointx = point[0]
+        pointy = point[1]
+        
+    return([pointx,pointy])
     
 
 def route_around_anchors(proj, anchor=True, cable=True, padding=50):
@@ -1003,7 +1015,6 @@ def route_around_anchors(proj, anchor=True, cable=True, padding=50):
                 # determine relative positions of new routing points among other routing points
                 rel_dist = []
                 orig_coords = []
-                breakpoint()
                 for i,x in enumerate(proj.cableList[name].subcomponents[2].x):
                     y = proj.cableList[name].subcomponents[2].y[i]
                     rel_dist.append(cab.line_locate_point(sh.Point([x,y])))

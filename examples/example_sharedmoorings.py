@@ -18,10 +18,10 @@ filename = 'OntologySample600m_shared.yaml' # yaml file for project
 os.chdir(input_directory)
 
 # load in yaml
-project = Project(file=filename,raft=True)
+project = Project(file=filename,raft=False)
 
 # plot in 2d and 3d
 project.plot2d()
-project.plot3d(fowt=True)
+#project.plot3d(fowt=True)
 
 plt.show()
