@@ -895,10 +895,11 @@ class Mooring(Edge):
 
         '''
         for i,sec in enumerate(self.dd['sections']):
-            if sec['material']=='chain':
-                MBL_cor = sec['MBL']*( (sec['d_nom']-(corrosion_mm/1000))/sec['d_nom'] )**2  # corroded MBL
+            if sec['type']['material']=='chain':
+                MBL_cor = sec['type']['MBL']*( (sec['type']['d_nom']-(corrosion_mm/1000))/sec['type']['d_nom'] )**2  # corroded MBL
             else:
-                MBL_cor = sec['MBL']
+                MBL_cor = sec['type']['MBL']
+            sec['type']['MBL'] = MBL_cor
 
 
     def getEnvelope(self,ang_spacing=45,SFs=True):
