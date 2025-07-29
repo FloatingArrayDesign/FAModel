@@ -696,7 +696,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
 
     '''
     # set up dictionary of information on the mooring configurations
-    dd = {'sections':[],'span':{},'zAnchor':{}}#,'EndPositions':{}}
+    dd = {'span':{},'zAnchor':{}}#,'EndPositions':{}}
     # set up connector dictionary
     c_config = []
     config = [] # mooring and connector combined configuation list
@@ -1171,7 +1171,8 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
                               Xmin=[1], Xmax=[1.1*np.linalg.norm(ss.rB-ss.rA)],
                               dX_last=[1], tol=[0.01], maxIter=50, stepfac=4)
         ss.lineList[i_line].L = L_final[0]
-        mooring.dd['sections'][i_line]['L'] = L_final[0]
+        sec = mooring.getSubcomponent(i_line)
+        sec['L'] = L_final[0]
         mooring.dd['span'] = span
         mooring.span = span
             

@@ -76,20 +76,26 @@ class Mooring(Edge):
                 self.dd['z_fair'] = self.ss.z_fair
                 
             self.dd['subcomponents'] = []
-
+            # find the starting point index
             for lp in self.ss.pointList:
                 if not any(lp.attachedEndB):
-                    # this is the starting point at end A
+                    # this is the starting point at end A - add this point first
                     self.dd['subcomponents'].append({'CdA':lp.CdA, 'm':lp.m, 'v':lp.v})
                     break
+            # now iterate through and add the line and point B
             for s in range(len(self.ss.lineList)):
+                # find what entry in the attached list is for a line attached at end A
                 endA = [lp.attachedEndB[i] for i in lp.attachedEndB if i==0][0]
+                # save the line number attached to the point at its end A
                 line_num = lp.attached[endA]
+                # pull out the line section and save it to subcomponents
                 ls = self.ss.lineList[line_num-1]
                 self.dd['subcomponents'].append({'type':ls.type, 'L':ls.L})
+                # go through the point list again and pull out the point attached to end B of the line
                 for lb in self.ss.pointList:
                     if line_num in lb.attached and lb != lp:
                         lp = lb
+                        # save end B point to subcomponents
                         self.dd['subcomponents'].append({'CdA':lp.CdA, 'm':lp.m, 'v':lp.v})
             
 
@@ -282,6 +288,7 @@ class Mooring(Edge):
             r_centerA = self.attached_to[0].r
             r_centerB = self.attached_to[1].r
             
+        # check if there are fairlead objects attached to end connectors        
         fairs = True if len(self.subcons_B[0].attachments)>1 else False
         # if there is no fairlead object, use traditional method to determine new fairlead location and set it, otherwise end B should be set already
         if not fairs:
@@ -1038,13 +1045,19 @@ class Mooring(Edge):
         if not id:
             if insert:
                 for i in self.i_sec:
-                    # update ids of connectors after this in series
+                    # update ids of subcomponents after this in series
+                    # first check if the i_sec index i is the same level as index to add in
+                    # and the final entry in i is greater than the index to add in
                     if len(i)==len(index) and i[-1]>index[-1]:
+                        # check if all indices within the index list are less 
+                        # than or equal to the i_con index, i, list
                         if np.all([i[j]>=index[j] for j in range(len(i))]) and i[-1]>index[-1]:
                             sec = self.getSubcomponent(i)
                             sec.id = '_'.join(['S',*[str(j) for j in i]])
+            # make the id start with S and add each component of the index separated by _
             id='_'.join(['S',*[str(j) for j in index]])
         newsection_dd = {'type':section_type,'L':section_length}
+        # create section object
         newsec = Section(id,**newsection_dd)
         if insert:
             if len(index)==1:
@@ -1095,20 +1108,27 @@ class Mooring(Edge):
         if not id:
             if insert:
                 for i in self.i_con:
-                    # update ids of connectors after this in series
+                    # update ids of subcomponents after this in series
+                    # first check if the i_con index i is the same level as index to add in
+                    # and the final entry in i is greater than the index to add in
                     if len(i)==len(index) and i[-1]>index[-1]:
-                        if np.all([i[j]>=index[j] for j in range(len(i))]) and i[-1]>index[-1]:
+                        # check if all indices within the index list are less 
+                        # than or equal to the i_con index, i, list
+                        if np.all([i[j]>=index[j] for j in range(len(i))]):
                             conn = self.getSubcomponent(i)
                             conn.id = '_'.join(['C',*[str(j) for j in i]])
+            # make the id start with C and add each component of the index separated by _
             id = '_'.join(['C',*[str(j) for j in index]])
+        # create connector object
         newconn = Connector(id, **conn_dd)
+        # insert it in self.dd['subcompoents'] list or replace entry in list as needed
         if insert:
             if len(index)==1:
                 self.dd['subcomponents'].insert(index[0], 
                                                 newconn)
             elif len(index)==2:
-                self.dd['subcomponents'][index[0]][index[1]].insert(0, 
-                                                                    newconn)
+                self.dd['subcomponents'][index[0]][index[1]][0].insert(0,
+                                                                       newconn)
             elif len(index)==3:
                 self.dd['subcomponents'][index[0]][index[1]].insert(index[2], 
                                                                     newconn)
@@ -1153,12 +1173,14 @@ class Mooring(Edge):
 
         
     def convertSubcomponents(self, subs_list):
+        # go through each entry in subcomponents list
         for i,sub in enumerate(subs_list):
+            # if this entry is a list, go through each entry in that
             if isinstance(sub,list):
                 for j,subsub in enumerate(sub):
+                    # if this is a list (3rd level), make sections and connectors from entries
                     if isinstance(subsub, list):
                         for k, subsubsub in enumerate(subsub):
-                            
                             if 'L' in subsubsub:
                                 id = '_'.join(['S',*[str(l) for l in [i,j,k]]])
                                 # this is a section
@@ -1169,6 +1191,7 @@ class Mooring(Edge):
                                                                      insert=False)
                                 self.i_sec.append([i, j, k])
                             else:
+                                # this should be a connector (no length provided)
                                 id = '_'.join(['C',*[str(l) for l in [i,j,k]]])
                                 subs_list[i][j][k] = self.addConnector(subsubsub,
                                                                        [i,j,k],
@@ -1178,6 +1201,7 @@ class Mooring(Edge):
                     else:
                         raise Exception('subcomponent list entry must be length 1 or 3')
             elif 'L' in sub:
+                # this is a section
                 id = 'S'+str(i)
                 subs_list[i] = self.addSection(sub['L'], 
                                                sub['type'], 
@@ -1186,6 +1210,7 @@ class Mooring(Edge):
                                                insert=False)
                 self.i_sec.append([i])
             else:
+                # this is a connector
                 id = 'C'+str(i)
                 subs_list[i] = self.addConnector(sub, [i], id=id, insert=False)
                 self.i_con.append([i])

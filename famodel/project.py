@@ -30,7 +30,7 @@ from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCab
 from famodel.cables.components import Joint, Jtube
 from famodel.platform.fairlead import Fairlead
 from famodel.turbine.turbine import Turbine
-from famodel.famodel_base import Node
+from famodel.famodel_base import Node, rotationMatrix
 
 # Import select required helper functions
 from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
@@ -420,15 +420,23 @@ class Project():
                 fct = 1 # start at 1 because using indices starting at 1 in ontology
                 if 'fairleads' in platforms[pfID]:
                     for fl in platforms[pfID]['fairleads']:
+                        # if headings provided, adjust r_rel with headings
                         if 'headings' in fl:
+
+                            
                             for head in fl['headings']:
-                                r_rel = [fl['r']*np.cos(np.radians(90-head)),
-                                         fl['r']*np.sin(np.radians(90-head)),
-                                         fl['z']]
+                                # get rotation matrix of heading
+                                R = rotationMatrix(0,0,np.radians(90-head))
+                                # apply to unrotated r_rel
+                                r_rel = np.matmul(R, fl['r_rel'])
+                                # r_rel = [fl['r_rel'][0]*np.cos(np.radians(90-head)),
+                                #          fl['r_rel'][1]*np.sin(np.radians(90-head)),
+                                #          fl['r_rel'][2]]
                                 pf_fairs.append(self.addFairlead(id=platform.id+'_F'+str(fct), 
                                                                  platform=platform, 
                                                                  r_rel=r_rel))
                                 fct += 1
+                        # otherwise, just use r_rel as-is
                         elif 'r_rel' in fl:
                             pf_fairs.append(self.addFairlead(id=platform.id+'_F'+str(fct), 
                                                              platform=platform, 
@@ -2187,15 +2195,15 @@ class Project():
                     mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
                                           Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')        
                 else: # simple line plot
-                    if len(mooring.subcons_B[0].attachments)>1:
-                        # there are fairleads, plot from their locations
-                        for i in mooring.i_sec:
-                            sec = mooring.getSubcomponent(i)
-                            ax.plot([sec.rA[0],sec.rB[0]],
-                                    [sec.rA[1],sec.rB[1]])
-                    else:
-                        ax.plot([mooring.rA[0], mooring.rB[0]], 
-                                [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
+                    # if len(mooring.subcons_B[0].attachments)>1:
+                    #     # there are fairleads, plot from their locations
+                    #     for i in mooring.i_sec:
+                    #         sec = mooring.getSubcomponent(i)
+                    #         ax.plot([sec.rA[0],sec.rB[0]],
+                    #                 [sec.rA[1],sec.rB[1]])
+                    # else:
+                    ax.plot([mooring.rA[0], mooring.rB[0]], 
+                            [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
                 
         if plot_anchors:
             for anchor in self.anchorList.values():

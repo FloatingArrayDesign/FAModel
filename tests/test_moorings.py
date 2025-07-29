@@ -10,6 +10,8 @@ from famodel.project import Project
 
 from famodel.platform.fairlead import Fairlead
 from famodel.platform.platform import Platform
+from famodel.mooring.connector import Section, Connector
+from famodel.famodel_base import Node, Edge
 
 import os
 
@@ -86,6 +88,39 @@ def test_shared_flag(setup_project):
     
     moor = setup_project.mooringList['FOWT1-FOWT2']
     assert(moor.shared == 1)
+    
+# - - - -tests in progress- - - -
+    
+'''
+def bridle_project():
+    dir = os.path.dirname(os.path.realpath(__file__))
+    return(Project(file=os.path.join(dir,'bridle_mooring_ontology.yaml'), raft=False))
+
+def test_bridle_setup(bridle_project):
+    moor = bridle_project.mooringList['FOWT1a']
+    # check subcons_B is a list of length 2
+    assert(len(moor.subcons_B)==2)
+    # check each item in subcons_B is attached to 2 things (fairlead and another subcomponent)
+    for sub in moor.subcons_B:
+        assert(len(sub.attachments)==2)
+        for att in sub.attachments.values():
+            assert(isinstance(att['obj'],[Fairlead,Section]))
+    pf = moor.attached_to[1]
+    fl_attachment = [False, False]
+    for i,sub in enumerate(moor.subcons_B):
+        for att in pf.attachments.values():
+            if sub.id in att['obj'].attachments:
+                fl_attachment[i] = True
+            
+    assert(all(fl_attachment))
+    
+def test_bridle_end_locs(bridle_project):
+    moor = bridle_project.mooringList['FOWT1a']
+    # check rB is correct (midpoint of bridle fairlead locs)
+    rB_loc = 
+    # check location of anchor is correct
+    anch_loc = 
+'''
  
 '''
 def test_shared_depth(self):

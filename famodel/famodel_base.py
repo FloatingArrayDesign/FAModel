@@ -1,5 +1,5 @@
 import numpy as np
-
+from famodel.helpers import calc_midpoint  
 '''
 famodel_base contains base classes that can be used for various classes
 in the floating array model that relate to entities that act like either
@@ -244,9 +244,19 @@ class Node():
         '''
         # Make sure it's not already attached (note this doesn't distinguish end A/B)
         if object.id in self.attachments:
-            return # for bridles, the mooring will already be attached to platform
+            # for bridles, the mooring will already be attached to platform
             # for second bridle section
-            # raise Exception(f"Object {object.id} is already attached to {self.id}")
+            # need to calculate new r_rel that is average of end points
+            if isinstance(object, Edge):
+                # pull out relative dist of each point on end to self
+                r_rel = self.calculate_r_rel(object,end=end)
+                self.attachments[object.id]['r_rel'] = r_rel
+                # update end position
+                Node.setPosition(self, r=self.r,theta=self.theta)
+                # don't need to attach, already attached- just return
+                return
+            else:   
+                raise Exception(f"Object {object.id} is already attached to {self.id}")
         
         
         # Attach the object
@@ -432,9 +442,9 @@ class Node():
             raise Exception("Can't setPosition of an object that's part of a higher object unless force=True.")
         
         # Store updated position and orientation
-        if len(r) > len(self.r):
+        if len(r) > len(self.r): # default r is 2D, but can be adjusted to 3D
             self.r = np.array(r)
-        else:
+        else: # if just a portion of r is being adjusted, only change up to length of initial r
             self.r[:len(r)] = r
 
         self.theta = theta
@@ -477,6 +487,63 @@ class Node():
                 
             elif isinstance(att['obj'], Edge):
                 att['obj'].setEndPosition(r_att, att['end'])
+                
+    def calculate_r_rel(self,object, end=None):
+        '''Calculate the relative distance between node and object
+        based on the combined relative distances of the subordinate/
+        subcomponent nodes connecting them'''
+        if isinstance(object,Edge):
+            # pull out subcomponent(s) attached to self at the correct end
+            end = endToIndex(end) # find end
+            subs = object.subcons_A if end==0 else object.subcons_B           
+                
+            # go through all end subcomponents of edge at the correct end
+            rel_locs = [] # relative location list (in case multiple points at end)
+            for sub in subs:    
+                # first check if subordinate/subcomponent joined
+                att = [att for att in sub.attachments.values() if att['obj'].attached_to==self]
+                if len(att)>0:
+                    # find attachment of sub that is subordinately connected to self (Node)
+                    att = att[0] # just need 1st entry
+                    r_rel_att_self = self.attachments[att['id']]['r_rel']
+                    r_rel_att_sub = att['obj'].attachments[sub.id]['r_rel']
+                    # r_rel of sub to self is r_rel of attachment to self + r_rel of sub to attachment
+                    if len(r_rel_att_self) < 3: # pad as needed
+                        r_rel_att_self = np.hstack([r_rel_att_self,[0]])
+                    if len(r_rel_att_sub) < 3: # pad as needed
+                        r_rel_att_sub = np.hstack([r_rel_att_sub,[0]])
+                    rel_locs.append(r_rel_att_self + r_rel_att_sub)
+                # otherwise, check if directly connected
+                elif self.isAttached(object):
+                        # if no subordinate/subcomponent connection, should be 
+                        # only 1 attachment point at this end
+                        return(self.attachments[object.id]['r_rel'])
+                else:
+                    raise Exception(f'Cannot determine how {self.id} and {object.id} are connected')
+            return calc_midpoint(rel_locs)
+        elif isinstance(object, Node):
+            # node to node - check if 2 subordinates connected
+            att = [att for att in object.attachments.values() if self.isAttached(att['obj'])]
+            if len(att)>0:
+                att = att[0] # just need 1st entry
+                # get relative distance of subordinately attached nodes
+                r_rel_att_self = self.attachments[att['id']]['r_rel']
+                r_rel_att_obj = object.attachments[att['id']]['r_rel'] 
+                # r_rel of obj to self is r_rel of attachment to self + r_rel of obj to attachment
+                if len(r_rel_att_self) < 3: # pad as needed
+                    r_rel_att_self = np.hstack(r_rel_att_self,[0])
+                if len(r_rel_att_obj) < 3: # pad as needed
+                    r_rel_att_sub = np.hstack(r_rel_att_sub,[0])
+                return(r_rel_att_self + r_rel_att_sub)
+            # otherwise see if they are directly attached and return r_rel
+            elif self.isattached(object):
+                return self.attachments[object.id]['r_rel']
+            else:
+                raise Exception(f'Cannot determine how {self.id} and {object.id} are connected')
+        else:
+            raise Exception(f'{object} is not a Node or Edge')
+              
+                    
                 
 
 
@@ -1164,13 +1231,11 @@ def assemble(items):
         return
     '''
     n = len(items)
-    
     for i in range(n-1):
-    
         if isinstance(items[i], list):
             for subitem in items[i]:  # go through each parallel subitem
-            
                 if isinstance(subitem, list):  # if it's a concatenation of multiple things
+                
                     assemble(subitem) # make sure that any sublist is assembled
                     
                     # attach the end objects of the subitem to the nodes before and after
@@ -1202,7 +1267,31 @@ def assemble(items):
         
         else:
             raise Exception('sequences is not alternating between nodes and edges')
-    
+    # check if last item in items is a list (if length of items>1)
+    # if it is a list, it won't have been attached/assembled previously, so 
+    # attach and assemble now
+    if n-1>0:        
+        if isinstance(items[i+1], list):
+            for subitem in items[i+1]:  # go through each parallel subitem
+                if isinstance(subitem, list):  # if it's a concatenation of multiple things
+                    assemble(subitem) # make sure that any sublist is assembled
+                    
+                    # attach the end objects of the subitem to the nodes before and after
+                    if i > 0 and isinstance(items[i], Node):  # attach to previous node
+                        items[i].attach(subitem[0], end='a')
+                    if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
+                        items[i+1].attach(subitem[-1], end='b')
+                    # note: this requires the end objects to be edges
+                
+                elif isinstance(subitem, Edge): # if the subitem is just one edge
+                    print("THIS CASE SHOULDN'T HAPPEN - the list should be nested more")
+                    breakpoint()
+                    if i > 0 and isinstance(items[i], Node):  # attach to previous node
+                        items[i].attach(subitem, end='a')
+                    if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
+                        items[i+1].attach(subitem, end='b')
+                else:
+                    raise Exception("Unsupported situation ... parallel subitems must be edges or concatenations")
 
 def rotationMatrix(x3,x2,x1):
     '''Calculates a rotation matrix based on order-z,y,x instrinsic (tait-bryan?) angles, meaning

@@ -103,8 +103,8 @@ array:
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
         -  [FOWT1,     1,         1,         ms3,          0,         0,          180   ]    # 2 array, shared moorings
         -  [FOWT2,     1,         1,         ms2,          1600,           0,            0   ] 
-        -  [FOWT3,     1,         1,         ms1,          0,           1656,            180   ]
-        -  [FOWT4,     1,         1,         ms4,          1600,        1656,             180]
+        -  [FOWT3,     1,         1,         ms1,          0,           1700.4577,            180   ]
+        -  [FOWT4,     1,         1,         ms4,          1600,        1700.4577,             180]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
         # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
@@ -118,7 +118,7 @@ array_mooring:
     anchor_keys :
           [ID, type,  x,  y,  embedment ]
     anchor_data :
-        - [  Anch1,  suction_pile1, -828  , 828  ,  2   ]
+        - [  Anch1,  suction_pile1, -829  , 850.22887  ,  2   ]
         # - [  2,  suction1,  -1900 ,  -1200 ,  2   ]
         # - [  3,  suction1,  -850 ,  -1806 ,  2   ]
         # - [  4,  suction1,  -850 ,  600 ,  2   ]
@@ -127,7 +127,7 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  endA,   endB,  fairleadA, fairleadB, lengthAdjust]
     line_data :
-        - [ rope_shared   ,  FOWT1,  FOWT2,  3, 3, 0]
+        - [ rope_shared_bridle   ,  FOWT1,  FOWT2,  [4,5], [4,5], 0]
         - [ rope_1   ,  Anch1,  FOWT1, NONE,   2,  0]
         - [ rope_1   ,  Anch1,  FOWT3, NONE,  1,  0]
         # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
@@ -1206,8 +1206,7 @@ platforms:
     fairleads    : 
                    # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: fairlead1
-                     r: 58
-                     z: -14
+                     r_rel: [58, 0, -14] # relative coordinates of fairlead to platform center
                      headings: [30, 150, 270] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)  
                    - name: fairleads2
                      r_rel: [-57.779,-5.055, -14]
@@ -1373,8 +1372,46 @@ mooring_line_configs:
           - type: chain_155mm
             length: 20
           - type: rope       # ID of a mooring line section type
-            length: 1120            # [m] usntretched length of line section
-            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+            length: 500            # [m] usntretched length of line section
+          - connectorType: triplate
+          - subsections: # double chain section
+            - - type: chain_155mm       
+                length: 120            
+            - - type: chain_155mm       
+                length: 120  
+          - connectorType: triplate          
+          - type: rope       # ID of a mooring line section type
+            length: 500            # [m] usntretched length of line section
+          - subsections:  # bridle sections for end B
+              - - type: rope
+                  length: 50
+                - connectorType: shackle
+              - - type: rope
+                  length: 50
+                - connectorType: shackle
+
+    rope_shared_bridle:
+        name: shared rope with a bridle on each end
+        
+        span: 1484
+
+        
+        sections:
+          - subsections:  # bridle sections for end B
+              - - connectorType: shackle
+                - type: rope
+                  length: 50
+              - - connectorType: shackle
+                - type: rope
+                  length: 50
+          - type: rope
+            length: 100
+          - connectorType: clump_weight_80
+          - type: rope
+            length: 1172
+          - connectorType: clump_weight_80
+          - type: rope
+            length: 100
           - subsections:  # bridle sections for end B
               - - type: rope
                   length: 50
@@ -1514,6 +1551,11 @@ mooring_connector_types:
     shackle:
         m   : 200
         v   : .2
+    
+    triplate:
+        m   : 1000
+        v   : 0.1
+        # note: triplate is a connector that connects three mooring lines together, e.g., for a double chain section
 
 # Anchor type properties
 anchor_types:
