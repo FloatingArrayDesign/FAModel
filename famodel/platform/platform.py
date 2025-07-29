@@ -188,9 +188,11 @@ class Platform(Node):
                     ssloc = mooring.createSubsystem()
                 
                 if ssloc:  # only proceed it's not None
+                    '''
                     # add subsystem as a line to the linelist
                     self.ms.lineList.append(ssloc)
                     ssloc.number = i+1
+                    '''
                     for att in mooring.attached_to:
                         if isinstance(att,Anchor):
                             # check whether a moorpy anchor object exists for this mooring line

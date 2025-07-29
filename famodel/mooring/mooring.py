@@ -99,7 +99,7 @@ class Mooring(Edge):
                         self.dd['subcomponents'].append({'CdA':lp.CdA, 'm':lp.m, 'v':lp.v})
             
 
-                
+        self.parallels = False  # True if there are any parallel sections in the mooring
                 
 
         # let's turn the dd into something that holds subdict objects of connectors and sections
@@ -196,6 +196,7 @@ class Mooring(Edge):
             self.dd.update(dd)  # move contents of dd into Mooring.dd
             self.convertSubcomponents(dd['subcomponents'])
             self.addSubcomponents(self.dd['subcomponents'])
+            
         # Update section lengths and types
         for i in range(len(self.i_sec)):
             sec = self.getSubcomponent(self.i_sec[i])
@@ -463,7 +464,7 @@ class Mooring(Edge):
         return(self.loads['TAmax'],self.loads['TBmax'])
     
     
-    def createSubsystem(self, case=0,pristine=True,dd=None, mooringSys=None):
+    def createSubsystem(self, case=0, pristine=True, dd=None, ms=None):
         ''' Create a subsystem for a line configuration from the design dictionary
         
         Parameters
@@ -477,74 +478,236 @@ class Mooring(Edge):
                 - 2: the assembly is suspended and assumed symmetric, end A is the midpoint
         dd : dict, optional
             Dictionary describing the design
-        mooringSys : MoorPy System, optional
+        ms : MoorPy System, optional
             MoorPy system this subsystem is a part of
         '''
         # TODO: Figure out how to handle subsystems for lines with subsections (esp when double chain in middle...)
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:
             dd = self.dd
+        
+        if self.parallels:  # make parts of a MoorPy system
+            
+            # Make Points
+            for i in self.i_con:
+                # >>> leah had some checks here that I didn't understand <<<
+                con = self.getSubcomponent(i)
+                con.makeMoorPyConnector(ms)
+                            
+            # Make Lines
+            for i in self.i_sec:
+                sec = self.getSubcomponent(i)
+                sec.makeMoorPyLine(ms)
+            
+            """
+            n = len(self.subcomponents)  # number of serial subcomponent items
+            
+            for i in range(n):
+            
+                if isinstance(items[i], list):
+                    for subitem in items[i]:  # go through each parallel subitem
+                    
+                        if isinstance(subitem, list):  # if it's a concatenation of multiple things
+                            assemble(subitem) # make sure that any sublist is assembled
+                            
+                            # attach the end objects of the subitem to the nodes before and after
+                            if i > 0 and isinstance(items[i-1], Node):  # attach to previous node
+                                items[i-1].attach(subitem[0], end='a')
+                            if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
+                                items[i+1].attach(subitem[-1], end='b')
+                            # note: this requires the end objects to be edges
+                        
+                        elif isinstance(subitem, Edge): # if the subitem is just one edge
+                            print("THIS CASE SHOULDN'T HAPPEN - the list should be nested more")
+                            breakpoint()
+                            if i > 0 and isinstance(items[i-1], Node):  # attach to previous node
+                                items[i-1].attach(subitem, end='a')
+                            if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
+                                items[i+1].attach(subitem, end='b')
+                        else:
+                            raise Exception("Unsupported situation ... parallel subitems must be edges or concatenations")
+                        
+                elif isinstance(items[i], Node) and isinstance(items[i+1], list):
+                    pass  # this node connects to a bridle or doubled section, 
+                    # so it will be hooked up in the next step
+                    
+                elif isinstance(items[i], Node):
+                    items[i].attach(items[i+1], end='a')
+                
+                elif isinstance(items[i], Edge) and isinstance(items[i+1], Node):
+                    items[i+1].attach(items[i], end='b')
+                
+                else:
+                    raise Exception('sequences is not alternating between nodes and edges')
+            
+                
+                
+            # some initialization steps.
+            self.nLines = len(lengths)
+            if len(connectors) == 0:
+                connectors = [{}]*(self.nLines - 1)
+            elif not len(connectors) == self.nLines - 1:
+                raise Exception('Length of connectors must be nLines - 1')
+            
+            if not len(types)==self.nLines:
+                raise Exception("The specified number of lengths and types is inconsistent.")
+            
+            # get cumulative sum of line lengths, starting from anchor segment
+            Lcsum = np.cumsum(np.array(lengths))
+            
+            # set end A location depending on whether configuration is suspended/symmetrical
+            if suspended==2:  # symmetrical suspended case
+                rA = np.array([-0.5*self.span-self.rad_fair, 0, -1])  # shared line midpoint coordinates
+                self.shared = True  # flag that it's being modeled as symmetric
+            elif suspended==1:  # general suspended case
+                rA = np.array([-self.span-self.rad_fair, 0, self.z_fair])  # other suspended end
+            else:  # normal anchored line case
+                rA = np.array([-self.span-self.rad_fair, 0, -self.depth])  # anchor coordinates
+            rB = np.array([-self.rad_fair, 0, self.z_fair])     # fairlead coordinates
 
-        ss=Subsystem(mooringSys=mooringSys, depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
+            self.rA = rA
+            self.rB = rB
+
+            
+            # Go through each line segment and add its upper point, add the line, and connect the line to the points
+            for i in range(self.nLines):
+
+                # find the specified lineType dict and save a reference to it
+                if type(types[i]) == dict:  # if it's a dictionary, just point to it
+                    self.lineTypes[i] = types[i]
+                # otherwise we're assuming it's a string of the lineType name
+                elif types[i] in self.lineTypes:  # first look for the name in the subsystem
+                    self.lineTypes[i] = self.lineTypes[types[i]]
+                elif self.sys: # otherwise look in the parent system, if there is one
+                    if types[i] in self.sys.lineTypes:  # first look for the name in the subsystem
+                        self.lineTypes[i] = self.sys.lineTypes[types[i]]
+                    else:
+                        raise Exception(f"Can't find lineType '{types[i]}' in the SubSystem or parent System.")
+                else:
+                    raise Exception(f"Can't find lineType '{types[i]}' in the SubSystem.")
+                
+                # add the line segment using the reference to its lineType dict
+                if nSegs is None:
+                    self.addLine(lengths[i], self.lineTypes[i])
+                elif isinstance(nSegs, (int, float)):
+                    self.addLine(lengths[i], self.lineTypes[i], nSegs=nSegs)
+                elif isinstance(nSegs, list):
+                    self.addLine(lengths[i], self.lineTypes[i], nSegs=nSegs[i])
+                else:
+                    raise ValueError("Invalid type for nSegs. Expected None, a number, or a list.")
+
+                # add the upper end point of the segment
+                if i==self.nLines-1:                            # if this is the upper-most line
+                    self.addPoint(-1, rB, DOFs=[0,2])  # add the fairlead point (make it coupled)
+                    #self.bodyList[0].attachPoint(i+2, rB)       # attach the fairlead point to the body (two points already created)
+                else:                                           # if this is an intermediate line
+                    m = connectors[i].get('m', 0)
+                    v = connectors[i].get('v', 0)
+                    # add the point, initializing linearly between anchor and fairlead/midpoint
+                    self.addPoint(0, rA + (rB-rA)*Lcsum[i]/Lcsum[-1], m=m, v=v, DOFs=[0,2])
+
+                # attach the line to the points
+                self.pointList[-2].attachLine(i+1, 0)       # attach end A of the line
+                self.pointList[-1].attachLine(i+1, 1)       # attach end B of the line
+            
+            """           
+            
+        
+        else:
+            ss=Subsystem(mooringSys=ms, depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
                           span=dd['span'], rad_fair=self.rad_fair,
                           z_fair=self.z_fair)#, bathymetry=dict(x=project.grid_x, y=project.grid_y, depth=project.grid_depth))    # don't necessarily need to import anymore
-        #ss.setSSBathymetry(project.grid_x, project.grid_y, project.grid_depth)
         
-
-
-
-
-        lengths = []
-        types = []
-        # run through each line section and collect the length and type
-        for i in self.i_sec:
-            sec = self.getSubcomponent(i)
-            lengths.append(sec['L'])
-            # points to existing type dict in self.dd for now
-            types.append(sec['type']) # list of type names
-            #types.append(sec['type']['name']) # list of type names
-            #self.ss.lineTypes[i] = sec['type']  
-        conns = []
-        for i in self.i_con:
-            conns.append(self.getSubcomponent(i))
+            #ss.setSSBathymetry(project.grid_x, project.grid_y, project.grid_depth)
             
-
-        
-        # make the lines and set the points 
-        ss.makeGeneric(lengths, types, 
-            connectors=[conns[ic+1] for ic in range(len(conns)-2)], 
-            suspended=case)
-        ss.setEndPosition(self.rA,endB=0)
-        ss.setEndPosition(self.rB,endB=1)
-        
-        # note: next bit has similar code/function as Connector.makeMoorPyConnector <<<
-        
-        # add in connector info to subsystem points
-        if case == 0: # has an anchor - need to ignore connection for first point because anchor is a point itself so can't have a point attached to a point
-            startNum = 1
-        else: # no anchor - need to include all connections
-            startNum = 0 
-
-        for i in range(startNum,len(ss.pointList)): 
-            conn = self.getSubcomponent(self.i_con[i])                             
-            conn.mpConn = ss.pointList[i]
-            conn.mpConn.CdA = conns[i]['CdA']
-            conn.getProps()
+            lengths = []
+            types = []
+            # run through each line section and collect the length and type
+            for i in self.i_sec:
+                sec = self.getSubcomponent(i)
+                lengths.append(sec['L'])
+                types.append(sec['type']) # list of type names
             
-        # solve the system
-        ss.initialize()
-        ss.staticSolve()
-        
-        # save ss to the correct Mooring variable
-        if pristine:
-            # save to ss
-            self.ss = ss
-            return(self.ss)
-        else:
-            # save to modified ss (may have marine growth, corrosion, etc)
-            self.ss_mod = ss
-            return(self.ss_mod)
+            conns = []
+            for i in self.i_con:
+                conns.append(self.getSubcomponent(i))
+            
+            
+            # make the lines and set the points 
+            ss.makeGeneric(lengths, types, 
+                connectors=[conns[ic+1] for ic in range(len(conns)-2)], 
+                suspended=case)
+            ss.setEndPosition(self.rA,endB=0)
+            ss.setEndPosition(self.rB,endB=1)
+            
+            # add in connector info to subsystem points
+            if case == 0: # has an anchor - need to ignore connection for first point because anchor is a point itself so can't have a point attached to a point
+                startNum = 1
+            else: # no anchor - need to include all connections
+                startNum = 0 
+
+            for i in range(startNum,len(ss.pointList)): 
+                conn = self.getSubcomponent(self.i_con[i])                             
+                conn.mpConn = ss.pointList[i]
+                conn.mpConn.CdA = conns[i]['CdA']
+                conn.getProps()
+                
+            # solve the system
+            ss.initialize()
+            ss.staticSolve()
+            
+            
+            # add to the parent mooring system if applicable
+            if ms:
+                ms.lineList.append(ss)
+                ss.number = len(ms.lineList)
+            
+            # save ss to the correct Mooring variable
+            if pristine:
+                # save to ss
+                self.ss = ss
+                return(self.ss)
+            else:
+                # save to modified ss (may have marine growth, corrosion, etc)
+                self.ss_mod = ss
+                return(self.ss_mod)
     
+    """
+    def positionSubcomponents(self):
+        '''Puts any subcomponent connectors/nodes along the mooring in 
+        approximate positions relative to the endpoints based on the 
+        section lengths.'''
+        
+        # Tabulate the section lengths
+        L = []
+        
+        n = len(items)
+    
+        for i in range(n):
+        
+            if isinstance(items[i], list):
+                subL = []
+                for subitem in items[i]:  # go through each parallel subitem
+                
+                    if isinstance(subitem, list):  # if it's a concatenation of multiple things
+                        
+                    else:
+                        raise Exception("Unsupported situation ... parallel subitems must be lists")
+                    
+            elif isinstance(items[i], Node):
+                pass
+                
+            elif isinstance(items[i], Edge):
+                L.append(items[i]['L'])
+        
+        
+        Lcsum = np.cumsum(np.array(lengths))
+        
+                # add the point, initializing linearly between anchor and fairlead/midpoint
+                self.addPoint(0, rA + (rB-rA)*Lcsum[i]/Lcsum[-1], m=m, v=v, DOFs=[0,2])
+        
+        # Calculate and set approximate node positions
+    """    
     
     def mirror(self,create_subsystem=True):
         ''' Mirrors a half design dictionary. Useful for symmetrical shared mooring lines where 
@@ -1173,10 +1336,13 @@ class Mooring(Edge):
 
         
     def convertSubcomponents(self, subs_list):
+        '''Create section and connector objects from the subcomponents dicts.
+        '''
         # go through each entry in subcomponents list
         for i,sub in enumerate(subs_list):
             # if this entry is a list, go through each entry in that
             if isinstance(sub,list):
+                self.parallels = True  # flag there is at least one parallel section
                 for j,subsub in enumerate(sub):
                     # if this is a list (3rd level), make sections and connectors from entries
                     if isinstance(subsub, list):

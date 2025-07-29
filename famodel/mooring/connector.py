@@ -45,7 +45,8 @@ class Connector(Node, dict):
         self.cost = {}
         
         self.getProps()
-        
+    
+    
     def makeMoorPyConnector(self, ms):
         '''Create a MoorPy connector object in a MoorPy system
         Parameters
@@ -57,7 +58,6 @@ class Connector(Node, dict):
         -------
         ms : class instance
             MoorPy system 
-
         '''
         # create connector as a point in MoorPy system
         ms.addPoint(0,self.r)
@@ -71,10 +71,9 @@ class Connector(Node, dict):
         
         # set point type in ms
         self.getProps()
-            
         
-
         return(ms)
+    
     
     def getProps(self):
         '''
@@ -103,6 +102,7 @@ class Connector(Node, dict):
                 pass
             
         return(pt)
+    
     
     def getCost(self,update=True, fx=0.0, fz=0.0, peak_tension=None, MBL=None):
         '''Get cost of the connector from MoorPy pointProps.
@@ -140,3 +140,33 @@ class Section(Edge, dict):
         # if the type dict wasn't provided, set as none to start with
         if not 'type' in self:
             self['type'] = None
+        
+        # MoorPy Line object for the section
+        self.mpLine = None
+
+    
+    def makeMoorPyLine(self, ms):
+        '''Create a MoorPy Line object in a MoorPy system.
+        If this section is attached to connectors that already have associated
+        MoorPy point objects, then those attachments will also be made in 
+        MoorPy.
+        
+        Parameters
+        ----------
+        ms : MoorPy System object
+            The MoorPy system to create the Line object in.
+        '''
+        
+        # See if this section is attached to any already-created MoorPy Points
+        pointA = 0
+        if self.attached_to[0]:  # if an end A attachment
+            if self.attached_to[0].mpConn:  # if it has a MoorPy point object
+                pointA = self.attached_to[0].mpConn.number  # get its number
+        pointB = 0
+        if self.attached_to[1]:
+            if self.attached_to[1].mpConn:
+                pointB = self.attached_to[1].mpConn.number
+        
+        # Create a Line for the section in MoorPy system
+        ms.addLine(self['L'], self['type'], pointA=pointA, pointB=pointB)
+        
