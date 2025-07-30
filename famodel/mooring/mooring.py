@@ -682,10 +682,11 @@ class Mooring(Edge):
         
         # Tabulate the section lengths
         L = []
-        
         n_serial_nodes = 0  # number of serial nodes, including first and last
                 
-        # First pass, going through each section in series to figure out lengths
+        # ----- First pass, going through each section in series -----
+        
+        # Figure out lengths
         for item in self.subcomponents:
         
             if isinstance(item, list):  # indicates there are parallel sections here
@@ -712,32 +713,78 @@ class Mooring(Edge):
         
         # Position nodes along main serial string between rA and rB
         Lsum = np.cumsum(np.array(L))
-        i = 0  # index of node along serial string (at A is 0)
+        j = 0  # index of node along serial string (at A is 0)
         
-        for item in self.subcomponents:
+        for i, item in enumerate(self.subcomponents):
             if isinstance(item, list) or isinstance(item, Edge):
-                i = i+1  # note that we're moving a certain length along the string
-                print(i)
+                j = j+1  # note that we're moving a certain length along the string
             
-            # if it's a node, but no the first or last one
-            elif isinstance(item, Node) and i > 0 and i < n_serial_nodes-1:
-                r = self.rA + (self.rB-self.rA)*Lsum[i]/Lsum[-1]
+            # if it's a node, but not the first or last one
+            elif isinstance(item, Node) and i > 0 and i < len(self.subcomponents)-1:
+                r = self.rA + (self.rB-self.rA)*Lsum[j]/Lsum[-1]
                 item.setPosition(r)
-                print(f'Set position of Node {i} to {r[0]:5.0f}, {r[1]:5.0f}, {r[2]:5.0f}')
+                print(f'Set position of subcom {i} to {r[0]:5.0f}, {r[1]:5.0f}, {r[2]:5.0f}')
         
         
         
-        # Second pass, to position any nodes that are along parallel sections
-        '''
-        for i in range(n):
-            TODO
-            if isinstance(items[i], list):  # indicates there are parallel sections here
-                subL = []
-                for subitem in items[i]:  # go through each parallel subitem
-        '''
-        
-        
+        # ----- Second pass, to position any nodes that are along parallel sections -----
+        for i, item in enumerate(self.subcomponents):
+            
+            if isinstance(item, list):  # indicates there are parallel sections here
+                for j, parallel in enumerate(item):  # go through each parallel string
+            
+                    # --- go through each item along the parallel path ---
+                    # Note: this part repeats some logic, could be replaced with recursive fn
+                    L = []
+                    n_serial_nodes = 0
+                    
+                    for subitem in parallel:  
+                        if isinstance(item, Node):
+                            n_serial_nodes += 1
+                            
+                        elif isinstance(subitem, Edge):
+                            L.append(subitem['L'])  # save length of section
     
+                    # --- Figure out the end points of this paralle string ---
+                    
+                    # if this parallel is on the first section, then it's a bridle at A
+                    if i == 0:  
+                        if isinstance(parallel[0], Edge):  # if first object is an Edge
+                            rA = parallel[0].rA
+                        else:
+                            rA = parallel[0].r
+                    else:
+                        rA = self.subcomponents[i-1].r
+                    
+                    # if this parallel is on the last section, then it's a bridle at B
+                    if i == len(self.subcomponents)-1:  
+                        if isinstance(parallel[-1], Edge):  # if last object is an Edge
+                            rB = parallel[-1].rB
+                        else:
+                            rB = parallel[-1].r
+                    else:
+                        rB = self.subcomponents[i+1].r
+                    
+                    # --- Do the positioning ---
+                    Lsum = np.cumsum(np.array(L))
+                    print(f'parallel string ends A and B are at')
+                    print(f'{rA[0]:5.0f}, {rA[1]:5.0f}, {rA[2]:5.0f}')
+                    print(f'{rB[0]:5.0f}, {rB[1]:5.0f}, {rB[2]:5.0f}')
+                    
+                    for subitem in parallel:
+                        if isinstance(subitem, Edge):
+                            j = j+1  # note that we're moving a certain length along the string
+                        
+                        # if it's a node, but not the first or last one
+                        elif isinstance(item, Node):
+                            if j > 0 and j < n_serial_nodes-1:
+                                r = rA + (rB-rA)*Lsum[j]/Lsum[-1]
+                                item.setPosition(r)
+                                print(f'Set position of Node {j} to {r[0]:5.0f}, {r[1]:5.0f}, {r[2]:5.0f}')
+                            else:
+                                print('end of parallel')
+                                breakpoint()
+                                print('yep')
     
     def mirror(self,create_subsystem=True):
         ''' Mirrors a half design dictionary. Useful for symmetrical shared mooring lines where 
