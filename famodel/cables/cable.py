@@ -158,7 +158,7 @@ class Cable(Edge):
             # calculate fairlead locations
             Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rf, 
                     self.attached_to[0].r[1]+np.sin(headingA)*rf, 
-                    self.attached_to[0].zFair]
+                    self.attached_to[0].zFair+self.attached_to[0].r[2]]
             self.subcomponents[0].rA = Aloc; self.rA = Aloc
         if not isinstance(self.subcomponents[-1].attached_to[-1], Jtube):
             if not rad_fair:
@@ -171,7 +171,7 @@ class Cable(Edge):
 
             Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*rf, 
                     self.attached_to[1].r[1]+np.sin(headingB)*rf, 
-                    self.attached_to[1].zFair]
+                    self.attached_to[1].zFair+self.attached_to[1].r[2]]
             self.subcomponents[-1].rB = Bloc; self.rB = Bloc
         
         if project:

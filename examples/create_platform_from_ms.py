@@ -15,14 +15,11 @@ import os
 import matplotlib.pyplot as plt
 
 #### INPUTS ####
-input_directory = 'Inputs/' # relative location of directory for input files (yaml, bath files, etc)
-filename = 'MoorDyn_semitaut200m.dat' # moordyn file to create a moorpy system
+dir = os.path.dirname(os.path.realpath(__file__))
+filename = dir+'\MoorDyn_semitaut200m.dat' # moordyn file to create a moorpy system
 rep_pf_name = 'FOWT1' # platform to replicate (look at yaml file array data table to get platform names)
 new_pf_loc = [-100,-1500,0]
 
-
-# change to input directory
-os.chdir(input_directory)
 
 # create moorpy system
 ms = mp.System(file=filename)

@@ -19,8 +19,7 @@ platform:
   type         :  FOWT
   fairleads    : # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
                 - name     : fairlead1
-                  r        : 58
-                  z        : -14
+                  r_rel    : [58, 0, -14]
                   headings : [30, 150, 270]
 
 

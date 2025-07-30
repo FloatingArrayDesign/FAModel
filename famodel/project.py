@@ -37,7 +37,7 @@ from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamic
                             getMoorings, getAnchors, getFromDict, cleanDataTypes, 
                             getStaticCables, getCableDesign, m2nm, loadYAML, 
                             configureAdjuster, route_around_anchors, attachFairleads,
-                            calc_heading)
+                            calc_heading, calc_midpoint)
 
 
 class Project():
@@ -452,9 +452,10 @@ class Project():
                     for jt in platforms[pfID]['Jtubes']:
                         if 'headings' in jt:
                             for head in jt['headings']:
-                                r_rel = [jt['r']*np.cos(np.radians(90-head)),
-                                         jt['r']*np.sin(np.radians(90-head)),
-                                         jt['z']]
+                                # get rotation matrix of heading
+                                R = rotationMatrix(0,0,np.radians(90-head))
+                                # apply to unrotated r_rel
+                                r_rel = np.matmul(R, jt['r_rel'])
                                 pf_jtubes.append(self.addJtube(id=platform.id+'_J'+str(jct),
                                                                platform=platform,
                                                                r_rel=r_rel))
@@ -678,6 +679,11 @@ class Project():
 
                     # determine heading
                     headingB = calc_heading(anchor.r[:2],[f.r[:2] for f in fairsB])
+                    
+                    # re-determine span as needed from anchor loc and end B midpoint
+                    # this is to ensure the anchor location does not change from that specified in the ontology
+                    moor.span = np.linalg.norm(anchor.r[:2]-
+                                               np.array(calc_midpoint([f.r[:2] for f in fairsB])))
 
                     # reposition mooring
                     moor.reposition(r_center=PF[0].r, heading=headingB, project=self)

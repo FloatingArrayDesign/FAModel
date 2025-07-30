@@ -786,6 +786,8 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                         lt = MooringProps(subsub,proj.lineTypes, proj.rho_water, proj.g)
                         config[-1][-1].append({'type':lt,
                                                'L': subsub['length']})
+                        # make EA a float not a string
+                        config[-1][-1][-1]['type']['EA'] = float(lt['EA']) 
                         sublineLast[ii] = 1
                     else:
                         raise Exception(f"keys in subsection line definitions must either be 'type', 'mooringFamily', or 'connectorType'")

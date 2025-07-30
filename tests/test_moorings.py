@@ -48,6 +48,15 @@ def test_fairlead_connection(setup_project):
     assert(len(end_sub.attachments)==2)
     assert(np.any([isinstance(att['obj'], Fairlead) for att in end_sub.attachments.values()]))
     
+def test_fairlead_position(setup_project):
+    moor = setup_project.mooringList['FOWT1a']
+    fl = moor.subcomponents[-1].attachments['FOWT1_F1']
+    assert(fl.r==setup_project.mooringList['FOWT1a'].rB)
+    pf = setup_project.platformList['FOWT1']
+    head_fl = np.radians(90-30)
+    head_pf = np.radians(90)-pf.phi
+    assert(fl.r==[58*cos(head_fl+head_pf),58*sin(head_fl+head_pf),-14])
+    
 def test_rA_depth(setup_project):
     moor = setup_project.mooringList['FOWT1a']
     loc = moor.rA
@@ -91,13 +100,13 @@ def test_shared_flag(setup_project):
     
 # - - - -tests in progress- - - -
     
-'''
+
 def bridle_project():
     dir = os.path.dirname(os.path.realpath(__file__))
-    return(Project(file=os.path.join(dir,'bridle_mooring_ontology.yaml'), raft=False))
+    return(Project(file=os.path.join(dir,'mooring_ontology_parallels.yaml'), raft=False))
 
 def test_bridle_setup(bridle_project):
-    moor = bridle_project.mooringList['FOWT1a']
+    moor = bridle_project.mooringList['FOWT2a']
     # check subcons_B is a list of length 2
     assert(len(moor.subcons_B)==2)
     # check each item in subcons_B is attached to 2 things (fairlead and another subcomponent)
@@ -116,11 +125,22 @@ def test_bridle_setup(bridle_project):
     
 def test_bridle_end_locs(bridle_project):
     moor = bridle_project.mooringList['FOWT1a']
-    # check rB is correct (midpoint of bridle fairlead locs)
-    rB_loc = 
+    # check rB is at midpoint of fairlead locs
+    fl_locs = []
+    for sub in moor.subcons_B:
+        att = [att['obj'] for att in sub.attachments.values() if isinstance(att['obj'],Fairlead)]
+        fl_locs.append(att[0].r)
+    from famodel.helpers import calculate_midpoint
+    midpoint = calculate_midpoint(fl_locs)
+    assert(midpoint==moor.rB)
+    # check 
     # check location of anchor is correct
-    anch_loc = 
-'''
+    u = np.array([np.cos(np.radians(moor.heading)),np.sin(np.radians(moor.heading))])
+    anch_loc = np.hstack((np.array(midpoint[:2])+moor.span*u,-bridle_project.depth))
+    assert(anch_loc==moor.rA)
+    
+    
+
  
 '''
 def test_shared_depth(self):

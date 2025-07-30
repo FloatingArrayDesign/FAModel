@@ -1205,8 +1205,7 @@ platforms:
     type         :  FOWT
     fairleads    :  # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: fairlead1
-                     r: 40.5
-                     z: -20
+                     r_rel: [40.5,0,-20]
                      headings: [270, 30, 150] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
     Jtubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: Jtube1

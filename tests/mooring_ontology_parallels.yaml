@@ -44,7 +44,8 @@ platforms:
                    # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: fairlead1
                      r_rel: [58,0,-14]
-                     headings: [30, 150, 270] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)  
+                     headings: [30, 150, 270, 25, 35] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)  
+
     type         :  FOWT
 
 
@@ -66,7 +67,7 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, fairlead] 
         data:
-          - [  rope_1,   45 ,    suction_pile1,   1 ]
+          - [  rope_1,   45 ,    suction_pile1,   [4,5] ]
           - [  rope_1,  135 ,    suction_pile1,   2 ]
           
     ms3: 
