@@ -2795,10 +2795,6 @@ class Project():
                                     elif isinstance(subcom2, Node):
                                         r = subcom2.r # approximate end point...?
                                         pnum = subcom2.mpConn.number
-                                        
-                                        print("Stopping here because bridles don't seem to be attached to platform")
-                                        print("can try 'p subcom2.attached_to' in the debugger. it gives None"
-                                        breakpoint()
                                         platform.body.attachPoint(pnum, r-platform.r)
                             
                             elif isinstance(subcom, Edge):

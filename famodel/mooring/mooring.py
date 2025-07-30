@@ -479,14 +479,17 @@ class Mooring(Edge):
         dd : dict, optional
             Dictionary describing the design
         ms : MoorPy System, optional
-            MoorPy system this subsystem is a part of
+            MoorPy system this subsystem is a part of. Necessary if
         '''
-        # TODO: Figure out how to handle subsystems for lines with subsections (esp when double chain in middle...)
+        
         # set design dictionary as self.dd if none given, same with connectorList
         if not dd:
             dd = self.dd
         
         if self.parallels:  # make parts of a MoorPy system
+            
+            if not ms:
+                raise Exception('A MoorPy system (ms) must be provided for a Mooring with parallel/bridle parts.')
             
             # Make Points
             for i in self.i_con:
@@ -498,120 +501,6 @@ class Mooring(Edge):
             for i in self.i_sec:
                 sec = self.getSubcomponent(i)
                 sec.makeMoorPyLine(ms) # this also will connect the Lines to Points
-            
-            """
-            n = len(self.subcomponents)  # number of serial subcomponent items
-            
-            for i in range(n):
-            
-                if isinstance(items[i], list):
-                    for subitem in items[i]:  # go through each parallel subitem
-                    
-                        if isinstance(subitem, list):  # if it's a concatenation of multiple things
-                            assemble(subitem) # make sure that any sublist is assembled
-                            
-                            # attach the end objects of the subitem to the nodes before and after
-                            if i > 0 and isinstance(items[i-1], Node):  # attach to previous node
-                                items[i-1].attach(subitem[0], end='a')
-                            if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
-                                items[i+1].attach(subitem[-1], end='b')
-                            # note: this requires the end objects to be edges
-                        
-                        elif isinstance(subitem, Edge): # if the subitem is just one edge
-                            print("THIS CASE SHOULDN'T HAPPEN - the list should be nested more")
-                            breakpoint()
-                            if i > 0 and isinstance(items[i-1], Node):  # attach to previous node
-                                items[i-1].attach(subitem, end='a')
-                            if i < n-1 and isinstance(items[i+1], Node):  # attach to next node
-                                items[i+1].attach(subitem, end='b')
-                        else:
-                            raise Exception("Unsupported situation ... parallel subitems must be edges or concatenations")
-                        
-                elif isinstance(items[i], Node) and isinstance(items[i+1], list):
-                    pass  # this node connects to a bridle or doubled section, 
-                    # so it will be hooked up in the next step
-                    
-                elif isinstance(items[i], Node):
-                    items[i].attach(items[i+1], end='a')
-                
-                elif isinstance(items[i], Edge) and isinstance(items[i+1], Node):
-                    items[i+1].attach(items[i], end='b')
-                
-                else:
-                    raise Exception('sequences is not alternating between nodes and edges')
-            
-                
-                
-            # some initialization steps.
-            self.nLines = len(lengths)
-            if len(connectors) == 0:
-                connectors = [{}]*(self.nLines - 1)
-            elif not len(connectors) == self.nLines - 1:
-                raise Exception('Length of connectors must be nLines - 1')
-            
-            if not len(types)==self.nLines:
-                raise Exception("The specified number of lengths and types is inconsistent.")
-            
-            # get cumulative sum of line lengths, starting from anchor segment
-            Lcsum = np.cumsum(np.array(lengths))
-            
-            # set end A location depending on whether configuration is suspended/symmetrical
-            if suspended==2:  # symmetrical suspended case
-                rA = np.array([-0.5*self.span-self.rad_fair, 0, -1])  # shared line midpoint coordinates
-                self.shared = True  # flag that it's being modeled as symmetric
-            elif suspended==1:  # general suspended case
-                rA = np.array([-self.span-self.rad_fair, 0, self.z_fair])  # other suspended end
-            else:  # normal anchored line case
-                rA = np.array([-self.span-self.rad_fair, 0, -self.depth])  # anchor coordinates
-            rB = np.array([-self.rad_fair, 0, self.z_fair])     # fairlead coordinates
-
-            self.rA = rA
-            self.rB = rB
-
-            
-            # Go through each line segment and add its upper point, add the line, and connect the line to the points
-            for i in range(self.nLines):
-
-                # find the specified lineType dict and save a reference to it
-                if type(types[i]) == dict:  # if it's a dictionary, just point to it
-                    self.lineTypes[i] = types[i]
-                # otherwise we're assuming it's a string of the lineType name
-                elif types[i] in self.lineTypes:  # first look for the name in the subsystem
-                    self.lineTypes[i] = self.lineTypes[types[i]]
-                elif self.sys: # otherwise look in the parent system, if there is one
-                    if types[i] in self.sys.lineTypes:  # first look for the name in the subsystem
-                        self.lineTypes[i] = self.sys.lineTypes[types[i]]
-                    else:
-                        raise Exception(f"Can't find lineType '{types[i]}' in the SubSystem or parent System.")
-                else:
-                    raise Exception(f"Can't find lineType '{types[i]}' in the SubSystem.")
-                
-                # add the line segment using the reference to its lineType dict
-                if nSegs is None:
-                    self.addLine(lengths[i], self.lineTypes[i])
-                elif isinstance(nSegs, (int, float)):
-                    self.addLine(lengths[i], self.lineTypes[i], nSegs=nSegs)
-                elif isinstance(nSegs, list):
-                    self.addLine(lengths[i], self.lineTypes[i], nSegs=nSegs[i])
-                else:
-                    raise ValueError("Invalid type for nSegs. Expected None, a number, or a list.")
-
-                # add the upper end point of the segment
-                if i==self.nLines-1:                            # if this is the upper-most line
-                    self.addPoint(-1, rB, DOFs=[0,2])  # add the fairlead point (make it coupled)
-                    #self.bodyList[0].attachPoint(i+2, rB)       # attach the fairlead point to the body (two points already created)
-                else:                                           # if this is an intermediate line
-                    m = connectors[i].get('m', 0)
-                    v = connectors[i].get('v', 0)
-                    # add the point, initializing linearly between anchor and fairlead/midpoint
-                    self.addPoint(0, rA + (rB-rA)*Lcsum[i]/Lcsum[-1], m=m, v=v, DOFs=[0,2])
-
-                # attach the line to the points
-                self.pointList[-2].attachLine(i+1, 0)       # attach end A of the line
-                self.pointList[-1].attachLine(i+1, 1)       # attach end B of the line
-            
-            """           
-            
         
         else:
             ss=Subsystem(mooringSys=ms, depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
