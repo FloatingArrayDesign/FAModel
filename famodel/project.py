@@ -554,7 +554,10 @@ class Project():
                         else:
                             moor.attachTo(platform, r_rel=[platform.rFair,0,platform.zFair], end='b')
                         
-
+                        
+                        # Position the subcomponents along the Mooring
+                        moor.positionSubcomponents()
+                        
                         # update counter
                         mct += 1
                    
@@ -576,10 +579,12 @@ class Project():
                     raise Exception("Input for end B must match an ID from the array table.")
                 if any(ids['ID'] == arrayMooring[j]['endB'] for ids in arrayAnchor):
                     raise Exception(f"input for end B of line_data table row '{j}' in array_mooring must be an ID for a FOWT from the array table. Any anchors should be listed as end A.")
+                
                 # Make sure no anchor IDs in arrayAnchor table are the same as IDs in array table
                 for k in range(0,len(arrayInfo)):
                     if any(ids['ID'] == arrayInfo[k] for ids in arrayAnchor):
                         raise Exception(f"ID for array table row {k} must be different from any ID in anchor_data table in array_mooring section")
+                
                 # determine if end A is an anchor or a platform
                 if any(ids['ID'] == arrayMooring[j]['endA'] for ids in arrayInfo): # shared mooring line (no anchor)
                     # get ID of platforms connected to line
@@ -624,6 +629,9 @@ class Project():
                     moor.reposition(r_center=[PF[1].r,
                                               PF[0].r],
                                     heading=headingB, project=self)
+                                    
+                    # Position the subcomponents along the Mooring
+                    moor.positionSubcomponents()
 
                 elif any(ids['ID'] == arrayMooring[j]['endA'] for ids in arrayAnchor): # end A is an anchor
                     # get ID of platform connected to line
@@ -677,7 +685,10 @@ class Project():
                     zAnew, nAngle = self.getDepthAtLocation(aloc[0],aloc[1], return_n=True)
                     moor.dd['zAnchor'] = -zAnew
                     moor.z_anch = -zAnew
-                    moor.rA = [aloc[0],aloc[1],-zAnew]
+                    moor.setEndPosition([aloc[0],aloc[1],-zAnew], 0)
+                    
+                    # Position the subcomponents along the Mooring
+                    moor.positionSubcomponents()
                     
                     # # update anchor depth and soils
                     # self.updateAnchor(anchor, update_loc=False)
@@ -2680,7 +2691,7 @@ class Project():
                         break
                 
                 # attach rB point to platform 
-                if mooring.parallels:
+                if mooring.parallels:  # case with paralles/bridles
                     
                     # Look at end B object(s)
                     subcom = mooring.subcomponents[-1]
@@ -2693,26 +2704,28 @@ class Project():
                             if isinstance(subcom2, Edge):
                                 r = subcom2.attached_to[1].r # approximate end point...?
                                 point = self.ms.addPoint(1, r)
-                                PF.body.attachPoint(len(self.ms.pointList), [r[0]-PF.r[0], r[1]-PF.r[1], r[2]-PF.r[2]])
+                                PF.body.attachPoint(point.number, r-PF.r)
                                 point.attachLine(subcom2.mpLine.number, 1)  # attach the subcomponent's line object end B
                                 
                             elif isinstance(subcom2, Node):
                                 r = subcom2.r # approximate end point...?
                                 pnum = subcom2.mpConn.number
-                                PF.body.attachPoint(pnum, [r[0]-PF.r[0], r[1]-PF.r[1], r[2]-PF.r[2]])
+                                PF.body.attachPoint(pnum, r-PF.r)
                     
                     elif isinstance(subcom, Edge):
                         r = subcom.attached_to[1].r # approximate end point...?
                         point = self.ms.addPoint(1, r)
-                        PF.body.attachPoint(len(self.ms.pointList), [r[0]-PF.r[0], r[1]-PF.r[1], r[2]-PF.r[2]])
+                        PF.body.attachPoint(point.number, r-PF.r)
                         point.attachLine(subcom.mpLine.number, 1)  # attach the subcomponent's line object end B
                         
                     elif isinstance(subcom, Node):
                         r = subcom.r # approximate end point...?
                         pnum = subcom.mpConn.number
-                        PF.body.attachPoint(pnum, [r[0]-PF.r[0], r[1]-PF.r[1], r[2]-PF.r[2]])
+                        PF.body.attachPoint(pnum, r-PF.r)
                         # (the section line object(s) should already be attached to this point)
-                else:
+
+                    
+                else:  # normal serial/subsystem case
                     # add fairlead point
                     point = self.ms.addPoint(1,ssloc.rB)
                     # add connector info for fairlead point
@@ -2722,52 +2735,92 @@ class Project():
                     point.CdA = self.ms.lineList[-1].pointList[-1].CdA
                     # attach the line to point
                     point.attachLine(ssloc.number,1)
-                    PF.body.attachPoint(len(self.ms.pointList),[ssloc.rB[0]-PF.r[0],ssloc.rB[1]-PF.r[1],ssloc.rB[2]-PF.r[2]]) # attach to fairlead (need to subtract out location of platform from point for subsystem integration to work correctly)
-
+                    PF.body.attachPoint(point.number, ssloc.rB-PF.r) # attach to fairlead (need to subtract out location of platform from point for subsystem integration to work correctly)
         
-        check = np.ones((len(self.mooringList),1))
         
         # Create and attach any shared lines or hybrid lines attached to buoys
-        for ii,i in enumerate(self.mooringList): # loop through all lines - ii is index of mooring object in dictionary, i is key (name) of mooring object
+        for mkey, mooring in self.mooringList.items(): # loop through all lines
+            check = 1  # temporary approach to identify shared lines <<<
             for j in self.anchorList: # j is key (name) of anchor object
-                if i in self.anchorList[j].attachments: # check if line has already been put in ms
-                    check[ii] = 0     
-            if check[ii] == 1: # mooring object not in any anchor lists
+                if mkey in self.anchorList[j].attachments: # check if line has already been put in ms
+                    check = 0     
+            if check == 1: # mooring object not in any anchor lists
                 # new shared line
                 # create subsystem for shared line
-                if hasattr(self.mooringList[i],'shared'):
-                    self.mooringList[i].createSubsystem(case=self.mooringList[i].shared, 
+                if hasattr(mooring, 'shared'):  # <<<
+                    mooring.createSubsystem(case=mooring.shared, 
                         pristine=pristineLines, ms=self.ms)
                 else:
-                    self.mooringList[i].createSubsystem(case=1,pristine=pristineLines, 
+                    mooring.createSubsystem(case=1,pristine=pristineLines, 
                         ms=self.ms) # we doubled all symmetric lines so any shared lines should be case 1
                 # set location of subsystem for simpler coding
                 if pristineLines:
-                    ssloc = self.mooringList[i].ss
+                    ssloc = mooring.ss
                 else:
-                    ssloc = self.mooringList[i].ss_mod
-                '''
-                # add subsystem as a line in moorpy system
-                self.ms.lineList.append(ssloc)
-                ssloc.number = len(self.ms.lineList)               
-                '''
+                    ssloc = mooring.ss_mod
+
+                # (ms.lineList.append is now done in Mooring.createSubsystem)
+                
                 # find associated platforms/ buoys
-                att = self.mooringList[i].attached_to
+                att = mooring.attached_to
                 
                 # connect line ends to the body/buoy
-                ends = [ssloc.rA,ssloc.rB]
-                for ki in range(0,2):
-                    if isinstance(att[ki],Platform):
-                        # add fairlead point A and attach the line to it
-                        self.ms.addPoint(1,ends[ki])
-                        self.ms.pointList[-1].attachLine(ssloc.number,ki)
-                        att[ki].body.attachPoint(len(self.ms.pointList),[ends[ki][0]-att[ki].r[0],ends[ki][1]-att[ki].r[1],ends[ki][2]-att[ki].r[2]])
+                for ki in range(0,2):  # for each end of the mooring
+                    if isinstance(att[ki],Platform):  # if it's attached to a platform
+                        
+                        platform = att[ki]
+                        
+                        if mooring.parallels:  # case with paralles/bridles
+                            
+                            # Look at end object(s)
+                            subcom = mooring.subcomponents[-ki]
+                        
+                            if isinstance(subcom, list):  # bridle case
+                                for parallel in subcom:
+                                    subcom2 = parallel[-ki]  # end subcomponent of the parallel path
+                                    
+                                    # Code repetition for the moment:
+                                    if isinstance(subcom2, Edge):
+                                        r = subcom2.attached_to[ki].r # approximate end point...?
+                                        point = self.ms.addPoint(1, r)
+                                        platform.body.attachPoint(point.number, r-platform.r)
+                                        point.attachLine(subcom2.mpLine.number, ki)  # attach the subcomponent's line object end
+                                        
+                                    elif isinstance(subcom2, Node):
+                                        r = subcom2.r # approximate end point...?
+                                        pnum = subcom2.mpConn.number
+                                        platform.body.attachPoint(pnum, r-platform.r)
+                            
+                            elif isinstance(subcom, Edge):
+                                r = subcom.attached_to[ki].r # approximate end point...?
+                                point = self.ms.addPoint(1, r)
+                                platform.body.attachPoint(point.number, r-platform.r)
+                                point.attachLine(subcom.mpLine.number, ki)  # attach the subcomponent's line object end
+                                
+                            elif isinstance(subcom, Node):
+                                r = subcom.r # approximate end point...?
+                                pnum = subcom.mpConn.number
+                                platform.body.attachPoint(pnum, r-platform.r)
+                                # (the section line object(s) should already be attached to this point)
+
+                            
+                        else:  # normal serial/subsystem case
+                            
+                            if ki==0:
+                                rEnd = self.rA
+                            else:
+                                rEnd = self.rB
+                            
+                            # add fairlead point A and attach the line to it
+                            point = self.ms.addPoint(1, rEnd)
+                            point.attachLine(ssloc.number, ki)
+                            platform.body.attachPoint(point.number, rEnd-platform.r)
 
                     else:
                         # this end is unattached
                         pass
-
-                        
+        
+        
         # add in cables if desired
         if cables:
 

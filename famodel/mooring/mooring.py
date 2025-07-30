@@ -5,7 +5,7 @@ from copy import deepcopy
 from moorpy.subsystem import Subsystem
 from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
-from famodel.famodel_base import Edge
+from famodel.famodel_base import Edge, Node
 from famodel.helpers import calc_midpoint
 
 class Mooring(Edge):
@@ -497,7 +497,7 @@ class Mooring(Edge):
             # Make Lines
             for i in self.i_sec:
                 sec = self.getSubcomponent(i)
-                sec.makeMoorPyLine(ms)
+                sec.makeMoorPyLine(ms) # this also will connect the Lines to Points
             
             """
             n = len(self.subcomponents)  # number of serial subcomponent items
@@ -672,42 +672,72 @@ class Mooring(Edge):
                 self.ss_mod = ss
                 return(self.ss_mod)
     
-    """
+    
     def positionSubcomponents(self):
         '''Puts any subcomponent connectors/nodes along the mooring in 
         approximate positions relative to the endpoints based on the 
         section lengths.'''
         
+        print('positionSubcomponents!!!')
+        
         # Tabulate the section lengths
         L = []
         
-        n = len(items)
-    
-        for i in range(n):
-        
-            if isinstance(items[i], list):
-                subL = []
-                for subitem in items[i]:  # go through each parallel subitem
+        n_serial_nodes = 0  # number of serial nodes, including first and last
                 
-                    if isinstance(subitem, list):  # if it's a concatenation of multiple things
-                        
+        # First pass, going through each section in series to figure out lengths
+        for item in self.subcomponents:
+        
+            if isinstance(item, list):  # indicates there are parallel sections here
+                pLtot = []  # total length of each parallel string
+                for j, parallel in enumerate(item):  # go through each parallel string
+                    if isinstance(parallel, list):  # if it's a concatenation of multiple things
+                        pLtot.append(0)
+                        # go through each item along the parallel path
+                        for subitem in parallel:  
+                            if isinstance(subitem, Edge):
+                                pLtot[j] += subitem['L'] # add the L of each edge
                     else:
                         raise Exception("Unsupported situation ... parallel subitems must be lists")
-                    
-            elif isinstance(items[i], Node):
-                pass
                 
-            elif isinstance(items[i], Edge):
-                L.append(items[i]['L'])
+                L.append(min(pLtot))  # save minimum parallel string length
+                
+            elif isinstance(item, Node):
+                n_serial_nodes += 1
+                
+            elif isinstance(item, Edge):
+                L.append(item['L'])  # save length of section
+        
+        print(f'There are {n_serial_nodes} serial nodes')
+        
+        # Position nodes along main serial string between rA and rB
+        Lsum = np.cumsum(np.array(L))
+        i = 0  # index of node along serial string (at A is 0)
+        
+        for item in self.subcomponents:
+            if isinstance(item, list) or isinstance(item, Edge):
+                i = i+1  # note that we're moving a certain length along the string
+                print(i)
+            
+            # if it's a node, but no the first or last one
+            elif isinstance(item, Node) and i > 0 and i < n_serial_nodes-1:
+                r = self.rA + (self.rB-self.rA)*Lsum[i]/Lsum[-1]
+                item.setPosition(r)
+                print(f'Set position of Node {i} to {r[0]:5.0f}, {r[1]:5.0f}, {r[2]:5.0f}')
         
         
-        Lcsum = np.cumsum(np.array(lengths))
         
-                # add the point, initializing linearly between anchor and fairlead/midpoint
-                self.addPoint(0, rA + (rB-rA)*Lcsum[i]/Lcsum[-1], m=m, v=v, DOFs=[0,2])
+        # Second pass, to position any nodes that are along parallel sections
+        '''
+        for i in range(n):
+            TODO
+            if isinstance(items[i], list):  # indicates there are parallel sections here
+                subL = []
+                for subitem in items[i]:  # go through each parallel subitem
+        '''
         
-        # Calculate and set approximate node positions
-    """    
+        
+    
     
     def mirror(self,create_subsystem=True):
         ''' Mirrors a half design dictionary. Useful for symmetrical shared mooring lines where 

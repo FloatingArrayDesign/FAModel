@@ -438,8 +438,8 @@ class Node():
         '''
         
         # Don't allow this if this is part of another object
-        if self.part_of and not force:
-            raise Exception("Can't setPosition of an object that's part of a higher object unless force=True.")
+        if self.attached_to and not force:
+            raise Exception("Can't setPosition of an object that's attached to a higher object unless force=True.")
         
         # Store updated position and orientation
         if len(r) > len(self.r): # default r is 2D, but can be adjusted to 3D
@@ -570,8 +570,8 @@ class Edge():
         self.attached_to = [None, None]  # object end [A, B] of this edge is attached to
         
         # End A and B locations
-        self.rA = [0,0]
-        self.rB = [0,0]
+        self.rA = np.zeros(2)
+        self.rB = np.zeros(2)
         
         # Some attributes related to super-edges used to group things
         self.part_of = None  # whether this object is part of an Edge group
