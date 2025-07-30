@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from .support_soils import clay_profile, sand_profile
 
-def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=5, psilug=7.5, plot=False):
+def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=5, psilug=7.5, plot=False, display=0):
     '''Calculate the inclined load capacity of a suction pile in sand or clay following S. Kay methodology.
     The calculation is based on the soil profile, anchor geometry and inclined load.  
     
@@ -116,7 +116,8 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             # Clip the layer first
             z_top_clip = max(z_top, z0)
             z_bot_clip = min(z_bot, z0 + (L - z0))
-            dz_clip = z_bot_clip - z_top_clip; print(f'dz_clip  = {dz_clip:.2f} m')
+            dz_clip = z_bot_clip - z_top_clip
+            if display > 1: print(f'dz_clip  = {dz_clip:.2f} m')
     
             if dz_clip <= 0:
                 continue  # Skip layers fully above or below
@@ -130,15 +131,15 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             ez_layer = Su_moment/Su_total
             Su_av_z = f_Su(ez_layer)
             
-            print(f'ez_layer = {ez_layer:.2f} m')
-            print(f'Su_av_z (at ez_layer) = {Su_av_z:.2f} Pa')
+            if display > 1: print(f'ez_layer = {ez_layer:.2f} m')
+            if display > 1: print(f'Su_av_z (at ez_layer) = {Su_av_z:.2f} Pa')
             
             Su_bot = f_Su(z_bot_clip)
             gamma_vals = f_gamma(z_vals)
             gamma_av = np.mean(gamma_vals)
 
             # Calculate Hmax for clay
-            Hmax_layer = Np_fixed*D*dz_clip*Su_av_z;
+            Hmax_layer = Np_fixed*D*dz_clip*Su_av_z
     
             layer_data.append({
                 'z_top': z_top_clip,
@@ -169,7 +170,8 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             nhuT = T/Tmax 
             nhuV = Ha/To 
             nhuVstar = np.sqrt(nhuV**2 - nhuT**2) 
-            alphastar = alpha_av*(nhuVstar/nhuV); print(f"alphastar   = {alphastar:.3f}")
+            alphastar = alpha_av*(nhuVstar/nhuV)
+            if display > 1: print(f"alphastar   = {alphastar:.3f}")
             
             # Constant weight
             Pile_Head = PileWeight(z0, D, t, rhows)
@@ -191,10 +193,10 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             Vmax_final += Vmax_layer
             
             # Print layer debug info
-            print(f"Vmax_layer    = {Vmax_layer:.2f} N")
-            print(f"Vmax1   = {Vmax1:.2f} N" if Vmax1 is not None else "Vmax1   = not applicable")
-            print(f"Vmax2   = {Vmax2:.2f} N")
-            print(f"Vmax3   = {Vmax3:.2f} N")
+            if display > 0: print(f"Vmax_layer    = {Vmax_layer:.2f} N")
+            if display > 0: print(f"Vmax1   = {Vmax1:.2f} N" if Vmax1 is not None else "Vmax1   = not applicable")
+            if display > 0: print(f"Vmax2   = {Vmax2:.2f} N")
+            if display > 0: print(f"Vmax3   = {Vmax3:.2f} N")
             
         elif soil_type == 'sand':
             # Prepare soil profile for sand
@@ -270,9 +272,9 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
             # Sum vertical capacities
             Vmax_final += Vmax_layer
         
-            print(f"Vmax_layer (sand) = {Vmax_layer:.2f} N")
-            print(f"Vmax2 (sand) = {Vmax2:.2f} N")
-            print(f"Vmax3 (sand) = {Vmax3:.2f} N")
+            if display > 0: print(f"Vmax_layer (sand) = {Vmax_layer:.2f} N")
+            if display > 0: print(f"Vmax2 (sand) = {Vmax2:.2f} N")
+            if display > 0: print(f"Vmax3 (sand) = {Vmax3:.2f} N")
 
     # Hmax_final and weighted ez
     for data in layer_data:
@@ -288,7 +290,7 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
         if z_top >= z_embedded_start and z_bot <= z_embedded_end:
             sum_ez_weighted += Hmax_layer*ez_layer
             Hmax_final += Hmax_layer
-            print(f'Hmax_layer  = {Hmax_layer:.2f} m')
+            if display > 0: print(f'Hmax_layer  = {Hmax_layer:.2f} m')
 
         elif z_top < z_embedded_end and z_bot > z_embedded_start:
             dz_inside = min(z_bot, z_embedded_end) - max(z_top, z_embedded_start)
@@ -299,15 +301,15 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
                 # print(f'ez_layer (partial) = {ez_layer:.2f} m')
    
     ez_global = sum_ez_weighted/Hmax_final 
-    print(f'ez_global   = {ez_global:.2f} m')
-    print(f'Hmax_final  = {Hmax_final:.2f} m')
+    if display > 1: print(f'ez_global   = {ez_global:.2f} m')
+    if display > 0: print(f'Hmax_final  = {Hmax_final:.2f} m')
 
     # Calculate coupled moment 
     M  = -Va*rlugTilt(rlug, zlug, thetalug) - Ha*(zlugTilt(rlug, zlug, thetalug) - ez_global)
     Mv = -Va*rlugTilt(rlug, zlug, thetalug)
-    print(f"rlug_eff = {rlugTilt(rlug, zlug, thetalug):.2f} m")
-    print(f"zlug_eff = {zlugTilt(rlug, zlug, thetalug):.2f} m")
-    print(f"M = {M:.2f} Nm")
+    if display > 1: print(f"rlug_eff = {rlugTilt(rlug, zlug, thetalug):.2f} m")
+    if display > 1: print(f"zlug_eff = {zlugTilt(rlug, zlug, thetalug):.2f} m")
+    if display > 1: print(f"M = {M:.2f} Nm")
     
     # MH Ellipse Parameters for Clay (Kay 2014)
     # ΔφMH (piecewise based on L/D)
@@ -324,10 +326,10 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
     a_MH = Np_fixed/np.cos(phi_MH)
     delta_bMH = 0.45*(lambdap)**(-0.9) if lambdap <= 1.5 else 0
     b_MH = -Np_free*np.sin(phi_MH) + delta_bMH
-    print(f"delta_phi = {delta_phi:.2f} deg")
-    print(f"phi_MH = {np.rad2deg(phi_MH):.2f} deg")
-    print(f"a_MH = {a_MH:.2f}")
-    print(f"b_MH = {b_MH:.2f}")
+    if display > 1: print(f"delta_phi = {delta_phi:.2f} deg")
+    if display > 1: print(f"phi_MH = {np.rad2deg(phi_MH):.2f} deg")
+    if display > 1: print(f"a_MH = {a_MH:.2f}")
+    if display > 1: print(f"b_MH = {b_MH:.2f}")
 
     # MH Ellipse Parameters for Clay (Kay 2015)
     # VH (piecewise based on L/D)
@@ -335,55 +337,55 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
         a_VH = 9/4 + (5/3)*lambdap; 
     elif 0.5 <= lambdap < 1.25:
         b_VH = 23/4 - (13/5)*lambdap; 
-    elif 1.5 <= lambdap <= 6.0:
+    elif 1.5 <= lambdap < 20.0:     # need to set a maximum of 6 based on installation pump requirements   
         a_VH = 47/12 - (5/9)*lambdap; 
         b_VH = 50/19 - (2/19)*lambdap;
     else:
         raise ValueError('L/D ratio out of bounds for MH ellipse formulation.')
     a_VH = 0.5 + lambdap;   b_VH = 4.5 + lambdap/3
     # a_VH = 4.5 + lambdap/2; b_VH = 4.5 + lambdap/4
-    print(f"a_VH = {a_VH:.2f}")
-    print(f"b_VH = {b_VH:.2f}")
+    if display > 0: print(f"a_VH = {a_VH:.2f}")
+    if display > 0: print(f"b_VH = {b_VH:.2f}")
 
     # Scale VH ellipse based on vertical load ratio (Kay 2015) 
     shrink_factor = 1 - ((Va/Vmax_final)**b_VH)**(2/a_VH)
 
-    plt.figure(figsize=(10, 5))
+    if plot: plt.figure(figsize=(10, 5))
     theta = np.linspace(0, 2*np.pi, 400)        
     shrink_factors = np.linspace(0.0, 1.0, 5)  
     # Define colormap
-    cmap = plt.colormaps['Greys']  
+    if plot: cmap = plt.colormaps['Greys']  
     norm = mcolors.Normalize(vmin=min(shrink_factors), vmax=max(shrink_factors))
     
     for s_f in shrink_factors:
-        color = cmap(norm(s_f))
+        if plot: color = cmap(norm(s_f))
         x_ellipse = Hmax_final*s_f*np.cos(theta)
         y_ellipse = Vmax_final*s_f*np.sin(theta)
         H_rot = np.cos(phi_MH)*x_ellipse - np.sin(phi_MH)*y_ellipse
         M_rot = np.sin(phi_MH)*x_ellipse + np.cos(phi_MH)*y_ellipse
-        plt.plot(H_rot, M_rot, color=color, alpha=0.5)
-    
+        if plot: plt.plot(H_rot, M_rot, color=color, alpha=0.5)
+
     x_ellipse_prime = Hmax_final*shrink_factor*np.cos(theta)
     y_ellipse_prime = Vmax_final*shrink_factor*np.sin(theta)
     H_rot_prime = np.cos(phi_MH)*x_ellipse_prime - np.sin(phi_MH)*y_ellipse_prime
     M_rot_prime = np.sin(phi_MH)*x_ellipse_prime + np.cos(phi_MH)*y_ellipse_prime
     Hlim = 1.2*Hmax_final  
-    plt.xlim(-Hlim, Hlim)
-    plt.ylim(-Hlim, Hlim)
-    plt.grid(True, color='gray', linestyle='--', lw=0.5, alpha=0.8)
-    
+    if plot: plt.xlim(-Hlim, Hlim)
+    if plot: plt.ylim(-Hlim, Hlim)
+    if plot: plt.grid(True, color='gray', linestyle='--', lw=0.5, alpha=0.8)
+
     # Highlight the actual one
-    plt.plot(H_rot_prime, M_rot_prime, 'b', label= f'MH ellipse w/ V/Vmax = {shrink_factor:.3f}')
-    plt.axhline(0, color='k', linestyle='--', lw=1.0)
-    plt.axvline(0, color='k', linestyle='--', lw=1.0)
-    
+    if plot: plt.plot(H_rot_prime, M_rot_prime, 'b', label= f'MH ellipse w/ V/Vmax = {shrink_factor:.3f}')
+    if plot: plt.axhline(0, color='k', linestyle='--', lw=1.0)
+    if plot: plt.axvline(0, color='k', linestyle='--', lw=1.0)
+
     # Plot horizontal line at constant M and Mv
     H_plot = np.linspace(min(1.3*H_rot), max(1.3*H_rot), 100)
     M_plot  = np.full_like(H_plot,  M)  # Constant moment
     Mv_plot = np.full_like(H_plot, Mv)  # Constant moment
-    plt.plot(H_plot,  M_plot, 'r', lw=1.0, label='Moment line') 
-    plt.plot(H_plot, Mv_plot, 'r', lw=0.5, label='Vertical moment line') 
-    plt.legend(loc='lower left', fontsize='small')
+    if plot: plt.plot(H_plot,  M_plot, 'r', lw=1.0, label='Moment line') 
+    if plot: plt.plot(H_plot, Mv_plot, 'r', lw=0.5, label='Vertical moment line') 
+    if plot: plt.legend(loc='lower left', fontsize='small')
    
     H_roots = horizontal_cross(H_rot_prime, M_rot_prime, M)
     Hmax_v = 0.1 
@@ -392,17 +394,17 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
         Hmax_neg = min([r for r in H_roots if r <  0], default=None)
         if M > 0 and Hmax_neg is not None:
             Hmax_v = abs(Hmax_neg)
-            plt.plot(Hmax_neg, M, 'ro', label=f'Hmax,v = {Hmax_neg/1e6:.1f} MN', zorder=20)
-            plt.legend(loc='lower left')
+            if plot: plt.plot(Hmax_neg, M, 'ro', label=f'Hmax,v = {Hmax_neg/1e6:.1f} MN', zorder=20)
+            if plot: plt.legend(loc='lower left')
         elif M <= 0 and Hmax_pos is not None:
             Hmax_v = abs(Hmax_pos)
-            plt.plot(Hmax_pos, M, 'ro', label=f'Hmax,v = {Hmax_pos/1e6:.1f} MN', zorder=20)
-            plt.legend(loc='lower left')
+            if plot: plt.plot(Hmax_pos, M, 'ro', label=f'Hmax,v = {Hmax_pos/1e6:.1f} MN', zorder=20)
+            if plot: plt.legend(loc='lower left')
         else:
-            print('[WARNING] No valid Hmax crossing found for moment cut.')
+            if display > 0: print('[WARNING] No valid Hmax crossing found for moment cut.')
     else:
-        print('[WARNING] No intersection between moment line and ellipse.') 
-    
+        if display > 0: print('[WARNING] No intersection between moment line and ellipse.') 
+
     # Find relevant intercept
     H_v_roots = horizontal_cross(H_rot_prime, M_rot_prime, 0.0)
     M_v_roots = vertical_cross(H_rot_prime, M_rot_prime, 0.0)
@@ -429,8 +431,10 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
         plt.legend(loc='lower left', fontsize='small')
     
     # Constant weight
-    pile_head = PileWeight(z0, D, t, rhows); print(f"pile_head    = {pile_head:.2f} N")
-    Vmax_final += pile_head; print(f"Vmax_final   = {Vmax_final:.2f} N")
+    pile_head = PileWeight(z0, D, t, rhows)
+    if display > 0: print(f"pile_head    = {pile_head:.2f} N")
+    Vmax_final += pile_head
+    if display > 0: print(f"Vmax_final   = {Vmax_final:.2f} N")
     
     Wp = 1.10*PileWeight(L, D, t, rhows + rhow) 
     
@@ -438,7 +442,7 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
     a_VH = 0.5 + lambdap; b_VH = 4.5 + lambdap/3
     # Unity check
     UC = (Ha/Hmax_v)**a_VH + (Va/Vmax_final)**b_VH 
-    plt.figure(figsize=(6, 5))
+    if plot: plt.figure(figsize=(6, 5))
     x = np.linspace(0, 1, 100)
     y = (1 - x**b_VH)**(1/a_VH)
 
@@ -454,7 +458,7 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
         plt.grid(True)
         plt.legend()
         plt.show()
-
+    
     resultsSuction = {
         'Horizontal max.': Hmax_v,
         'Vertical max.': Vmax_final,

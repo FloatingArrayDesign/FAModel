@@ -6,7 +6,7 @@ from .support_solvers import fd_solver
 from .support_pycurves import py_Lovera
 from .support_plots import plot_pile, plot_pycurve
 
-def getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot=False):
+def getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot=False, display=0):
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, 
     EI*d4y/dz4 - V*d2y/dz2 + ky = 0 using the finite difference method.
@@ -141,10 +141,10 @@ def getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot=False)
     
         # Check convergence
         if np.linalg.norm(y - y_old, ord=2) < tol:
-            print(f'[Converged in {j+1} iterations]')
+            if display > 0: print(f'[Converged in {j+1} iterations]')
             break
     else:
-        print('[Warning: Solver did not converge]')
+        if display > 0: print('[Warning: Solver did not converge]')
 
 
     if plot:
@@ -164,8 +164,10 @@ def getCapacityDandG(profile_map, location_name, L, D, zlug, Ha, Va, plot=False)
         ax.legend() 
             
     # Relevant index of nodes
-    zlug_index = int(zlug/h); print(zlug_index)
-    ymax_index = np.argmax(y); print(ymax_index)    
+    zlug_index = int(zlug/h)
+    if display > 0: print(zlug_index)
+    ymax_index = np.argmax(y)
+    if display > 0: print(ymax_index)    
     
     resultsDandG = {
         'Vertical max.': Vmax,

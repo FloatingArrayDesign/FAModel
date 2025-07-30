@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from .support_soils import clay_profile, sand_profile
 from .support_plots import plot_load
 
-def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=False):
+def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=False, display=0):
     '''Calculate the transfer load from mudline to main padeye using a layered soil profile.
 
     Parameters
@@ -122,10 +122,10 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Fa
     Hm = Tm*np.cos(np.deg2rad(thetam)); Vm = Tm*np.cos(np.deg2rad(thetam))
     Ha = Ta*np.cos(thetaa); Va = Ta*np.sin(thetaa)
     
-    print(f'Input Tm = {Tm} N, thetam = {thetam}°, zlug = {zlug} m')
-    print(f'Output Hm = {Hm} N, Vm = {Vm} N')
-    print(f'Output Ta = {Ta} N, thetaa = {np.rad2deg(thetaa)}°')
-    print(f'Output Ha = {Ha} N, Va = {Va} N')
+    if display > 0: print(f'Input Tm = {Tm} N, thetam = {thetam}°, zlug = {zlug} m')
+    if display > 0: print(f'Output Hm = {Hm} N, Vm = {Vm} N')
+    if display > 0: print(f'Output Ta = {Ta} N, thetaa = {np.rad2deg(thetaa)}°')
+    if display > 0: print(f'Output Ha = {Ha} N, Va = {Va} N')
 
     resultsLoad = {
         'Tm': Tm, 'thetam': thetam,
