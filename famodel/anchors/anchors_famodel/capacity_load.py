@@ -203,7 +203,7 @@ if __name__ == '__main__':
     d = 0.25              # Chain diameter (m)
     w = 5000              # Line weight (N/m)
 
-    layers, resultsLoad = getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w, plot=True)
+    layers, resultsLoad = getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w, plot=True, display=1)
 
     plot_load(layers, resultsLoad['drag_values'], resultsLoad['depth_values'], 
               resultsLoad['Tm'], resultsLoad['thetam'], resultsLoad['Ta'], 

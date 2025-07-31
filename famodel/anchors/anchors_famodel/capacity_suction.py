@@ -504,7 +504,7 @@ if __name__ == '__main__':
     zlug = (2/3)*L                    # Lug depth (m)
     theta = 5                         # Tilt misalignment angle (deg)
     psi = 7.5                         # Twist misalignment angle (deg)
-    Ha = 1e6                        # Applied horizontal load (N)
+    Ha = 1e6                          # Applied horizontal load (N)
     Va = 5.7e6                        # Applied vertical load (N)
 
     # Calculate
@@ -513,7 +513,8 @@ if __name__ == '__main__':
         D, L, zlug,                   # Pile geometrical properties
         Ha, Va,                       # Pile loading conditions   
         thetalug=theta, psilug=psi,   # Pile misaligment tolerances 
-        plot=False
+        plot=True,
+        display=1
     )
 
     # print('\n--- Suction Pile Capacity Results ---')

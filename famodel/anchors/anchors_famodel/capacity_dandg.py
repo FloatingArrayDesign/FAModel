@@ -220,7 +220,7 @@ if __name__ == '__main__':
     Ha = 5.0e6        # Horizontal load (N)
     Va = 3.0e5        # Vertical load (N)
 
-    layers, y, z, results = getCapacityDandG(profile_map, 'CPT_rock_1', L, D, zlug, Ha, Va, plot=True)
+    layers, y, z, results = getCapacityDandG(profile_map, 'CPT_rock_1', L, D, zlug, Ha, Va, plot=True, display=0)
 
     print('\n--- Results for DandG Pile in Layered Rock ---')
     for key, val in results.items():

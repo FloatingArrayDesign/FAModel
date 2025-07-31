@@ -634,20 +634,18 @@ class Anchor(Node):
             self.anchorCapacity['Rotational displacement'] = results['Rotational displacement']
         
         # Weight calculated via dimensions
-        if mass_update == False:
+        if not mass_update:
             if 'Weight pile' in results:
                 self.anchorCapacity['Weight pile'] = results['Weight pile']
             if 'Weight plate' in results:
                 self.anchorCapacity['Weight plate'] = results['Weight plate']
         else:
             if 'Weight pile' in results:
-                if self.mass is None:
-                    self.mass = results['Weight pile']/self.g
-                self.anchorCapacity['Weight pile'] = self.mass*self.g
+                self.mass = results['Weight pile']/self.g
+                self.anchorCapacity['Weight pile'] = results['Weight pile']
             if 'Weight plate' in results:
-                if self.mass is None:
-                    self.mass = results['Weight plate']/self.g
-                self.anchorCapacity['Weight plate'] = self.mass*self.g
+                self.mass = results['Weight plate']/self.g
+                self.anchorCapacity['Weight plate'] = results['Weight plate']
                 
         # print(f"[DEBUG] Stored Lateral displacement in anchorCapacity: {self.anchorCapacity['Lateral displacement']:.6f}")
          
@@ -1312,9 +1310,17 @@ class Anchor(Node):
 
             return {'SF_combined': SF} 
                             
-    def getCostAnchor(self, ms=None):
+    def getCostAnchor(self, ms=None, mass_update=True):
         '''
         Assign material cost using a Point object and getCost_and_MBL().
+        
+        Parameters
+        ----------
+        ms : MoorPy System, optional
+            The mooring system to which the anchor point belongs. If None, a new one is created.
+        mass_update : bool, optional
+            If True, update mpAnchor mass from self.mass.
+            If False, preserve existing mpAnchor.m if already set.
         '''
 
         # Create or use existing MoorPy system
@@ -1324,12 +1330,12 @@ class Anchor(Node):
             # Create MoorPy Point using makeMoorPyAnchor
             self.makeMoorPyAnchor(ms)
 
-        # Check if mass is assigned
-        if self.mass is None:
+        # Assign self.mass if missing
+        if self.mass is None or mass_update:
             if 'Weight pile' in self.anchorCapacity:
-                self.mass = self.anchorCapacity['Weight pile'] / self.g
+                self.mass = self.anchorCapacity['Weight pile']/self.g
             elif 'Weight plate' in self.anchorCapacity:
-                self.mass = self.anchorCapacity['Weight plate'] / self.g
+                self.mass = self.anchorCapacity['Weight plate']/self.g
             else:
                 raise KeyError("Missing 'Weight pile' or 'Weight plate' in anchorCapacity. \
                 Run getCapacityAnchor() before getCostAnchor(), or define self.mass explicitly.")
