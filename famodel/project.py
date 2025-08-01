@@ -1166,6 +1166,31 @@ class Project():
             print(f"[DEBUG] Available soilProps keys: {list(self.soilProps.keys())}")
         else:
             raise ValueError("No soil grid defined")
+            
+    def convertUniformToLayered(self, default_layer=50.0):
+        '''
+        Converts self.soilProps (uniform format) into profile_map (layered format)
+        using a default thickness and assuming uniform clay profile.
+        Matches the structure of layered CPT-based soil profiles.
+        '''
+        self.profile_map = {}
+
+        for name, props in self.soilProps.items():
+            name = str(name)
+            gamma = float(props['gamma'][0])
+            Su0 = float(props['Su0'][0])
+            k = float(props['k'][0])
+
+            layer = {
+                'soil_type': 'clay',
+                'top': 0.0,
+                'bottom': default_layer,
+                'gamma_top': gamma,
+                'gamma_bot': gamma,
+                'Su_top': Su0,
+                'Su_bot': Su0 + k * default_layer}
+
+            self.profile_map[name] = [layer]  # just layers!
 
     # # ----- Anchor 
     def updateAnchor(self,anch='all',update_loc=True):

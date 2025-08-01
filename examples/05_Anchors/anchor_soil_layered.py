@@ -23,7 +23,7 @@ anchor = Anchor(
 # Step 3: Assign local soil profile from project (nearest neighbor lookup)
 soil_id, soil_profile = proj.getSoilAtLocation(anchor.r[0], anchor.r[1])
 anchor.soilProps = {soil_id: soil_profile}
-anchor.setSoilProfile([{ 'name': soil_id, 'layers': soil_profile }])  # ensures `anchor.soil_profile` is set
+anchor.setSoilProfile([{'name': soil_id, 'layers': soil_profile}])  # ensures `anchor.soil_profile` is set
 
 # Step 4: Assign loads and line
 anchor.loads = {'Hm': 2e6, 'Vm': 1.5e6}

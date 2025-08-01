@@ -205,7 +205,7 @@ class Anchor(Node):
         self.soilProps = dict(soilProps)
 
         print(f"[Anchor] Interpolated soil profile: {self.profile_name} with soil types {self.soil_type_list}")
-
+        
     def makeMoorPyAnchor(self, ms):
         '''
         Create a MoorPy anchor object in a MoorPy system.
