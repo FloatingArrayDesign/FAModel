@@ -59,8 +59,14 @@ class Connector(Node, dict):
         ms : class instance
             MoorPy system 
         '''
+        
+        if self.isJoined(): # if the connector is joined to something
+            pointType = 1  # make it a fixed point
+        else:
+            pointType = 0  # otherwise a free point
+        
         # create connector as a point in MoorPy system
-        ms.addPoint(0,self.r)
+        ms.addPoint(pointType, self.r)
         
         # assign this point as mpConn in the anchor class instance
         self.mpConn = ms.pointList[-1]

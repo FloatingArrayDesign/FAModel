@@ -188,6 +188,19 @@ class Node():
             raise Exception("This would attach two higher-level nodes, which is not supported.")
     
     
+    def isJoined(self):
+        '''Check if this node is joined to anything else.'''
+        
+        for att in self.attachments.values():  # Look through everything attached
+            object = att['obj']
+            if isinstance(object, Node):  # Only another node could be joined
+                if self.id in object.attachments:
+                    return True
+                    
+        # If we've gotten this far, it's not joined with anything
+        return False
+    
+    
     def separate(self, object):
         '''Opposite of join'''
         
