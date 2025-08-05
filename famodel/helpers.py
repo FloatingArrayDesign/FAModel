@@ -703,7 +703,8 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                 
     lineLast = 1    # boolean whether item with index k-1 is a line. Set to 1 for first run through of for loop
     ct = 0   # counter for number of line types
-    for k in range(0,len(lineConfigs[lcID]['sections'])): # loop through each section in the line
+    nsec = len(lineConfigs[lcID]['sections']) # number of sections
+    for k in range(0,nsec): # loop through each section in the line
     
         lc = lineConfigs[lcID]['sections'][k] # set location for code clarity later
         # determine if it's a line type or a connector listed
@@ -762,7 +763,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
             sublineLast = [lineLast]*len(lc['subsections']) # to check if there was a connector provided before this
             for ii,sub in enumerate(lc['subsections']):
                 config[-1].append([])
-                for subsub in sub:
+                for jj,subsub in enumerate(sub):
                     if 'connectorType' in subsub and sublineLast[ii]:
                         cID = subsub['connectorType']
                         if cID in connectorTypes:
@@ -791,6 +792,13 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                         sublineLast[ii] = 1
                     else:
                         raise Exception(f"keys in subsection line definitions must either be 'type', 'mooringFamily', or 'connectorType'")
+                    # if this is the last section and the last part of the subsection in the section, it needs to end on a connector
+                    # so, add a connector if last part of subsection was a line!
+                    if sublineLast[ii] and k==nsec-1 and jj==len(sub)-1:
+                        # end bridle needs connectors added 
+                        config[-1][-1].append({})
+                        sublineLast[ii] = 0
+                        
             lineLast = sublineLast[-1] # TODO: LHS: think how to handle this situation for error checking...
         else:
             # not a connector or a line
@@ -963,9 +971,17 @@ def calc_midpoint(point):
     if isinstance(point[0],list) or isinstance(point[0],np.ndarray):
         pointx = sum([x[0] for x in point])/len(point)
         pointy = sum([x[1] for x in point])/len(point)
+        # add z component if needed
+        if len(point[0])==3:
+            pointz = sum([x[2] for x in point])/len(point)
+            return([pointx,pointy,pointz])
     else:
         pointx = point[0]
         pointy = point[1]
+        # add z component if needed
+        if len(point)==3:
+            pointz = point[2]
+            return([pointx,pointy,pointz])
         
     return([pointx,pointy])
     

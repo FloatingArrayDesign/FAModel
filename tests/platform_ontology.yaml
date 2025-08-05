@@ -1089,8 +1089,7 @@ platforms:
                      headings: [270, 30, 150] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
     Jtubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: Jtube1
-                     r: 5
-                     z: -20
+                     r_rel: [5,0,-20]
                      headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
     
     members:   # list all members here

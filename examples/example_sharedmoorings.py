@@ -15,13 +15,11 @@ filename = '\OntologySample600m_shared.yaml' # yaml file for project
 
 
 # load in yaml
-project = Project(file=dir+filename,raft=False)
+project = Project(file=dir+filename, raft=True)
 
-
-project.getMoorPyArray()
 
 # plot in 2d and 3d
 project.plot2d()
-#project.plot3d(fowt=True)
+project.plot3d(fowt=True)
 
-#plt.show()
+plt.show()

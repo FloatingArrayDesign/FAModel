@@ -33,7 +33,7 @@ print(os.getcwd())
 # create project object
 project = Project(file=dir+ontology_file,raft=False)
 # create moorpy system of the array, include cables in the system
-project.getMoorPyArray(cables=1)
+project.getMoorPyArray(cables=True)
 # plot in 3d, using moorpy system for the mooring and cable plots
 project.plot2d()
 project.plot3d()
@@ -41,7 +41,7 @@ project.plot3d()
 #%% Section 2: Project with RAFT
 print('\nCreating project with RAFT \n')
 #create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
-project = Project(file=ontology_file,raft=True)
+project = Project(file=dir+ontology_file,raft=True)
 # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
 project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False,save=True)
 

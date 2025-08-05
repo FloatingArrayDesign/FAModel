@@ -35,9 +35,8 @@ def test_RAFT_integration():
 def test_lineDesign_integration(project):
     
     # make a dummy design dictionary for Mooring to make a Subsystem with
-    dd = dict(sections={}, connectors={})
-    dd['sections']   = [{} for i in range(1)]
-    dd['connectors'] = [{} for i in range(2)]
+    dd = dict(subcomponents=[])
+    dd['subcomponents']   = [{} for i in range(3)]
     import moorpy as mp
     ms = mp.System(depth=200)
     # the sizing function coefficients to use in the design
@@ -46,8 +45,8 @@ def test_lineDesign_integration(project):
     
     # Assign section properties for use in Mooring's Subsystem.makeGeneric call
     for i in range(1):
-        dd['sections'][i]['type'] = lineProps[i]
-        dd['sections'][i]['L'] = lengths[i]
+        dd['subcomponents'][i+1]['type'] = lineProps[i]
+        dd['subcomponents'][i+1]['L'] = lengths[i]
     
     # # Assign props for intermediate points/connectors
     # for i in range(self.nLines-1):

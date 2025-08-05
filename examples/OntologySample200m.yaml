@@ -144,9 +144,9 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, fairlead, lug] # fairlead and lug listings are optional; if not specified, fairlead list follows order of fairleads in the platform definition
         data:
-          - [  semitaut-poly_1,  30 ,    drag-embedment1,   [1,4], 1 ]
+          - [  semitaut-poly_1,  30 ,    drag-embedment1,   1, 1 ]
           - [  semitaut-poly_1,  150 ,     drag-embedment1,   2,   1 ]
-          - [  semitaut-poly_1,  270,     drag-embedment1,   3,    [2,1] ]
+          - [  semitaut-poly_1,  270,     drag-embedment1,   3,    1 ]
 
 
 # Mooring line configurations
@@ -209,6 +209,29 @@ mooring_line_configs:
           - mooringFamily: polyester        # ID of a mooring line section type
             d_nom: .182
             length: 199.8           # [m] length (unstretched)
+
+    semitaut-poly_1_bridle:  # mooring line configuration identifier
+    
+        name: Semitaut polyester configuration 1  # descriptive name
+        
+        span: 642
+        
+        sections:                 #in order from anchor to fairlead
+          - mooringFamily: chain      # ID of a mooring line section type
+            d_nom: .1549
+            length: 497.7            # [m] usntretched length of line section
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+          - connectorType: h_link   
+          - mooringFamily: polyester        # ID of a mooring line section type
+            d_nom: .182
+            length: 119.8           # [m] length (unstretched)
+          - subsections:
+            - - mooringFamily: polyester        # ID of a mooring line section type
+                d_nom: .182
+                length: 80           # [m] length (unstretched)
+            - - mooringFamily: polyester        # ID of a mooring line section type
+                d_nom: .182
+                length: 80           # [m] length (unstretched)
 
    
     
@@ -1542,13 +1565,11 @@ platforms:
     qtfPath      :  'IEA-15-240-RWT-UMaineSemi.12d'      # path to the qtf file for the platform
     fairleads    :  # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: fairlead1
-                     r: 58
-                     z: -14
-                     headings: [30, 150, 270] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
+                     r_rel: [58, 0, -14]
+                     headings: [30, 150, 270, 35] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
     Jtubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: Jtube1
-                     r: 5
-                     z: -20
+                     r_rel: [5, 0, -20]
                      headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
     type         :  FOWT
     z_location   :  0 # optional to put the depth of this platform type
@@ -1649,13 +1670,11 @@ platforms:
     zFair        :  -15
     fairleads    :  # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: fairlead1
-                     r: 58
-                     z: -14
-                     headings: [30, 150, 270] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
+                     r_rel: [58, 0, -14]
+                     headings: [30, 150, 270, 35] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
     Jtubes:
                    - name: Jtube1
-                     r: 5
-                     z: -20
+                     r_rel: [5, 0, -20]
                      headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
     type         :  Substation
   

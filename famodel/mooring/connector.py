@@ -174,5 +174,5 @@ class Section(Edge, dict):
                 pointB = self.attached_to[1].mpConn.number
         
         # Create a Line for the section in MoorPy system
-        ms.addLine(self['L'], self['type'], pointA=pointA, pointB=pointB)
+        self.mpLine = ms.addLine(self['L'], self['type'], pointA=pointA, pointB=pointB)
         

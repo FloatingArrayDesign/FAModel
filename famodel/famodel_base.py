@@ -455,7 +455,7 @@ class Node():
             raise Exception("Can't setPosition of an object that's attached to a higher object unless force=True.")
         
         # Store updated position and orientation
-        if len(r) > len(self.r): # default r is 2D, but can be adjusted to 3D
+        if len(r) >= len(self.r): # default r is 2D, but can be adjusted to 3D
             self.r = np.array(r)
         else: # if just a portion of r is being adjusted, only change up to length of initial r
             self.r[:len(r)] = r
@@ -491,7 +491,6 @@ class Node():
         
             # Compute the attachment's position
             r_att = self.r + np.matmul(self.R, att['r_rel'])
-            
             # set position of any attached node that isn't subordinate to another node
             # (prevents infinite loop of setPositioning for nodes)
             if isinstance(att['obj'], Node):

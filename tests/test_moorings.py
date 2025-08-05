@@ -3,8 +3,10 @@
 Test mooring loading, configurations, methods
 """
 import pytest
+from pytest import approx
 
 import numpy as np
+from numpy.testing import assert_allclose
 
 from famodel.project import Project
 
@@ -32,9 +34,9 @@ def test_moor_heading(setup_project):
     dists = moor.rA[:2]-moor.rB[:2]
     heading = np.pi/2 - np.arctan2(dists[1], dists[0])
     pf = setup_project.platformList['FOWT1']
-    assert(heading == np.radians(45+180))
-    assert(heading == pf.mooring_headings[0]+pf.phi)
-    assert(heading == np.radians(moor.heading))
+    assert(heading == approx(np.radians(45+180),abs=1e-5))
+    assert(heading == approx(pf.mooring_headings[0]+pf.phi,abs=1e-5))
+    assert(heading == approx(np.radians(moor.heading),abs=1e-5))
     
 def test_platform_connection(setup_project):
     
@@ -50,12 +52,26 @@ def test_fairlead_connection(setup_project):
     
 def test_fairlead_position(setup_project):
     moor = setup_project.mooringList['FOWT1a']
-    fl = moor.subcomponents[-1].attachments['FOWT1_F1']
-    assert(fl.r==setup_project.mooringList['FOWT1a'].rB)
+    fl = moor.subcomponents[-1].attachments['FOWT1_F1']['obj']
+    # check fairlead is at same position as moor.rB
+    assert_allclose(fl.r,setup_project.mooringList['FOWT1a'].rB)
     pf = setup_project.platformList['FOWT1']
-    head_fl = np.radians(90-30)
-    head_pf = np.radians(90)-pf.phi
-    assert(fl.r==[58*cos(head_fl+head_pf),58*sin(head_fl+head_pf),-14])
+    new_head = 15
+    pf.setPosition(r = pf.r, 
+                   heading=new_head, 
+                   degrees=True, 
+                   project=setup_project)
+    head_fl = np.radians(90-30) # relative heading of fairlead to platform
+    head_pf = pf.phi
+    # calculate moor.rB manually and compare to fairlead position
+    # heading is 90-compass fairlead heading - platform heading
+    # ( compass platform heading = - unit circle platform heading )
+    # this is because platform 0 is the same for both since it's user-defined
+    # but the direction they rotate is opposite
+    # but mooring headings are based on conventional 0s for compass and unit circle
+    # AND their rotation direction is opposite
+    assert_allclose(fl.r,[58*np.cos(head_fl-head_pf),
+                          58*np.sin(head_fl-head_pf),-14])
     
 def test_rA_depth(setup_project):
     moor = setup_project.mooringList['FOWT1a']
@@ -78,12 +94,12 @@ def test_end_locs(self):
 def test_num_sections(setup_project):
     moor = setup_project.mooringList['FOWT1a']
     setup_project.getMoorPyArray()
-    assert(len(moor.dd['sections'])==len(moor.ss.lineList))
-    assert(len(moor.dd['sections'])==2)
+    assert(len(moor.i_sec)==len(moor.ss.lineList))
+    assert(len(moor.i_sec)==2)
     
 def test_num_connectors(setup_project):
     moor = setup_project.mooringList['FOWT1a']
-    assert(len(moor.dd['connectors'])==3)
+    assert(len(moor.i_con)==3)
     
 def test_shared_connections(setup_project):
     
@@ -100,7 +116,7 @@ def test_shared_flag(setup_project):
     
 # - - - -tests in progress- - - -
     
-
+@pytest.fixture
 def bridle_project():
     dir = os.path.dirname(os.path.realpath(__file__))
     return(Project(file=os.path.join(dir,'mooring_ontology_parallels.yaml'), raft=False))
@@ -111,14 +127,15 @@ def test_bridle_setup(bridle_project):
     assert(len(moor.subcons_B)==2)
     # check each item in subcons_B is attached to 2 things (fairlead and another subcomponent)
     for sub in moor.subcons_B:
+        assert(isinstance(sub,Connector))
         assert(len(sub.attachments)==2)
         for att in sub.attachments.values():
-            assert(isinstance(att['obj'],[Fairlead,Section]))
+            assert(isinstance(att['obj'],(Fairlead,Section)))
     pf = moor.attached_to[1]
     fl_attachment = [False, False]
     for i,sub in enumerate(moor.subcons_B):
         for att in pf.attachments.values():
-            if sub.id in att['obj'].attachments:
+            if isinstance(att['obj'],Node) and sub.id in att['obj'].attachments:
                 fl_attachment[i] = True
             
     assert(all(fl_attachment))
@@ -130,14 +147,14 @@ def test_bridle_end_locs(bridle_project):
     for sub in moor.subcons_B:
         att = [att['obj'] for att in sub.attachments.values() if isinstance(att['obj'],Fairlead)]
         fl_locs.append(att[0].r)
-    from famodel.helpers import calculate_midpoint
-    midpoint = calculate_midpoint(fl_locs)
-    assert(midpoint==moor.rB)
+    from famodel.helpers import calc_midpoint
+    midpoint = calc_midpoint(fl_locs)
+    assert_allclose(midpoint, moor.rB)
     # check 
     # check location of anchor is correct
-    u = np.array([np.cos(np.radians(moor.heading)),np.sin(np.radians(moor.heading))])
+    u = np.array([np.cos(np.radians(90-moor.heading)),np.sin(np.radians(90-moor.heading))])
     anch_loc = np.hstack((np.array(midpoint[:2])+moor.span*u,-bridle_project.depth))
-    assert(anch_loc==moor.rA)
+    assert_allclose(anch_loc, moor.rA)
     
     
 

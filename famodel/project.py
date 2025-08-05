@@ -536,7 +536,7 @@ class Project():
                                         reposition=False)
                         
                         anch = self.addAnchor(id=name, dd=ad, mass=mass)
-                        
+
                         # attach ends
                         moor.attachTo(anch, end='A')
                         if 'fairlead' in mySys[j]:
@@ -2210,15 +2210,16 @@ class Project():
             
                 if mooring.ss:  # plot with Subsystem if available
                     mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
-                                          Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')        
+                                          Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')    
+                elif mooring.parallels:
+                    for i in mooring.i_sec:
+                        sec = mooring.getSubcomponent(i)
+                        if hasattr(sec,'mpLine'):
+                            line = sec.mpLine
+                            line.drawLine2d(0,ax,color="k", 
+                                            Xuvec=[1,0,0], Yuvec=[0,1,0], 
+                                            label='Mooring Line')
                 else: # simple line plot
-                    # if len(mooring.subcons_B[0].attachments)>1:
-                    #     # there are fairleads, plot from their locations
-                    #     for i in mooring.i_sec:
-                    #         sec = mooring.getSubcomponent(i)
-                    #         ax.plot([sec.rA[0],sec.rB[0]],
-                    #                 [sec.rA[1],sec.rB[1]])
-                    # else:
                     ax.plot([mooring.rA[0], mooring.rB[0]], 
                             [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
                 
@@ -2541,6 +2542,19 @@ class Project():
                         line.color = [0.5,0.5,0.5]
                     line.lw = lw
                 mooring.ss.drawLine(0, ax, color='self')
+            elif mooring.parallels:
+                for i in mooring.i_sec:
+                    sec = mooring.getSubcomponent(i)
+                    if hasattr(sec,'mpLine'):
+                        line = sec.mpLine
+                        if 'chain' in line.type['material']:
+                            line.color = 'k'
+                        elif 'polyester' in line.type['material']:
+                            line.color = [.3,.5,.5]
+                        else:
+                            line.color = [0.5,0.5,0.5]
+                        line.lw = lw
+                        line.drawLine(0,ax,color='self')
                         
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if fowt:
@@ -2651,12 +2665,12 @@ class Project():
                 # create subsystem
                 if pristineLines:
 
-                    mooring.createSubsystem(pristine=1, ms=self.ms)
+                    mooring.createSubsystem(pristine=True, ms=self.ms)
 
                     # set location of subsystem for simpler coding
                     ssloc = mooring.ss
                 else:
-                    mooring.createSubsystem(ms=self.ms)
+                    mooring.createSubsystem(pristine=False, ms=self.ms)
                     # set location of subsystem for simpler coding
                     ssloc = mooring.ss_mod
                 
@@ -2670,20 +2684,27 @@ class Project():
                     # up ideas for code consolidation later.
                     
                     subcom = mooring.subcomponents[-att['end']]  # check what's on the end of the mooring
-                    
+
                     if isinstance(subcom, list):  # bridle case
                         print('This case not implemented yet')
                         breakpoint()
-                    elif isinstance(subcom, Edge):
-                        anchor.mpAnchor.attachLine(subcom.mpLine.number, att['end'])
                     elif isinstance(subcom, Node):
-                        # The end is a node, eventually could attach it to the anchor if there's an r_rel
-                        pass
+                        # TODO: get rel dist from connector to anchor
+                        # for now, just assume 0 rel dist until anchor lug objects introduced
+                        r_rel = [0,0,0]
+                        subcom.mpConn.type = 1
+                        # attach anchor body to subcom connector point
+                        anchor.mpAnchor.attachPoint(subcom.mpConn.number,r_rel)
                         # (the section line object(s) should already be attached to this point)
                     #TODO >>> still need to handle possibility of anchor bridle attachment, multiple anchor lugs, etc. <<<
                 
                 else:  # Original case with Subsystem
-                    anchor.mpAnchor.attachLine(ssloc.number, att['end'])
+                    # need to create "dummy" point to connect to anchor body
+                    point = self.ms.addPoint(1,anchor.r)
+                    # attach dummy point to anchor body
+                    anchor.mpAnchor.attachPoint(point.number,[0,0,0])
+                    # now attach dummy point to line
+                    point.attachLine(ssloc.number, att['end'])
                 
                 # Check for fancy case of any lugs (nodes) attached to the anchor
                 if any([ isinstance(a['obj'], Node) for a in anchor.attachments.values()]):
@@ -2749,7 +2770,8 @@ class Project():
             check = 1  # temporary approach to identify shared lines <<<
             for j in self.anchorList: # j is key (name) of anchor object
                 if mkey in self.anchorList[j].attachments: # check if line has already been put in ms
-                    check = 0     
+                    check = 0 
+                    break
             if check == 1: # mooring object not in any anchor lists
                 # new shared line
                 # create subsystem for shared line
@@ -2813,9 +2835,9 @@ class Project():
                         else:  # normal serial/subsystem case
                             
                             if ki==0:
-                                rEnd = self.rA
+                                rEnd = mooring.rA
                             else:
-                                rEnd = self.rB
+                                rEnd = mooring.rB
                             
                             # add fairlead point A and attach the line to it
                             point = self.ms.addPoint(1, rEnd)
@@ -3875,7 +3897,7 @@ class Project():
             dictionary of safety factors for mooring line tensions for each turbine
 
         '''
-            
+   
         # get angles to iterate over
         angs = np.arange(0,360+ang_spacing,ang_spacing)
         n_angs = len(angs)
@@ -3914,11 +3936,27 @@ class Project():
                     atts = [att['obj'] for att in anch.attachments.values()]
                     F1 = [None]*len(atts)
                     for jj,moor in enumerate(atts):
+                        if moor.parallels:
+                            raise Exception('arrayWatchCircle not set up yet to work with parallels')
                         if isinstance(moor.attached_to[0],Anchor):
                             # anchor attached to end A
-                            F1[jj] = moor.ss.fA*DAF
+                            if moor.ss:
+                                F1[jj] = moor.ss.fA*DAF
+                            else:
+                                secs = []
+                                for c in range(len(moor.subcons_A)):
+                                    secs.append(moor.getSubcomponent(moor.i_sec[c]))
+                                F1[jj] = np.max([sec.mpLine.fA*DAF for sec in secs])
                         else:
-                            F1[jj] = moor.ss.fB*DAF
+                            if moor.ss:
+                                F1[jj] = moor.ss.fB*DAF
+                            else:
+                                secs = []
+                                for c in range(len(moor.subcons_B)):
+                                    secs.append(moor.getSubcomponent(moor.i_sec[-c]))
+                                largest = np.max([np.linalg.norm(sec.fB) for sec in secs])
+                                F1[jj] = np.max([sec.mpLine.fB for sec in secs])*DAF
+
                     # add up all tensions on anchor in each direction (x,y,z)
                     F2 = [sum([a[0] for a in F1]),sum([a[1] for a in F1]),sum([a[2] for a in F1])]
                     H = np.hypot(F2[0],F2[1]) # horizontal force
@@ -3934,15 +3972,29 @@ class Project():
                             
                 # get tensions on mooring line
                 for j, moor in enumerate(self.mooringList.values()):
-                    MBLA = float(moor.ss.lineList[0].type['MBL'])
-                    MBLB = float(moor.ss.lineList[-1].type['MBL'])
+                    if moor.ss:                        
+                        MBLA = float(moor.ss.lineList[0].type['MBL'])
+                        MBLB = float(moor.ss.lineList[-1].type['MBL'])
+                    else:
+                        secsA = []; secsB = []
+                        for c in range(len(moor.subcons_A)):
+                            secsA.append(moor.getSubcomponent(moor.i_sec[c]))
+                        for c in range(len(moor.subcons_B)):
+                            secsB.append(moor.getSubcomponent(moor.i_sec[-c]))
+                        MBLA = np.min([float(sec['MBL']) for sec in secsA])
+                        MBLB = np.min([float(sec['MBL']) for sec in secsB])
+                        
                     # print(MBLA,MBLB,moor.ss.TA,moor.ss.TB,MBLA/moor.ss.TA,MBLB/moor.ss.TB,abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB))
                     MTSF = min([abs(MBLA/(moor.ss.TA*DAF)),abs(MBLB/(moor.ss.TB*DAF))])
                     # atenMax[j], btenMax[j] = moor.updateTensions()
                     if not minTenSF[j] or minTenSF[j]>MTSF:
                         minTenSF[j] = deepcopy(MTSF)
-                        moor.loads['TAmax'] = moor.ss.TA*DAF
-                        moor.loads['TBmax'] = moor.ss.TB*DAF
+                        if moor.ss:
+                            moor.loads['TAmax'] = moor.ss.TA*DAF
+                            moor.loads['TBmax'] = moor.ss.TB*DAF
+                        else:
+                            moor.loads['TAmax'] = np.max([sec.TA for sec in secsA])*DAF
+                            moor.loads['TBmax'] = np.max([sec.TB for sec in secsB])*DAF
                         moor.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
                         moor.safety_factors['tension'] = minTenSF[j]
                         moor.safety_factors['analysisType'] = 'quasi-static (MoorPy)'

@@ -67,7 +67,7 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, fairlead] 
         data:
-          - [  rope_1,   45 ,    suction_pile1,   [4,5] ]
+          - [  rope_1_bridle,   45 ,    suction_pile1,   [4,5] ]
           - [  rope_1,  135 ,    suction_pile1,   2 ]
           
     ms3: 
@@ -89,6 +89,23 @@ mooring_systems:
 
 # Mooring line configurations
 mooring_line_configs:
+
+    rope_1_bridle:  # mooring line configuration identifier
+    
+        name: rope configuration 1  # descriptive name
+        
+        span: 1131.37
+
+        
+        sections:                 #in order from anchor to fairlead
+          - type: rope       # ID of a mooring line section type
+            length: 1170            # [m] usntretched length of line section
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+          - subsections:
+            - - type: chain_155mm
+                length: 20
+            - - type: chain_155mm
+                length: 20
     
     rope_1:  # mooring line configuration identifier
     

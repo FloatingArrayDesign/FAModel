@@ -274,7 +274,7 @@ class Mooring(Edge):
                 self.heading = heading
             else:
                 self.heading = np.degrees(heading)
-
+        #breakpoint()
         phi = np.radians(90-self.heading) # heading in x-y radian convention [rad] (CONVERTS FROM COMPASS HEADINGS!)
         # heading 2D unit vector
         u = np.array([np.cos(phi), np.sin(phi)])
@@ -336,7 +336,7 @@ class Mooring(Edge):
         else: # otherwise just set the anchor position based on a set spacing (NEED TO UPDATE THE ANCHOR DEPTH AFTER!)
             if not fairs:          
                 xy_loc = self.rB[:2] + self.span*u #r_centerB[:2] + (self.span + rad_fair[1])*u
-            else:
+            else:  
                 xy_loc = calc_midpoint([sub.r[:2] for sub in self.subcons_B]) + self.span*u
             if project:
                 self.dd['zAnchor'] = -project.getDepthAtLocation(xy_loc[0],xy_loc[1])
@@ -356,6 +356,9 @@ class Mooring(Edge):
                 att.r = iend
                 if att.mpAnchor:
                     att.mpAnchor.r = att.r
+                    
+        # reposition the subcomponents           
+        self.positionSubcomponents()
             
     
     
@@ -486,20 +489,21 @@ class Mooring(Edge):
         if not dd:
             dd = self.dd
         
+        # get list of sections and connectors, send in dd in case it is not from self.dd
+        secs = self.sections(dd)
+        conns = self.connectors(dd)
+        
         if self.parallels:  # make parts of a MoorPy system
             
             if not ms:
                 raise Exception('A MoorPy system (ms) must be provided for a Mooring with parallel/bridle parts.')
-            
             # Make Points
-            for i in self.i_con:
+            for con in conns:
                 # >>> leah had some checks here that I didn't understand <<<
-                con = self.getSubcomponent(i)
                 con.makeMoorPyConnector(ms)
                             
             # Make Lines
-            for i in self.i_sec:
-                sec = self.getSubcomponent(i)
+            for sec in secs:
                 sec.makeMoorPyLine(ms) # this also will connect the Lines to Points
         
         else:
@@ -512,14 +516,9 @@ class Mooring(Edge):
             lengths = []
             types = []
             # run through each line section and collect the length and type
-            for i in self.i_sec:
-                sec = self.getSubcomponent(i)
+            for sec in secs:
                 lengths.append(sec['L'])
                 types.append(sec['type']) # list of type names
-            
-            conns = []
-            for i in self.i_con:
-                conns.append(self.getSubcomponent(i))
             
             
             # make the lines and set the points 
@@ -536,7 +535,7 @@ class Mooring(Edge):
                 startNum = 0 
 
             for i in range(startNum,len(ss.pointList)): 
-                conn = self.getSubcomponent(self.i_con[i])                             
+                conn = conns[i]                             
                 conn.mpConn = ss.pointList[i]
                 conn.mpConn.CdA = conns[i]['CdA']
                 conn.getProps()
@@ -567,7 +566,6 @@ class Mooring(Edge):
         approximate positions relative to the endpoints based on the 
         section lengths.'''
         
-        print('positionSubcomponents!!!')
         
         # Tabulate the section lengths
         L = []
@@ -598,19 +596,18 @@ class Mooring(Edge):
             elif isinstance(item, Edge):
                 L.append(item['L'])  # save length of section
         
-        print(f'There are {n_serial_nodes} serial nodes')
         
         # Position nodes along main serial string between rA and rB
         Lsum = np.cumsum(np.array(L))
         j = 0  # index of node along serial string (at A is 0)
-        
+
         for i, item in enumerate(self.subcomponents):
             if isinstance(item, list) or isinstance(item, Edge):
                 j = j+1  # note that we're moving a certain length along the string
             
             # if it's a node, but not the first or last one
             elif isinstance(item, Node) and i > 0 and i < len(self.subcomponents)-1:
-                r = self.rA + (self.rB-self.rA)*Lsum[j]/Lsum[-1]
+                r = self.rA + (self.rB-self.rA)*Lsum[j-1]/Lsum[-1]
                 item.setPosition(r)
                 print(f'Set position of subcom {i} to {r[0]:5.0f}, {r[1]:5.0f}, {r[2]:5.0f}')
         
@@ -820,7 +817,8 @@ class Mooring(Edge):
         #     oldLine = project.mooringListPristine[idx]
         # else: # use current mooring object
         #     oldLine = self
-        
+        if self.parallels:
+            raise Exception('addMarineGrowth not set up to work with parallels at this time')
         # create a reference subsystem if it doesn't already exist
         if not self.ss:
             self.createSubsystem()     
@@ -837,7 +835,7 @@ class Mooring(Edge):
         changeDepths = [] # index of list that has the corresponding changeDepth
         
         # set first connector
-        connList.append(self.dd['connectors'][0])
+        connList.append(self.connectors()[0])
         # go through each line section
         for i in range(0,len(oldLine.lineList)):
             slthick = [] # mg thicknesses for the section (if rA is above rB, needs to be flipped before being added to full subsystem list LThick)
@@ -943,7 +941,7 @@ class Mooring(Edge):
                 Lengths.append(ssLine.L)
                 
             # add connector at end of section to list
-            connList.append(self.dd['connectors'][i+1])
+            connList.append(self.connectors()[i+1])
                 
         # Set up list variables for pristine line info
         EA = []
@@ -1065,8 +1063,11 @@ class Mooring(Edge):
         
         # fill out rest of new design dictionary
         nd1 = deepcopy(self.dd)
-        nd1['sections'] = nd
-        nd1['connectors'] = connList
+        nd1['subcomponents'] = [None]*(len(nd)*2+1)
+        for i in range(len(nd)):
+            nd1['subcomponents'][2*i] = connList[i]
+            nd1['subcomponents'][2*i+1] = nd[i]
+        nd1['subcomponents'][2*i+2] = connList[i+1]
         
         # call createSubsystem() to make moorpy subsystem with marine growth
         if self.shared:
@@ -1346,6 +1347,38 @@ class Mooring(Edge):
                 id = 'C'+str(i)
                 subs_list[i] = self.addConnector(sub, [i], id=id, insert=False)
                 self.i_con.append([i])
+                
+    def sections(self, dd=None):
+        '''
+        returns list of sections in the mooring
+        '''
+        secs = []
+        # allow option to input dict of subcomponents and pull sections from that
+        if dd:
+            for sub in dd['subcomponents']:
+                if 'L' in sub:                    
+                    secs.append(sub)
+        else:
+            for i in self.i_sec:
+                secs.append(self.getSubcomponent(i))
+            
+        return secs
+            
+    def connectors(self, dd=None):
+        '''
+        returns list of connectors in the mooring
+        '''
+        conns = []
+        # allow option to input dict of subcomponents and pull sections from that
+        if dd:
+            for sub in dd['subcomponents']:
+                if not 'L' in sub:                    
+                    conns.append(sub)
+        else:
+            for i in self.i_con:
+                conns.append(self.getSubcomponent(i))
+            
+        return conns
     
     # def convertSubcomponents(self,subs_list, level=0, index=[0]):
     #     ind = index

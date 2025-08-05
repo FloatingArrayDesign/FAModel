@@ -9,6 +9,7 @@ from copy import deepcopy
 from famodel.cables.cable import Cable
 from famodel.anchors.anchor import Anchor
 from famodel.cables.cable import DynamicCable
+from famodel.famodel_base import Node, Edge
 
 class Platform(Node):
     '''
@@ -85,7 +86,7 @@ class Platform(Node):
                 self.phi = np.radians(heading)
             else:
                 self.phi = heading
-        # send in cartesian heading to node.setPosition (+ rotations CCW here)    
+        # send in cartesian heading to node.setPosition (+ rotations CCW here)
         Node.setPosition(self, r, theta=-self.phi)
         # then also adjust the anchor points
 
@@ -138,23 +139,20 @@ class Platform(Node):
         
         # check if the subsystems were passed in from the function call
         if not mList:
-            mList = []
-            for i in self.attachments:
-                if isinstance(self.attachments[i]['obj'],Mooring):
-                    mList.append(self.attachments[i]['obj'])
+            mList = [moor for moor in self.getMoorings().values()]
             
         if project and len(project.grid_depth) > 1:
-            # calculate the maximum anchor spacing
-            anchor_spacings = [np.linalg.norm(mooring.rA[0:2] - self.r[:2]) for mooring in mList]
-            # get the bathymetry range that is related to this platform
-            margin = 1.2
-            small_grid_x = np.linspace((self.r[0] - np.max(anchor_spacings)*margin), (self.r[0] + np.max(anchor_spacings)*margin), 10)
-            small_grid_y = np.linspace((self.r[1] - np.max(anchor_spacings)*margin), (self.r[1] + np.max(anchor_spacings)*margin), 10)
-            # interpolate the global bathymetry
-            small_grid_depths = np.zeros([len(small_grid_y), len(small_grid_x)])
-            for i,x in enumerate(small_grid_x):
-                for j,y in enumerate(small_grid_y):
-                    small_grid_depths[j,i] = project.getDepthAtLocation(x, y)
+            # # calculate the maximum anchor spacing
+            # anchor_spacings = [np.linalg.norm(mooring.rA[0:2] - self.r[:2]) for mooring in mList]
+            # # get the bathymetry range that is related to this platform
+            # margin = 1.2
+            # small_grid_x = np.linspace((self.r[0] - np.max(anchor_spacings)*margin), (self.r[0] + np.max(anchor_spacings)*margin), 10)
+            # small_grid_y = np.linspace((self.r[1] - np.max(anchor_spacings)*margin), (self.r[1] + np.max(anchor_spacings)*margin), 10)
+            # # interpolate the global bathymetry
+            # small_grid_depths = np.zeros([len(small_grid_y), len(small_grid_x)])
+            # for i,x in enumerate(small_grid_x):
+            #     for j,y in enumerate(small_grid_y):
+            #         small_grid_depths[j,i] = project.getDepthAtLocation(x, y)
             #self.ms = mp.System(bathymetry=dict(x=small_grid_x, y=small_grid_y, depth=small_grid_depths))
             self.ms = mp.System(bathymetry=dict(x=project.grid_x, y=project.grid_y, depth=project.grid_depth))
         
@@ -167,49 +165,113 @@ class Platform(Node):
         r6 = [self.r[0],self.r[1],self.r[2],0,0,0]
         # create body
         if bodyInfo:
-            self.ms.addBody(0,r6,m=bodyInfo['m'],v=bodyInfo['v'],rCG=np.array(bodyInfo['rCG']),rM=np.array(bodyInfo['rM']),AWP=bodyInfo['AWP'])
+            body = self.ms.addBody(0,r6,m=bodyInfo['m'],v=bodyInfo['v'],rCG=np.array(bodyInfo['rCG']),rM=np.array(bodyInfo['rM']),AWP=bodyInfo['AWP'])
         else:
-            self.ms.addBody(0,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
+            body = self.ms.addBody(0,r6,m=19911423.956678286,rCG=np.array([ 1.49820657e-15,  1.49820657e-15, -2.54122031e+00]),v=19480.104108645974,rM=np.array([2.24104273e-15, 1.49402849e-15, 1.19971829e+01]),AWP=446.69520543229874)
         
         if rotateBool:
             # rotation
             self.setPosition(self.r)
         
         # make mooring system from subsystems
-        for i,attID in enumerate(self.attachments):
-        
-            # only process moorings that have subsystems for now
+        for i,mooring in enumerate(mList):
             
-            if type(self.attachments[attID]['obj']) == Mooring:
-                mooring = self.attachments[attID]['obj']
-                if mooring.ss:
-                    ssloc = mooring.ss
-                else:
-                    ssloc = mooring.createSubsystem()
+            if mooring.ss and not mooring.parallels:
+                ssloc = mooring.ss
+                self.ms.lineList.append(ssloc)
+            else:
+                ssloc = mooring.createSubsystem(ms=self.ms)
+            
+            if ssloc:  # only proceed it's not None
+                '''
+                # add subsystem as a line to the linelist
+                self.ms.lineList.append(ssloc)
+                ssloc.number = i+1
+                '''
+                for j,att in enumerate(mooring.attached_to):
+                    if isinstance(att,Anchor):
+                        # check whether a moorpy anchor object exists for this mooring line
+                        # if not att.mpAnchor:
+                        # create anchor moorpy object
+                        att.makeMoorPyAnchor(self.ms)
+                        if mooring.parallels:
+                            subcom = mooring.subcomponents[j]  # check what's on the end of the mooring
+
+                            if isinstance(subcom, list):  # bridle case
+                                print('This case not implemented yet')
+                                breakpoint()
+                            elif isinstance(subcom, Node):
+                                # TODO: get rel dist from connector to anchor
+                                # for now, just assume 0 rel dist until anchor lug objects introduced
+                                r_rel = [0,0,0]
+                                # attach anchor body to subcom connector point
+                                subcom.mpConn.type = 1
+                                att.mpAnchor.attachPoint(subcom.mpConn.number,r_rel)
+                        else:                            
+                            # need to create "dummy" point to connect to anchor body
+                            point = self.ms.addPoint(1,att.r)
+                            # attach dummy point to anchor body
+                            att.mpAnchor.attachPoint(point.number,[0,0,0])
+                            # now attach dummy point to line
+                            point.attachLine(ssloc.number, j)
+                            
+                    elif isinstance(att,Platform):
+                        # attach rB point to platform 
+                        if mooring.parallels:  # case with paralles/bridles
+                            
+                            # Look at end B object(s)
+                            subcom = mooring.subcomponents[-1]
+                        
+                            if isinstance(subcom, list):  # bridle case
+                                for parallel in subcom:
+                                    subcom2 = parallel[-1]  # end subcomponent of the parallel path
+                                    
+                                    # Code repetition for the moment:
+                                    if isinstance(subcom2, Edge):
+                                        r = subcom2.attached_to[1].r # approximate end point...?
+                                        point = self.ms.addPoint(1, r)
+                                        body.attachPoint(point.number, r-att.r)
+                                        point.attachLine(subcom2.mpLine.number, 1)  # attach the subcomponent's line object end B
+                                        
+                                    elif isinstance(subcom2, Node):
+                                        r = subcom2.r # approximate end point...?
+                                        subcom2.mpConn.type = 1
+                                        pnum = subcom2.mpConn.number
+                                        body.attachPoint(pnum, r-att.r)
+                            
+                            elif isinstance(subcom, Edge):
+                                r = subcom.attached_to[1].r # approximate end point...?
+                                point = self.ms.addPoint(1, r)
+                                body.attachPoint(point.number, r-att.r)
+                                point.attachLine(subcom.mpLine.number, 1)  # attach the subcomponent's line object end B
+                                
+                            elif isinstance(subcom, Node):
+                                r = subcom.r # approximate end point...?
+                                subcom.mpConn.type = 1
+                                pnum = subcom.mpConn.number
+                                body.attachPoint(pnum, r-att.r)
+                                # (the section line object(s) should already be attached to this point)
+
+                            
+                        else:  # normal serial/subsystem case
+                            # add fairlead point
+                            point = self.ms.addPoint(1,ssloc.rB)
+                            # add connector info for fairlead point
+                            # >>> MH: these next few lines might result in double counting <<<
+                            point.m = ssloc.pointList[-1].m 
+                            point.v = ssloc.pointList[-1].v
+                            point.CdA = ssloc.pointList[-1].CdA
+                            # attach the line to point
+                            point.attachLine(ssloc.number,j)
+                            body.attachPoint(point.number, ssloc.rB-att.r) # attach to fairlead (need to subtract out location of platform from point for subsystem integration to work correctly)
                 
-                if ssloc:  # only proceed it's not None
-                    '''
-                    # add subsystem as a line to the linelist
-                    self.ms.lineList.append(ssloc)
-                    ssloc.number = i+1
-                    '''
-                    for att in mooring.attached_to:
-                        if isinstance(att,Anchor):
-                            # check whether a moorpy anchor object exists for this mooring line
-                            # if not att.mpAnchor:
-                            # create anchor moorpy object
-                            att.makeMoorPyAnchor(self.ms)
-                            # else:
-                            #     # add anchor point from anchor class and fairlead point adjusted to include location offsets, attach subsystem
-                            #     self.ms.pointList.append(att.mpAnchor) # anchor
-                            # attach subsystem line to the anchor point
-                            self.ms.pointList[-1].attachLine(i,0)
-                            # add fairlead point as a coupled point
-                            self.ms.addPoint(1,ssloc.rB)
-                            # attach subsystem line to the fairlead point
-                            self.ms.pointList[-1].attachLine(i,1)
-                            # attach fairlead point to body
-                            self.ms.bodyList[0].attachPoint(len(self.ms.pointList),self.ms.pointList[-1].r-np.append(self.r[:2], [0]))
+
+                        # # add fairlead point as a coupled point
+                        # self.ms.addPoint(1,ssloc.rB)
+                        # # attach subsystem line to the fairlead point
+                        # self.ms.pointList[-1].attachLine(i,1)
+                        # # attach fairlead point to body
+                        # self.ms.bodyList[0].attachPoint(len(self.ms.pointList),self.ms.pointList[-1].r-np.append(self.r[:2], [0]))
         # initialize and plot
         self.ms.initialize()
         self.ms.solveEquilibrium()
