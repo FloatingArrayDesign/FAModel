@@ -25,13 +25,13 @@ import matplotlib.pyplot as plt
 dir = os.path.dirname(os.path.realpath(__file__))
 
 # set yaml file location and name
-ontology_file = 'OntologySample200m.yaml'
+ontology_file = "OntologySample200m.yaml"
 
 #%% Section 1: Project without RAFT
 print('Creating project without RAFT\n')
 print(os.getcwd())
 # create project object
-project = Project(file=os.path.join(dir,ontology_file),raft=False)
+project = Project(file=os.path.join(dir, ontology_file), raft=False)
 # create moorpy system of the array, include cables in the system
 project.getMoorPyArray(cables=True)
 # plot in 3d, using moorpy system for the mooring and cable plots
