@@ -22,9 +22,6 @@ from famodel.project import Project
 import os
 import matplotlib.pyplot as plt
 
-dir = os.path.dirname(os.path.realpath(__file__))
-os.chdir(dir)
-
 # set yaml file location and name
 ontology_file = "OntologySample200m.yaml"
 
