@@ -39,7 +39,7 @@ project.plot3d()
 #%% Section 2: Project with RAFT
 print('\nCreating project with RAFT \n')
 #create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
-project = Project(file=dir+ontology_file,raft=True)
+project = Project(file=ontology_file,raft=True)
 # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
 project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False,save=True)
 
