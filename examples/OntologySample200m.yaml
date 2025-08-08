@@ -30,7 +30,7 @@ site:
             -[x2, y2]
     
     bathymetry:
-        file:   './bathymetry200m_sample.txt'
+        file:   'bathymetry200m_sample.txt'
     
     seabed:
       x : [-10901,    0,  10000]

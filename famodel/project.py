@@ -154,13 +154,18 @@ class Project():
             #     if not project:
             #         raise Exception(f'File {file} does not exist or cannot be read. Please check filename.')
             project = loadYAML(info)
+            
+            # save directory of main yaml for use when reading linked files
+            dir = os.path.dirname(os.path.abspath(info))  
+            
         else:
             project = info
+            dir = ''
         
         # look for site section
         # call load site method
         if 'site' in project:
-            self.loadSite(project['site'])
+            self.loadSite(project['site'], dir=dir)
         
         # look for design section
         # call load design method
@@ -954,10 +959,13 @@ class Project():
 
     # ----- Site conditions processing functions -----
 
-    def loadSite(self, site):
+    def loadSite(self, site, dir=''):
         '''Load site information from a dictionary or YAML file
         (specified by input). This should be the site portion of
-        the floating wind array ontology.'''
+        the floating wind array ontology.
+        
+        site : portion of project dict
+        dir : optional directory of main yaml file'''
         # standard function to load dict if input is yaml
         
         # load general information
@@ -969,7 +977,13 @@ class Project():
         # load bathymetry information, if provided
         if 'bathymetry' in site and site['bathymetry']:
             if 'file' in site['bathymetry'] and site['bathymetry']['file']: # make sure there was a file provided even if the key is there
-                self.loadBathymetry(site['bathymetry']['file'])
+                filename = site['bathymetry']['file']
+                
+                # if it's a relative file location, specify the root directory
+                if not os.path.isabs(filename): 
+                    filename = os.path.join(dir, filename)
+                self.loadBathymetry(filename)
+                
             elif 'x' in site['bathymetry'] and 'y' in site['bathymetry']:
                 self.grid_x = np.array(site['bathymetry']['x'])
                 self.grid_y = np.array(site['bathymetry']['y'])
