@@ -1,0 +1,67 @@
+# list of capabilities (for vessels, ports, etc)
+# (Any vessel action list will be checked against this for validity)
+#
+#
+# (Any vessel capabilities will be checked against this list for validity)
+
+  - name: deck_space 
+    area : 0  # [m2]
+
+  - name: chain_locker
+    volume : 0 # ?
+
+  - name: rope_spool
+    volume: 0 # ?
+
+  - name: winch
+    force : 0 #  [t]
+
+  - name: bollard_pull 
+    force : 0 #  [t]
+
+  - name: crane
+    capacity : 0 #  [t]
+    height : 0 #  [m]
+
+  - name: stationkeeping
+    type : 'none'  # anchors, dp1 or dp2
+    capacity : 0   # [n]
+  
+  - name: pump 
+    power      : 0 # [kw] 
+    capacity   : 0 # [bar]
+    weight     : 0 # [t]
+    dimensions : 0 # [m]
+
+  - name: hammer
+    power  : 0 #  [kw]
+    capacity  : 0 #  [kj per blow]
+    weight  : 0 #  [t]
+    dimensions  : 0 #  [m]
+    
+  - name: drilling_socket_machine
+    power   : 0 # [kw]
+    weight   : 0 # [t]
+    dimensions   : 0 # [m]
+
+  - name: torque_machine
+    power   : 0 # [kw]
+    weight   : 0 # [t]
+    dimensions   : 0 # [m]
+
+  - name: grout_pump
+    power   : 0 # [kw]
+    weight   : 0 # [t]
+    dimensions   : 0 # [t]
+
+  - name: container # (used to host control of the power pack and sensors)
+    weight   : 0 # [t]
+    dimensions   : 0 # [m]
+
+  - name: ROV
+    weight   : 0 # [t]
+    dimensions   : 0 # [m]
+
+# - positioning equipment: accurate placement on the seabed (remote or proximity)
+# - monitoring equipment: assess installation performance
+# - sonar survey

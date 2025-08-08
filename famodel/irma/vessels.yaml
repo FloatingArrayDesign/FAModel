@@ -1,0 +1,33 @@
+# list of vessels
+#
+#
+
+- name: AHV1
+  vessel_type: AHV
+  actions:
+  - tow
+  #- sink
+  
+  
+  capabilities:
+  - name: deck_space 
+    area : 50  # [m2]
+
+  - name: chain_locker
+    volume : 10  ?
+
+  - name: bollard_pull 
+    force : 250 [t]
+  
+  - name: crane
+    #unsupported_param : 27  # error handling test
+    
+#  - name: unsupported   # error handling test
+#    weight   : 0 # [t]
+#    dimensions   : 0 # [m]
+
+
+- name: AHV2
+  vessel_type: AHV
+  capabilities: []
+  actions: []

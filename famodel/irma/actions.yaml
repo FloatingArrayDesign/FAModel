@@ -1,0 +1,60 @@
+# list of marine operations actions
+# (Any vessel action list will be checked against this for validity)
+#
+# 
+#
+#
+#
+
+tow:
+  function: tow  # name of the function to be called...
+  objects: [platform]  # what types of objects get acted on (must be passed in in order)
+  requirements: [AHV]  #  ??????
+  capabilities:  # to be provided by the vessels/requirements somehow... 
+    - deck_space 
+    - bollard_pull
+  duration: 5  # [hours]  default action duration (may be recalculated)
+
+mooring_hookup:
+  objects: 
+      mooring:
+        - pretension
+        #- depth
+        - weight
+        #- failme2
+      platform: []
+      #failme : []
+  duration: 2  # [hours]
+    
+  requirements:
+    - AHV
+  capabilities:
+    - deck_space
+    - bollard_pull
+
+
+
+load_mooring:  # move mooring from port or vessel onto vessel
+  objects: [mooring]
+  requirements: [port, vessel]
+  capabilities:
+    - deck_space
+    - bollard_pull
+
+lay_mooring:  # 
+  objects: [mooring]
+  requirements: [vessel]
+  capabilities:
+    - deck_space
+    - bollard_pull
+
+install_anchor:  # 
+  objects: [anchor]
+  requirements: [port, vessel]
+  capabilities:
+    - deck_space
+    - bollard_pull
+
+#load chain
+
+#load rope

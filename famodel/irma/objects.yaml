@@ -1,0 +1,26 @@
+# list of object types and attributes, a directory to ensure consistency
+# (Any object relations will be checked against this list for validity)
+
+mooring:   # object name
+  - length # list of supported attributes...
+  - pretension
+  - weight
+
+platform:
+  - mass
+  - draft
+  
+anchor:
+  - mass
+  - length
+  
+
+  
+  
+  
+#mooring:
+#  install sequence:
+#    ship out mooring
+#    lay mooring
+#    attach mooring-anchor  (ROV)
+#    hookup mooring-platform
