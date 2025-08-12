@@ -6,13 +6,16 @@
 
   - name: deck_space 
     area : 0  # [m2]
+    max_load : 0 # [t]
 
   - name: chain_locker
     volume : 0 # ?
 
   - name: rope_spool
     volume: 0 # ?
-
+    capacity: 0
+    speed: 0
+    
   - name: winch
     force : 0 #  [t]
 

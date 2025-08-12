@@ -39,6 +39,8 @@ from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamic
 import networkx as nx
 from action import Action, increment_name
 
+from assets import Vessel, Port
+
 
         
 def loadYAMLtoDict(info, already_dict=False):
@@ -99,7 +101,7 @@ class Scenario():
         
         actionTypes = loadYAMLtoDict('actions.yaml', already_dict=True)  # Descriptions of actions that can be done
         capabilities = loadYAMLtoDict('capabilities.yaml')
-        vessels = loadYAMLtoDict('vessels.yaml')
+        vessels = loadYAMLtoDict('vessels.yaml', already_dict=True)
         objects = loadYAMLtoDict('objects.yaml', already_dict=True)
         
         
@@ -108,21 +110,21 @@ class Scenario():
         # Make sure vessels don't use nonexistent capabilities or actions
         for key, ves in vessels.items():
             
-            if key != ves['name']:
-                raise Exception(f"Vessel key ({key}) contradicts its name ({ves['name']})")
+            #if key != ves['name']:
+            #    raise Exception(f"Vessel key ({key}) contradicts its name ({ves['name']})")
             
             # Check capabilities
             if not 'capabilities' in ves:
                 raise Exception(f"Vessel '{key}' is missing a capabilities list.")
                 
-            for cap in ves['capabilities']:
-                if not cap['name'] in capabilities:
-                    raise Exception(f"Vessel '{key}' capability '{cap['name']}' is not in the global capability list.")
+            for capname, cap in ves['capabilities'].items():
+                if not capname in capabilities:
+                    raise Exception(f"Vessel '{key}' capability '{capname}' is not in the global capability list.")
                 
                 # Could also check the sub-parameters of the capability
                 for cap_param in cap:
-                    if not cap_param in capabilities[cap['name']]:
-                        raise Exception(f"Vessel '{key}' capability '{cap['name']}' parameter '{cap_param}' is not in the global capability's parameter list.")
+                    if not cap_param in capabilities[capname]:
+                        raise Exception(f"Vessel '{key}' capability '{capname}' parameter '{cap_param}' is not in the global capability's parameter list.")
             
             # Check actions
             if not 'actions' in ves:
@@ -131,6 +133,7 @@ class Scenario():
             for act in ves['actions']:
                 if not act in actionTypes:
                     raise Exception(f"Vessel '{key}' action '{act}' is not in the global action list.")
+        
         
         # Make sure actions refer to supported object types/properties and capabilities
         for key, act in actionTypes.items():
@@ -260,6 +263,15 @@ class Scenario():
             plt.text(pos[last_node][0], pos[last_node][1] - 0.1, f"{total_duration:.2f} hr", fontsize=12, color='red', fontweight='bold', ha='center')          
         else:
             pass
+
+
+
+    def findCompatibleVessels(self):
+        '''Go through actions and identify which vessels have the required
+        capabilities (could be based on capability presence, or quantitative.
+        '''
+        
+        pass
 
 
 if __name__ == '__main__':

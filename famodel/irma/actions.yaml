@@ -41,6 +41,13 @@ load_mooring:  # move mooring from port or vessel onto vessel
     - deck_space
     - bollard_pull
 
+load_anchor:  # move anchor from port or vessel onto vessel
+  objects: [anchor]
+  requirements: [port, vessel]
+  capabilities:
+    - deck_space
+    - crane
+
 lay_mooring:  # 
   objects: [mooring]
   requirements: [vessel]
