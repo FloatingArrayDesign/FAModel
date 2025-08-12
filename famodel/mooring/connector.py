@@ -44,6 +44,7 @@ class Connector(Node, dict):
         # cost dictionary
         self.cost = {}
         
+        
         self.getProps()
     
     
@@ -149,6 +150,12 @@ class Section(Edge, dict):
         
         # MoorPy Line object for the section
         self.mpLine = None
+        
+        # dictionary of loads on section
+        self.loads = {}
+        
+        # dictionary of safety factors
+        self.safety_factors = {}
 
     
     def makeMoorPyLine(self, ms):

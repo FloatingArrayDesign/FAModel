@@ -122,7 +122,7 @@ class Cable(Edge):
         Parameters
         ----------
         headings : list, optional
-            List of headings associated with the platform/substation attached
+            List of absolute compass headings associated with the platform/substation attached
             to each end of the cable. The default is None.
         project : FAModel project object, optional
             FAModel project object associated with this cable, only used if 
@@ -139,11 +139,11 @@ class Cable(Edge):
         '''
         # reposition cable and set end points for the first and last cable sections (or the dynamic cable for a suspended cable)
         if not headings:
-            headingA = self.subcomponents[0].headingA - self.attached_to[0].phi
-            headingB = self.subcomponents[-1].headingB - self.attached_to[1].phi
+            headingA = np.pi/2 - self.subcomponents[0].headingA
+            headingB = np.pi/2 - self.subcomponents[-1].headingB
         else:
-            headingA = headings[0]
-            headingB = headings[1]
+            headingA = np.pi/2 - headings[0]
+            headingB = np.pi/2 - headings[1]
             
         if not isinstance(self.subcomponents[0].attached_to[0], Jtube):
             if not rad_fair:
@@ -153,7 +153,6 @@ class Cable(Edge):
                     rf = self.attached_to[0].rFair if self.attached_to[0] else 0
                 else:
                     rf = rad_fair[0]
-
 
             # calculate fairlead locations
             Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rf, 

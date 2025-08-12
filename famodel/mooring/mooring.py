@@ -274,7 +274,7 @@ class Mooring(Edge):
                 self.heading = heading
             else:
                 self.heading = np.degrees(heading)
-        #breakpoint()
+
         phi = np.radians(90-self.heading) # heading in x-y radian convention [rad] (CONVERTS FROM COMPASS HEADINGS!)
         # heading 2D unit vector
         u = np.array([np.cos(phi), np.sin(phi)])
@@ -450,21 +450,20 @@ class Mooring(Edge):
         # sum up the costs in the dictionary and return
         return sum(self.cost.values())
     
-    def updateTensions(self):
+    def updateTensions(self, DAF=1):
         ''' Gets tensions from subsystem and updates the max tensions dictionary if it is larger than a previous tension
         '''
-        if not 'TAmax' in self.loads:
-            self.loads['TAmax'] = 0
-        if not 'TBmax' in self.loads:
-            self.loads['TBmax'] = 0
-        # get anchor tensions
-        if abs(self.ss.TA) > self.loads['TAmax']:
-            self.loads['TAmax'] = deepcopy(self.ss.TA)
-        # get TB tensions
-        if abs(self.ss.TB) > self.loads['TBmax']:
-            self.loads['TBmax'] = deepcopy(self.ss.TB)
+        Ts = []
+        # get tensions for each section
+        for sec in self.sections():
+            if not 'Tmax' in sec.loads:
+                sec.loads['Tmax'] = 0
+            Tmax = max([abs(sec.mpLine.TA), abs(sec.mpLine.TB)])
+            if Tmax*DAF > sec.loads['Tmax']:
+                sec.loads['Tmax'] = deepcopy(Tmax)*DAF
+            Ts.append(sec.loads['Tmax'])
             
-        return(self.loads['TAmax'],self.loads['TBmax'])
+        return max(Ts)
     
     
     def createSubsystem(self, case=0, pristine=True, dd=None, ms=None):
@@ -527,6 +526,11 @@ class Mooring(Edge):
                 suspended=case)
             ss.setEndPosition(self.rA,endB=0)
             ss.setEndPosition(self.rB,endB=1)
+            
+            for i,sec in enumerate(self.sections(dd)):
+                sec.mpLine = ss.lineList[i]
+            for i,con in enumerate(self.connectors(dd)):
+                con.mpConn = ss.pointList[i]
             
             # add in connector info to subsystem points
             if case == 0: # has an anchor - need to ignore connection for first point because anchor is a point itself so can't have a point attached to a point
@@ -609,7 +613,6 @@ class Mooring(Edge):
             elif isinstance(item, Node) and i > 0 and i < len(self.subcomponents)-1:
                 r = self.rA + (self.rB-self.rA)*Lsum[j-1]/Lsum[-1]
                 item.setPosition(r)
-                print(f'Set position of subcom {i} to {r[0]:5.0f}, {r[1]:5.0f}, {r[2]:5.0f}')
         
         
         
@@ -653,9 +656,6 @@ class Mooring(Edge):
                     
                     # --- Do the positioning ---
                     Lsum = np.cumsum(np.array(L))
-                    print(f'parallel string ends A and B are at')
-                    print(f'{rA[0]:5.0f}, {rA[1]:5.0f}, {rA[2]:5.0f}')
-                    print(f'{rB[0]:5.0f}, {rB[1]:5.0f}, {rB[2]:5.0f}')
                     
                     for subitem in parallel:
                         if isinstance(subitem, Edge):
@@ -666,11 +666,9 @@ class Mooring(Edge):
                             if j > 0 and j < n_serial_nodes-1:
                                 r = rA + (rB-rA)*Lsum[j]/Lsum[-1]
                                 item.setPosition(r)
-                                print(f'Set position of Node {j} to {r[0]:5.0f}, {r[1]:5.0f}, {r[2]:5.0f}')
                             else:
                                 print('end of parallel')
                                 breakpoint()
-                                print('yep')
     
     def mirror(self,create_subsystem=True):
         ''' Mirrors a half design dictionary. Useful for symmetrical shared mooring lines where 
@@ -1065,9 +1063,9 @@ class Mooring(Edge):
         nd1 = deepcopy(self.dd)
         nd1['subcomponents'] = [None]*(len(nd)*2+1)
         for i in range(len(nd)):
-            nd1['subcomponents'][2*i] = connList[i]
-            nd1['subcomponents'][2*i+1] = nd[i]
-        nd1['subcomponents'][2*i+2] = connList[i+1]
+            nd1['subcomponents'][2*i] = Connector('C'+str(i),**connList[i])
+            nd1['subcomponents'][2*i+1] = Section('S'+str(i),**nd[i])
+        nd1['subcomponents'][2*i+2] = Connector('C'+str(i),**connList[i+1])
         
         # call createSubsystem() to make moorpy subsystem with marine growth
         if self.shared:
@@ -1358,6 +1356,14 @@ class Mooring(Edge):
             for sub in dd['subcomponents']:
                 if 'L' in sub:                    
                     secs.append(sub)
+                elif isinstance(sub, list):
+                    for subsub in sub:
+                        if isinstance(subsub, list):
+                            for sss in subsub:
+                                if 'L' in sss:
+                                    secs.append(sss)
+                        elif 'L' in sss:
+                            secs.append(subsub)
         else:
             for i in self.i_sec:
                 secs.append(self.getSubcomponent(i))
@@ -1372,8 +1378,16 @@ class Mooring(Edge):
         # allow option to input dict of subcomponents and pull sections from that
         if dd:
             for sub in dd['subcomponents']:
-                if not 'L' in sub:                    
+                if not 'L' in sub and isinstance(sub, dict):                    
                     conns.append(sub)
+                elif isinstance(sub, list):
+                    for subsub in sub:
+                        if isinstance(subsub, list):
+                            for sss in subsub:
+                                if not 'L' in sss and isinstance(sss, dict):
+                                    conns.append(sss)
+                        elif not 'L' in sss and isinstance(sss, dict):
+                            conns.append(subsub)
         else:
             for i in self.i_con:
                 conns.append(self.getSubcomponent(i))
