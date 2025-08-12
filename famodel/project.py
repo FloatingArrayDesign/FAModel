@@ -757,8 +757,9 @@ class Project():
                         # this is a suspended cable - add headingB
                         Acondd['headingB'] = np.radians(cab['headingB']) + B_phi
                     
-                    rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
-                    Acondd['rJTube'] = rJTubeA
+                    if 'rJTube' in dyn_cable_configs[dyn_cabA]:
+                        rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube'] 
+                        Acondd['rJTube'] = rJTubeA
                     dd['cables'].append(Acondd)
                     # get conductor area to send in for static cable
                     A = Acondd['A']
@@ -776,9 +777,9 @@ class Project():
                                                       cable_types, cable_appendages,
                                                       self.depth, rho_water=self.rho_water, 
                                                       g=self.g)
-                    
-                    rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
-                    Bcondd['rJTube'] = rJTubeB
+                    if 'rJTube' in dyn_cable_configs[dyn_cabB]:
+                        rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
+                        Bcondd['rJTube'] = rJTubeB
                     # add heading for end A to this cable
                     Bcondd['headingB'] = np.radians(arrayCableInfo[i]['headingB']) + B_phi
                     dd['cables'].append(Bcondd)
@@ -853,8 +854,9 @@ class Project():
                        
                     # add headingA
                     Acondd['headingA'] = np.radians(cab['endA']['heading']) + A_phi
-                    rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
-                    Acondd['rJTube'] = rJTubeA
+                    if 'rJTube' in dyn_cable_configs[dyn_cabA]:
+                        rJTubeA = dyn_cable_configs[dyn_cabA]['rJTube']
+                        Acondd['rJTube'] = rJTubeA
                     # append to cables list
                     dd['cables'].append(Acondd)
                     
@@ -883,9 +885,9 @@ class Project():
                                                       g=self.g)
                     # add headingB
                     Bcondd['headingB'] = np.radians(cab['endB']['heading']) + B_phi
-                    
-                    rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
-                    Bcondd['rJTube'] = rJTubeB
+                    if 'rJTube' in dyn_cable_configs[dyn_cabB]:
+                        rJTubeB = dyn_cable_configs[dyn_cabB]['rJTube']
+                        Bcondd['rJTube'] = rJTubeB
                     # append to cables list
                     dd['cables'].append(Bcondd)
                     # append to joints list
