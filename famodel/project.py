@@ -2193,6 +2193,8 @@ class Project():
                 X, Y = np.meshgrid(self.grid_x, self.grid_y)
                 
                 contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
+                #contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=500, vmax=1300)
+                # >>>> TODO: Update the above to add optional inputs for bounds (vmin/vmax) on contour plot colors for bathymetry <<<<
             
                 if not bare:  # Add colorbar with label
                     cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)')
