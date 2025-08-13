@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from .support_soils import clay_profile
 from .support_plots import plot_plate
 
-def getCapacityPlate(profile_map, location_name, B, L, zlug, beta, Ha, Va, plot=False):
+def getCapacityPlate(profile_map, location_name, B, L, zlug, beta, Ha, Va, plot=False, display=0):
     '''Calculate the plate anchor capacity using clay soil layers from profile_map.
     The calculation is based on the soil profile, anchor geometry and inclined load.
 
@@ -47,8 +47,8 @@ def getCapacityPlate(profile_map, location_name, B, L, zlug, beta, Ha, Va, plot=
         profile.append([layer['top'], layer['gamma_top'], layer['Su_top']])
         profile.append([layer['bottom'], layer['gamma_bot'], layer['Su_bot']])
         
-    print("layer gamma_top (raw):", layer['gamma_top'])
-    print("layer gamma_bot (raw):", layer['gamma_bot'])
+    if display > 0: print("layer gamma_top (raw):", layer['gamma_top'])
+    if display > 0: print("layer gamma_bot (raw):", layer['gamma_bot'])
 
     profile = np.array(sorted(profile, key=lambda x: x[0]))
 
@@ -75,13 +75,13 @@ def getCapacityPlate(profile_map, location_name, B, L, zlug, beta, Ha, Va, plot=
     Su = np.mean(Su_vals); print(f"Su: {Su:.2f} Pa")
     gamma = np.mean(gamma_vals); print(f"gamma: {gamma:.2f} N/m3")
     
-    print("Profile being sent to clay_profile():")
+    if display > 0: print("Profile being sent to clay_profile():")
     for row in profile:
-        print(f"z = {row[0]:.2f} m, gamma = {row[1]:.2f} kN/m³, Su = {row[2]:.2f} kPa")
+        if display > 0: print(f"z = {row[0]:.2f} m, gamma = {row[1]:.2f} kN/m³, Su = {row[2]:.2f} kPa")
 
     # Shear strength gradient
     k = np.polyfit(z_points, Su_vals, 1)[0]
-    print(f"k: {k:.2f}")
+    if display > 0: print(f"k: {k:.2f}")
 
     # Pile weight including auxiliary parts
     Wp = 1.35*V_steel*(rhows + rhow)
@@ -90,7 +90,7 @@ def getCapacityPlate(profile_map, location_name, B, L, zlug, beta, Ha, Va, plot=
     Nco_0_0  = 2.483*np.log(zlug_B) + 1.974
     Nco_90_0 = 2.174*np.log(zlug_B) + 3.391
     kBSh = k*B/Su
-    print(f"kBSh: {kBSh:.2f}")
+    if display > 0: print(f"kBSh: {kBSh:.2f}")
 
     f0  = np.where(zlug_B < 4, 1.77*(zlug_B**0.3) - 1.289, 0.192*zlug_B + 0.644)
     f90 = np.where(zlug_B < 4, 0.68*(zlug_B**0.5) - 0.410, 0.153*zlug_B + 0.341)
@@ -112,8 +112,8 @@ def getCapacityPlate(profile_map, location_name, B, L, zlug, beta, Ha, Va, plot=
     Nco_s = Nco_s_90 + (Nco_s_0 - Nco_s_90)*((90 - beta)/90)**2
 
     Nc_final = max(Nco + (gamma*zlug)/Su, Nco_s)
-    print(f"Nc_star: {Nco + (gamma*zlug)/Su:.2f}")
-    print(f"Nc_star: {Nco_s:.2f}")
+    if display > 0: print(f"Nc_star: {Nco + (gamma*zlug)/Su:.2f}")
+    if display > 0: print(f"Nc_star: {Nco_s:.2f}")
     qu = Nc_final*Su
     Tmax = round(qu*(1 - Los)*B*L, 2)
     Hmax = Tmax*np.cos(np.deg2rad(90 - beta))

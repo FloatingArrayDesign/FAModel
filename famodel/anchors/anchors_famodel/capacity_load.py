@@ -47,7 +47,7 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Fa
     Nc = 8.5
     
     if all(layer['soil_type'] in ['rock', 'weak_rock'] for layer in layers):
-        print('[Bypass] Skipping load transfer — soil is all rock.')
+        if display > 0: print('[Bypass] Skipping load transfer — soil is all rock.')
         Ha = Tm*np.cos(np.deg2rad(thetam)) 
         Va = Tm*np.cos(np.deg2rad(thetam))
         return Ha, Va
@@ -93,7 +93,7 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Fa
             delta_z = f_delta(depth)
             phi = f_phi(depth)
             Nq = np.exp(np.pi*np.tan(np.deg2rad(phi)))*(np.tan(np.deg2rad(45 + phi/2)))**2
-            # print(f'Nq = {Nq:.2f}, depth = {depth:.2f} m')
+            if display > 0: print(f'Nq = {Nq:.2f}, depth = {depth:.2f} m')
             d_theta = (En*d*Nq*gamma_z*depth - W*np.cos(theta))/T*deltas
             dT = (Et*d*gamma_z*depth*np.tan(np.deg2rad(delta_z)) + W*np.sin(theta))*deltas
             
@@ -109,17 +109,17 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Fa
         depth += d_depth
 
         if not (0 < np.rad2deg(theta) < 90):
-            print(f"[Warning] Line angle reached {np.rad2deg(theta):.2f}°, stopping at drag = {-drag:.2f} m")
+            if display > 0: print(f"[Warning] Line angle reached {np.rad2deg(theta):.2f}°, stopping at drag = {-drag:.2f} m")
             break
 
         drag_values.append(-drag); 
         depth_values.append(-depth); 
 
     if np.rad2deg(theta) >= 90:
-        print(f"[Correction] Clipping angle to 90° to avoid negative horizontal load (Ha).")
+        if display > 0: print(f"[Correction] Clipping angle to 90° to avoid negative horizontal load (Ha).")
         theta = np.deg2rad(90)
     Ta = T; thetaa = theta
-    Hm = Tm*np.cos(np.deg2rad(thetam)); Vm = Tm*np.cos(np.deg2rad(thetam))
+    Hm = Tm*np.cos(np.deg2rad(thetam)); Vm = Tm*np.sin(np.deg2rad(thetam))
     Ha = Ta*np.cos(thetaa); Va = Ta*np.sin(thetaa)
     
     if display > 0: print(f'Input Tm = {Tm} N, thetam = {thetam}°, zlug = {zlug} m')
@@ -131,7 +131,7 @@ def getTransferLoad(profile_map, Tm, thetam, zlug, line_type, d, w=None, plot=Fa
         'Tm': Tm, 'thetam': thetam,
         'Hm': Hm, 'Vm': Vm,
         'Ta': Ta, 'thetaa': np.rad2deg(thetaa),
-        'Ha': Hm, 'Va': Vm,
+        'Ha': Hm, 'Va': Va,
         'length': deltas*len(drag_values),
         'drag_values': drag_values,
         'depth_values': depth_values}

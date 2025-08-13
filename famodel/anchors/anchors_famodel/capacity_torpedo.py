@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from .support_soils import clay_profile
 from .support_plots import plot_torpedo
 
-def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast, Ha, Va, plot=False):
+def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast, Ha, Va, plot=False, display=0):
     '''Calculate the inclined load capacity of a torpedo pile in clay following S. Kay methodology.
     The calculation is based on the soil profile, anchor geometry and inclined load.  
 
@@ -104,24 +104,23 @@ def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast
 
             Su_total = np.trapz(Su_vals, z_vals)
             Su_moment = np.trapz(z_vals*Su_vals, z_vals)
-            print("xxxxxxxxxxxxxxxxxxxxxxxxx")
             Su_av_z = Su_total/dz_seg
-            print(f"Su_av_z = {Su_av_z:.2f} Pa")
+            if display > 0: print(f"Su_av_z = {Su_av_z:.2f} Pa")
             ez_layer = Su_moment /Su_total
-            print(f"dz_seg = {dz_seg:.2f} m")
-            print(f"ez_layer = {ez_layer:.2f} m")
+            if display > 0: print(f"dz_seg = {dz_seg:.2f} m")
+            if display > 0: print(f"ez_layer = {ez_layer:.2f} m")
             alpha_av = np.mean(alpha_vals)
-            print(f"alpha_av = {alpha_av:.2f}")
+            if display > 0: print(f"alpha_av = {alpha_av:.2f}")
 
             Np_free = 3.45
             Hmax_layer = Np_free*dz_seg*D*Su_av_z
-            print(f"Hmax_layer = {Hmax_layer:.2f} N")
-            print(f"D = {D:.2f} m")
+            if display > 0: print(f"Hmax_layer = {Hmax_layer:.2f} N")
+            if display > 0: print(f"D = {D:.2f} m")
 
             surface_area = PileWingedSurface(dz_seg, D) if D == D1 else PileShaftSurface(dz_seg, D1, D2)
             Vmax_layer = surface_area*alpha_av*Su_av_z
             Vmax_total += Vmax_layer
-            print(f"Vmax_layer = {Vmax_layer:.2f} N")
+            if display > 0: print(f"Vmax_layer = {Vmax_layer:.2f} N")
             
             layer_data.append({
                 'z_top': z_seg_top,
@@ -160,13 +159,14 @@ def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast
                 sum_Hmax += Hmax_layer * ratio
 
     ez_global = sum_ez_weighted/sum_Hmax
-    print(f'ez_global = {ez_global:.2f} m')    
-    print(f'sum_Hmax = {sum_Hmax:.2f} N')
+    if display > 0: print(f'ez_global = {ez_global:.2f} m')    
+    if display > 0: print(f'sum_Hmax = {sum_Hmax:.2f} N')
 
     Vmax_total += PileWeight(L1, L2, D1, D2, t, rhows) + ballast
     Wp = 1.10 * PileWeight(L1, L2, D1, D2, t, rhows + rhow) + ballast
 
-    ez_ratio = (ez_global - zlug)/L; print(f"ez_ratio = {ez_ratio:.2f} m")
+    ez_ratio = (ez_global - zlug)/L; 
+    if display > 0: print(f"ez_ratio = {ez_ratio:.2f} m")
     
     # Average effective width
     L = L1 + L2
@@ -195,7 +195,7 @@ def getCapacityTorpedo(profile_map, location_name, D1, D2, L1, L2, zlug, ballast
     #     aVH = 4.0
     #     bVH = 4.0
     #     mode = 'default exponents (fallback)'
-    print(f'Interaction exponents set to aVH = {aVH:.2f}, bVH = {bVH:.2f} [{mode}]')
+    if display > 0: print(f'Interaction exponents set to aVH = {aVH:.2f}, bVH = {bVH:.2f} [{mode}]')
     
     UC = (Ha/sum_Hmax)**aVH + (Va/Vmax_total)**bVH
 

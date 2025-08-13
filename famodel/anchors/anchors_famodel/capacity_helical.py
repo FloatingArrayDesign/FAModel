@@ -4,7 +4,7 @@ from .capacity_driven import getCapacityDriven, plot_pile
 from .support_soils import clay_profile, sand_profile
 from .support_plots import plot_helical
 
-def getCapacityHelical(profile_map, location_name, D, L, d, zlug, Ha, Va, plot=False):
+def getCapacityHelical(profile_map, location_name, D, L, d, zlug, Ha, Va, plot=False, display=0):
     '''Calculate the vertical and horizontal capacity of a helical pile using a soil profile.
     The calculation is based on the soil profile, anchor geometry and inclined load.
 

@@ -19,14 +19,13 @@ profile_map = [
 # --- Create plate anchor ---
 anchor = Anchor(
     dd = {'type': 'plate', 'design': {'B': 3.0, 'L': 6.0, 'zlug': 14.0, 'beta': 30.0}},
-    r = [100.0, 100.0, 0.0]
-)
+    r = [0.0, 0.0, 0.0])
 
 # --- Assign load and mooring properties ---
 anchor.loads = {
     'Hm': 3.5e6,
-    'Vm': 2.5e6
-}
+    'Vm': 2.5e6}
+
 anchor.line_type = 'chain'
 anchor.d = 0.16
 anchor.w = 5000.0
@@ -42,8 +41,7 @@ layers, Ha, Va = anchor.getLugForces(
     line_type = anchor.line_type,
     d = anchor.d,
     w = anchor.w,
-    plot = True
-)
+    plot = True)
 
 print('\nLug Forces Computed:')
 print(f'Ha = {Ha:.2f} N')
@@ -57,8 +55,7 @@ anchor.getCapacityAnchor(
     line_type = anchor.line_type,
     d = anchor.d,
     w = anchor.w,
-    plot = True
-)
+    plot = True)
 
 print('\nCapacity Results:')
 for key, value in anchor.anchorCapacity.items():
@@ -72,6 +69,6 @@ anchor.getSizeAnchor(
     loads = None,
     lambdap_con = [2, 4],  # less critical for plates
     zlug_fix = True,
-    safety_factor = {'SF_combined': 3},
-    plot = True
-)
+    safety_factor = {'SF_horizontal': 2, 'SF_vertical': 3},
+    #safety_factor = {'SF_combined': 3},
+    plot = True)

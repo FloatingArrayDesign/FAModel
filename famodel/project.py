@@ -2,7 +2,7 @@
 the site information and design information that make up a project."""
 
 import sys
-sys.path.append(r'C:\Code\FAModel_anchors')
+sys.path.append(r'C:\Code\FAModel')
 
 import os
 import numpy as np

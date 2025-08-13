@@ -58,8 +58,8 @@ class Anchor(Node):
         anchor_type_options = ['suction', 'sepla', 'dea', 'depla', 'vla', 'plate', 'torpedo', 'helical', 'driven', 'dandg']
         if self.anchType not in anchor_type_options:
             raise ValueError(f"The anchor 'type' needs to explicitly be one of {anchor_type_options} (Case not sensitive)")
-        if self.anchType not in ['drag-embedment', 'gravity', 'suction', 'SEPLA', 'VLA', 'driven']:
-            print('Warning: The anchor type provided does not have any cost coefficients. This will default to a suction pile')
+        # if self.anchType not in ['drag-embedment', 'gravity', 'suction', 'SEPLA', 'VLA', 'driven']:
+        #     print('Warning: The anchor type provided does not have any cost coefficients. This will default to a suction pile')
 
         self.soil_type = None
         self.soil_profile = None
@@ -148,7 +148,6 @@ class Anchor(Node):
 
         if self.display > 0: print(f"[Anchor] Assigned soil profile from {self.profile_name} with soil types {self.soil_type_list}")
 
-
     def interpolateSoilProfile(self, profile_map):
         '''
         Interpolate a soil profile from the 4 nearest CPTs in profile_map.
@@ -188,23 +187,28 @@ class Anchor(Node):
 
             interpolated_layers.append(layer)
 
-        self.soil_profile = interpolated_layers
+        self.soil_profile = [{
+            'name': 'Interpolated_2D',
+            'x': x_anchor,
+            'y': y_anchor,
+            'layers': interpolated_layers}]
         self.profile_name = "Interpolated_2D"
 
         # Extract soil types
-        soil_types = [layer['soil_type'] for layer in self.soil_profile]
+        layers = self.soil_profile[0]['layers']
+        soil_types = [layer['soil_type'] for layer in layers]
         self.soil_type_list = list(set(soil_types))
         self.soil_type = soil_types[0] if len(self.soil_type_list) == 1 else 'mixed'
 
         # Group interpolated layers by soil type
         soilProps = defaultdict(list)
-        for layer in self.soil_profile:
+        for layer in self.soil_profile[0]['layers']:
             layer_copy = layer.copy()
             soil_type = layer_copy.pop('soil_type')
             soilProps[soil_type].append(layer_copy)
         self.soilProps = dict(soilProps)
 
-        print(f"[Anchor] Interpolated soil profile: {self.profile_name} with soil types {self.soil_type_list}")
+        if self.display > 0: print(f"[Anchor] Interpolated soil profile: {self.profile_name} with soil types {self.soil_type_list}")
         
     def makeMoorPyAnchor(self, ms):
         '''
@@ -467,10 +471,10 @@ class Anchor(Node):
             'driven': getCapacityDriven,
             'dandg': getCapacityDandG}
         
-        if self.display > 1: print('[DEBUG] profile_name:', self.profile_name)
-        if self.display > 1: print('[DEBUG] soil_profile passed as profile_map:')
+        if self.display > 0: print('[DEBUG] profile_name:', self.profile_name)
+        if self.display > 0: print('[DEBUG] soil_profile passed as profile_map:')
         for entry in self.soil_profile:
-            if self.display > 1: print(entry.get('name'), list(entry.keys()))
+            if self.display > 0: print(entry.get('name'), list(entry.keys()))
 
 
         if self.display > 1: print(f'[Debug] mass_update = {mass_update}')
@@ -514,7 +518,7 @@ class Anchor(Node):
             Ta = np.sqrt(Ha**2 + Va**2)
             thetaa = np.degrees(np.arctan2(Va, Ha))
             
-            if self.display > 1: print(f"[Branch Check] Entered {'zlug>z0' if zlug>z0 else 'else'} for anchor {self.anchType}")
+            if self.display > 0: print(f"[Branch Check] Entered {'zlug>z0' if zlug>z0 else 'else'} for anchor {self.anchType}")
 
         else:
             Ha = Hm
@@ -522,7 +526,7 @@ class Anchor(Node):
             Ta = np.sqrt(Ha**2 + Va**2)
             thetaa = np.degrees(np.arctan2(Va, Ha))
 
-            if self.display > 1: print(f"[Branch Check] Entered {'zlug>z0' if zlug>z0 else 'else'} for anchor {self.anchType}")
+            if self.display > 0: print(f"[Branch Check] Entered {'zlug>z0' if zlug>z0 else 'else'} for anchor {self.anchType}")
 
         # --- Call the appropriate capacity function ---
         if anchType_clean in ['sepla', 'dea', 'depla', 'vla', 'plate']:
@@ -538,7 +542,7 @@ class Anchor(Node):
                 B=B, L=L, zlug=zlug,
                 beta=beta,
                 Ha=Ha, Va=Va,
-                plot=plot)
+                plot=plot, display=display)
             
         elif anchType_clean == 'suction':
             self.capacity_format = 'envelope'
@@ -567,7 +571,7 @@ class Anchor(Node):
                 zlug=zlug,
                 ballast=ballast,
                 Ha=Ha, Va=Va,
-                plot=plot)
+                plot=plot, display=display)
 
         elif anchType_clean == 'helical':
             self.capacity_format = 'component'
@@ -581,7 +585,7 @@ class Anchor(Node):
                 D=D, L=L, d=d,
                 zlug=zlug,
                 Ha=Ha, Va=Va,
-                plot=plot)
+                plot=plot, display=display)
 
         elif anchType_clean == 'driven':
             self.capacity_format = 'component'
@@ -593,7 +597,7 @@ class Anchor(Node):
                 location_name=self.profile_name,
                 L=L, D=D, zlug=zlug,
                 Ha=Ha, Va=Va,
-                plot=plot)
+                plot=plot, display=display)
         
         elif anchType_clean == 'dandg':
             self.capacity_format = 'component'           
@@ -656,15 +660,16 @@ class Anchor(Node):
         '''
         self.display = display
     
-        anchType_clean = self.dd['type'].lower().replace('', '')
+        anchType_clean = self.dd['type'].strip().lower()
+        print(f"[Debug] Anchor type parsed: '{anchType_clean}'")
     
         if loads is None:
             loads = self.loads
         
-        sf_uc = safety_factor.get('SF_combined', 1.0)
-        sf_Hm = safety_factor.get('Hm', 1.0)
-        sf_Vm = safety_factor.get('Vm', 1.0)
-    
+        sf_Hm = safety_factor.get('Hm', safety_factor.get('SF_horizontal', 1.0))
+        sf_Vm = safety_factor.get('Vm', safety_factor.get('SF_vertical', 1.0))
+        sf_uc = safety_factor.get('SF_combined', max(sf_Hm, sf_Vm))  # conservative by default
+
         Hm = loads['Hm']*sf_Hm
         Vm = loads['Vm']*sf_Vm
     
@@ -729,7 +734,11 @@ class Anchor(Node):
                 '''
                 #UC = self.anchorCapacity.get('UC', 2.0)
                 #return (UC - target_UC)**2
-                return self.anchorCapacity.get('Weight pile')
+                #return self.anchorCapacity.get('Weight pile')
+                if any(name in anchType_clean for name in ['plate', 'sepla', 'dea', 'depla', 'vla']):
+                    return self.anchorCapacity.get('Weight plate')
+                else:
+                    return self.anchorCapacity.get('Weight pile')
     
             def constraint_uc_envelope(vars):
                 return self.anchorCapacity.get('UC', 0.0) - target_UC
@@ -759,34 +768,59 @@ class Anchor(Node):
             print('Design:', self.dd['design'])
             print('Capacity Results:', self.anchorCapacity)
             return
-    
+        
+        def near_border():
+            UC_h = self.anchorCapacity['Ha']/self.anchorCapacity['Hmax']
+            UC_v = self.anchorCapacity['Va']/self.anchorCapacity['Vmax']
+            disp_lat = abs(self.anchorCapacity.get('Lateral displacement', 0.0))
+            disp_rot = abs(self.anchorCapacity.get('Rotational displacement', 0.0))
+            limit_lat = 0.05*self.dd['design']['D']  # 10% of the pile diameter
+            limit_rot = 10.0                         # 10 deg
+        
+            near_UC_h = 0.95 <= UC_h <= 1.0
+            near_UC_v = 0.95 <= UC_v <= 1.0
+            near_disp_lat = 0.95*limit_lat <= disp_lat <= limit_lat
+            near_disp_rot = 4.75 <= disp_rot <= limit_rot
+        
+            return near_UC_h or near_UC_v or near_disp_lat or near_disp_rot
+
         def termination_condition():
             UC_h = self.anchorCapacity['Ha']/self.anchorCapacity['Hmax']
             UC_v = self.anchorCapacity['Va']/self.anchorCapacity['Vmax']
             disp_lat = abs(self.anchorCapacity.get('Lateral displacement', 0.0))
             disp_rot = abs(self.anchorCapacity.get('Rotational displacement', 0.0))
-            limit_lat = 0.05*self.dd['design']['D']  # 5% of the pile diameter
-            limit_rot = 5.0                          # 5 deg 
-    
-            if UC_h <= 1.0 and UC_v <= 1.0 and disp_lat <= limit_lat and disp_rot <= limit_rot:
-                if self.display > 0: print('[Termination Condition Met] All four limits satisfied.')
-                return 'terminate'
-    
+            limit_lat = 0.05*self.dd['design']['D']  # 10% of the pile diameter
+            limit_rot = 10.0                         # 10 deg
+        
+            all_satisfied = (UC_h <= 1.0 and UC_v <= 1.0 and disp_lat <= limit_lat and disp_rot <= limit_rot)
+        
+            if all_satisfied:
+                if near_border():
+                    if self.display > 0: print('[Termination] All criteria satisfied and near border.')
+                    return 'terminate'
+                else:
+                    if self.display > 0: print('[Safe but not near border] Continue shrinking...')
+                    return 'continue'
             return 'continue'
         
         def termination_condition_dandg():
             UC_v = self.anchorCapacity['Va']/self.anchorCapacity['Vmax']
             disp_lat = abs(self.anchorCapacity.get('Lateral displacement', 0.0))
             disp_rot = abs(self.anchorCapacity.get('Rotational displacement', 0.0))
-            limit_lat = 0.05*self.dd['design']['D']  # 5% of the pile diameter
-            limit_rot = 5.0                          # 5 deg 
-    
-            if UC_v <= 1.0 and disp_lat <= limit_lat and disp_rot <= limit_rot:
-                if self.display > 0: print('[Termination Condition Met] All four limits satisfied.')
-                return 'terminate'
-    
+            limit_lat = 0.05*self.dd['design']['D']  # 10% of the pile diameter
+            limit_rot = 10.0                         # 10 deg
+        
+            all_satisfied = (UC_v <= 1.0 and disp_lat <= limit_lat and disp_rot <= limit_rot)
+        
+            if all_satisfied:
+                if near_border():
+                    if self.display > 0: print('[Termination] All criteria satisfied and near border.')
+                    return 'terminate'
+                else:
+                    if self.display > 0: print('[Safe but not near border] Continue shrinking...')
+                    return 'continue'
             return 'continue'
-    
+           
         def is_valid(value):
             return np.isfinite(value) and not np.isnan(value) and abs(value) < 1e6
         
@@ -794,6 +828,8 @@ class Anchor(Node):
             L0, D0 = geom if len(geom) == 2 else [5.0, 1.0]
             self.dd['design']['L'] = L0
             self.dd['design']['D'] = D0
+            Lmin, Lmax = geomBounds[0]
+            Dmin, Dmax = geomBounds[1]
             update_zlug()
             self.getCapacityAnchor(Hm=Hm, Vm=Vm, zlug=self.dd['design']['zlug'],
                                    line_type=line_type, d=d, w=w, mass_update=True, plot=False, display=display)
@@ -802,17 +838,17 @@ class Anchor(Node):
             UC_v = self.anchorCapacity['Va']/self.anchorCapacity['Vmax']
             disp_lat = abs(self.anchorCapacity.get('Lateral displacement', 0.0))
             disp_rot = abs(self.anchorCapacity.get('Rotational displacement', 0.0))
-            limit_disp = 0.05*D0   # 5% of the pile diameter
-            limit_rot = 5.0        # 5 deg 
+            limit_disp = 0.10*D0    # 10% of the pile diameter
+            limit_rot = 10.0        # 10 deg 
             direction = 'shrink' if (UC_h <= 1.0 and UC_v <= 1.0 and disp_lat <= limit_disp and disp_rot <= limit_rot) else 'grow'
     
             max_iter = 200
             iter_count = 0
     
             if direction == 'shrink':
-                for D in np.arange(D0, 0.49, -0.05):
-                    self.dd['design']['D'] = D
-                    for L in np.arange(L0, 1.95, -0.25):
+                for L in np.arange(L0, Lmin - 1e-6, -0.25):
+                    self.dd['design']['L'] = L
+                    for D in np.arange(Dmax, Dmin - 1e-6, -0.05):
                         if L/D > lambdap_con[1] or L/D < lambdap_con[0]:
                             continue
                         self.dd['design']['L'] = L
@@ -832,10 +868,10 @@ class Anchor(Node):
                             print('Design:', self.dd['design'])
                             print('Capacity Results:', self.anchorCapacity)
                             return
-            else:
-                for D in np.arange(D0, 3.05, 0.05):
-                    self.dd['design']['D'] = D
-                    for L in np.arange(L0, 50.25, 0.25):
+            elif direction == 'grow':
+                for L in np.arange(L0, Lmax + 1e-6, 0.25):
+                    self.dd['design']['L'] = L
+                    for D in np.arange(Dmin, Dmax + 1e-6, 0.05):   
                         if L/D > lambdap_con[1] or L/D < lambdap_con[0]:
                             continue
                         self.dd['design']['L'] = L
@@ -862,11 +898,17 @@ class Anchor(Node):
                         print('Design:', self.dd['design'])
                         print('Capacity Results:', self.anchorCapacity)
                         return
+            else:
+                raise ValueError(f"Unknown optimization direction: {direction}")
+                
+            if self.display > 0: print('[Warning] While-loop search reached bounds without meeting criteria.')
                     
         if 'dandg' in anchType_clean:
             L0, D0 = geom if len(geom) == 2 else [5.0, 1.0]
             self.dd['design']['L'] = L0
             self.dd['design']['D'] = D0
+            Lmin, Lmax = geomBounds[0]
+            Dmin, Dmax = geomBounds[1]
             update_zlug()
             self.getCapacityAnchor(Hm=Hm, Vm=Vm, zlug=self.dd['design']['zlug'],
                                    line_type=line_type, d=d, w=w, mass_update=True, plot=False, display=display)
@@ -874,17 +916,17 @@ class Anchor(Node):
             UC_v = self.anchorCapacity['Va']/self.anchorCapacity['Vmax']
             disp_lat = abs(self.anchorCapacity.get('Lateral displacement', 0.0))
             disp_rot = abs(self.anchorCapacity.get('Rotational displacement', 0.0))
-            limit_disp = 0.05*D0   # 5% of the pile diameter
-            limit_rot = 5.0        # 5 deg 
+            limit_disp = 0.10*D0   # 10% of the pile diameter
+            limit_rot = 10.0        # 10 deg 
             direction = 'shrink' if (UC_v <= 1.0 and disp_lat <= limit_disp and disp_rot <= limit_rot) else 'grow'
     
             max_iter = 200
             iter_count = 0
     
             if direction == 'shrink':
-                for D in np.arange(D0, 0.49, -0.05):
-                    self.dd['design']['D'] = D
-                    for L in np.arange(L0, 1.95, -0.25):
+                for L in np.arange(L0, Lmin - 1e-6, -0.25):
+                    self.dd['design']['L'] = L
+                    for D in np.arange(Dmax, Dmin - 1e-6, -0.05):
                         if L/D > lambdap_con[1] or L/D < lambdap_con[0]:
                             continue
                         self.dd['design']['L'] = L
@@ -903,10 +945,10 @@ class Anchor(Node):
                             print('Design:', self.dd['design'])
                             print('Capacity Results:', self.anchorCapacity)
                             return
-            else:
-                for D in np.arange(D0, 3.05, 0.05):
-                    self.dd['design']['D'] = D
-                    for L in np.arange(L0, 50.25, 0.25):
+            elif direction == 'grow':
+                for L in np.arange(L0, Lmax + 1e-6, 0.25):
+                    self.dd['design']['L'] = L
+                    for D in np.arange(Dmin, Dmax + 1e-6, 0.05):
                         if L/D > lambdap_con[1] or L/D < lambdap_con[0]:
                             continue
                         self.dd['design']['L'] = L
@@ -932,6 +974,8 @@ class Anchor(Node):
                         print('Design:', self.dd['design'])
                         print('Capacity Results:', self.anchorCapacity)
                         return
+            else:
+                raise ValueError(f"Unknown optimization direction: {direction}")
     
             if self.display > 0: print('[Warning] While-loop search reached bounds without meeting criteria.')
     

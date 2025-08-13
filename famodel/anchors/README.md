@@ -37,7 +37,7 @@ Units within FAModel follow the SI exclusively. The input soil parameters units 
 
     profile_map = [
         {
-            'location_name': 'CPT_1',
+            'name': 'CPT_1',
             'x': 498234, 'y': 5725141,
             'layers': [
                 {

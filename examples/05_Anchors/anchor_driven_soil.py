@@ -20,7 +20,7 @@ anchor = Anchor(
         'type': 'driven',
         'design': {
             'L': 25.0,        # Embedded length
-            'D': 4.25,        # Diameter
+            'D': 2.00,        # Diameter
             'zlug': 3.0       # Padeye depth
         }
     },
@@ -29,7 +29,7 @@ anchor = Anchor(
 
 # Assign mooring loads
 anchor.loads = {
-    'Hm': 2.0e6,
+    'Hm': 7.0e5,
     'Vm': 2.5e5}
 
 anchor.line_type = 'chain'
@@ -71,9 +71,9 @@ for key, val in anchor.anchorCapacity.items():
 anchor.getSizeAnchor(
     geom = [anchor.dd['design']['L'], anchor.dd['design']['D']],
     geomKeys = ['L', 'D'],
-    geomBounds = [(2.0, 70.0), (0.25, 3.0)],
+    geomBounds = [(2.0, 50.0), (0.25, 3.5)],
     loads = None,
-    lambdap_con = [4, 50],
+    lambdap_con = [3, 50],
     zlug_fix = True,
     safety_factor = {'SF_horizontal': 1, 'SF_vertical': 1},
     plot = True)

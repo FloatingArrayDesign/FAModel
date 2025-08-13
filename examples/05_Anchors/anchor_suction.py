@@ -60,8 +60,8 @@ L = anchor.dd['design']['L']
 D = anchor.dd['design']['D']
 zlug = anchor.dd['design']['zlug']
 # Access matched profile
-layers = anchor.soil_profile
-z0 = layers[0]['top']  
+layers = anchor.soil_profile[0]['layers']
+z0 = layers[0]['top']
 
 plot_suction(layers, L=L, D=D, z0=z0, zlug=zlug)
 
@@ -121,7 +121,7 @@ anchor.getSizeAnchor(
     loads = None,
     lambdap_con = [3, 6],
     zlug_fix = False,
-    safety_factor = {'SF_combined': 1},
+    safety_factor = {'SF_horizontal': 2, 'SF_vertical': 3},
     plot = True)
 
 print('\nFinal Optimized Anchor:')

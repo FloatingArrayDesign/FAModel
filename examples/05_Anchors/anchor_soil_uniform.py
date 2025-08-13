@@ -1,7 +1,4 @@
 
-import sys
-sys.path.append(r'C:\Code\FAModel_anchors\famodel')
-
 from project import Project
 from anchors.anchor import Anchor
 
@@ -57,7 +54,6 @@ results = anchor.getSizeAnchor(
     geom = [anchor.dd['design']['L'], anchor.dd['design']['D']],
     geomKeys = ['L', 'D'],
     geomBounds = [(8.0, 15.0), (2.0, 4.0)],
-    loads = None,
     lambdap_con = [3, 6],
     zlug_fix = False,
     safety_factor = {'SF_combined': 1},

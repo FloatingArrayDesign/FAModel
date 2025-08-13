@@ -30,8 +30,8 @@ anchor = Anchor(
 # Assign mooring loads
 anchor.loads = {
     'Hm': 5.0e6,
-    'Vm': 2.5e5
-}
+    'Vm': 2.5e5}
+
 anchor.line_type = 'chain'
 anchor.d = 0.16
 anchor.w = 5000.0
@@ -57,7 +57,7 @@ for key, val in anchor.anchorCapacity.items():
 anchor.getSizeAnchor(
     geom = [anchor.dd['design']['L'], anchor.dd['design']['D']],
     geomKeys = ['L', 'D'],
-    geomBounds = [(2.0, 70.0), (0.25, 3.0)],
+    geomBounds = [(2.0, 30.0), (2.25, 5.0)],
     loads = None,
     lambdap_con = [4, 50],
     zlug_fix = True,

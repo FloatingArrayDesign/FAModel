@@ -87,8 +87,7 @@ anchor.getSizeAnchor(
     lambdap_con = [2, 8],
     zlug_fix = True,
     safety_factor = {'SF_combined': 1},
-    plot = True
-)
+    plot = True)
 
 print('\nFinal Optimized Anchor:')
 print('Design:', anchor.dd['design'])

@@ -6,7 +6,7 @@ from .support_solvers import fd_solver
 from .support_pycurves import py_Matlock, py_API, py_Reese
 from .support_plots import plot_pile, plot_pycurve
 
-def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=False):
+def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=False, display=0):
     '''Models a laterally loaded pile using the p-y method. The solution for
     lateral displacements is obtained by solving the 4th order ODE, EI*d4y/dz4
     EI*d4y/dz4 - V*d2y/dz2 + ky = 0 using the finite difference method.
@@ -196,10 +196,10 @@ def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=False
     
         # Check convergence
         if np.linalg.norm(y - y_old, ord=2) < tol:
-            print(f'[Converged in {j+1} iterations]')
+            if display > 0: print(f'[Converged in {j+1} iterations]')
             break
     else:
-        print('[Warning: Solver did not converge]')
+        if display > 0: print('[Warning: Solver did not converge]')
 
     if plot:
         plot_pycurve(pycurve_data)
@@ -235,8 +235,8 @@ def getCapacityDriven(profile_map, location_name, D, L, zlug, Ha, Va, plot=False
         'Unity check (horizontal)': Ha/(abs(Mi)/abs(zlug)) if zlug != 0 else np.inf,
         'Weight pile': PileWeight(L, D, t, rhows + rhow)}
     
-    print(f"Max lateral displacement: {y_pile[ymax_index]:.6f} m at z = {z_pile[ymax_index]:.2f} m")
-    print(f"Deflected tip: {y_pile[-1]:.6f} m at z = {z_pile[-1]:.2f} m")
+    if display > 0: print(f"Max lateral displacement: {y_pile[ymax_index]:.6f} m at z = {z_pile[ymax_index]:.2f} m")
+    if display > 0: print(f"Deflected tip: {y_pile[-1]:.6f} m at z = {z_pile[-1]:.2f} m")
 
     return layers, y[2:-2], z[2:-2], resultsDriven
 

@@ -30,8 +30,8 @@ anchor = Anchor(
 
 # --- Assign mooring loads and properties ---
 anchor.loads = {
-    'Hm': 80e4,
-    'Vm': 50e5}
+    'Hm': 8e5,
+    'Vm': 1e5}
 
 anchor.line_type = 'chain'
 anchor.d = 0.16
@@ -48,8 +48,7 @@ layers, Ha, Va = anchor.getLugForces(
     line_type = anchor.line_type,
     d = anchor.d,
     w = anchor.w,
-    plot = True
-)
+    plot = True)
 
 print('\nLug Forces Computed:')
 print(f'Ha = {Ha:.2f} N')
@@ -63,8 +62,7 @@ anchor.getCapacityAnchor(
     line_type = anchor.line_type,
     d = anchor.d,
     w = anchor.w,
-    plot = False
-)
+    plot = False)
 
 print('\nCapacity Results:')
 for key, val in anchor.anchorCapacity.items():
@@ -79,5 +77,4 @@ anchor.getSizeAnchor(
     lambdap_con = [6, 15],
     zlug_fix = True,
     safety_factor = {'SF_horizontal': 1, 'SF_vertical': 1},   
-    plot = False
-)
+    plot = False)
