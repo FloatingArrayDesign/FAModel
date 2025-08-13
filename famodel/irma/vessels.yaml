@@ -58,35 +58,99 @@ MPSV1: # Multi-Purpose Supply Vessel (this example works)
       #pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
       #line_fixed_install_time : 5 # hrs (time it takes to install a line, either anchored or shared)
       
-
+AHTS1: # Anchor Handling Towing Supply vessel
+  type : AHTS
+  
+  vessel_specs:
+    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
+    # could have other things like crew here
+    max_cargo_mass: 2000 # mT
+  
+  transport:
+    transit_speed: 7.7       # m/s
+    max_Hs : 5  # [m]
+  
+  capabilities:  # these entries should fall within the capabilities.yaml definitions
+    bollard_pull: 
+      force: 180 # mT
+    deck_space:
+      area: 500 # m2
+      max_load: 400 # mT
+    rope_spool:
+      capacity: 1000 # mT
+      speed: 18   # m/min
+    chain_locker:
+      volume: 10  # [m3]
+    
+  actions:  # these shuold fall within the actions.yaml definitions
+    load_mooring: {}
+    load_anchor:
+      default_duration: 5  # [hr] 
+    lay_mooring:
+      default_duration: 3  # [hr] 
+      max_Hs : 3 # [m]      
+    install_anchor:
+      default_duration: 5  # [hr] 
+      max_Hs : 2 # [m]
+      #pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
+      #line_fixed_install_time : 5 # hrs (time it takes to install a line, either anchored or shared)
+      
+Barge1: # Anchor Handling Towing Supply vessel
+  type : Barge
+  
+  vessel_specs:
+    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
+    # could have other things like crew here
+    max_cargo_mass: 8000 # mT
+  
+  transport:
+    transit_speed: 4.7       # m/s
+    max_Hs : 5         # [m]
+  
+  capabilities:  # these entries should fall within the capabilities.yaml definitions
+    deck_space:
+      area: 1500     #[m2]
+      max_load: 4000 #[t]
+    winch:
+      force: 1000    #[t]
+    pump:
+      power: 150     #[kW]
+      capacity: 150  #[bar]
+      weight: 20     #[t]
+      dimensions: 5  #[m]
+    
+  actions:  # these should fall within the actions.yaml definitions
+    load_mooring: {}
+    load_anchor:
+      default_duration: 5  # [hr] 
 
 # ===== entries below this point don't yet work and need to be updated =====
       
       
-Barge: # Usually with MPSV
-  type : Barge
-  specs:
-    vessel_specs:
-        mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-    transport_specs:
-      transit_speed: 7.7       # m/s
-    storage_specs:
-      max_cargo: 2000 # mT
-      max_deck_space: 1000 # m2
-      max_deck_load: 2000 # mT
-      max_spool_capacity: 1000 # mT
-      winch_speed: 18   # m/min
-      anchor_loading_speed: 5 
-    storage:
-      Mode1:
-        material: ['pile']
-        quantity: [6]
-      Mode2:
-        material: ['poly', 'chain']
-        quantity: [5, 12]
-      Mode3:
-        material: ['poly', 'clump']
-        quantity: [3, 4]
+# Barge: # Usually with MPSV
+  # type : Barge
+  # specs:
+    # vessel_specs:
+        # mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
+    # transport_specs:
+      # transit_speed: 7.7       # m/s
+    # storage_specs:
+      # max_cargo: 2000 # mT
+      # max_deck_space: 1000 # m2
+      # max_deck_load: 2000 # mT
+      # max_spool_capacity: 1000 # mT
+      # winch_speed: 18   # m/min
+      # anchor_loading_speed: 5 
+    # storage:
+      # Mode1:
+        # material: ['pile']
+        # quantity: [6]
+      # Mode2:
+        # material: ['poly', 'chain']
+        # quantity: [5, 12]
+      # Mode3:
+        # material: ['poly', 'clump']
+        # quantity: [3, 4]
 
 
 # Vessel general descriptsion
@@ -120,31 +184,30 @@ Barge: # Usually with MPSV
 #         material: # List of materials in storage mode 2
 #         quantity: # List of quantities for each material in storage mode 2
 #       etc. # Additional storage modes can be added as needed
-
-
-AHTS: # Anchor Handling Towing Supply vessel
-  name : AHTS
-  type : AHTS
-  specs:
-    vessel_specs:
-      pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
-      line_fixed_install_time : 4 # hrs (time it takes to install a line, either anchored or shared)
-      mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-    bollardPull: 200 # mT
-    transport_specs:
-      transit_speed: 7.7       # m/s
-    storage_specs:
-      max_cargo: 2000 # mT
-      max_deck_space: 1000 # m2
-      max_deck_load: 2000 # mT
-      max_spool_capacity: 1000 # mT
-      winch_speed: 11.5   # m/min
-      anchor_loading_speed: 5 
-    storage:
-      Mode1:
-        material: ['pile', 'poly', 'chain', 'gear']
-        quantity: [3, 4, 8, 1]
-      Mode2:
-        material: ['poly', 'clump']
-        quantity: [4, 2]
+      
+# AHTS: # Anchor Handling Towing Supply vessel
+  # name : AHTS
+  # type : AHTS
+  # specs:
+    # vessel_specs:
+      # pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
+      # line_fixed_install_time : 4 # hrs (time it takes to install a line, either anchored or shared)
+      # mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
+    # bollardPull: 200 # mT
+    # transport_specs:
+      # transit_speed: 7.7       # m/s
+    # storage_specs:
+      # max_cargo: 2000 # mT
+      # max_deck_space: 1000 # m2
+      # max_deck_load: 2000 # mT
+      # max_spool_capacity: 1000 # mT
+      # winch_speed: 11.5   # m/min
+      # anchor_loading_speed: 5 
+    # storage:
+      # Mode1:
+        # material: ['pile', 'poly', 'chain', 'gear']
+        # quantity: [3, 4, 8, 1]
+      # Mode2:
+        # material: ['poly', 'clump']
+        # quantity: [4, 2]
 

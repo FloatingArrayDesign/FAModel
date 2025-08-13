@@ -292,8 +292,8 @@ if __name__ == '__main__':
     # create moorpy system of the array, include cables in the system
     project.getMoorPyArray(cables=1)
     # plot in 3d, using moorpy system for the mooring and cable plots
-    #project.plot2d()
-    #project.plot3d()
+    # project.plot2d()
+    # project.plot3d()
 
     '''
     # project.arrayWatchCircle(ang_spacing=20)
