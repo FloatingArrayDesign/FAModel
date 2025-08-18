@@ -1,213 +1,314 @@
-# list of vessels
-#
-# (trying a few different structure ideas)
+# This file defines standard vessels aligned to current capabilities & actions 
 
+# --- Anchor Handling Tug / Supply Vessel (AHTS / AHV) ---
 
-AHV1:
-  type: AHV
-  
-  actions:
-    tow: {}
-  
-  capabilities:
-    deck_space :
-      area : 50  # [m2]
-  
-    chain_locker:
-      volume : 10 # ?
-  
-    bollard_pull :
-      force : 250  #[t]
-  
-  crane : {}
-    #unsupported_param : 27  # error handling test
- 
+AHTS_alpha:
+# Offshore Tug/Anchor Handling Tug Supply (AHTS) – Towing floating structures, handling and laying anchors/mooring lines, tensioning and positioning support.
+    type: AHTS
+    transport:
+        transit_speed_mps: 4.7       
+        Hs_m : 5         
+    station_keeping:
+        type: DP2
+    capabilities:
+        deck_space:
+            area_m2: 800
+            max_load_t: 1500
+        bollard_pull:
+            max_force_t: 200
+        winch:
+            max_line_pull_t: 150
+            brake_load_t: 300
+            speed_mpm: 20
+        crane:
+            capacity_t: 50
+            hook_height_m: 25
+        chain_locker:
+            volume_m3: 150
+        line_reel:
+            volume_m3: 200
+            rope_capacity_m: 5000
+        pump_subsea:
+            power_kW: 75
+            pressure_bar: 200
+            weight_t: 3
+            dimensions_m: [2, 1.5, 1.5]
+        positioning_system:
+            accuracy_m: 1.0
+            methods: [USBL, INS]
+        monitoring_system:
+            metrics: [pressure, flow, tilt]
+            sampling_rate_hz: 10
+    actions:
+        tow: {}
+        lay_mooring: {}
+        mooring_hookup: {}
+        install_anchor: {}
+        retrieve_anchor: {}
+        install_semisub: {}
+        install_spar: {}
+        install_tlp: {}
 
-MPSV1: # Multi-Purpose Supply Vessel (this example works)
-  type : MPSV
-  
-  vessel_specs:
-    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-    # could have other things like crew here
-    max_cargo_mass: 2000 # mT
-  
-  transport:
-    transit_speed: 7.7       # m/s
-    max_Hs : 5  # [m]
-  
-  capabilities:  # these entries should fall within the capabilities.yaml definitions
-    bollard_pull: 
-      force: 100 # mT
-    deck_space:
-      area: 1000 # m2
-      max_load: 2000 # mT
-    rope_spool:
-      capacity: 1000 # mT
-      speed: 18   # m/min
-    
-  actions:  # these shuold fall within the actions.yaml definitions
-    load_mooring: {}
-    load_anchor:
-      default_duration: 5  # [hr] 
-    lay_mooring:
-      default_duration: 3  # [hr] 
-      max_Hs : 3 # [m]      
-    install_anchor:
-      default_duration: 5  # [hr] 
-      max_Hs : 2 # [m]
-      #pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
-      #line_fixed_install_time : 5 # hrs (time it takes to install a line, either anchored or shared)
-      
-AHTS1: # Anchor Handling Towing Supply vessel
-  type : AHTS
-  
-  vessel_specs:
-    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-    # could have other things like crew here
-    max_cargo_mass: 2000 # mT
-  
-  transport:
-    transit_speed: 7.7       # m/s
-    max_Hs : 5  # [m]
-  
-  capabilities:  # these entries should fall within the capabilities.yaml definitions
-    bollard_pull: 
-      force: 180 # mT
-    deck_space:
-      area: 500 # m2
-      max_load: 400 # mT
-    rope_spool:
-      capacity: 1000 # mT
-      speed: 18   # m/min
-    chain_locker:
-      volume: 10  # [m3]
-    
-  actions:  # these shuold fall within the actions.yaml definitions
-    load_mooring: {}
-    load_anchor:
-      default_duration: 5  # [hr] 
-    lay_mooring:
-      default_duration: 3  # [hr] 
-      max_Hs : 3 # [m]      
-    install_anchor:
-      default_duration: 5  # [hr] 
-      max_Hs : 2 # [m]
-      #pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
-      #line_fixed_install_time : 5 # hrs (time it takes to install a line, either anchored or shared)
-      
-Barge1: # Anchor Handling Towing Supply vessel
-  type : Barge
-  
-  vessel_specs:
-    mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-    # could have other things like crew here
-    max_cargo_mass: 8000 # mT
-  
-  transport:
-    transit_speed: 4.7       # m/s
-    max_Hs : 5         # [m]
-  
-  capabilities:  # these entries should fall within the capabilities.yaml definitions
-    deck_space:
-      area: 1500     #[m2]
-      max_load: 4000 #[t]
-    winch:
-      force: 1000    #[t]
-    pump:
-      power: 150     #[kW]
-      capacity: 150  #[bar]
-      weight: 20     #[t]
-      dimensions: 5  #[m]
-    
-  actions:  # these should fall within the actions.yaml definitions
-    load_mooring: {}
-    load_anchor:
-      default_duration: 5  # [hr] 
+# --- Multipurpose Support Vessel ---
 
-# ===== entries below this point don't yet work and need to be updated =====
-      
-      
-# Barge: # Usually with MPSV
-  # type : Barge
-  # specs:
-    # vessel_specs:
-        # mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-    # transport_specs:
-      # transit_speed: 7.7       # m/s
-    # storage_specs:
-      # max_cargo: 2000 # mT
-      # max_deck_space: 1000 # m2
-      # max_deck_load: 2000 # mT
-      # max_spool_capacity: 1000 # mT
-      # winch_speed: 18   # m/min
-      # anchor_loading_speed: 5 
-    # storage:
-      # Mode1:
-        # material: ['pile']
-        # quantity: [6]
-      # Mode2:
-        # material: ['poly', 'chain']
-        # quantity: [5, 12]
-      # Mode3:
-        # material: ['poly', 'clump']
-        # quantity: [3, 4]
+MPSV_01:
+# Multi-Purpose Support Vessel (MSV) – Flexible vessel used for maintenance, diving, construction, or ROV tasks. Combines features of CSV, DSV and ROVSV.
+    type: MSV
+    transport:
+        transit_speed_mps: 4.7       
+        Hs_m : 5  
+    station_keeping:
+        type: DP2
+    capabilities:
+        deck_space:
+            area_m2: 900
+            max_load_t: 1500
+        crane:
+            capacity_t: 150
+            hook_height_m: 45
+        winch:
+            max_line_pull_t: 60
+            brake_load_t: 120
+            speed_mpm: 16
+        mooring_work:
+            line_types: [chain]
+            stern_roller: true
+            shark_jaws: true
+            towing_pin_rating_t: 300
+        positioning_system:
+            accuracy_m: 1.0
+            methods: [USBL, INS]
+        monitoring_system:
+            metrics: [pressure, tilt]
+            sampling_rate_hz: 10
+        rov:
+            class: OBSERVATION
+            depth_rating_m: 3000
+            weight_t: 7
+            dimensions_m: [3, 2, 2]
+    actions:
+        install_anchor: {}
+        retrieve_anchor: {}
+        mooring_hookup: {}
+        lay_mooring: {}
+        install_wec: {}
+        monitor_installation: {}
 
+# --- Construction Support Vessel ---
 
-# Vessel general descriptsion
-# [storage_space, max_deck_load, anchor_loading_speed, pile_fixed_install_time, 
-# mobilization_time] are not real data, just filler numbers to get it to run
+CSV_A:
+# Construction Support Vessel (CSV) – General-purpose vessel supporting subsea construction, cable lay and light installation. Equipped with cranes, moonpools and ROVs.
+    type: CSV
+    transport:
+        transit_speed_mps: 4.7       
+        Hs_m : 5  
+    station_keeping:
+        type: DP2
+    capabilities:
+        deck_space:
+            area_m2: 1200
+            max_load_t: 2000
+        crane:
+            capacity_t: 250
+            hook_height_m: 60
+        winch:
+            max_line_pull_t: 75
+            brake_load_t: 150
+            speed_mpm: 18
+        positioning_system:
+            accuracy_m: 0.5
+            methods: [USBL, LBL, INS]
+        sonar_survey:
+            types: [MBES, SSS]
+            resolution_m: 0.05
+        monitoring_system:
+            metrics: [pressure, flow, tilt, torque]
+            sampling_rate_hz: 20
+        pump_surface:
+            power_kW: 150
+            pressure_bar: 200
+            weight_t: 8
+            dimensions_m: [6, 2.5, 2.5]
+        pump_subsea:
+            power_kW: 75
+            pressure_bar: 200
+            weight_t: 3
+            dimensions_m: [2, 1.5, 1.5]
+        rov:
+            class: WORK-CLASS
+            depth_rating_m: 3000
+            weight_t: 8
+            dimensions_m: [3, 2, 2]
+    actions:
+        lay_mooring: {}
+        mooring_hookup: {}
+        lay_cable: {}
+        lay_and_bury_cable: {}
+        monitor_installation: {}
 
-### Vessel type structure ###
-# VesselType:
-#   name: # Name of the vessel type
-#   type: # Type of the vessel (e.g., AHTS, MPSV, Barge, Tug)
-#   specs: # placeholder
-#     vessel_specs: # Placeholder for vessel specifications
-#       pile_fixed_install_time: # Time it takes to install a pile (in hours)
-#       line_fixed_install_time: # Time it takes to install a line (in hours)
-#       mobilization_time: # hrs (time it takes to mobilize the vessel)
-#     bollardPull: # Bollard pull of the vessel (in metric tons)
-#     transport_specs: # Placeholder for transport specifications
-#       transit_speed: # Transit speed of the vessel (in meters per second)
-#     storage_specs: # Placeholder for storage specifications
-#       max_cargo: # Maximum cargo capacity of the vessel (in metric tons)
-#       max_deck_space: # Maximum deck space of the vessel (in square meters)
-#       max_deck_load: # Maximum deck load of the vessel (in metric tons)
-#       max_spool_capacity: # Maximum spool capacity of the vessel (in metric tons)
-#       winch_speed: # Winch speed of the vessel (in meters per minute)
-#       anchor_loading_speed: # Anchor loading speed of the vessel (in unspecified units)
-#     storage: # Placeholder for storage specifications
-#       Mode1: # Placeholder for storage mode 1
-#         material: # List of materials in storage mode 1
-#         quantity: # List of quantities for each material in storage mode 1
-#       Mode2: # Placeholder for storage mode 2
-#         material: # List of materials in storage mode 2
-#         quantity: # List of quantities for each material in storage mode 2
-#       etc. # Additional storage modes can be added as needed
-      
-# AHTS: # Anchor Handling Towing Supply vessel
-  # name : AHTS
-  # type : AHTS
-  # specs:
-    # vessel_specs:
-      # pile_fixed_install_time : 2 # hrs (time it takes to install a pile)
-      # line_fixed_install_time : 4 # hrs (time it takes to install a line, either anchored or shared)
-      # mobilization_time: 2 # hrs (time it takes to mobilize the vessel)
-    # bollardPull: 200 # mT
-    # transport_specs:
-      # transit_speed: 7.7       # m/s
-    # storage_specs:
-      # max_cargo: 2000 # mT
-      # max_deck_space: 1000 # m2
-      # max_deck_load: 2000 # mT
-      # max_spool_capacity: 1000 # mT
-      # winch_speed: 11.5   # m/min
-      # anchor_loading_speed: 5 
-    # storage:
-      # Mode1:
-        # material: ['pile', 'poly', 'chain', 'gear']
-        # quantity: [3, 4, 8, 1]
-      # Mode2:
-        # material: ['poly', 'clump']
-        # quantity: [4, 2]
+# --- ROV Support Vessel ---
 
+ROVSV_X:
+# ROV Support Vessel (ROVSV) – Dedicated to operating and supporting Remotely Operated Vehicles (ROVs) for inspection, survey or intervention.
+    type: ROVSV
+    transport:
+        transit_speed_mps: 6.7       
+        Hs_m : 5  
+    station_keeping:
+        type: DP2
+    capabilities:
+        deck_space:
+            area_m2: 600
+            max_load_t: 1000
+        crane:
+            capacity_t: 100
+            hook_height_m: 35
+        rov:
+            class: WORK-CLASS
+            depth_rating_m: 3000
+            weight_t: 7
+            dimensions_m: [3, 2, 2]
+        positioning_system:
+            accuracy_m: 0.5
+            methods: [USBL, LBL, DVL, INS]
+        sonar_survey:
+            types: [MBES, SSS, SBP]
+            resolution_m: 0.1
+        monitoring_system:
+            metrics: [tilt, video, torque]
+            sampling_rate_hz: 25
+    actions:
+        monitor_installation: {}
+        site_survey: {}
+
+# --- Diving Support Vessel ---
+
+DSV_Moon:
+# Diving Support Vessel (DSV) – Specifically equipped to support saturation diving operations. Includes diving bells, decompression chambers and dynamic positioning.
+    type: DSV
+    transport:
+        transit_speed_mps: 4.7       
+        Hs_m : 5  
+    station_keeping:
+        type: DP2
+    capabilities:
+        deck_space:
+            area_m2: 800
+            max_load_t: 1200
+        crane:
+            capacity_t: 150
+            hook_height_m: 40
+        positioning_system:
+            accuracy_m: 0.5
+            methods: [USBL, LBL, INS]
+        monitoring_system:
+            metrics: [video, depth]
+            sampling_rate_hz: 30
+    actions:
+        monitor_installation: {}
+        site_survey: {}
+
+# --- Heavy Lift Vessel ---
+
+HL_Giant:
+# Heavy Lift Vessel (HL) – Used for transporting and installing very large components, like jackets, substations, or monopiles. Equipped with high-capacity cranes (>3000 t).
+    type: HL
+    transport:
+        transit_speed_mps: 4.7       
+        Hs_m : 7  
+    station_keeping:
+        type: DP2
+    capabilities:
+        deck_space:
+            area_m2: 4000
+            max_load_t: 8000
+        crane:
+            capacity_t: 5000
+            hook_height_m: 150
+        positioning_system:
+            accuracy_m: 1.0
+            methods: [USBL, INS]
+        monitoring_system:
+            metrics: [position, tilt]
+            sampling_rate_hz: 5
+    actions:
+        transport_components: {}
+        install_wec: {}
+        install_wtg: {}
+
+# --- Survey Vessel ---
+
+SURV_Swath:
+# Survey Vessel (SURV) – Seabed mapping and soil characterization, positioning and embedment verification of anchors. Equipped with sonar, USBL/LBL, and profiling equipment.
+    type: SURV
+    transport:
+        transit_speed_mps: 5.0       
+        Hs_m : 6  
+    station_keeping:
+        type: DP1
+    capabilities:
+        deck_space:
+            area_m2: 200
+            max_load_t: 200
+        positioning_system:
+            accuracy_m: 0.3
+            methods: [USBL, LBL, INS]
+        sonar_survey:
+            types: [MBES, SSS, SBP]
+            resolution_m: 0.05
+        monitoring_system:
+            metrics: [bathymetry]
+            sampling_rate_hz: 10
+    actions:
+        site_survey: {}
+        monitor_installation: {}
+        
+# --- Barge ---
+        
+Barge_squid:
+# Barge – non-propelled flat-top vessel used for transporting heavy equipment, components and materials. Requires towing or positioning support from tugs or AHTS vessels. 
+    type: BARGE
+    transport:
+        transit_speed_mps: 2           # No self-propulsion
+        Hs_m: 4.0                      # Maximum significant wave height for safe transport
+    station_keeping:
+        type: anchor_based             # Held in position using anchors and winches
+    capabilities:
+        deck_space:
+            area_m2: 3000
+            max_load_t: 10000
+        container:
+            weight_t: 20
+            dimensions_m: [15, 3, 3]    # LxWxH
+        crane:
+            capacity_t: 250
+            hook_height_m: 40
+    actions:
+        transport_components: {}
+        install_anchor: {}
+        retrieve_anchor: {}
+        install_wec: {}
+
+# --- Rock Installation Vessel ---
+
+ROCK_FallPipe:
+# Rock Installation Vessel (ROCK) – Placement of rock for scour protection, anchor stabilization, or seabed leveling. Uses fall-pipe or side-dump systems with high precision at depth.
+    type: ROCK
+    transport:
+        transit_speed_mps: 5.5       
+        Hs_m : 6  
+    station_keeping:
+        type: DP2
+    capabilities:
+        deck_space:
+            area_m2: 1500
+            max_load_t: 4000
+        positioning_system:
+            accuracy_m: 0.3
+            methods: [USBL, LBL, INS]
+        monitoring_system:
+            metrics: [berm_shape]
+            sampling_rate_hz: 5
+    actions:
+        backfill_rockdump: {}
+        site_survey: {}

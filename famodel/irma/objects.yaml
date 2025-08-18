@@ -9,14 +9,29 @@ mooring:   # object name
 platform:
   - mass
   - draft
+  - wec
   
 anchor:
   - mass
   - length
-  
 
-  
-  
+component:
+   - mass
+   - length
+   
+wec:
+
+platform_semisub:  
+
+platform_spar:
+
+platform_tlp:  
+
+wtg:
+
+cable:
+
+site:  
   
 #mooring:
 #  install sequence:

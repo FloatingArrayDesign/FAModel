@@ -1,67 +1,260 @@
-# list of marine operations actions
-# (Any vessel action list will be checked against this for validity)
-#
-# 
-#
-#
-#
+# This file defines standardized marine operations actions.
+# Each entry needs numeric values per specific asset in vessels.yaml.
+# Vessel actions will be checked against capabilities/actions for validation.
+
+# --- Towing & Transport ---
 
 tow:
-  function: tow  # name of the function to be called...
-  objects: [platform]  # what types of objects get acted on (must be passed in in order)
-  requirements: [AHV]  #  ??????
-  capabilities:  # to be provided by the vessels/requirements somehow... 
-    - deck_space 
-    - bollard_pull
-  duration: 5  # [hours]  default action duration (may be recalculated)
-
-mooring_hookup:
-  objects: 
-      mooring:
-        - pretension
-        #- depth
-        - weight
-        #- failme2
-      platform: []
-      #failme : []
-  duration: 2  # [hours]
-    
-  requirements:
-    - AHV
+  objects: [platform]
+  requirements: [TUG]
   capabilities:
     - deck_space
     - bollard_pull
+    - winch
+    - positioning_system
+  duration_h: 5
+  Hs_m: 3.0
+  description: "Towing floating structures (e.g., floaters, barges) to site; includes station-keeping."
 
-
-
-load_mooring:  # move mooring from port or vessel onto vessel
-  objects: [mooring]
-  requirements: [port, vessel]
-  capabilities:
-    - deck_space
-    - bollard_pull
-
-load_anchor:  # move anchor from port or vessel onto vessel
-  objects: [anchor]
-  requirements: [port, vessel]
+transport_components:
+  objects: [component]
+  requirements: [HL, WTIV, CSV]
   capabilities:
     - deck_space
     - crane
+    - positioning_system
+  duration_h: 12
+  Hs_m:: 2.5
+  description: "Transport of large components such as towers, nacelles, blades, or jackets."
 
-lay_mooring:  # 
-  objects: [mooring]
-  requirements: [vessel]
+# --- Mooring & Anchors ---
+
+install_anchor:
+  objects: [anchor]
+  requirements: [AHTS, MSV]
   capabilities:
     - deck_space
+    - winch
     - bollard_pull
+    - crane
+    - pump_subsea             # pump_surface, drilling_machine, torque_machine
+    - positioning_system
+    - monitoring_system
+  duration_h: 5
+  Hs_m:: 2.5
+  description: "Anchor installation (suction, driven, helical, DEA, SEPLA) with tensioning and verification."
 
-install_anchor:  # 
+retrieve_anchor:
   objects: [anchor]
+  requirements: [AHTS, MSV]
+  capabilities:
+    - deck_space
+    - winch
+    - bollard_pull
+    - crane
+    - pump_subsea
+    - positioning_system
+  duration_h: 4
+  Hs_m:: 2.5
+  description: "Anchor retrieval, including break-out and recovery to deck."
+  
+load_mooring:
+  objects: [mooring]
   requirements: [port, vessel]
   capabilities:
     - deck_space
+    - winch
     - bollard_pull
+    - mooring_work
+    - positioning_system
+  duration_h: 2
+  Hs_m:: 2.5
+  description: "Load-out of mooring lines and components from port or vessel onto vessel."    
 
-#load chain
+lay_mooring:
+  objects: [mooring]
+  requirements: [AHTS, CSV]
+  capabilities:
+    - deck_space
+    - winch
+    - bollard_pull
+    - mooring_work
+    - positioning_system
+  duration_h: 6
+  Hs_m:: 2.5
+  description: "Laying mooring lines, tensioning and connection to anchors and floaters."
 
-#load rope
+mooring_hookup:
+  objects:
+    mooring: [pretension]
+    platform: [wec]
+  requirements: [AHTS, CSV]
+  capabilities:
+    - deck_space
+    - winch
+    - bollard_pull
+    - mooring_work
+    - positioning_system
+    - monitoring_system
+  duration_h: 2
+  Hs_m:: 2.5
+  description: "Hook-up of mooring lines to floating platforms, including pretensioning."
+
+# --- Heavy Lift & Installation ---
+
+install_wec:
+  objects: [wec]
+  requirements: [HL, MSV]
+  capabilities:
+    - deck_space
+    - crane
+    - positioning_system
+    - monitoring_system
+    - rov
+  duration_h: 20
+  Hs_m:: 2.0
+  description: "Lifting, placement and securement of wave energy converters (WECs) onto moorings, including alignment, connection of power/data umbilicals and verification via ROV."
+
+install_semisub:
+  objects: [platform_semisub]
+  requirements: [AHTS, MSV, ROVSV]
+  capabilities:
+    - deck_space
+    - bollard_pull
+    - winch
+    - crane
+    - positioning_system
+    - monitoring_system
+    - rov
+    - sonar_survey
+    - pump_surface
+    - mooring_work
+  duration_h: 36
+  Hs_m:: 2.5
+  description: "Wet tow arrival, station-keeping, ballasting/trim, mooring hookup and pretensioning, ROV verification and umbilical connections as needed."
+
+install_spar:
+  objects: [platform_spar]
+  requirements: [AHTS, MSV, ROVSV]
+  capabilities:
+    - deck_space
+    - bollard_pull
+    - winch
+    - positioning_system
+    - monitoring_system
+    - rov
+    - sonar_survey
+    - pump_surface
+    - mooring_work
+  duration_h: 48
+  Hs_m:: 2.0
+  description: "Arrival and upending via controlled ballasting, station-keeping, fairlead/messenger handling, mooring hookup and pretensioning with ROV confirmation. Heavy-lift support may be used during port integration."
+
+install_tlp:
+  objects: [platform_tlp]
+  requirements: [AHTS, MSV, ROVSV]
+  capabilities:
+    - deck_space
+    - bollard_pull
+    - winch
+    - crane
+    - positioning_system
+    - monitoring_system
+    - rov
+    - sonar_survey
+    - mooring_work
+  duration_h: 60
+  Hs_m:: 2.0
+  description: "Tendon porch alignment, tendon hookup, sequential tensioning to target pretension, verification of offsets/RAOs and ROV checks."
+
+install_wtg:
+  objects: [wtg]
+  requirements: [WTIV]
+  capabilities:
+    - deck_space
+    - crane
+    - positioning_system
+    - monitoring_system
+  duration_h: 24
+  Hs_m:: 2.0
+  description: "Installation of wind turbine generator including tower, nacelle and blades."
+
+# --- Cable Operations ---
+
+lay_cable:
+  objects: [cable]
+  requirements: [CSV, SURV]
+  capabilities:
+    - deck_space
+    - positioning_system
+    - monitoring_system
+    - cable_reel
+    - sonar_survey
+  duration_h: 24
+  Hs_m:: 2.5
+  description: "Laying static/dynamic power cables, including burial where required."
+
+retrieve_cable:
+  objects: [cable]
+  requirements: [CSV, SURV]
+  capabilities:
+    - deck_space
+    - positioning_system
+    - monitoring_system
+    - cable_reel
+  duration_h: 12
+  Hs_m:: 2.5
+  description: "Cable recovery operations, including cutting, grappling and retrieval."
+  
+ # Lay and bury in a single pass using a plough 
+lay_and_bury_cable:
+  objects: [cable]
+  requirements: [CSV]
+  capabilities:
+    - deck_space
+    - positioning_system
+    - monitoring_system
+    - cable_reel
+    - cable_plough
+    - sonar_survey  
+  duration_h: 30
+  Hs_m: 2.5
+  description: "Simultaneous lay and plough burial; continuous QA via positioning + MBES/SSS, with post-pass verification."
+  
+# Backfill trench or stabilize cable route using rock placement
+backfill_rockdump:
+  objects: [cable]
+  requirements: [ROCK, SURV]
+  capabilities:
+    - deck_space
+    - positioning_system
+    - monitoring_system
+    - sonar_survey
+    - rock_placement
+  duration_h: 16
+  Hs_m: 2.5
+  description: "Localized rock placement to stabilize exposed cables, infill trenches or provide scour protection. Includes real-time positioning and sonar verification of rock placement."
+
+# --- Survey & Monitoring ---
+
+site_survey:
+  objects: [site]
+  requirements: [SURV]
+  capabilities:
+    - positioning_system
+    - sonar_survey
+    - monitoring_system
+  duration_h: 48
+  Hs_m: 3.0
+  description: "Pre-installation site survey including bathymetry, sub-bottom profiling and positioning."
+
+monitor_installation:
+  objects: [anchor, mooring, platform, cable]
+  requirements: [SURV, ROVSV]
+  capabilities:
+    - positioning_system
+    - monitoring_system
+    - rov
+  duration_h: 12
+  Hs_m: 3.0
+  description: "Real-time monitoring of installation operations using ROV and sensor packages."
