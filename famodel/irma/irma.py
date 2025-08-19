@@ -38,6 +38,7 @@ from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamic
 
 import networkx as nx
 from action import Action, increment_name
+from task import Task
 
 from assets import Vessel, Port
 
@@ -137,6 +138,8 @@ class Scenario():
         
         # Make sure actions refer to supported object types/properties and capabilities
         for key, act in actionTypes.items():
+            
+            act['type'] = key
             
             #if key != act['name']:
             #    raise Exception(f"Action key ({key}) contradicts its name ({act['name']})")
@@ -362,6 +365,19 @@ if __name__ == '__main__':
     
     sc.visualizeActions()
     
+    
+    
+    # ----- Generate tasks (groups of Actions according to specific strategies) -----
+    
+    
+    
+    
+    # ----- Check tasks for suitable vessels and the associated costs/times -----
+    
+    
+    
+    # ----- Call the scheduler -----
+    # for timing with weather windows and vessel assignments 
     
     
     # ----- Run the simulation -----

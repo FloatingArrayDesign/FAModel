@@ -91,10 +91,12 @@ class Action():
         self.objectList   = []  # all objects that could be acted on
         self.dependencies = {}  # list of other actions this one depends on
         
+        self.type = getFromDict(actionType, 'type', dtype=str)
         self.name = name
         self.status = 0  # 0, waiting;  1=running;  2=finished
         
         self.duration = getFromDict(actionType, 'duration', default=3)
+        
         '''
         # Create a dictionary of supported object types (with empty entries)
         if 'objects' in actionType:  #objs = getFromDict(actionType, 'objects', shape=-1, default={})
@@ -147,6 +149,31 @@ class Action():
         # could see if already a dependency and raise a warning if so...
     
     
+    
+    def assignAssets(self, assets):
+        pass
+    
+    def calcDurationAndCost(self):
+        pass
+    
+    def evaluateAsset(self, assets):
+        '''Check whether an asset can perform the task, and if so calculate
+        the time and cost associated with using that vessel.
+        asset : vessel or port object(s)
+        
+        '''
+        pass
+        
+        self.assignAssets(assets)
+        self.calcDurationAndCost()
+        
+        
+        # can store the cost and duration in self as well
+        
+    
+    
+    # ----- Below are drafts of methods for use by the engine -----
+    
     def begin(self):
         '''Take control of all objects'''
         for vessel in self.vesselList:
@@ -166,80 +193,31 @@ class Action():
     def timestep(self):
         '''Advance the simulation of this action forward one step in time.'''
         
-        # or maybe this is just 
-        
-
-
-"""
-Rough draft ideas back when I imagined subclasses. 
-Just leaving here in case can be pulled from later.
-
-class tow(Action):
-    '''Subclass for towing a floating structure'''
-    
-    def __init__(self, object, r_destination):
-        '''Initialize the tow action, specifying which
-        structure (Platform type) needs to be towed.
+        # (this is just documenting an idea for possible future implementation)
+        # Perform the hourly action of the task
         '''
-        
-        self.objects.append(object)
-        
-        self.r_finish = np.array(r_destination)
-    
-    
-    
-    
-    def assign_vessels(self, v1, v2, v3):
-        
-        self.vesselList.append(v1)
-        self.vesselList.append(v2)
-        self.vesselList.append(v3)
-        
-        self.tow_vessel = v1
-        self.support_vessels = [v2, v3]
-
-    
-    def approximate(self):
-        '''Generate approximate action characteristics for planning purposes.
-        '''
-        
-        # (estimate based on vessels, etc...
-        
-    
-    def initiate(self):
-        '''Triggers the beginning of the action'''
-        
-        # Record start position of object
-        self.r_start = np.array(object.r)
-        
-        # 
-        
-    def timestep(self):
-        
-        # controller - make sure things are going in right direction...
-        # (switch mode if need be)
-        if self.mode == 0 :  # gathering vessels
-            for ves in self.vesselList:
-                dr = self.r_start - ves.r
-                ves.setCourse(dr)  # sets vessel velocity
-            
-            # if all vessels are stopped (at the object), time to move
-            if all([np.linalg.norm(ves.v) == 0 for ves in self.vesselList]):
-                self.mode = 1
+        if self.type == 'tow':
+            # controller - make sure things are going in right direction...
+            # (switch mode if need be)
+            if self.mode == 0 :  # gathering vessels
+                for ves in self.vesselList:
+                    dr = self.r_start - ves.r
+                    ves.setCourse(dr)  # sets vessel velocity
                 
-        if self.mode == 1:  # towing
-            for ves in self.vesselList:
-                dr = self.r_finish - ves.r
-                ves.setCourse(dr)  # sets vessel velocity
+                # if all vessels are stopped (at the object), time to move
+                if all([np.linalg.norm(ves.v) == 0 for ves in self.vesselList]):
+                    self.mode = 1
+                    
+            if self.mode == 1:  # towing
+                for ves in self.vesselList:
+                    dr = self.r_finish - ves.r
+                    ves.setCourse(dr)  # sets vessel velocity
+                
+                # if all vessels are stopped (at the final location), time to end
+                if all([np.linalg.norm(ves.v) == 0 for ves in self.vesselList]):
+                    self.mode = 2
             
-            # if all vessels are stopped (at the final location), time to end
-            if all([np.linalg.norm(ves.v) == 0 for ves in self.vesselList]):
-                self.mode = 2
-        
-        if self.mode == 2:  # finished
-            self.end()
-        
-        # call generic time stepper...
-        self.timeStep()
-"""
-    
+            if self.mode == 2:  # finished
+                self.end()
+        '''
+
