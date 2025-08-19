@@ -2060,23 +2060,23 @@ class Project():
                             # has routing  - first plot rA to sub.coordinate[0] connection
                             ax.plot([sub.rA[0],sub.x[0]],
                                     [sub.rA[1],sub.y[0]],':',color = Ccable,
-                                    lw=1.2,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                                    lw=1.2,label='Static Cable '+str(cableSize)+' mm$^{2}$')
                             # now plot route
                             if len(sub.x) > 1:
                                 for i in range(1,len(sub.x)):
                                     ax.plot([sub.x[i-1],sub.x[i]],
                                             [sub.y[i-1],sub.y[i]],
                                             ':', color=Ccable, lw=1.2,
-                                            label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                                            label='Static Cable '+str(cableSize)+' mm$^{2}$')
                             # finally plot sub.coordinates[-1] to rB connection
                             ax.plot([sub.x[-1],sub.rB[0]],
                                     [sub.y[-1],sub.rB[1]],':',color=Ccable,
-                                    lw=1.2,label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                                    lw=1.2,label='Static Cable '+str(cableSize)+' mm$^{2}$')
                         else:
                             # if not routing just do simple line plot
                             ax.plot([sub.rA[0],sub.rB[0]], 
                                     [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1.2,
-                                    label='Buried Cable '+str(cableSize)+' mm$^{2}$')
+                                    label='Static Cable '+str(cableSize)+' mm$^{2}$')
                         
                         # if cable_labels:
                         #     x = np.mean([sub.rA[0],sub.rB[0]])
@@ -2089,7 +2089,7 @@ class Project():
                     elif isinstance(sub,DynamicCable):
                             ax.plot([sub.rA[0],sub.rB[0]], 
                                     [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1.2,
-                                    label='Cable '+str(cableSize)+' mm$^{2}$')
+                                    label='Dynamic Cable '+str(cableSize)+' mm$^{2}$')
                             
                             if cable_labels:
                                 x = np.mean([sub.rA[0],sub.rB[0]])
