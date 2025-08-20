@@ -32,6 +32,12 @@ project.duplicate(rep_pf,r=new_pf_loc)
 # make new moorpy array
 project.getMoorPyArray()
 
+for line in rep_pf.mooringSystem(project).lineList:
+    xB, yB, zB = line.rB
+    #z_anchor, soil_label = get_depth_and_soil(xB, yB)
+    #print(f'  Anchor at ({xB:.1f}, {yB:.1f}) → Depth = {z_anchor:.2f} m')
+
+
 # plot the new system
 project.plot3d()
 plt.show()

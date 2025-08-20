@@ -5,11 +5,6 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-
-
-
-
 def readBathymetryFile(filename, dtype=float):
 
     with open(filename, 'r') as f:
@@ -68,37 +63,82 @@ def writeBathymetryFile(filename, grid_x, grid_y, grid_depth):
             row = [y] + list(grid_depth[i, :])
             f.write(" ".join(map(str, row)) + "\n")
             
-def getSoilTypes(filename):
-    '''function to read in a preliminary input text file format of soil type information'''
+import yaml
+import os
 
+def getSoilTypes(filename, soil_mode='layered', profile_source=None):
+    '''
+    Load soil properties or layered profiles depending on soil_mode.
+
+    Parameters
+    ----------
+    filename : str
+        Path to .txt file containing grid and profile/soil label definitions
+    soil_mode : str
+        'uniform' or 'layered'
+    profile_source : str or None
+        Path to YAML file with layered soil profiles (used only for 'layered')
+
+    Returns
+    -------
+    soilProps : dict
+        Dictionary of soil type properties (uniform) or layered profiles (layered)
+    '''
     soilProps = {}
+    used_labels = []
 
-    f = open(filename, 'r')
-    
-    for line in f:
-        if line.count('---') > 0 and (line.upper().count('SOIL TYPES') > 0):
-            line = next(f) # skip this header line, plus channel names and units lines
-            var_names = line.split()
-            line = next(f)
-            line = next(f)
-            while line.count('---') == 0:
-                entries = line.split()
-                soilProps[entries[0]] = {}
-                for iv,var in enumerate(var_names[1:]):
-                    # convert entries to strings unless there is 
-                    if entries[iv+1] == '-':
-                        soilProps[entries[0]][var] = [0]
-                    else:
-                        soilProps[entries[0]][var] = [float(entries[iv+1])]
-                line = next(f)
-    
-    f.close()
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    for i, line in enumerate(lines):
+        if line.strip().startswith('---') and 'SOIL TYPES' in line.upper():
+            break
+
+    # Extract used labels from the SOIL TYPES section
+    for line in lines[i+3:]:
+        if '---' in line:
+            break
+        entries = line.strip().split()
+        label = entries[0]
+        used_labels.append(label); print(label)
+
+    if soil_mode == 'uniform':
+        var_names = lines[i+1].split()
+        for line in lines[i+3:]:
+            if '---' in line:
+                break
+            entries = line.strip().split()
+            label = entries[0]
+            soilProps[label] = {}
+            for iv, var in enumerate(var_names[1:]):
+                val = entries[iv+1]
+                soilProps[label][var] = [float(val)] if val != '-' else [0.0]
+
+    elif soil_mode == 'layered':
+        if profile_source is None:
+            raise ValueError("profile_source (path to YAML) is required for layered mode.")
+
+        # Load the full YAML file of profiles
+        with open(profile_source, 'r') as f:
+            all_profiles = yaml.safe_load(f)
+
+        # Reassign each label to the actual layer list directly
+        for label in used_labels:
+            if label not in all_profiles:
+                raise KeyError(f'Profile ID {label} not found in YAML: {profile_source}')
+            soilProps[label] = all_profiles[label]['layers']  # now a list of layer dicts
+
+        print(f"[DEBUG] Loaded profiles from YAML: {list(soilProps.keys())}")
+        if used_labels:
+            print(f"[DEBUG] Example layers for {used_labels[0]}: {soilProps[used_labels[0]]}")
+        else:
+            print("[WARNING] No profile labels were found in the soil grid.")
+
+
+    else:
+        raise ValueError(f"Unrecognized soil_mode '{soil_mode}'")
 
     return soilProps
-
-
-
-
 
 def convertLatLong2Meters(zerozero, lats, longs):
     '''Convert a list of latitude and longitude coordinates into
@@ -140,11 +180,6 @@ def convertLatLong2Meters(zerozero, lats, longs):
         Ys[i] = geopy.distance.distance(zerozero, (lats[i], zerozero[1])).km*1000*sign
 
     return Xs, Ys
-
-
-
-
-
 
 def processASC(gebcofilename, lat, lon, outfilename=""):
     '''Process an ASC file of bathymetry information and convert into
@@ -266,9 +301,16 @@ def processGeotiff(filename, lat, lon, outfilename="processGeotiff.txt", **kwarg
     #lats, _  = rasterio.transform.xy(tiff.transform, 0, range(tiff.width-1,-1,-1))
     height, width = tiff.shape
     cols, rows = np.meshgrid(np.arange(width), np.arange(height))
-    longs_mesh, lats_mesh = rasterio.transform.xy(tiff.transform, rows, cols)
-    longs = np.array(longs_mesh)[0,:]
-    lats = np.flip(np.array(lats_mesh)[:,0])
+    
+    # rasterio.transform.xy returns flat lists, so reshape after
+    longs_list, lats_list = rasterio.transform.xy(tiff.transform, rows, cols)
+    
+    longs_array = np.array(longs_list).reshape((height, width))
+    lats_array = np.array(lats_list).reshape((height, width))
+    
+    longs = longs_array[0, :]       # all x-coords from first row
+    lats = np.flip(lats_array[:, 0])  # all y-coords from first column (flip to make it south to north)
+
     # lats data provided from top left corner, i.e., latitudes are descending. It seems that the following interpolation functions (getDepthFromBathymetry)
     # can only work if latitudes start small and increase, meaning that the first latitude entry has to be the bottom left corner
     
@@ -707,11 +749,14 @@ def getPlotBounds(latsorlongs_boundary, zerozero, long=True):
 
 if __name__ == '__main__':
     
-    centroid = (40.928, -124.708)  #humboldt    
-    xs = np.arange(-30000,30001,400)
-    ys = np.arange(-40000,40001,400)
+    centroid = (44.1, 12.65)    
+    # Choose grid that fits within 25x22 km — e.g., ±10 km to be safe
+    xs = np.arange(-10000, 10001, 400)   # 50 x points → 20 km total
+    ys = np.arange(-10000, 10001, 400)   # 50 y points
     
-    xs, ys, depths = processGeotiff('humboldt.tif', centroid[0], centroid[1], xs=xs, ys=ys, outfilename='test output.txt')
+    xs, ys, depths = processGeotiff('gebco_2024_n44.2_s44.0_w12.5_e12.8.tif', 
+                                    centroid[0], centroid[1], xs=xs, ys=ys, 
+                                    outfilename='test output.txt')
     
     import moorpy as mp
     ms = mp.System(depth=np.max(depths), bathymetry='test output.txt')
