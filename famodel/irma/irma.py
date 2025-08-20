@@ -300,7 +300,8 @@ if __name__ == '__main__':
     print('Creating project without RAFT\n')
     print(os.getcwd())
     # create project object
-    project = Project(file='C:/Code/FAModel/examples/OntologySample200m_1turb.yaml', raft=False)
+    # project = Project(file='C:/Code/FAModel/examples/OntologySample200m_1turb.yaml', raft=False) # for Windows
+    project = Project(file='../../examples/OntologySample200m_1turb.yaml', raft=False) # for Mac
     # create moorpy system of the array, include cables in the system
     project.getMoorPyArray(cables=1)
     # plot in 3d, using moorpy system for the mooring and cable plots
@@ -329,6 +330,7 @@ if __name__ == '__main__':
         
         # add and register anchor install action(s)
         a1 = sc.addAction('install_anchor', 'install_anchor-1', objects=[anchor])
+        a1.evaluateAssets({'carrier' : sc.vessels["MPSV_01"]})
         
         # register the actions as necessary for the anchor <<< do this for all objects??
         anchor.install_dependencies = [a1]

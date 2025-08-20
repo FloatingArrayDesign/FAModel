@@ -88,7 +88,7 @@ class Action():
         
         # list of things that will be controlled during this action
         self.assets = {}  # dict of named roles for the vessel(s) or port required to perform the action
-        self.requirements = {}  # the capabilities required of each asset role assets (same keys as self.assets)
+        self.requirements = {}  # the capabilities required of each role (same keys as self.assets)
         self.objectList   = []  # all objects that could be acted on
         self.dependencies = {}  # list of other actions this one depends on
         
@@ -97,6 +97,8 @@ class Action():
         self.status = 0  # 0, waiting;  1=running;  2=finished
         
         self.duration = getFromDict(actionType, 'duration', default=3)
+
+        self.supported_objects = [] # list of FAModel object types supported by the action
         
         '''
         # Create a dictionary of supported object types (with empty entries)
@@ -119,30 +121,29 @@ class Action():
         # make list of supported object type names
         if 'objects' in actionType:  
             if isinstance(actionType['objects'], list):
-                supported_objects = actionType['objects']
+                self.supported_objects = actionType['objects']
             elif isinstance(actionType['objects'], dict):
-                supported_objects = list(actionType['objects'].keys())
-        else:
-            supported_objects = []
+                self.supported_objects = list(actionType['objects'].keys())
         
         # Add objects to the action's object list as long as they're supported
         if 'objects' in kwargs:
             for obj in kwargs['objects']:
                 objType = obj.__class__.__name__.lower() # object class name
-                if objType in supported_objects:
+                if objType in self.supported_objects:
                     self.objectList.append(obj)
                 else:
                     raise Exception(f"Object type '{objType}' is not in the action's supported list.")
         
         # Create placeholders for asset roles based on the "requirements"
         if 'roles' in actionType:
-            for asset, caplist in actionType['roles'].items():
-                self.assets[asset] = None  # each asset role holds a None value until assigned
-                self.requirements[asset] = {}
+            for role, caplist in actionType['roles'].items():
+                self.requirements[role] = {key: None for key in caplist}  # each role requirment holds a dict of capabilities with values set to None for now
                 for cap in caplist:
-                    self.requirements[asset][cap] = 0  # fill in each required metric with zero to start with?
-                    
-        
+                    # self.requirements[role][cap] = {}  # fill in each required capacity with {'metric': 0.0}
+                    self.requirements[role][cap] = {'area_m2': 1000, 'max_load_t': 1600}  # dummy values for now, just larger than MPSV_01 values to trigger failure
+
+                self.assets[role] = None  # placeholder for the asset assigned to this role
+
         # Process dependencies
         if 'dependencies' in kwargs:
             for dep in kwargs['dependencies']:
@@ -154,26 +155,69 @@ class Action():
     
         
     def addDependency(self, dep):
-        '''Registers other action as a dependency of this one.'''
+        '''Registers other action as a dependency of this one.
+
+        Inputs
+        ------
+        dep : Action
+            The action to be added as a dependency.
+        '''
         self.dependencies[dep.name] = dep
         # could see if already a dependency and raise a warning if so...
     
+
+    def assignObjects(self, objects):
+        '''
+        Adds a list of objects to the actions objects list, 
+        checking they are valid for the actions supported objects
+
+        Inputs
+        ------
+        objects : list
+            A list of FAModel objects to be added to the action.
+        ''' 
+
+        for obj in objects:
+            objType = obj.__class__.__name__.lower() # object class name
+            if objType in self.supported_objects:
+                if obj in self.objectList:
+                    print(f"Warning: Object '{obj}' is already in the action's object list.")
+                self.objectList.append(obj)
+            else:
+                raise Exception(f"Object type '{objType}' is not in the action's supported list.")
+
+
+
+    # def setUpCapability(self):
+    #     # WIP: example of what needs to happen to create a metric
+
+    #     # figure out how to assign required metrics to capabilies in the roles based on the objects
+    #     for role, caps in self.requirements.items():
+    #         for cap, metrics in caps.items():
+    #             for obj in self.objectList:
+    #                 # this is for the deck_space capability
+    #                 metrics = {'area_m2': obj.area, 'max_load_t': obj.mass / 1000} # / 1000 to convert kg to T
+    #                 metrics.update(obj.get_capability_metrics(cap))
+    #     pass
+
     
     def checkAsset(self, role_name, asset):
         '''Checks if a specified asset has sufficient capabilities to fulfil
         a specified role in this action.
-        '''
-        
-        # Make sure role_name is valid for this action
-        if not role_name in self.assets.keys():
-            raise Exception(f"The specified role name '{role_name}' is not a named asset role in this action.")
-        
-        for cap, req in self.requirements['role_name']:
-            if asset.capabilities[cap] >= req:  # <<< this is pseudocode. Needs to look at capability numbers! <<<
-                pass
-                # so far so good
+        '''        
+
+        for capability in self.requirements[role_name].keys():
+
+            if capability in asset['capabilities'].keys(): # check capability
+                # does this work if there are no metrics in a capability? This should be possible, as not all capabilities will require a constraint. 
+                for metric in self.requirements[role_name][capability].keys(): # loop over the capacity requirements for the capability (if more than one)
+                    if self.requirements[role_name][capability][metric] > asset['capabilities'][capability][metric]: # check capacity
+                        # TODO: can we throw a message here that explains what metric is violated?
+                        return False  # the asset does not have the capacity for this capability
+                return True
+            
             else:
-                return False  # at least on capability is not met, so return False
+                return False  # at least one capability is not met
                 
         return True
     
@@ -192,12 +236,68 @@ class Action():
         # Make sure role_name is valid for this action
         if not role_name in self.assets.keys():
             raise Exception(f"The specified role name '{role_name}' is not a named asset role in this action.")
-        
-        self.assets[role_name] = asset
+
+        if self.checkAsset(role_name, asset):
+            self.assets[role_name] = asset
+        else:
+            raise Exception(f"The asset does not have the capabilities for role '{role_name}'.")
         
     
     def calcDurationAndCost(self):
-        pass
+        '''The structure here is dependent on actions.yaml. 
+        TODO: finish description
+        '''
+        
+        print('Calculating duration and cost for action:', self.name)
+        # print(self.type)
+        
+        # --- Towing & Transport ---
+        if self.type == 'tow':
+            pass
+        elif self.type == 'transport_components':
+            pass
+
+        # --- Mooring & Anchors ---
+        elif self.type == 'install_anchor':
+            pass
+        elif self.type == 'retrieve_anchor':
+            pass
+        elif self.type == 'load_mooring':
+            pass
+        elif self.type == 'lay_mooring':
+            pass
+        elif self.type == 'mooring_hookup':
+            pass
+
+        # --- Heavy Lift & Installation ---
+        elif self.type == 'install_wec':
+            pass
+        elif self.type == 'install_semisub':
+            pass
+        elif self.type == 'install_spar':
+            pass
+        elif self.type == 'install_tlp':
+            pass
+        elif self.type == 'install_wtg':
+            pass
+
+        # --- Cable Operations ---
+        elif self.type == 'lay_cable':
+            pass
+        elif self.type == 'retrieve_cable':
+            pass
+        elif self.type == 'lay_and_bury_cable':
+            pass
+        elif self.type == 'backfill_rockdump':
+            pass
+
+        # --- Survey & Monitoring ---
+        elif self.type == 'site_survey':
+            pass
+        elif self.type == 'monitor_installation':
+            pass
+        else:
+            raise ValueError(f"Action type '{self.type}' not recognized.")
     
     
     def evaluateAssets(self, assets):
@@ -209,6 +309,8 @@ class Action():
             Each asset is a vessel or port object.
         
         '''
+
+        # error check that assets is a dict of {role_name, asset dict}, and not just an asset dict?
         
         # Assign each specified asset to its respective role
         for akey, aval in assets.items():

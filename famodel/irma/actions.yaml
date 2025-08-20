@@ -5,6 +5,23 @@
 #  Old format: requirements and capabilities 
 #  New format: roles, which lists asset roles, each with associated required capabilities
 
+# The code that models and checks these structures is action.calcDurationAndCost(). Structural changes here will not be reflected in the code unless changes are made there as well
+
+### Example action ###
+
+# example_action:
+#   objects: [] or {} "The FAModel object types that are supported in this action"
+#   requirements: [] "Asset types" **Unused**
+#   roles: "the roles that assets need to fill. A way a grouping capabilities so multiple assets can be assigned to an action"
+#     role1:
+#     - capability 1
+#     - capability 2
+#     role2:
+#     - capability 3
+#   duration_h: 0.0 "Duration in hours"
+#   Hs_m: 0.0 "Wave height constraints in meters"
+#   description: <text> "A description"
+
 # --- Towing & Transport ---
 
 tow:
