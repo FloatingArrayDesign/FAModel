@@ -10,7 +10,6 @@ import ruamel.yaml
 import moorpy as mp
 from moorpy.helpers import loadPointProps, getPointProps
 import shapely as sh
-from famodel.turbine.turbine import Turbine
 
 
 def cart2pol(x, y):
