@@ -2,6 +2,9 @@
 # Each entry needs numeric values per specific asset in vessels.yaml.
 # Vessel actions will be checked against capabilities/actions for validation.
 
+# >>> Units to be converted to standard values, with optional converter script
+# for allowing conventional unit inputs. <<<
+
 # --- Vessel (on-board) ---
 
  - name: deck_space

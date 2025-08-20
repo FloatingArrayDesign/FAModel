@@ -145,10 +145,12 @@ class Scenario():
             #    raise Exception(f"Action key ({key}) contradicts its name ({act['name']})")
             
             # Check capabilities
-            if not 'capabilities' in act:
-                raise Exception(f"Action '{key}' is missing a capabilities list.")
+            #if 'capabilities' in act:
+            #    raise Exception(f"Action '{key}' is missing a capabilities list.")
+            
+            if 'capabilities' in act:
                 
-            for cap in act['capabilities']:
+              for cap in act['capabilities']:
                 if not cap in capabilities:
                     raise Exception(f"Action '{key}' capability '{cap}' is not in the global capability list.")
                 
@@ -156,6 +158,13 @@ class Scenario():
                 #for cap_param in cap:
                 #    if not cap_param in capabilities[cap['name']]:
                 #        raise Exception(f"Action '{key}' capability '{cap['name']}' parameter '{cap_param}' is not in the global capability's parameter list.")
+            
+            if 'roles' in act:   # look through capabilities listed under each role
+                for caps in act['roles'].values():
+                    for cap in caps:
+                        if not cap in capabilities:
+                            raise Exception(f"Action '{key}' capability '{cap}' is not in the global capability list.")
+                        
             
             # Check objects
             if not 'objects' in act:

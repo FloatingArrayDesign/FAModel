@@ -1,13 +1,17 @@
 # This file defines standardized marine operations actions.
 # Each entry needs numeric values per specific asset in vessels.yaml.
 # Vessel actions will be checked against capabilities/actions for validation.
+#
+#  Old format: requirements and capabilities 
+#  New format: roles, which lists asset roles, each with associated required capabilities
 
 # --- Towing & Transport ---
 
 tow:
   objects: [platform]
   requirements: [TUG]
-  capabilities:
+  roles:  # The asset roles involved and the capabilities required of each role
+    vessel:
     - deck_space
     - bollard_pull
     - winch
@@ -19,7 +23,8 @@ tow:
 transport_components:
   objects: [component]
   requirements: [HL, WTIV, CSV]
-  capabilities:
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:  # vessel carrying things
     - deck_space
     - crane
     - positioning_system
@@ -32,8 +37,10 @@ transport_components:
 install_anchor:
   objects: [anchor]
   requirements: [AHTS, MSV]
-  capabilities:
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:  # vessl that has been carrying the anchor
     - deck_space
+    operator:  # vessel that lowers and installs the anchor
     - winch
     - bollard_pull
     - crane
@@ -47,8 +54,10 @@ install_anchor:
 retrieve_anchor:
   objects: [anchor]
   requirements: [AHTS, MSV]
-  capabilities:
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:
     - deck_space
+    operator:
     - winch
     - bollard_pull
     - crane
@@ -57,25 +66,31 @@ retrieve_anchor:
   duration_h: 4
   Hs_m:: 2.5
   description: "Anchor retrieval, including break-out and recovery to deck."
-  
+
+
 load_mooring:
   objects: [mooring]
-  requirements: [port, vessel]
-  capabilities:
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier1: [] # the port or vessel where the moorings begin
+      # (no requirements)
+    carrier2:  # the vessel things will be loaded onto
     - deck_space
     - winch
-    - bollard_pull
-    - mooring_work
     - positioning_system
+    operator:  # the entity with the crane (like the port or the new vessel)
+    - crane  
   duration_h: 2
   Hs_m:: 2.5
-  description: "Load-out of mooring lines and components from port or vessel onto vessel."    
+  description: "Load-out of mooring lines and components from port or vessel onto vessel." 
+
 
 lay_mooring:
   objects: [mooring]
   requirements: [AHTS, CSV]
-  capabilities:
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:  # vessel carrying the mooring
     - deck_space
+    operator:  # vessel laying the mooring
     - winch
     - bollard_pull
     - mooring_work
@@ -84,13 +99,16 @@ lay_mooring:
   Hs_m:: 2.5
   description: "Laying mooring lines, tensioning and connection to anchors and floaters."
 
+
 mooring_hookup:
   objects:
     mooring: [pretension]
     platform: [wec]
   requirements: [AHTS, CSV]
-  capabilities:
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:
     - deck_space
+    operator:
     - winch
     - bollard_pull
     - mooring_work

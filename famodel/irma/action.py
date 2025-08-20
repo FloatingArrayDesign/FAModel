@@ -87,7 +87,8 @@ class Action():
         '''
         
         # list of things that will be controlled during this action
-        self.vesselList   = []  # all vessels required for the action
+        self.assets = {}  # dict of named roles for the vessel(s) or port required to perform the action
+        self.requirements = {}  # the capabilities required of each asset role assets (same keys as self.assets)
         self.objectList   = []  # all objects that could be acted on
         self.dependencies = {}  # list of other actions this one depends on
         
@@ -123,6 +124,7 @@ class Action():
                 supported_objects = list(actionType['objects'].keys())
         else:
             supported_objects = []
+        
         # Add objects to the action's object list as long as they're supported
         if 'objects' in kwargs:
             for obj in kwargs['objects']:
@@ -131,7 +133,15 @@ class Action():
                     self.objectList.append(obj)
                 else:
                     raise Exception(f"Object type '{objType}' is not in the action's supported list.")
-                
+        
+        # Create placeholders for asset roles based on the "requirements"
+        if 'roles' in actionType:
+            for asset, caplist in actionType['roles'].items():
+                self.assets[asset] = None  # each asset role holds a None value until assigned
+                self.requirements[asset] = {}
+                for cap in caplist:
+                    self.requirements[asset][cap] = 0  # fill in each required metric with zero to start with?
+                    
         
         # Process dependencies
         if 'dependencies' in kwargs:
@@ -149,22 +159,61 @@ class Action():
         # could see if already a dependency and raise a warning if so...
     
     
+    def checkAsset(self, role_name, asset):
+        '''Checks if a specified asset has sufficient capabilities to fulfil
+        a specified role in this action.
+        '''
+        
+        # Make sure role_name is valid for this action
+        if not role_name in self.assets.keys():
+            raise Exception(f"The specified role name '{role_name}' is not a named asset role in this action.")
+        
+        for cap, req in self.requirements['role_name']:
+            if asset.capabilities[cap] >= req:  # <<< this is pseudocode. Needs to look at capability numbers! <<<
+                pass
+                # so far so good
+            else:
+                return False  # at least on capability is not met, so return False
+                
+        return True
     
-    def assignAssets(self, assets):
-        pass
+    
+    def assignAsset(self, role_name, asset):
+        '''Assigns a vessel or port to a certain role in the action.
+        
+        Parameters
+        ----------
+        role_name : string
+            Name of the asset role being filled (must be in the action's list)
+        asset : Vessel or Port object
+            The asset to be registered with the class.
+        '''
+        
+        # Make sure role_name is valid for this action
+        if not role_name in self.assets.keys():
+            raise Exception(f"The specified role name '{role_name}' is not a named asset role in this action.")
+        
+        self.assets[role_name] = asset
+        
     
     def calcDurationAndCost(self):
         pass
     
-    def evaluateAsset(self, assets):
+    
+    def evaluateAssets(self, assets):
         '''Check whether an asset can perform the task, and if so calculate
-        the time and cost associated with using that vessel.
-        asset : vessel or port object(s)
+        the time and cost associated with using those assets.
+        
+        assets : dict
+            Dictionary of role_name, asset object pairs for assignment to the action.
+            Each asset is a vessel or port object.
         
         '''
-        pass
         
-        self.assignAssets(assets)
+        # Assign each specified asset to its respective role
+        for akey, aval in assets.items():
+            self.assignAsset(akey, aval)
+            
         self.calcDurationAndCost()
         
         
@@ -173,7 +222,7 @@ class Action():
     
     
     # ----- Below are drafts of methods for use by the engine -----
-    
+    """
     def begin(self):
         '''Take control of all objects'''
         for vessel in self.vesselList:
@@ -188,36 +237,36 @@ class Action():
             vessel._detach_from()
         for object in self.objectList:
             object._detach_from()
-        
+    """
     
     def timestep(self):
         '''Advance the simulation of this action forward one step in time.'''
         
         # (this is just documenting an idea for possible future implementation)
         # Perform the hourly action of the task
-        '''
+        
         if self.type == 'tow':
             # controller - make sure things are going in right direction...
             # (switch mode if need be)
             if self.mode == 0 :  # gathering vessels
-                for ves in self.vesselList:
-                    dr = self.r_start - ves.r
-                    ves.setCourse(dr)  # sets vessel velocity
+                ves = self.assets['vessel']
+                dr = self.r_start - ves.r
+                ves.setCourse(dr)  # sets vessel velocity
                 
-                # if all vessels are stopped (at the object), time to move
-                if all([np.linalg.norm(ves.v) == 0 for ves in self.vesselList]):
+                # if vessel is stopped (at the object), time to move
+                if np.linalg.norm(ves.v) == 0:
                     self.mode = 1
                     
             if self.mode == 1:  # towing
-                for ves in self.vesselList:
-                    dr = self.r_finish - ves.r
-                    ves.setCourse(dr)  # sets vessel velocity
+                ves = self.assets['vessel']
+                dr = self.r_finish - ves.r
+                ves.setCourse(dr)  # sets vessel velocity
                 
                 # if all vessels are stopped (at the final location), time to end
-                if all([np.linalg.norm(ves.v) == 0 for ves in self.vesselList]):
+                if np.linalg.norm(ves.v) == 0:
                     self.mode = 2
             
             if self.mode == 2:  # finished
                 self.end()
-        '''
+        
 
