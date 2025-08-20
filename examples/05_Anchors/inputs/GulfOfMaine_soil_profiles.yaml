@@ -1,0 +1,116 @@
+pro_0:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 12
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 10.0
+      Su_bot: 20.0
+    - soil_type: clay
+      top: 12
+      bottom: 22
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 15.0
+      Su_bot: 25.0
+    - soil_type: clay
+      top: 22
+      bottom: 30
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 55.0
+      Su_bot: 70.0
+pro_1:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 5
+      gamma_top: 8.2
+      gamma_bot: 8.2
+      Su_top: 12.0
+      Su_bot: 22.0
+    - soil_type: clay
+      top: 5
+      bottom: 15
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 22.0
+      Su_bot: 22.0
+    - soil_type: clay
+      top: 15
+      bottom: 30
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 22.0
+      Su_bot: 50.0
+pro_2:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 8
+      gamma_top: 8.4
+      gamma_bot: 8.4
+      Su_top: 14.0
+      Su_bot: 14.0
+    - soil_type: clay
+      top: 8
+      bottom: 18
+      gamma_top: 8.4
+      gamma_bot: 8.4
+      Su_top: 15.0
+      Su_bot: 25.0
+    - soil_type: clay
+      top: 18
+      bottom: 30
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 25.0
+      Su_bot: 25.0
+
+pro_3:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 15
+      gamma_top: 8.6
+      gamma_bot: 8.6
+      Su_top: 20.0
+      Su_bot: 26.0
+    - soil_type: clay
+      top: 15
+      bottom: 25
+      gamma_top: 8.6
+      gamma_bot: 8.6
+      Su_top: 20.0
+      Su_bot: 40.0
+    - soil_type: clay
+      top: 25
+      bottom: 30
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 40.0
+      Su_bot: 40.0
+pro_4:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 3
+      gamma_top: 8.8
+      gamma_bot: 8.8
+      Su_top: 10.0
+      Su_bot: 10.0
+    - soil_type: clay
+      top: 3
+      bottom: 10
+      gamma_top: 8.8
+      gamma_bot: 8.8
+      Su_top: 16.0
+      Su_bot: 40.0
+    - soil_type: clay
+      top: 10
+      bottom: 30
+      gamma_top: 8.8
+      gamma_bot: 8.8
+      Su_top: 40.0
+      Su_bot: 60.0
