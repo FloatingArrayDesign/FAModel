@@ -2026,12 +2026,11 @@ class Project():
                         attB = pf
                         # update platform location
                         pf.r[:2] = connDict[i]['coordinates'][-1]
-
-            # get heading of cable from attached object coordinates 
-            headingA = np.radians(90) - np.arctan2((connDict[i]['coordinates'][-1][0]-connDict[i]['coordinates'][0][0]),
-                                                   (connDict[i]['coordinates'][-1][1]-connDict[i]['coordinates'][0][1]))
-            headingB = np.radians(90) - np.arctan2((connDict[i]['coordinates'][0][0]-connDict[i]['coordinates'][-1][0]),
-                                                   (connDict[i]['coordinates'][0][1]-connDict[i]['coordinates'][-1][1]))
+            
+            # get heading of cable from attached object coordinates (compass heading)
+            headingA = calc_heading(connDict[i]['coordinates'][-1],
+                                    connDict[i]['coordinates'][0])
+            headingB = headingA + np.pi
 
             # figure out approx. depth at location
             initial_depths = []
@@ -2127,8 +2126,8 @@ class Project():
                             stat_cable = cab.subcomponents[ind+ind_of_stat]
                             # get new coordinate routing point
                             stat_cable_end = stat_cable.rA if ind==0 else stat_cable.rB
-                            coord = [stat_cable_end[0] + np.cos(heads[ii])*spandiff,
-                                        stat_cable_end[1] + np.sin(heads[ii])*spandiff]
+                            coord = [stat_cable_end[0] + np.cos(np.pi/2-heads[ii])*spandiff,
+                                        stat_cable_end[1] + np.sin(np.pi/2-heads[ii])*spandiff]
                             # append it to static cable object coordinates
                             coords.append(coord)
             
@@ -3202,6 +3201,7 @@ class Project():
             See RAFT documentation for requirements for each sub-dictionary
         '''
         print('Creating RAFT object')
+            
         # create RAFT model if necessary components exist
         if 'platforms' in RAFTDict or 'platform' in RAFTDict:
             # set up a dictionary with keys as the table names for each row (ease of use later)

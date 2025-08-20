@@ -139,11 +139,15 @@ class Cable(Edge):
         '''
         # reposition cable and set end points for the first and last cable sections (or the dynamic cable for a suspended cable)
         if not headings:
+            # convert headings to unit circle
             headingA = np.pi/2 - self.subcomponents[0].headingA
             headingB = np.pi/2 - self.subcomponents[-1].headingB
         else:
+            # convert headings to unit circle
             headingA = np.pi/2 - headings[0]
+            self.subcomponents[0].headingA = headings[0]
             headingB = np.pi/2 - headings[1]
+            self.subcomponents[-1].headingB = headings[1]
             
         if not isinstance(self.subcomponents[0].attached_to[0], Jtube):
             if not rad_fair:

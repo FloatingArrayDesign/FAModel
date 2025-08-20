@@ -100,8 +100,11 @@ class Connector(Node, dict):
                 if self['CdA']>0:
                     details['CdA'] = self['CdA']
                 if self.mpConn:
+                    # add point type to system and assign to point entity if mp connector point exists
                     pt = self.mpConn.sys.setPointType(design,**details)
+                    self.mpConn.entity = pt
                 else:
+                    # otherwise, jsut get the point properties dict and return
                     props = loadPointProps(None)
                     pt = getPointProps(design, Props=props, **details)
                 self.required_safety_factor = pt['FOS']
@@ -115,13 +118,21 @@ class Connector(Node, dict):
         '''Get cost of the connector from MoorPy pointProps.
         Wrapper for moorpy's getCost_and_MBL helper function'''
         if update:
-            if self.mpConn:
-                # use pointProps to update cost
-                try:
-                    self.getProps()
-                    self.cost['materials'], MBL, info = self.mpConn.getCost_and_MBL(fx=fx, fz=fz, peak_tension=peak_tension)
-                except:
-                    print('Warning: unable to find cost from MoorPy pointProps, cost dictionary not updated')
+            # use pointProps to update cost
+            try:
+                # get point properties from wrapper function
+                ptype = self.getProps()
+                if self.mpConn:
+                    point = self.mpConn
+                else:
+                    from moorpy import System
+                    ms = System() # create a blank moorpy system
+                    point = ms.addPoint(0, r=[0,0]) # add a dummy point
+                    point.entity = ptype # get the point properties and assign to point entity
+                # calculate cost with any given forces/tensions
+                self.cost['materials'], MBL, info = point.getCost_and_MBL(fx=fx, fz=fz, peak_tension=peak_tension)
+            except:
+                print('Warning: unable to find cost from MoorPy pointProps, cost dictionary not updated')
         # if update == False, just return existing costs
                 
         return sum(self.cost.values())

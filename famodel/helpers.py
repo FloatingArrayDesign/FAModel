@@ -10,6 +10,7 @@ import ruamel.yaml
 import moorpy as mp
 from moorpy.helpers import loadPointProps, getPointProps
 import shapely as sh
+from famodel.turbine.turbine import Turbine
 
 
 def cart2pol(x, y):
@@ -232,7 +233,7 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
     att : list
         list of objects to attach to. 1 object if only concerned about the attached object associated with that side
     heading : float
-        Cable heading at attachment to att in radians
+        Cable compass heading at attachment to att in radians
     rad_buff : float
         Buffer angle in radians
     endA_dir : float, optional
@@ -249,7 +250,7 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
         headnew = np.pi*2 + heading
     else:
         headnew = heading
-    attheadings = []
+    attheadings = [] # complete list of mooring headings to avoid, from all platforms
     flipheads = False # whether to flip headings ( for if you are looking at mooring headings of platform on the other end)
     for at in att:
         mhs = np.radians([m.heading for m in at.getMoorings().values()])
@@ -260,10 +261,11 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
                 if a>2*np.pi:
                     atmh[j] = a-2*np.pi
         else:
-            atmh = np.array(mhs) #at.mooring_headings + at.phi
+            atmh = np.array(mhs) #attached platform mooring headings array
         #attheadings.extend(atmh)
-        attheadings.extend(np.pi/2 - atmh) # convert to 0 rad at East going CCW
+        attheadings.extend(atmh) # keep in compass heading
         flipheads = True
+
     interfere_h = check_headings(attheadings,headnew,rad_buff)
     # if the headings interfere, adjust them by angle buffer
     for mhead in interfere_h:
@@ -1306,6 +1308,25 @@ def cleanDataTypes(info, convert_lists=True):
     info = gothroughdict(info) 
     # return cleaned dictionary           
     return(info)
+
+'''
+def createRAFTDict(project):
+    # Create a RAFT dictionary from a project class to create RAFT model
+    rd = {'keys':['ID', 'turbineID', 'platformID', 'mooringID', 'x_location', 'y_location'],
+          'data':[]}
+    for pf in project.platformList.values():
+        for att in pf.attachments.values():
+            if isinstance(att['obj'],Turbine):
+                turb = att['obj']
+                break
+        rd.append(pf.id, turb.dd['type'], pf.dd['type'], 0, pf.r[0], pf.r[1])
+        rd['site'] = {'water_depth':project.depth,'rho_water':project.rho_water,'rho_air':project.rho_air,'mu_air':project.mu_air}
+        rd['site']['shearExp'] = .12
+        
+    for tt in project.turbineType
+
+    return rd
+'''
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''
