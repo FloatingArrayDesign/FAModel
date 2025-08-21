@@ -5,7 +5,7 @@
 #  Old format: requirements and capabilities 
 #  New format: roles, which lists asset roles, each with associated required capabilities
 
-# The code that models and checks these structures is action.calcDurationAndCost(). Structural changes here will not be reflected in the code unless changes are made there as well
+# The code that models and checks these actions is action.calcDurationAndCost(). Structural changes here will not be reflected in the code unless changes are made there as well
 
 ### Example action ###
 
@@ -26,7 +26,6 @@
 
 tow:
   objects: [platform]
-  requirements: [TUG]
   roles:  # The asset roles involved and the capabilities required of each role
     vessel:
     - deck_space
@@ -39,7 +38,6 @@ tow:
 
 transport_components:
   objects: [component]
-  requirements: [HL, WTIV, CSV]
   roles:  # The asset roles involved and the capabilities required of each role
     carrier:  # vessel carrying things
     - deck_space
@@ -53,7 +51,6 @@ transport_components:
 
 install_anchor:
   objects: [anchor]
-  requirements: [AHTS, MSV]
   roles:  # The asset roles involved and the capabilities required of each role
     carrier:  # vessl that has been carrying the anchor
     - deck_space
@@ -70,7 +67,6 @@ install_anchor:
 
 retrieve_anchor:
   objects: [anchor]
-  requirements: [AHTS, MSV]
   roles:  # The asset roles involved and the capabilities required of each role
     carrier:
     - deck_space
@@ -103,7 +99,6 @@ load_mooring:
 
 lay_mooring:
   objects: [mooring]
-  requirements: [AHTS, CSV]
   roles:  # The asset roles involved and the capabilities required of each role
     carrier:  # vessel carrying the mooring
     - deck_space
@@ -121,7 +116,6 @@ mooring_hookup:
   objects:
     mooring: [pretension]
     platform: [wec]
-  requirements: [AHTS, CSV]
   roles:  # The asset roles involved and the capabilities required of each role
     carrier:
     - deck_space
@@ -139,7 +133,6 @@ mooring_hookup:
 
 install_wec:
   objects: [wec]
-  requirements: [HL, MSV]
   capabilities:
     - deck_space
     - crane
@@ -152,7 +145,6 @@ install_wec:
 
 install_semisub:
   objects: [platform_semisub]
-  requirements: [AHTS, MSV, ROVSV]
   capabilities:
     - deck_space
     - bollard_pull
@@ -170,7 +162,6 @@ install_semisub:
 
 install_spar:
   objects: [platform_spar]
-  requirements: [AHTS, MSV, ROVSV]
   capabilities:
     - deck_space
     - bollard_pull
@@ -187,7 +178,6 @@ install_spar:
 
 install_tlp:
   objects: [platform_tlp]
-  requirements: [AHTS, MSV, ROVSV]
   capabilities:
     - deck_space
     - bollard_pull
@@ -204,7 +194,6 @@ install_tlp:
 
 install_wtg:
   objects: [wtg]
-  requirements: [WTIV]
   capabilities:
     - deck_space
     - crane
@@ -218,7 +207,6 @@ install_wtg:
 
 lay_cable:
   objects: [cable]
-  requirements: [CSV, SURV]
   capabilities:
     - deck_space
     - positioning_system
@@ -231,7 +219,6 @@ lay_cable:
 
 retrieve_cable:
   objects: [cable]
-  requirements: [CSV, SURV]
   capabilities:
     - deck_space
     - positioning_system
@@ -244,7 +231,6 @@ retrieve_cable:
  # Lay and bury in a single pass using a plough 
 lay_and_bury_cable:
   objects: [cable]
-  requirements: [CSV]
   capabilities:
     - deck_space
     - positioning_system
@@ -259,7 +245,6 @@ lay_and_bury_cable:
 # Backfill trench or stabilize cable route using rock placement
 backfill_rockdump:
   objects: [cable]
-  requirements: [ROCK, SURV]
   capabilities:
     - deck_space
     - positioning_system
@@ -274,7 +259,6 @@ backfill_rockdump:
 
 site_survey:
   objects: [site]
-  requirements: [SURV]
   capabilities:
     - positioning_system
     - sonar_survey
@@ -285,7 +269,6 @@ site_survey:
 
 monitor_installation:
   objects: [anchor, mooring, platform, cable]
-  requirements: [SURV, ROVSV]
   capabilities:
     - positioning_system
     - monitoring_system

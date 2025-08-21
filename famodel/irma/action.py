@@ -37,12 +37,12 @@ def incrementer(text):
 
     Inputs
     ------
-    text : str
+    `text` : `str`
         The input string to increment.
 
     Returns
     -------
-    str
+    `str`
         The incremented string.
     '''
     split_text = text.split()[::-1]
@@ -61,12 +61,12 @@ def increment_name(name):
 
     Inputs
     ------
-    name : str
+    `name` : `str`
         The input name string.
 
     Returns
     -------
-    str
+    `str`
         The incremented name string.
     '''
     name_parts = name.split(sep='-')
@@ -99,19 +99,19 @@ class Action():
         
         Inputs
         ----------
-        actionType : dict
+        `actionType` : `dict`
             Dictionary defining the action type (typically taken from a yaml).
-        name : string
+        `name` : `string`
             A name for the action. It may be appended with numbers if there
             are duplicate names.
-        kwargs 
+        `kwargs`
             Additional arguments may depend on the action type and typically
             include a list of FAModel objects that are acted upon, or
             a list of dependencies (other action names/objects).
 
         Returns
         -------
-        None
+        `None`
         '''
         
         # list of things that will be controlled during this action
@@ -124,7 +124,8 @@ class Action():
         self.name = name
         self.status = 0  # 0, waiting;  1=running;  2=finished
         
-        self.duration = getFromDict(actionType, 'duration', default=3)
+        self.duration = getFromDict(actionType, 'duration', default=0) # this will be overwritten by calcDurationAndCost. TODO: or should it overwrite any duration calculation?
+        self.cost = 0 # this will be overwritten by calcDurationAndCost
 
         self.supported_objects = [] # list of FAModel object types supported by the action
         
@@ -178,8 +179,6 @@ class Action():
                 self.dependencies[dep.name] = dep
         
         # Process some optional kwargs depending on the action type
-        
-        
     
         
     def addDependency(self, dep):
@@ -188,12 +187,12 @@ class Action():
 
         Inputs
         ------
-        dep : Action
+        `dep` : `Action`
             The action to be added as a dependency.
 
         Returns
         -------
-        None
+        `None`
         '''
         self.dependencies[dep.name] = dep
         # could see if already a dependency and raise a warning if so...
@@ -206,12 +205,12 @@ class Action():
 
         Inputs
         ------
-        objects : list
+        `objects` : `list`
             A list of FAModel objects to be added to the action.
 
         Returns
         -------
-        None
+        `None`
         ''' 
 
         for obj in objects:
@@ -231,11 +230,11 @@ class Action():
     #
     #     Inputs
     #     ------
-    #     None
+    #     `None`
     #
     #     Returns
     #     -------
-    #     None
+    #     `None`
     #     '''
     #     # WIP: example of what needs to happen to create a metric
 
@@ -250,27 +249,28 @@ class Action():
 
     
     def checkAsset(self, role_name, asset):
-        '''Checks if a specified asset has sufficient capabilities to fulfil
+        '''
+        Checks if a specified asset has sufficient capabilities to fulfil
         a specified role in this action.
 
         Inputs
         ------
-        role_name : string
+        `role_name` : `string`
             The name of the role to check.
-        asset : dict
+        `asset` : `dict`
             The asset to check against the role's requirements. 
 
         Returns
         -------
-        bool
+        `bool`
             True if the asset meets the role's requirements, False otherwise.
-        str
+        `str`
             A message providing additional information about the check.
         '''        
 
         # Make sure role_name is valid for this action
         if not role_name in self.assets.keys():
-            raise Exception(f"The specified role name '{role_name}' is not a named asset role in this action.")
+            raise Exception(f"The specified role '{role_name}' is not a named in this action.")
 
         for capability in self.requirements[role_name].keys():
 
@@ -289,52 +289,27 @@ class Action():
             
             else:
                 return False, f"The asset does not have the '{capability}' capability for '{role_name}' role of '{self.name}' action."  # a capability is not met
-
-    
-    def assignAsset(self, role_name, asset):
-        '''
-        Assigns a vessel or port to a certain role in the action.
-
-        Inputs
-        ------
-        role_name : string
-            Name of the asset role being filled (must be in the action's list)
-        asset : Vessel or Port object
-            The asset to be registered with the class.
-
-        Returns
-        -------
-        None
-        '''
-        
-        # Make sure role_name is valid for this action
-        if not role_name in self.assets.keys():
-            raise Exception(f"The specified role name '{role_name}' is not a named asset role in this action.")
-
-        assignable, message = self.checkAsset(role_name, asset)
-        if assignable:
-            self.assets[role_name] = asset
-        else:
-            raise Exception(message) # throw error message
         
     
     def calcDurationAndCost(self):
         '''
-        Calculates duration and cost for the action. The structure here is dependent on actions.yaml.
+        Calculates duration and cost for the action. The structure here is dependent on `actions.yaml`.
         TODO: finish description
 
         Inputs
         ------
-        None
+        `None`
 
         Returns
         -------
-        None
+        `None`
         '''
         
-        print('Calculating duration and cost for action:', self.name)
-        # print(self.type)
-        
+        # Check that all roles in the action are filled
+        for role_name in self.requirements.keys():
+            if self.assets[role_name] is None:
+                raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.")
+
         # --- Towing & Transport ---
         if self.type == 'tow':
             pass
@@ -382,35 +357,113 @@ class Action():
             pass
         else:
             raise ValueError(f"Action type '{self.type}' not recognized.")
-    
-    
+        
+        return self.duration, self.cost
+
+
     def evaluateAssets(self, assets):
         '''
-        Check whether an asset can perform the task, and if so calculate
-        the time and cost associated with using those assets.
+        Checks assets for all the roles in the action. This calls `checkAsset()`
+        for each role/asset pair and then calculates the duration and
+        cost for the action as if the assets were assigned. Does not assign 
+        the asset(s) to the action. WARNING: this function will clear the values 
+        (but not keys) in `self.assets`.
 
         Inputs
         ------
-        assets : dict
+        `assets` : `dict`
             Dictionary of {role_name: asset} pairs for assignment of the 
             assets to the roles in the action.
 
         Returns
         -------
-        None
+        `cost` : `float`
+            Estimated cost of using the asset.
+        `duration` : `float`
+            Estimated duration of the action when performed by asset.
         '''
+        
+        # Check each specified asset for its respective role
+        for role_name, asset in assets.items():
+            assignable, message = self.checkAsset(role_name, asset)
+            if assignable:
+                self.assets[role_name] = asset # Assignment required for calcDurationAndCost(), will be cleared later
+            else:
+                print('INFO: '+message+' Action cannot be completed by provided asset list.')
+                return -1, -1 # return negative values to indicate incompatibility. Loop is terminated becasue assets not compatible for roles. 
+        
+        # Check that all roles in the action are filled
+        for role_name in self.requirements.keys():
+            if self.assets[role_name] is None:
+                
+                for role_name in assets.keys(): # Clear the assets dictionary
+                    assets[role_name] = None
+                raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
 
-        # error check that assets is a dict of {role_name, asset dict}, and not just an asset dict?
+
+        duration, cost = self.calcDurationAndCost()
+
+        for role_name in assets.keys(): # Clear the assets dictionary
+            assets[role_name] = None
+
+        return duration, cost # values returned here rather than set because will be used to check compatibility and not set properties of action
+    
+
+    def assignAsset(self, role_name, asset):
+        '''
+        Checks if asset can be assigned to an action. 
+        If yes, assigns asset to role in the action.
+
+        Inputs
+        ------
+        `role_name` : `str`
+            The name of the role to which the asset will be assigned.
+        `asset` : `dict`
+            The asset to be assigned to the role.
+
+        Returns
+        -------
+        `None`
+        '''
+        # Make sure role_name is valid for this action
+        if not role_name in self.assets.keys():
+            raise Exception(f"The specified role name '{role_name}' is not in this action.")
+
+        assignable, message = self.checkAsset(role_name, asset)
+        if assignable:
+            self.assets[role_name] = asset
+        else:
+            raise Exception(message) # throw error message
+
+    def assignAssets(self, assets):
+        '''
+        Assigns assets to all the roles in the action. This calls
+        `assignAsset()` for each role/asset pair and then calculates the
+        duration and cost for the action. Similar to `evaluateAssets()`
+        however here assets are assigned and duration and cost are 
+        set after evaluation.
+
+        Inputs
+        ------
+        `assets` : `dict`
+            Dictionary of {role_name: asset} pairs for assignment of the 
+            assets to the roles in the action.
+
+        Returns
+        -------
+        `None`
+        '''
         
         # Assign each specified asset to its respective role
-        for akey, aval in assets.items():
-            self.assignAsset(akey, aval)
-            
+        for role_name, asset in assets.items():
+            self.assignAsset(role_name, asset)
+        
+        # Check that all roles in the action are filled
+        for role_name in self.requirements.keys():
+            if self.assets[role_name] is None:
+                raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
+
         self.calcDurationAndCost()
-        
-        
-        # can store the cost and duration in self as well
-        
     
     
     # ----- Below are drafts of methods for use by the engine -----
@@ -421,11 +474,11 @@ class Action():
 
         Inputs
         ------
-        None
+        `None`
 
         Returns
         -------
-        None
+        `None`
         '''
         for vessel in self.vesselList:
             vessel._attach_to(self)
@@ -439,11 +492,11 @@ class Action():
 
         Inputs
         ------
-        None
+        `None`
 
         Returns
         -------
-        None
+        `None`
         '''
         for vessel in self.vesselList:
             vessel._detach_from()
@@ -457,11 +510,11 @@ class Action():
 
         Inputs
         ------
-        None
+        `None`
 
         Returns
         -------
-        None
+        `None`
         '''
         
         # (this is just documenting an idea for possible future implementation)
