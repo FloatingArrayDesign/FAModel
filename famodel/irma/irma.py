@@ -87,7 +87,46 @@ def loadYAMLtoDict(info, already_dict=False):
 #def applyState():
 
 
-
+def unifyUnits(d):
+    '''Converts any capability specification/metric in supported non-SI units
+    to be in SI units. Converts the key names as well.'''
+    
+    # >>> not working yet <<<
+    
+    
+    # load conversion data from YAML (eventually may want to store this in a class)
+    with open('spec_conversions.yaml') as file:
+        data = yaml.load(file, Loader=yaml.FullLoader)
+    
+    keys1 = []
+    facts = []  # conversion factors
+    keys2 = []
+    
+    for line in data:
+        keys1.append(line[0])
+        facts.append(line[1])
+        keys2.append(line[2])
+        
+    # >>> dcopy = deepcopy(d)
+    
+    for asset in d.values():  # loop through each asset's dict
+        for capability in asset['capabilities'].values():
+            for key, val in capability.items():  # look at each capability metric
+                try:
+                    i = keys1.index(key)  # find if key is on the list to convert
+                    
+                    
+                    if keys2[i] in capability.keys():
+                        raise Exception(f"Specification '{keys2[i]}' already exists")
+                    
+                    capability[keys2[i]] = val * facts[i]  # create a new SI entry
+                    
+                    breakpoint()
+                    
+                    del capability[keys1[i]]  # remove the original?
+                    
+                except:
+                    print('not found')
 
 
 class Scenario():
@@ -105,6 +144,7 @@ class Scenario():
         vessels = loadYAMLtoDict('vessels.yaml', already_dict=True)
         objects = loadYAMLtoDict('objects.yaml', already_dict=True)
         
+        #unifyUnits(vessels)  # (function doesn't work yet!) <<<
         
         # ----- Validate internal cross references -----
         
