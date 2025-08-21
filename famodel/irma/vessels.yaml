@@ -48,6 +48,7 @@ AHTS_alpha:
         install_semisub: {}
         install_spar: {}
         install_tlp: {}
+    day_rate: 107187  # USD/day taken from ORBIT: https://github.com/WISDEM/ORBIT/blob/dev/library/vessels/example_ahts_vessel.yaml
 
 # --- Multipurpose Support Vessel ---
 
@@ -93,6 +94,7 @@ MPSV_01:
         lay_mooring: {}
         install_wec: {}
         monitor_installation: {}
+    day_rate: 122699  # USD/day taken from ORBIT (for support vessel: https://github.com/WISDEM/ORBIT/blob/dev/library/vessels/example_support_vessel.yaml)
 
 # --- Construction Support Vessel ---
 
@@ -145,7 +147,7 @@ CSV_A:
         lay_cable: {}
         lay_and_bury_cable: {}
         monitor_installation: {}
-
+    day_rate: 122699  # USD/day taken from ORBIT (for support vessel: https://github.com/WISDEM/ORBIT/blob/dev/library/vessels/example_support_vessel.yaml)
 # --- ROV Support Vessel ---
 
 ROVSV_X:
@@ -180,7 +182,7 @@ ROVSV_X:
     actions:
         monitor_installation: {}
         site_survey: {}
-
+    day_rate: 52500  # USD/day taken from a Nauticus Robotics post on X: https://x.com/nautrobo/status/1840830080748003551
 # --- Diving Support Vessel ---
 
 DSV_Moon:
@@ -207,7 +209,7 @@ DSV_Moon:
     actions:
         monitor_installation: {}
         site_survey: {}
-
+    day_rate: x  # USD/day (research needed)
 # --- Heavy Lift Vessel ---
 
 HL_Giant:
@@ -235,7 +237,7 @@ HL_Giant:
         transport_components: {}
         install_wec: {}
         install_wtg: {}
-
+    day_rate: 624612  # USD/day taken from Orbit: https://github.com/WISDEM/ORBIT/blob/dev/library/vessels/example_heavy_lift_vessel.yaml
 # --- Survey Vessel ---
 
 SURV_Swath:
@@ -262,7 +264,7 @@ SURV_Swath:
     actions:
         site_survey: {}
         monitor_installation: {}
-        
+    day_rate: x  # USD/day (research needed)
 # --- Barge ---
         
 Barge_squid:
@@ -288,7 +290,7 @@ Barge_squid:
         install_anchor: {}
         retrieve_anchor: {}
         install_wec: {}
-
+    day_rate: 147239  # USD/day taken from Orbit: https://github.com/WISDEM/ORBIT/blob/dev/library/vessels/floating_barge.yaml
 # --- Rock Installation Vessel ---
 
 ROCK_FallPipe:
@@ -312,3 +314,4 @@ ROCK_FallPipe:
     actions:
         backfill_rockdump: {}
         site_survey: {}
+    day_rate: x  # USD/day (research needed)

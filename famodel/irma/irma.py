@@ -198,10 +198,11 @@ class Scenario():
         
         # this also handles creation of unique dictionary keys
         
-        while action.name in self.actions:  # check if there is already a key with the same name
+        if action.name in self.actions:  # check if there is already a key with the same name
+            raise Warning(f"Action '{action.name}' is already registered.")
             print(f"Action name '{action.name}' is in the actions list so incrementing it...")
             action.name = increment_name(action.name)
-        
+
         # What about handling of dependencies?? <<< done in the action object, 
         # but could check that each is in the list already...
         for dep in action.dependencies.values():
@@ -275,6 +276,16 @@ class Scenario():
             plt.text(pos[last_node][0], pos[last_node][1] - 0.1, f"{total_duration:.2f} hr", fontsize=12, color='red', fontweight='bold', ha='center')          
         else:
             pass
+        plt.axis('equal')
+
+        # Color first node (without dependencies) green
+        i = 0
+        for node in G.nodes():
+            if G.in_degree(node) == 0:  # Check if the node has no incoming edges
+                nx.draw_networkx_nodes(G, pos, nodelist=[node], node_color='green', node_size=500, label='Action starters' if i==0 else None)
+                i += 1
+        plt.legend()
+        return G                  
 
 
 
@@ -326,11 +337,11 @@ if __name__ == '__main__':
     
     # Parse out the install steps required
     
-    for anchor in project.anchorList.values():
+    for akey, anchor in project.anchorList.items():
         
         # add and register anchor install action(s)
-        a1 = sc.addAction('install_anchor', 'install_anchor-1', objects=[anchor])
-        a1.evaluateAssets({'operator' : sc.vessels["MPSV_01"]}) # example assignment to test the code. 
+        a1 = sc.addAction('install_anchor', f'install_anchor-{akey}', objects=[anchor])
+        a1.evaluateAssets({'carrier' : sc.vessels["MPSV_01"]})
         
         # register the actions as necessary for the anchor <<< do this for all objects??
         anchor.install_dependencies = [a1]
@@ -338,18 +349,18 @@ if __name__ == '__main__':
     
     hookups = []  # list of hookup actions
     
-    for mooring in project.mooringList.values():
+    for mkey, mooring in project.mooringList.items():
         
         # note origin and destination
         
         # --- lay out all the mooring's actions (and their links)
         # create load vessel action
-        a2 = sc.addAction('load_mooring', 'load_mooring', objects=[mooring])
+        a2 = sc.addAction('load_mooring', f'load_mooring-{mkey}', objects=[mooring])
         
         # create ship out mooring action
         
         # create lay mooring action
-        a3 = sc.addAction('lay_mooring', 'lay_mooring', objects=[mooring], dependencies=[a2])
+        a3 = sc.addAction('lay_mooring', f'lay_mooring-{mkey}', objects=[mooring], dependencies=[a2])
         sc. addActionDependencies(a3, mooring.attached_to[0].install_dependencies) # in case of shared anchor
         
         # mooring could be attached to anchor here - or could be lowered with anchor!!
@@ -357,7 +368,7 @@ if __name__ == '__main__':
         # the action creator can record any dependencies related to actions of the anchor
         
         # create hookup action
-        a4 = sc.addAction('mooring_hookup', 'mooring_hookup', 
+        a4 = sc.addAction('mooring_hookup', f'mooring_hookup-{mkey}', 
                           objects=[mooring, mooring.attached_to[1]], dependencies=[a2, a3])
         #(r=r, mooring=mooring, platform=platform, depends_on=[a4])
         # the action creator can record any dependencies related to actions of the platform
@@ -374,7 +385,7 @@ if __name__ == '__main__':
     
     # ----- Do some graph analysis -----
     
-    sc.visualizeActions()
+    G = sc.visualizeActions()
     
     
     
