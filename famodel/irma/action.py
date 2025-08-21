@@ -206,6 +206,10 @@ class Action():
         a specified role in this action.
         '''        
 
+        # Make sure role_name is valid for this action
+        if not role_name in self.assets.keys():
+            raise Exception(f"The specified role name '{role_name}' is not a named asset role in this action.")
+
         for capability in self.requirements[role_name].keys():
 
             if capability in asset['capabilities'].keys(): # check capability
