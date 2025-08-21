@@ -8,14 +8,13 @@ from moorpy.helpers import set_axes_equal
 from moorpy import helpers
 import yaml
 from copy import deepcopy
-
+import networkx as nx
 
 # Import select required helper functions
 from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
                             getMoorings, getAnchors, getFromDict, cleanDataTypes, 
                             getStaticCables, getCableDesign, m2nm, loadYAML, 
                             configureAdjuster, route_around_anchors)
-
 
 
 class Task():
@@ -33,43 +32,36 @@ class Task():
     
     '''
     
-    def __init__(self, taskType, name, **kwargs):
+    def __init__(self, actionList, name, **kwargs):
         '''Create an action object...
-        It must be given a name.
-        The remaining parameters should correspond to items in the actionType dict...
+        It must be given a name and a list of actions.
+        The action list should be by default coherent with actionTypes dictionary.
         
         Parameters
         ----------
-        taskType : dict
-            Dictionary defining the action type (typically taken from a yaml).
+        actionList : list
+            A list of all actions that are part of this task.
         name : string
             A name for the action. It may be appended with numbers if there
             are duplicate names.
         kwargs 
-            Additional arguments may depend on the action type and typically
-            include a list of FAModel objects that are acted upon, or
-            a list of dependencies (other action names/objects).
+            Additional arguments may depend on the task type.
         
         '''
         
-        # list of things that will be controlled during this action
-        self.vesselList   = []  # all vessels required for the action
-        self.objectList   = []  # all objects that are acted on
-        self.actionList   = []  # all actions that are carried out in this task
-        self.dependencies = {}  # list of other tasks this one depends on
-        
-        self.type = getFromDict(taskType, 'type', dtype=str)
+        self.actionList   = actionList  # all actions that are carried out in this task
         self.name = name
         self.status = 0  # 0, waiting;  1=running;  2=finished
         
         self.duration = 0  # duration must be calculated based on lengths of actions
-        
+        self.cost     = 0  # cost must be calculated based on the cost of individual actions.
+
         # what else do we need to initialize the task?
         
-        # internal graph of the actions within this task?
+        # internal graph of the actions within this task.
+        self.G = self.getTaskGraph()
     
-    
-    def organizeActions(self, actions):
+    def organizeActions(self):
         '''Organizes the actions to be done by this task into the proper order
         based on the strategy of this type of task...
         '''
@@ -85,4 +77,19 @@ class Task():
         individual actions and their order of operation.'''
         
         # Does Rudy have graph-based code that can do this?
+
+    def getTaskGraph(self):
+        '''Generate a graph of the action dependencies.
+        '''
         
+        # Create the graph
+        G = nx.DiGraph()
+        for item, data in self.actionList.items():
+            for dep in data.dependencies:
+                G.add_edge(dep, item, duration=data.duration)  # Store duration as edge attribute
+
+        # Compute longest path & total duration
+        longest_path = nx.dag_longest_path(G, weight='duration')
+        longest_path_edges = list(zip(longest_path, longest_path[1:]))  # Convert path into edge pairs
+        total_duration = sum(self.actionList[node].duration for node in longest_path)
+        return G  

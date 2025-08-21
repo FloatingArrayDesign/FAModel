@@ -284,8 +284,7 @@ class Scenario():
             if dep in self.actions.values():  
                 action.addDependency(dep)
             else:
-                raise Exception(f"New action '{action.name}' has a dependency '{dep.name}' this is not in the action list.")  
-        
+                raise Exception(f"New action '{action.name}' has a dependency '{dep.name}' this is not in the action list.")                  
 
 
     def visualizeActions(self):
@@ -325,10 +324,8 @@ class Scenario():
                 nx.draw_networkx_nodes(G, pos, nodelist=[node], node_color='green', node_size=500, label='Action starters' if i==0 else None)
                 i += 1
         plt.legend()
-        return G                  
-
-
-
+        return G    
+        
     def findCompatibleVessels(self):
         '''Go through actions and identify which vessels have the required
         capabilities (could be based on capability presence, or quantitative.
@@ -421,15 +418,18 @@ if __name__ == '__main__':
     for a in hookups:
         sc.addActionDependencies(a, [a5])  # make each hookup action dependent on the FOWT being towed out
     
+
     
-    
+    # ----- Generate tasks (groups of Actions according to specific strategies) -----
+        
+    t1 = Task(sc.actions, 'install_mooring_system')
+
     # ----- Do some graph analysis -----
     
     G = sc.visualizeActions()
     
     
-    
-    # ----- Generate tasks (groups of Actions according to specific strategies) -----
+
     
     
     
