@@ -32,6 +32,19 @@ from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamic
 
 
 def incrementer(text):
+    '''
+    Increments the last integer found in a string.
+
+    Inputs
+    ------
+    text : str
+        The input string to increment.
+
+    Returns
+    -------
+    str
+        The incremented string.
+    '''
     split_text = text.split()[::-1]
     for ind, spl in enumerate(split_text):
         try:
@@ -43,7 +56,19 @@ def incrementer(text):
 
 
 def increment_name(name):
-    '''Increments an end integer after a dash in a name'''
+    '''
+    Increments an end integer after a dash in a name.
+
+    Inputs
+    ------
+    name : str
+        The input name string.
+
+    Returns
+    -------
+    str
+        The incremented name string.
+    '''
     name_parts = name.split(sep='-')
     
     # if no numeric suffix yet, add one
@@ -72,7 +97,7 @@ class Action():
         It must be given a name.
         The remaining parameters should correspond to items in the actionType dict...
         
-        Parameters
+        Inputs
         ----------
         actionType : dict
             Dictionary defining the action type (typically taken from a yaml).
@@ -83,7 +108,10 @@ class Action():
             Additional arguments may depend on the action type and typically
             include a list of FAModel objects that are acted upon, or
             a list of dependencies (other action names/objects).
-        
+
+        Returns
+        -------
+        None
         '''
         
         # list of things that will be controlled during this action
@@ -139,7 +167,7 @@ class Action():
             for role, caplist in actionType['roles'].items():
                 self.requirements[role] = {key: None for key in caplist}  # each role requirment holds a dict of capabilities with values set to None for now
                 for cap in caplist:
-                    # self.requirements[role][cap] = {}  # fill in each required capacity with {'metric': 0.0}
+                    # self.requirements[role][cap] = {}  # fill in each required capacity with empty dict
                     self.requirements[role][cap] = {'area_m2': 1000, 'max_load_t': 1600}  # dummy values for now, just larger than MPSV_01 values to trigger failure
 
                 self.assets[role] = None  # placeholder for the asset assigned to this role
@@ -155,12 +183,17 @@ class Action():
     
         
     def addDependency(self, dep):
-        '''Registers other action as a dependency of this one.
+        '''
+        Registers other action as a dependency of this one.
 
         Inputs
         ------
         dep : Action
             The action to be added as a dependency.
+
+        Returns
+        -------
+        None
         '''
         self.dependencies[dep.name] = dep
         # could see if already a dependency and raise a warning if so...
@@ -169,12 +202,16 @@ class Action():
     def assignObjects(self, objects):
         '''
         Adds a list of objects to the actions objects list, 
-        checking they are valid for the actions supported objects
+        checking they are valid for the actions supported objects.
 
         Inputs
         ------
         objects : list
             A list of FAModel objects to be added to the action.
+
+        Returns
+        -------
+        None
         ''' 
 
         for obj in objects:
@@ -189,6 +226,17 @@ class Action():
 
 
     # def setUpCapability(self):
+    #     '''
+    #     Example of what needs to happen to create a metric.
+    #
+    #     Inputs
+    #     ------
+    #     None
+    #
+    #     Returns
+    #     -------
+    #     None
+    #     '''
     #     # WIP: example of what needs to happen to create a metric
 
     #     # figure out how to assign required metrics to capabilies in the roles based on the objects
@@ -204,6 +252,20 @@ class Action():
     def checkAsset(self, role_name, asset):
         '''Checks if a specified asset has sufficient capabilities to fulfil
         a specified role in this action.
+
+        Inputs
+        ------
+        role_name : string
+            The name of the role to check.
+        asset : dict
+            The asset to check against the role's requirements. 
+
+        Returns
+        -------
+        bool
+            True if the asset meets the role's requirements, False otherwise.
+        str
+            A message providing additional information about the check.
         '''        
 
         # Make sure role_name is valid for this action
@@ -212,44 +274,62 @@ class Action():
 
         for capability in self.requirements[role_name].keys():
 
-            if capability in asset['capabilities'].keys(): # check capability
-                # does this work if there are no metrics in a capability? This should be possible, as not all capabilities will require a constraint. 
+            if capability in asset['capabilities'].keys(): # check capability is in asset
+                
+                # TODO: does this work if there are no metrics in a capability? This should be possible, as not all capabilities will require a constraint. 
                 for metric in self.requirements[role_name][capability].keys(): # loop over the capacity requirements for the capability (if more than one)
-                    if self.requirements[role_name][capability][metric] > asset['capabilities'][capability][metric]: # check capacity
-                        # TODO: can we throw a message here that explains what metric is violated?
-                        return False  # the asset does not have the capacity for this capability
-                return True
+                    
+                    if metric not in asset['capabilities'][capability].keys(): # value error because capabilities are defined in capabilities.yaml. This should only be triggered if something has gone wrong (i.e. overwriting values somewhere)
+                        raise ValueError(f"The '{capability}' capability does not have metric: '{metric}'.")
+
+                    if self.requirements[role_name][capability][metric] > asset['capabilities'][capability][metric]: # check requirement is met
+                        return False, f"The asset does not have sufficient '{metric}' for '{capability}' capability in '{role_name}' role of '{self.name}' action."
+
+                return True, 'All capabilities in role met'
             
             else:
-                return False  # at least one capability is not met
-                
-        return True
-    
+                return False, f"The asset does not have the '{capability}' capability for '{role_name}' role of '{self.name}' action."  # a capability is not met
+
     
     def assignAsset(self, role_name, asset):
-        '''Assigns a vessel or port to a certain role in the action.
-        
-        Parameters
-        ----------
+        '''
+        Assigns a vessel or port to a certain role in the action.
+
+        Inputs
+        ------
         role_name : string
             Name of the asset role being filled (must be in the action's list)
         asset : Vessel or Port object
             The asset to be registered with the class.
+
+        Returns
+        -------
+        None
         '''
         
         # Make sure role_name is valid for this action
         if not role_name in self.assets.keys():
             raise Exception(f"The specified role name '{role_name}' is not a named asset role in this action.")
 
-        if self.checkAsset(role_name, asset):
+        assignable, message = self.checkAsset(role_name, asset)
+        if assignable:
             self.assets[role_name] = asset
         else:
-            raise Exception(f"The asset does not have the capabilities for role '{role_name}'.")
+            raise Exception(message) # throw error message
         
     
     def calcDurationAndCost(self):
-        '''The structure here is dependent on actions.yaml. 
+        '''
+        Calculates duration and cost for the action. The structure here is dependent on actions.yaml.
         TODO: finish description
+
+        Inputs
+        ------
+        None
+
+        Returns
+        -------
+        None
         '''
         
         print('Calculating duration and cost for action:', self.name)
@@ -305,13 +385,19 @@ class Action():
     
     
     def evaluateAssets(self, assets):
-        '''Check whether an asset can perform the task, and if so calculate
+        '''
+        Check whether an asset can perform the task, and if so calculate
         the time and cost associated with using those assets.
-        
+
+        Inputs
+        ------
         assets : dict
-            Dictionary of role_name, asset object pairs for assignment to the action.
-            Each asset is a vessel or port object.
-        
+            Dictionary of {role_name: asset} pairs for assignment of the 
+            assets to the roles in the action.
+
+        Returns
+        -------
+        None
         '''
 
         # error check that assets is a dict of {role_name, asset dict}, and not just an asset dict?
@@ -330,7 +416,17 @@ class Action():
     # ----- Below are drafts of methods for use by the engine -----
     """
     def begin(self):
-        '''Take control of all objects'''
+        '''
+        Take control of all objects.
+
+        Inputs
+        ------
+        None
+
+        Returns
+        -------
+        None
+        '''
         for vessel in self.vesselList:
             vessel._attach_to(self)
         for object in self.objectList:
@@ -338,7 +434,17 @@ class Action():
     
     
     def end(self):
-        '''Release all objects'''
+        '''
+        Release all objects.
+
+        Inputs
+        ------
+        None
+
+        Returns
+        -------
+        None
+        '''
         for vessel in self.vesselList:
             vessel._detach_from()
         for object in self.objectList:
@@ -346,7 +452,17 @@ class Action():
     """
     
     def timestep(self):
-        '''Advance the simulation of this action forward one step in time.'''
+        '''
+        Advance the simulation of this action forward one step in time.
+
+        Inputs
+        ------
+        None
+
+        Returns
+        -------
+        None
+        '''
         
         # (this is just documenting an idea for possible future implementation)
         # Perform the hourly action of the task

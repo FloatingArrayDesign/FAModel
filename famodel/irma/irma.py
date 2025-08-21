@@ -330,7 +330,7 @@ if __name__ == '__main__':
         
         # add and register anchor install action(s)
         a1 = sc.addAction('install_anchor', 'install_anchor-1', objects=[anchor])
-        a1.evaluateAssets({'carrier' : sc.vessels["MPSV_01"]})
+        a1.evaluateAssets({'operator' : sc.vessels["MPSV_01"]}) # example assignment to test the code. 
         
         # register the actions as necessary for the anchor <<< do this for all objects??
         anchor.install_dependencies = [a1]
