@@ -190,7 +190,7 @@ class Mooring(Edge):
     
     
     def reposition(self, r_center=None, heading=None, project=None, 
-                   degrees=False, rad_fair=[], z_fair=[], **kwargs):
+                   degrees=False, rad_fair=[], z_fair=[], adjust=True, **kwargs):
         '''Adjusts mooring position based on changed platform location or
         heading. It can call a custom "adjuster" function if one is
         provided. Otherwise it will just update the end positions.
@@ -251,7 +251,7 @@ class Mooring(Edge):
         
         # Run custom function to update the mooring design (and anchor position)
         # this would also szie the anchor maybe?
-        if self.adjuster:
+        if self.adjuster and adjust:
             
             #if i_line is not defined, assumed segment 0 will be adjusted
             if not hasattr(self,'i_line'):
@@ -293,8 +293,11 @@ class Mooring(Edge):
         for i,att in enumerate(self.attached_to):
             iend = self.rA if i == 0 else self.rB
             if type(att).__name__ in 'Anchor':
-                # this is an anchor, move anchor location
-                att.r = iend
+                # this is an anchor, move anchor location & get soil (if possible)
+                if project:
+                    project.updateAnchor(att) 
+                else: 
+                    att.r = iend
                 if att.mpAnchor:
                     att.mpAnchor.r = att.r
             

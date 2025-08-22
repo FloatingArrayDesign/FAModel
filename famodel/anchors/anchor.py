@@ -711,7 +711,7 @@ class Anchor(Node):
         keyFail = True
         # check if mass info is available
         if not self.mass:
-            if 'soil_properties' in self.dd:               
+            if self.soilProps:               
                 # need mass - call capacity functions
                 self.getAnchorCapacity(plot=False)
             else:

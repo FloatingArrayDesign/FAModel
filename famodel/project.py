@@ -867,15 +867,15 @@ class Project():
                     for i in range(len(xy)):
                         self.boundary[i,0] = float(xy[i][0])
                         self.boundary[i,1] = float(xy[i][1])
-        
+ 
         if 'seabed' in site and site['seabed']:
             # if there's a file listed in the seabed dictionary
             if 'file' in site['seabed'] and site['seabed']['file']:
                 # without reading the file to tell whether it has soil property information listed, check to see if soil property information is given
                 if 'soil_types' in site['seabed'] and site['seabed']['soil_types']:     # if the yaml does have soil property information
-                    self.loadSoil(filename=site['seabed']['file'], yaml=site['seabed'])
+                    self.loadSoil(filename=str(site['seabed']['file']), yaml=site['seabed'])
                 else:       # if the yaml doesn't have soil property information, read in just the filename to get all the information out of that
-                    self.loadSoil(filename=site['seabed']['file'])
+                    self.loadSoil(filename=str(site['seabed']['file']))
             # if there's no file listed in the seabed dictionary, load in just the yaml information (assuming the ['x', 'y', and 'type_array'] information are there)
             else:
                 self.loadSoil(yaml=site['seabed'])
@@ -1225,6 +1225,7 @@ class Project():
 
     # # ----- Anchor 
     def updateAnchor(self,anch='all',update_loc=True):
+        #breakpoint()
         if anch == 'all':
             anchList = [anch for anch in self.anchorList.values()]
         elif isinstance(anch, Anchor):
@@ -1234,11 +1235,11 @@ class Project():
             if update_loc:
                 att = next(iter(anchor.attachments.values()), None)
                 if att['end'] in ['a', 'A', 0]:
-                    x,y = att['obj'].rA[:2]
+                    anchor.r = att['obj'].rA
                 else:
-                    x,y = att['obj'].rB[:2]
-            else:
-                x,y = anchor.r[:2]
+                    anchor.r = att['obj'].rB
+
+            x,y = anchor.r[:2]
                 
             anchor.r[2] = -self.getDepthAtLocation(x,y) # update depth
             for att in anchor.attachments.values():
@@ -1594,7 +1595,8 @@ class Project():
             if len(r_center)>0:
                 if len(r_center)==1:
                     r_center = r_center[0]
-                mooring.reposition(r_center=r_center, heading=heading, project=self)
+                mooring.reposition(r_center=r_center, heading=heading, 
+                                   adjust=False, project=self)
                 # adjust anchor z location and rA based on location of anchor
                 zAnew, nAngle = self.getDepthAtLocation(mooring.rA[0], 
                                                         mooring.rA[1], 
