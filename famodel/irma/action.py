@@ -271,6 +271,9 @@ class Action():
         # Make sure role_name is valid for this action
         if not role_name in self.assets.keys():
             raise Exception(f"The specified role '{role_name}' is not a named in this action.")
+        
+        if self.assets[role_name] is not None: 
+            return False, f"Role '{role_name}' is already filled in action '{self.name}'."
 
         for capability in self.requirements[role_name].keys():
 
@@ -428,6 +431,9 @@ class Action():
         # Make sure role_name is valid for this action
         if not role_name in self.assets.keys():
             raise Exception(f"The specified role name '{role_name}' is not in this action.")
+
+        if self.assets[role_name] is not None:
+            raise Exception(f"Role '{role_name}' is already filled in action '{self.name}'.")
 
         assignable, message = self.checkAsset(role_name, asset)
         if assignable:
