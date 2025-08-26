@@ -2014,7 +2014,7 @@ class Project():
             from shapely import Point
             for platform in self.platformList.values():
                 for name, env in platform.envelopes.items():
-                    ax.fill(env['x'], env['y'], edgecolor=edgecolor, facecolor='none', linestyle='dashed', lw=0.8, label='Platform envelope')
+                    ax.fill(env['x'], env['y'], edgecolor=edgecolor, facecolor='none', linestyle='dashed', lw=0.8, label='Platform Envelope')
         
         if plot_moorings:
             for mooring in self.mooringList.values():
@@ -2022,15 +2022,25 @@ class Project():
                     #if 'shape' in env:  # if there's a shapely object
                     #    pass  # do nothing for now...
                     #elif 'x' in env and 'y' in env:  # otherwise just use coordinates
-                    ax.fill(env['x'], env['y'], color=color,label='Mooring envelope',alpha=alpha)
+                    ax.fill(env['x'], env['y'], color=color,label='Mooring Envelope',alpha=alpha)
         
         
             # Plot moorings one way or another (eventually might want to give Mooring a plot method)
             for mooring in self.mooringList.values():
             
                 if mooring.ss:  # plot with Subsystem if available
-                    mooring.ss.drawLine2d(0, ax, color="k", endpoints=False, 
-                                          Xuvec=[1,0,0], Yuvec=[0,1,0],label='Mooring Line')        
+                    labs = []
+                    for line in mooring.ss.lineList:
+                        if 'chain' in line.type['material']:
+                            line.color = 'k'                           
+                        elif 'polyester' in line.type['material']:
+                            line.color = [.3,.5,.5]
+                        else:
+                            line.color = [0.5,0.5,0.5]
+                        labs.append(line.type['material'][0].upper()+
+                                    line.type['material'][1:]+' Mooring')
+                    mooring.ss.drawLine2d(0, ax, color="self", endpoints=False, 
+                                          Xuvec=[1,0,0], Yuvec=[0,1,0],label=labs)        
                 else: # simple line plot
                     ax.plot([mooring.rA[0], mooring.rB[0]], 
                             [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
@@ -2090,7 +2100,7 @@ class Project():
                         #     ax.text(x,y, label)
                     elif isinstance(sub,DynamicCable):
                             ax.plot([sub.rA[0],sub.rB[0]], 
-                                    [sub.rA[1], sub.rB[1]],'--',color = Ccable, lw=1.2,
+                                    [sub.rA[1], sub.rB[1]],color = Ccable, lw=1.2,
                                     label='Dynamic Cable '+str(cableSize)+' mm$^{2}$')
                             
                             if cable_labels:
@@ -2118,7 +2128,7 @@ class Project():
                 else:
                     plotstring = 'bo'
                     
-                ax.plot(platform.r[0], platform.r[1], plotstring ,label=entity)
+                ax.plot(platform.r[0], platform.r[1], plotstring, label=entity, ms=3.5)
   
         ax.set_xlabel('X (m)')
         ax.set_ylabel('Y (m)')
