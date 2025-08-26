@@ -32,8 +32,8 @@ tow:
     - bollard_pull
     - winch
     - positioning_system
-  duration_h: 5
-  Hs_m: 3.0
+  duration_h
+  Hs_m
   description: "Towing floating structures (e.g., floaters, barges) to site; includes station-keeping."
 
 transport_components:
@@ -43,8 +43,8 @@ transport_components:
     - deck_space
     - crane
     - positioning_system
-  duration_h: 12
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Transport of large components such as towers, nacelles, blades, or jackets."
 
 # --- Mooring & Anchors ---
@@ -61,8 +61,8 @@ install_anchor:
     - pump_subsea             # pump_surface, drilling_machine, torque_machine
     - positioning_system
     - monitoring_system
-  duration_h: 5
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Anchor installation (suction, driven, helical, DEA, SEPLA) with tensioning and verification."
 
 retrieve_anchor:
@@ -76,8 +76,8 @@ retrieve_anchor:
     - crane
     - pump_subsea
     - positioning_system
-  duration_h: 4
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Anchor retrieval, including break-out and recovery to deck."
 
 
@@ -92,8 +92,8 @@ load_mooring:
     - positioning_system
     operator:  # the entity with the crane (like the port or the new vessel)
     - crane  
-  duration_h: 2
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Load-out of mooring lines and components from port or vessel onto vessel." 
 
 
@@ -107,8 +107,8 @@ lay_mooring:
     - bollard_pull
     - mooring_work
     - positioning_system
-  duration_h: 6
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Laying mooring lines, tensioning and connection to anchors and floaters."
 
 
@@ -125,8 +125,8 @@ mooring_hookup:
     - mooring_work
     - positioning_system
     - monitoring_system
-  duration_h: 2
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Hook-up of mooring lines to floating platforms, including pretensioning."
 
 # --- Heavy Lift & Installation ---
@@ -139,8 +139,8 @@ install_wec:
     - positioning_system
     - monitoring_system
     - rov
-  duration_h: 20
-  Hs_m:: 2.0
+  duration_h
+  Hs_m
   description: "Lifting, placement and securement of wave energy converters (WECs) onto moorings, including alignment, connection of power/data umbilicals and verification via ROV."
 
 install_semisub:
@@ -156,8 +156,8 @@ install_semisub:
     - sonar_survey
     - pump_surface
     - mooring_work
-  duration_h: 36
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Wet tow arrival, station-keeping, ballasting/trim, mooring hookup and pretensioning, ROV verification and umbilical connections as needed."
 
 install_spar:
@@ -172,8 +172,8 @@ install_spar:
     - sonar_survey
     - pump_surface
     - mooring_work
-  duration_h: 48
-  Hs_m:: 2.0
+  duration_h
+  Hs_m
   description: "Arrival and upending via controlled ballasting, station-keeping, fairlead/messenger handling, mooring hookup and pretensioning with ROV confirmation. Heavy-lift support may be used during port integration."
 
 install_tlp:
@@ -188,8 +188,8 @@ install_tlp:
     - rov
     - sonar_survey
     - mooring_work
-  duration_h: 60
-  Hs_m:: 2.0
+  duration_h
+  Hs_m
   description: "Tendon porch alignment, tendon hookup, sequential tensioning to target pretension, verification of offsets/RAOs and ROV checks."
 
 install_wtg:
@@ -199,8 +199,8 @@ install_wtg:
     - crane
     - positioning_system
     - monitoring_system
-  duration_h: 24
-  Hs_m:: 2.0
+  duration_h
+  Hs_m
   description: "Installation of wind turbine generator including tower, nacelle and blades."
 
 # --- Cable Operations ---
@@ -213,8 +213,8 @@ lay_cable:
     - monitoring_system
     - cable_reel
     - sonar_survey
-  duration_h: 24
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Laying static/dynamic power cables, including burial where required."
 
 retrieve_cable:
@@ -224,8 +224,8 @@ retrieve_cable:
     - positioning_system
     - monitoring_system
     - cable_reel
-  duration_h: 12
-  Hs_m:: 2.5
+  duration_h
+  Hs_m
   description: "Cable recovery operations, including cutting, grappling and retrieval."
   
  # Lay and bury in a single pass using a plough 
@@ -238,8 +238,8 @@ lay_and_bury_cable:
     - cable_reel
     - cable_plough
     - sonar_survey  
-  duration_h: 30
-  Hs_m: 2.5
+  duration_h
+  Hs_m
   description: "Simultaneous lay and plough burial; continuous QA via positioning + MBES/SSS, with post-pass verification."
   
 # Backfill trench or stabilize cable route using rock placement
@@ -251,8 +251,8 @@ backfill_rockdump:
     - monitoring_system
     - sonar_survey
     - rock_placement
-  duration_h: 16
-  Hs_m: 2.5
+  duration_h
+  Hs_m
   description: "Localized rock placement to stabilize exposed cables, infill trenches or provide scour protection. Includes real-time positioning and sonar verification of rock placement."
 
 # --- Survey & Monitoring ---
@@ -263,8 +263,8 @@ site_survey:
     - positioning_system
     - sonar_survey
     - monitoring_system
-  duration_h: 48
-  Hs_m: 3.0
+  duration_h
+  Hs_m
   description: "Pre-installation site survey including bathymetry, sub-bottom profiling and positioning."
 
 monitor_installation:
@@ -273,6 +273,6 @@ monitor_installation:
     - positioning_system
     - monitoring_system
     - rov
-  duration_h: 12
-  Hs_m: 3.0
+  duration_h
+  Hs_m
   description: "Real-time monitoring of installation operations using ROV and sensor packages."
