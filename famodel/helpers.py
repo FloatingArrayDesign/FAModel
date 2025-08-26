@@ -1083,8 +1083,10 @@ def configureAdjuster(mooring, adjuster=None, method='horizontal',
         targetdd = deepcopy(mooring.dd)
         if project == None:
             raise Exception('Project class instance needs to be provided to determine target')
-        targetdd['zAnchor'] = project.depth
-        mooring.createSubsystem()
+        targetdd['zAnchor'] = -project.depth
+        if not mooring.shared:
+            mooring.rA[2] = -project.depth
+        mooring.createSubsystem(dd=targetdd)
         
         if method == 'horizontal':
             mooring.target = np.linalg.norm(mooring.ss.fB_L[:2])
@@ -1092,6 +1094,10 @@ def configureAdjuster(mooring, adjuster=None, method='horizontal',
             mooring.target = np.linalg.norm(mooring.ss.fB_L)
         else:
             raise Exception('Invalid adjustment method. Must be pretension or horizontal')
+        # return mooring depth to accurate val
+        if not mooring.shared:
+            depth = project.getDepthAtLocation(mooring.rA[0], mooring.rA[1])
+            mooring.rA[2] = -depth
     else:
         mooring.target = target
     
@@ -1101,7 +1107,6 @@ def configureAdjuster(mooring, adjuster=None, method='horizontal',
         
         # check if method is 'pretension' then save slope
         if method == 'pretension':
-            
             if project == None:
                 raise Exception('Project class instance needs to be provided to determine slope')
             
@@ -1109,18 +1114,18 @@ def configureAdjuster(mooring, adjuster=None, method='horizontal',
                 
                 #calculate mooring slope using base depth
                 #**** this assumes that the mooring system is designed for the base depth*****
-                mooring.slope = project.depth / mooring.dd['span']
+                mooring.slope = (project.depth+mooring.rB[2]) / mooring.dd['span']
                 
             else:   
                 if span:
-                    mooring.slope = project.depth / span
+                    mooring.slope = (project.depth+mooring.rB[2]) / span
                 else:
                     raise Exception('Span required to perform adjustment')
                     
     return(mooring)
 
 def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, target=1e6,
-                       i_line = 0, slope = 0.58 ):
+                       i_line = 0, slope = 0.58, display=False ):
     '''Custom function to adjust a mooring, called by
     Mooring.adjust. Fairlead point should have already
     been adjusted.
@@ -1152,11 +1157,12 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
         fairlead_rad = mooring.rad_fair
         fairlead_z = mooring.z_fair
         
-        fairlead = ss.rB # fairlead point
+        fairlead = ss.rB # fairlead point (already updated)
         
         #unit direction vector towards ORIGNAL anchor in x,y plane, and inputted slope as the z component
-        xydist = np.linalg.norm([ss.rA[0] - ss.rB[0],ss.rA[1] - ss.rB[1]])
-        direction = np.array([(ss.rA[0] - ss.rB[0])/xydist, (ss.rA[1] - ss.rB[1])/xydist, -slope])
+        xydist = mooring.span # np.linalg.norm([ss.rA[0] - ss.rB[0],ss.rA[1] - ss.rB[1]])
+        phi = np.pi/2 - np.radians(mooring.heading)
+        direction = np.array([np.cos(phi), np.sin(phi), -slope]) # np.array([(ss.rA[0] - ss.rB[0])/xydist, (ss.rA[1] - ss.rB[1])/xydist, -slope])
         
         #use project class to find new anchor interesection point, maintaining original line heading
         if project:
@@ -1165,10 +1171,11 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
             print('Project must be inputted for the pretension method')
             return 
         #update mooring properties
-        print('R_anch new ', r_anch)
+        if display:
+            print('R_anch new ', r_anch)
         mooring.dd['zAnchor'] = r_anch[2]
         mooring.z_anch = mooring.dd['zAnchor']
-        mooring.rad_anch = np.linalg.norm(r_anch-r)
+        mooring.rad_anch = np.linalg.norm(r_anch[:2]-r[:2])
         span = mooring.rad_anch - fairlead_rad
         mooring.setEndPosition(r_anch, 'a')  # set the anchor position
 
@@ -1177,12 +1184,17 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
             iend = mooring.rA if i == 0 else mooring.rB
             if type(att).__name__ in 'Anchor':
                 # this is an anchor, move anchor location
-                att.r = iend
+                if project:
+                    project.updateAnchor(att) 
+                else: 
+                    att.r = iend
                 if att.mpAnchor:
                     att.mpAnchor.r = att.r
                     
-        # Estimate the correct line length to start with
-        ss.lineList[i_line].setL(np.linalg.norm(mooring.rB - mooring.rA))
+        # Estimate the correct line length to start with based on % of total length
+        L_tot = sum([line.L for line in ss.lineList])
+        initial_L_ratio = ss.lineList[i_line].L/L_tot
+        ss.lineList[i_line].setL(np.linalg.norm(mooring.rB - mooring.rA)*initial_L_ratio)
             
         # Next we could adjust the line length/tension (if there's a subsystem)
            
@@ -1194,9 +1206,14 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
 
         # run dsolve2 solver to solve for the line length that matches the initial tension
         X0 = [ss.lineList[i_line].L]  # start with the current section length
-        L_final, T_final, _ = dsolve2(eval_func, X0, Ytarget=[target], 
-                              Xmin=[1], Xmax=[1.1*np.linalg.norm(ss.rB-ss.rA)],
-                              dX_last=[1], tol=[0.01], maxIter=50, stepfac=4)
+        if display:
+            L_final, T_final, _ = dsolve2(eval_func, X0, Ytarget=[target], 
+                                  Xmin=[1], Xmax=[1.1*np.linalg.norm(ss.rB-ss.rA)],
+                                  dX_last=[1], tol=[0.01], maxIter=50, stepfac=4, display=5)
+        else:
+            L_final, T_final, _ = dsolve2(eval_func, X0, Ytarget=[target], 
+                                  Xmin=[1], Xmax=[1.1*np.linalg.norm(ss.rB-ss.rA)],
+                                  dX_last=[1], tol=[0.01], maxIter=50, stepfac=4)
         ss.lineList[i_line].L = L_final[0]
         sec = mooring.getSubcomponent(i_line)
         sec['L'] = L_final[0]
@@ -1216,7 +1233,16 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
             return np.array([Fx - target]), dict(status=1) , False
             
         X0 = [ss.lineList[i_line].L]
-        x, y, info = dsolve2(func_TH_L, X0,  tol=[0.01], args=dict(direction='horizontal'), Xmin=[10], Xmax=[2000], dX_last=[10], maxIter=50, stepfac=4, display = 5)
+        if display:
+            x, y, info = dsolve2(func_TH_L, X0,  tol=[0.01], 
+                                 args=dict(direction='horizontal'), 
+                                 Xmin=[10], Xmax=[2000], dX_last=[10], 
+                                 maxIter=50, stepfac=4, display = 5)
+        else:
+            x, y, info = dsolve2(func_TH_L, X0,  tol=[0.01], 
+                                 args=dict(direction='horizontal'), 
+                                 Xmin=[10], Xmax=[2000], dX_last=[10], 
+                                 maxIter=50, stepfac=4)
 
     else:
         print('Invalid method. Must be either pretension or horizontal')
