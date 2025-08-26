@@ -1942,7 +1942,7 @@ class Project():
                              substation_r=[None],ss_id=200,id_method='location',
                              keep_old_cables=False, connect_ss=True, 
                              cableConfig=None, configType=0,heading_buffer=30,
-                             route_anchors=True):
+                             route_anchors=True, adj_dir=1):
         '''Adds cables and connects them to existing platforms/substations based on info in connDict
         Designed to work with cable optimization output designed by Michael Biglu
 
@@ -2098,11 +2098,24 @@ class Project():
                 # consider mooring headings from both ends if close enough
                 pfsp = np.linalg.norm(attA.r-attB.r) 
                 if pfsp-2*attA.rFair < msp+dc0s:
-                    headingA = head_adjust([attA,attB],headingA,rad_buff=rad_buff)
-                    headingB = head_adjust([attB,attA],headingB,rad_buff=rad_buff,endA_dir=-1)
+                    headingA = head_adjust([attA,attB],
+                                           headingA,
+                                           rad_buff=rad_buff,
+                                           adj_dir=adj_dir)
+                    headingB = head_adjust([attB,attA],
+                                           headingB,
+                                           rad_buff=rad_buff,
+                                           endA_dir=-1,
+                                           adj_dir=adj_dir)
                 else:
-                    headingA = head_adjust([attA],headingA,rad_buff=rad_buff)
-                    headingB = head_adjust([attB],headingB,rad_buff=rad_buff)
+                    headingA = head_adjust([attA],
+                                           headingA,
+                                           rad_buff=rad_buff,
+                                           adj_dir=adj_dir)
+                    headingB = head_adjust([attB],
+                                           headingB,
+                                           rad_buff=rad_buff,
+                                           adj_dir=adj_dir)
                     
             heads = [headingA,headingB]
             # reposition cable

@@ -223,7 +223,7 @@ def check_headings(m_headings,c_heading,rad_buff):
         return([])
     
         
-def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
+def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1, adj_dir=1):
     '''
     function to adjust heading of cable based on angle buffer from mooring lines
 
@@ -238,6 +238,10 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
     endA_dir : float, optional
         Either 1 or -1, controls sign of new heading for end B. Only altered to -1 if dynamic
         cable from end A will get close to end B moorings. Default is 1.
+    adj_dir : float, optional
+        Either 1 or -1, default is 1. If -1, adjusts direction heading is altered 
+        to avoid mooring lines, can be used if that heading direction is more natural.
+        This is a manual input to the main function adjusting cables.
 
     Returns
     -------
@@ -269,7 +273,7 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
     # if the headings interfere, adjust them by angle buffer
     for mhead in interfere_h:
         ang_diff_dir = np.sign(headnew - mhead) if headnew != mhead else 1
-        headnew = mhead - rad_buff*endA_dir*ang_diff_dir #headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
+        headnew = mhead - adj_dir*rad_buff*endA_dir*ang_diff_dir #headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
         interfere_hi = check_headings(attheadings,headnew,rad_buff)
         for i in interfere_hi:
             # try rotating other way
@@ -961,7 +965,7 @@ def attachFairleads(moor, end, platform, fair_ID_start=None, fair_ID=None, fair_
     return(fairs)
         
 def calc_heading(pointA, pointB):
-    '''calculate a heading from points, if pointA or pointB is a list of points,
+    '''calculate a compass heading from points, if pointA or pointB is a list of points,
        the average of those points will be used for that end'''
     # calculate the midpoint of the point(s) on each end first
     pointAmid = calc_midpoint(pointA) 
@@ -992,7 +996,7 @@ def calc_midpoint(point):
     
 
 def route_around_anchors(proj, anchor=True, cable=True, padding=50):
-    
+    '''check if static cables hit anchor buffer, if so reroute cables around anchors'''
     # make anchor buffers with 50m radius
     if anchor:
         anchor_buffs = []
@@ -1308,24 +1312,27 @@ def cleanDataTypes(info, convert_lists=True):
     # return cleaned dictionary           
     return(info)
 
-'''
+
 def createRAFTDict(project):
+    from famodel.turbine.turbine import Turbine
     # Create a RAFT dictionary from a project class to create RAFT model
-    rd = {'keys':['ID', 'turbineID', 'platformID', 'mooringID', 'x_location', 'y_location'],
-          'data':[]}
+    rd = {'array':{'keys':['ID', 'turbineID', 'platformID', 'mooringID', 'x_location', 'y_location', 'heading_adjust'],
+                   'data':[]}}
+    turb = 0
     for pf in project.platformList.values():
         for att in pf.attachments.values():
             if isinstance(att['obj'],Turbine):
-                turb = att['obj']
+                turb = att['obj'].dd['type']
                 break
-        rd.append(pf.id, turb.dd['type'], pf.dd['type'], 0, pf.r[0], pf.r[1])
+        rd['array']['data'].append([pf.id, turb, pf.dd['type'], 0, pf.r[0], pf.r[1],np.degrees(pf.phi)])
         rd['site'] = {'water_depth':project.depth,'rho_water':project.rho_water,'rho_air':project.rho_air,'mu_air':project.mu_air}
         rd['site']['shearExp'] = .12
         
-    for tt in project.turbineType
+    rd['turbines'] = project.turbineTypes
+    rd['platforms'] = project.platformTypes
 
     return rd
-'''
+
 
 def getFromDict(dict, key, shape=0, dtype=float, default=None, index=None):
     '''
