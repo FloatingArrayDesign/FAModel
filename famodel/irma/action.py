@@ -146,7 +146,13 @@ class Action():
                     raise Exception(f"Object type '{objType}' is not in the action's supported list.")
         '''
         
-        # Process objects to be acted upon
+        # Create placeholders for asset roles based on the "requirements"
+        if 'roles' in actionType:
+            for role, caplist in actionType['roles'].items():
+                self.requirements[role] = {key: {} for key in caplist}  # each role requirment holds a dict of capabilities with each capability containing a dict of metrics and values, metrics dict set to empty for now. 
+                self.assets[role] = None  # placeholder for the asset assigned to this role
+
+        # Process objects to be acted upon. NOTE: must occur after requirements and assets placeholders have been assigned. 
         # make list of supported object type names
         if 'objects' in actionType:  
             if isinstance(actionType['objects'], list):
@@ -156,22 +162,7 @@ class Action():
         
         # Add objects to the action's object list as long as they're supported
         if 'objects' in kwargs:
-            for obj in kwargs['objects']:
-                objType = obj.__class__.__name__.lower() # object class name
-                if objType in self.supported_objects:
-                    self.objectList.append(obj)
-                else:
-                    raise Exception(f"Object type '{objType}' is not in the action's supported list.")
-        
-        # Create placeholders for asset roles based on the "requirements"
-        if 'roles' in actionType:
-            for role, caplist in actionType['roles'].items():
-                self.requirements[role] = {key: None for key in caplist}  # each role requirment holds a dict of capabilities with values set to None for now
-                for cap in caplist:
-                    # self.requirements[role][cap] = {}  # fill in each required capacity with empty dict
-                    self.requirements[role][cap] = {'area_m2': 1000, 'max_load_t': 1600}  # dummy values for now, just larger than MPSV_01 values to trigger failure
-
-                self.assets[role] = None  # placeholder for the asset assigned to this role
+            self.assignObjects(kwargs['objects'])
 
         # Process dependencies
         if 'dependencies' in kwargs:
@@ -198,10 +189,680 @@ class Action():
         # could see if already a dependency and raise a warning if so...
     
 
+    def getMetrics(self, cap, met, obj):
+        '''
+        Retrieves the minimum metric(s) for a given capability required to act on target object.
+        A metric is the number(s) associated with a capability. A capability is what an action 
+        role requires and an asset has. 
+
+        These minimum metrics are assigned to capabilities in the action's role in `assignObjects`.
+
+        Inputs
+        ------
+        `cap` : `str`
+            The capability for which the metric is to be retrieved.
+        `met` : `dict`
+            The metrics dictionary containing any existing metrics for the capability.
+        `obj` : FAModel object
+            The target object on which the capability is to be acted upon.
+
+        Returns
+        -------
+        `metrics` : `dict`
+            The metrics and values for the specified capability and object.
+
+        '''
+
+        metrics = met  # metrics dict with following form: {metric_1 : required_value_1, ...}. met is assigned here in case values have already been assigned
+        objType = obj.__class__.__name__.lower()
+
+        """
+        Note to devs:
+        This function contains hard-coded evaluations of all the possible combinations of capabilities and objects. 
+        The intent is we generate the minimum required <metric> of a given <capability> to work with the object. An
+        example would be minimum bollard pull required to tow out a platform. The capabilities (and their metrics) 
+        are from capabilities.yaml and the objects are from objects.yaml. There is a decent ammount of assumptions 
+        made here so it is important to document sources where possible. 
+
+        Some good preliminary work on this is in https://github.com/FloatingArrayDesign/FAModel/blob/IOandM_development/famodel/installation/03_step1_materialItems.py 
+
+        ### Code Explanation ###
+        This function has the following structure 
+
+        ```
+        if cap == <target_cap>:
+            # some comments
+
+            if objType == 'mooring':
+                metric_value = calc based on obj
+            elif objType == 'platform':
+                metric_value = calc based on obj
+            elif objType == 'anchor':
+                metric_value = calc based on obj
+            elif objType == 'component':
+                metric_value = calc based on obj
+            elif objType == 'wec':
+                metric_value = calc based on obj
+            elif objType == 'platform_semisub':
+                metric_value = calc based on obj
+            elif objType == 'platform_spar':
+                metric_value = calc based on obj
+            elif objType == 'platform_tlp':
+                metric_value = calc based on obj
+            elif objType == 'wtg':
+                metric_value = calc based on obj
+            elif objType == 'cable':
+                metric_value = calc based on obj
+            elif objType == 'site':
+                metric_value = calc based on obj
+            else:
+                metric_value = -1
+                
+            # Assign the capabilties metrics (keep existing metrics already in dict if larger than calc'ed value)
+            metrics[<target_cap_metric>] = metric_value if metric_value > metrics.get(<target_cap_metric>) else metrics.get(<target_cap_metric>)
+        ```
+        
+        Some of the logic for checking object types can be omitted if it doesnt make sense. For example, the chain_locker capability 
+        only needs to be checked against the Mooring object. The comment `# object logic checked` shows that the logic in that capability
+        has been thought through. 
+
+        A metric_value of -1 indicates the object is not compatible with the capability. This is indicated by a warning printed at the end. 
+
+        A completed example of what this can look like is the line_reel capability.
+        """
+
+
+        if cap == 'deck_space':
+            # logic for deck_space capability (platforms and sites not compatible)
+            # TODO: how do we account for an action like load_mooring (which has two roles, 
+            # representing vessels to be loaded). The combined deck space of the carriers
+            # should be the required deck space for the action. Right now I believe it is
+            # set up that only one asset can fulfill the capability minimum. 
+
+            # object logic checked
+            if objType == 'mooring':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['area_m2'] = None if None > metrics.get('area_m2') else metrics.get('area_m2')
+            metrics['max_load_t'] = None if None > metrics.get('max_load_t') else metrics.get('max_load_t')
+
+        elif cap == 'chain_locker':
+            # logic for chain_locker capability (only mooring objects compatible)
+            # object logic checked
+            vol = 0
+            length = 0
+            if objType == 'mooring':
+                for i, sec in enumerate(obj.dd['sections']): # add up the volume and length of all chain in the object
+                    if sec['type']['chain']:
+                        diam = sec['type']['d_nom']           # diameter [m]
+                        vol += 0.0 # TODO: calculate chain_locker volume from sec['L'] and diam. Can we just use volumetric diam here?
+                        length += sec['L']                     # length [m]
+
+            else:
+                vol = -1
+
+            # Assign the capabilties metrics
+            metrics['volume_m3'] = vol if vol > metrics.get('volume_m3') else metrics.get('volume_m3')
+
+        elif cap == 'line_reel':
+            # logic for line_reel capability (only mooring objects compatible)
+            # object logic checked, complete
+            vol = 0
+            length = 0
+            if objType == 'mooring':
+                for i, sec in enumerate(obj.dd['sections']): # add up the volume and length of all non_chain line in the object
+                    if not sec['type']['chain']: # any line type thats not chain
+                        vol += sec['L'] * np.pi * (sec['type']['d_nom'] / 2) ** 2 # volume [m^3]
+                        length += sec['L']                     # length [m]
+
+            else:
+                vol = -1
+                length = -1
+
+            # Assign the capabilties metrics
+            metrics['volume_m3'] = vol if vol > metrics.get('volume_m3') else metrics.get('volume_m3')
+            metrics['rope_capacity_m'] = length if length > metrics.get('rope_capacity_m') else metrics.get('rope_capacity_m')
+
+        elif cap == 'cable_reel':
+            # logic for cable_reel capability (only cable objects compatible)
+            # object logic checked
+            vol = 0
+            length = 0
+            if objType == 'cable':
+                for cable in cables: # TODO: figure out this iteration
+                    if cable is cable and not other thing in cables object: # TODO figure out how to only check cables, not j-tubes or any other parts
+                        vol += cable['L'] * np.pi * (cable['type']['d_nom'] / 2) ** 2
+                        length += cable['L']                     # length [m]
+            else:
+                vol = -1
+                length = -1
+                
+            # Assign the capabilties metrics
+            metrics['volume_m3'] = vol if vol > metrics.get('volume_m3') else metrics.get('volume_m3')
+            metrics['cable_capacity_m'] = length if length > metrics.get('cable_capacity_m') else metrics.get('cable_capacity_m')
+
+        elif cap == 'winch':
+            # logic for winch capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['max_line_pull_t'] = None if None > metrics.get('max_line_pull_t') else metrics.get('max_line_pull_t')
+            metrics['brake_load_t'] = None if None > metrics.get('brake_load_t') else metrics.get('brake_load_t')
+            metrics['speed_mpm'] = None if None > metrics.get('speed_mpm') else metrics.get('speed_mpm')
+
+        elif cap == 'bollard_pull':
+            # per calwave install report (section 7.2): bollard pull can be described as function of vessel speed and load
+            
+            # logic for bollard_pull capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['max_force_t'] = None if None > metrics.get('max_force_t') else metrics.get('max_force_t')
+
+        elif cap == 'crane':
+            # logic for deck_space capability (platforms and sites not compatible)
+            # object logic checked
+            if objType == 'mooring':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['capacity_t'] = None if None > metrics.get('capacity_t') else metrics.get('capacity_t')
+            metrics['hook_height_m'] = None if None > metrics.get('hook_height_m') else metrics.get('hook_height_m')
+
+        elif cap == 'station_keeping':
+            # logic for station_keeping capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['typev'] = None if None > metrics.get('typev') else metrics.get('typev')
+
+        elif cap == 'mooring_work':
+            # logic for mooring_work capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['line_typesvvv'] = None if None > metrics.get('line_typesvvv') else metrics.get('line_typesvvv')
+            metrics['stern_roller'] = None if None > metrics.get('stern_roller') else metrics.get('stern_roller')
+            metrics['shark_jaws'] = None if None > metrics.get('shark_jaws') else metrics.get('shark_jaws')
+            metrics['towing_pin_rating_t'] = None if None > metrics.get('towing_pin_rating_t') else metrics.get('towing_pin_rating_t')
+
+        elif cap == 'pump_surface':
+            # logic for pump_surface capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'pump_subsea':
+            # logic for pump_subsea capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'pump_grout':
+            # logic for pump_grout capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+            
+            # Assign the capabilties metrics
+            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            metrics['flow_rate_m3hr'] = None if None > metrics.get('flow_rate_m3hr') else metrics.get('flow_rate_m3hr')
+            metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'hydraulic_hammer':
+            # logic for hydraulic_hammer capability (only platform, anchor, and site objects compatible)
+            # object logic checked
+            if objType == 'platform':
+                pass
+            elif objType == 'anchor': # for fixed bottom installations
+                pass
+            elif objType == 'site': # if site conditions impact hydraulic hammering
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            metrics['energy_per_blow_kJ'] = None if None > metrics.get('energy_per_blow_kJ') else metrics.get('energy_per_blow_kJ')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'vibro_hammer':
+            # logic for vibro_hammer capability (only platform, anchor, and site objects compatible)
+            # object logic checked
+            if objType == 'platform':
+                pass
+            elif objType == 'anchor': # for fixed bottom installations
+                pass
+            elif objType == 'site': # if site conditions impact vibro hammering
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            metrics['centrifugal_force_kN'] = None if None > metrics.get('centrifugal_force_kN') else metrics.get('centrifugal_force_kN')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'drilling_machine':
+            # logic for drilling_machine capability (only platform, anchor, cable, and site objects compatible)
+            # Considering drilling both for export cables, interarray, and anchor/fixed platform install
+            # object logic checked
+            if objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site': # if site conditions impact drilling 
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'torque_machine':
+            # logic for torque_machine capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            metrics['torque_kNm'] = None if None > metrics.get('torque_kNm') else metrics.get('torque_kNm')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'cable_plough':
+            # logic for cable_plough capability (only cable and site objects compatible)
+            # object logic checked
+            if  objType == 'cable':
+                pass
+            elif objType == 'site': # if site conditions impact cable installation
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'rock_placement':
+            # logic for rock_placement capability (only platform, anchor, cable, and site objects compatible)
+            # object logic checked
+            if objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['placement_method'] = None if None > metrics.get('placement_method') else metrics.get('placement_method')
+            metrics['max_depth_m'] = None if None > metrics.get('max_depth_m') else metrics.get('max_depth_m')
+            metrics['accuracy_m'] = None if None > metrics.get('accuracy_m') else metrics.get('accuracy_m')
+            metrics['rock_size_range_mm'] = None if None > metrics.get('rock_size_range_mm') else metrics.get('rock_size_range_mm')
+
+        elif cap == 'container':
+            # logic for container capability (only wec, wtg, and cable objects compatible)
+            # object logic checked
+            if objType == 'wec':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'rov':
+            # logic for rov capability (all compatible)
+            # object logic checked
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['class'] = None if None > metrics.get('class') else metrics.get('class')
+            metrics['depth_rating_m'] = None if None > metrics.get('depth_rating_m') else metrics.get('depth_rating_m')
+            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+
+        elif cap == 'positioning_system':
+            # logic for positioning_system capability (only platform, anchor, cable, and site objects compatible)
+            # object logic checked
+            if objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site': # if positioning aids are impacted by site conditions
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['accuracy_m'] = None if None > metrics.get('accuracy_m') else metrics.get('accuracy_m')
+            metrics['methods'] = None if None > metrics.get('methods') else metrics.get('methods')
+
+        elif cap == 'monitoring_system':
+            # logic for monitoring_system capability
+            if objType == 'mooring':
+                pass
+            elif objType == 'platform':
+                pass
+            elif objType == 'anchor':
+                pass
+            elif objType == 'component':
+                pass
+            elif objType == 'wec':
+                pass
+            elif objType == 'platform_semisub':
+                pass
+            elif objType == 'platform_spar':
+                pass
+            elif objType == 'platform_tlp':
+                pass
+            elif objType == 'wtg':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['metrics'] = None if None > metrics.get('metrics') else metrics.get('metrics')
+            metrics['sampling_rate_hz'] = None if None > metrics.get('sampling_rate_hz') else metrics.get('sampling_rate_hz')
+
+        elif cap == 'sonar_survey':
+            # logic for sonar_survey capability (only anchor, cable, and site objects compatible)
+            # object logic checked
+            if objType == 'anchor':
+                pass
+            elif objType == 'cable':
+                pass
+            elif objType == 'site':
+                pass
+            else:
+                pass
+
+            # Assign the capabilties metrics
+            metrics['types'] = None if None > metrics.get('types') else metrics.get('types')
+            metrics['resolution_m'] = None if None > metrics.get('resolution_m') else metrics.get('resolution_m')
+
+        else:
+            raise Exception(f"Unsupported capability '{cap}'.")
+        
+        for met in metrics.keys():
+            if metrics[met] == -1:
+                print(f"WARNING: No metrics assigned for '{met}' metric in '{cap}' capability based on object type '{objType}'.")
+        
+
+        return metrics # return the dict of metrics and required values for the capability
+
+
     def assignObjects(self, objects):
         '''
-        Adds a list of objects to the actions objects list, 
-        checking they are valid for the actions supported objects.
+        Adds a list of objects to the actions objects list and 
+        calculates the required capability metrics, checking objects 
+        are valid for the actions supported objects.
+
+        The minimum capability metrics are used by when checking for 
+        compatibility and assinging assets to the action in `assignAsset`.
+        Thus this function should only be called in the intialization 
+        process of an action.
 
         Inputs
         ------
@@ -214,38 +875,24 @@ class Action():
         ''' 
 
         for obj in objects:
+
+            # Check compatibility, set capability metrics based on object, and assign object to action
+
             objType = obj.__class__.__name__.lower() # object class name
-            if objType in self.supported_objects:
-                if obj in self.objectList:
-                    print(f"Warning: Object '{obj}' is already in the action's object list.")
-                self.objectList.append(obj)
-            else:
+            if objType not in self.supported_objects:
                 raise Exception(f"Object type '{objType}' is not in the action's supported list.")
+            else:
+                if obj in self.objectList:
+                    print(f"Warning: Object '{obj}' is already in the action's object list. Capabilities will be overwritten.")
 
+                # Set capability requirements based on object
+                for role, caplist in self.requirements.items():
+                    for cap in caplist:
+                        metrics = self.getMetrics(cap, caplist[cap], obj) # pass in the metrics dict for the cap and the obj
 
+                        self.requirements[role][cap] = metrics  # assign metric of capability cap based on value required by obj
 
-    # def setUpCapability(self):
-    #     '''
-    #     Example of what needs to happen to create a metric.
-    #
-    #     Inputs
-    #     ------
-    #     `None`
-    #
-    #     Returns
-    #     -------
-    #     `None`
-    #     '''
-    #     # WIP: example of what needs to happen to create a metric
-
-    #     # figure out how to assign required metrics to capabilies in the roles based on the objects
-    #     for role, caps in self.requirements.items():
-    #         for cap, metrics in caps.items():
-    #             for obj in self.objectList:
-    #                 # this is for the deck_space capability
-    #                 metrics = {'area_m2': obj.area, 'max_load_t': obj.mass / 1000} # / 1000 to convert kg to T
-    #                 metrics.update(obj.get_capability_metrics(cap))
-    #     pass
+                self.objectList.append(obj)
 
     
     def checkAsset(self, role_name, asset):
@@ -312,6 +959,22 @@ class Action():
         for role_name in self.requirements.keys():
             if self.assets[role_name] is None:
                 raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.")
+            
+        # Initialize cost and duration
+        self.cost = 0.0 # [$]
+        self.duration = 0.0 # [days]
+
+        """
+        Note to devs:
+        The code here calculates the cost and duration of an action. Each action in the actions.yaml has a hardcoded 'model' 
+        here that is used to evaluate the action based on the assets assigned to it. 
+
+        This is where a majority of assumptions about the action's behavior are made, so it is key to cite references behind
+        any abnormal approaches. 
+
+        Some good preliminary work on this is in https://github.com/FloatingArrayDesign/FAModel/blob/IOandM_development/famodel/installation/
+        and in assets.py
+        """
 
         # --- Towing & Transport ---
         if self.type == 'tow':
@@ -325,7 +988,21 @@ class Action():
         elif self.type == 'retrieve_anchor':
             pass
         elif self.type == 'load_mooring':
-            pass
+
+            # Example model assuming line will be winched on to vessel. This can be changed if not most accurate
+            duration_min = 0
+            for obj in self.objectList:
+                if obj.__class__.__name__.lower() == 'mooring':
+                    for i, sec in enumerate(obj.dd['sections']): # add up the length of all sections in the mooring
+                        duration_min += sec['L'] / self.assets['carrier2']['winch']['speed_mpm'] # duration [minutes]
+            
+            self.duration += duration_min / 60 / 24 # convert minutes to days
+            self.cost += self.duration * self.assets['carrier2']['day_rate'] # cost [$]
+
+            # check for deck space availability, if carrier 1 met transition to carrier 2.
+
+            # think through operator costs, carrier 1 costs.
+
         elif self.type == 'lay_mooring':
             pass
         elif self.type == 'mooring_hookup':
