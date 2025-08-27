@@ -1900,11 +1900,24 @@ class Project():
                 # consider mooring headings from both ends if close enough
                 pfsp = np.linalg.norm(attA.r-attB.r) 
                 if consider_alternate_side and pfsp-2*attA.rFair < msp+dc0s:
-                    headingA = head_adjust([attA,attB],headingA,rad_buff=rad_buff)
-                    headingB = head_adjust([attB,attA],headingB,rad_buff=rad_buff,endA_dir=-1)
+                    headingA = head_adjust([attA,attB],
+                                           headingA,
+                                           rad_buff=rad_buff,
+                                           adj_dir=adj_dir)
+                    headingB = head_adjust([attB,attA],
+                                           headingB,
+                                           rad_buff=rad_buff,
+                                           endA_dir=-1,
+                                           adj_dir=adj_dir)
                 else:
-                    headingA = head_adjust([attA],headingA,rad_buff=rad_buff)
-                    headingB = head_adjust([attB],headingB,rad_buff=rad_buff)
+                    headingA = head_adjust([attA],
+                                           headingA,
+                                           rad_buff=rad_buff,
+                                           adj_dir=adj_dir)
+                    headingB = head_adjust([attB],
+                                           headingB,
+                                           rad_buff=rad_buff,
+                                           adj_dir=adj_dir)
                     
             heads = [headingA,headingB]
             # reposition cable

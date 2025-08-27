@@ -223,7 +223,7 @@ def check_headings(m_headings,c_heading,rad_buff):
         return([])
     
         
-def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
+def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1, adj_dir=1):
     '''
     function to adjust heading of cable based on angle buffer from mooring lines
 
@@ -264,11 +264,12 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
         #attheadings.extend(atmh)
         attheadings.extend(np.pi/2 - atmh) # convert to 0 rad at East going CCW
         flipheads = True
+        
     interfere_h = check_headings(attheadings,headnew,rad_buff)
     # if the headings interfere, adjust them by angle buffer
     for mhead in interfere_h:
         ang_diff_dir = np.sign(headnew - mhead) if headnew != mhead else 1
-        headnew = mhead - rad_buff*endA_dir*ang_diff_dir #headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
+        headnew = mhead - adj_dir*rad_buff*endA_dir*ang_diff_dir #headnew + np.sign(ang_diff)*(rad_buff - abs(ang_diff))*endA_dir
         interfere_hi = check_headings(attheadings,headnew,rad_buff)
         for i in interfere_hi:
             # try rotating other way
@@ -282,6 +283,7 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1):
                 newbuff = rad_buff/2
                 headnew = mhead + newbuff*endA_dir*ang_diff_dir
                 return(headnew)
+
     return(headnew)
 
 def getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal):
