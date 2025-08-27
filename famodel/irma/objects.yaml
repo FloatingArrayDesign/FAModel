@@ -6,7 +6,7 @@ mooring:   # object name
   - pretension
   - weight
 
-platform:
+platform: # can be wec
   - mass
   - draft
   - wec
@@ -18,20 +18,10 @@ anchor:
 component:
    - mass
    - length
-   
-wec:
-
-platform_semisub:  
-
-platform_spar:
-
-platform_tlp:  
-
-wtg:
+  
+turbine:
 
 cable:
-
-site:  
   
 #mooring:
 #  install sequence:

@@ -241,19 +241,9 @@ class Action():
                 metric_value = calc based on obj
             elif objType == 'component':
                 metric_value = calc based on obj
-            elif objType == 'wec':
-                metric_value = calc based on obj
-            elif objType == 'platform_semisub':
-                metric_value = calc based on obj
-            elif objType == 'platform_spar':
-                metric_value = calc based on obj
-            elif objType == 'platform_tlp':
-                metric_value = calc based on obj
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 metric_value = calc based on obj
             elif objType == 'cable':
-                metric_value = calc based on obj
-            elif objType == 'site':
                 metric_value = calc based on obj
             else:
                 metric_value = -1
@@ -282,13 +272,13 @@ class Action():
             # object logic checked
             if objType == 'mooring':
                 pass
+            elif objType == 'platform':
+                pass
             elif objType == 'anchor':
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
                 pass
@@ -364,19 +354,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -398,19 +378,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -419,17 +389,17 @@ class Action():
             metrics['max_force_t'] = None if None > metrics.get('max_force_t') else metrics.get('max_force_t')
 
         elif cap == 'crane':
-            # logic for deck_space capability (platforms and sites not compatible)
+            # logic for deck_space capability (all compatible)
             # object logic checked
             if objType == 'mooring':
+                pass
+            elif objType == 'platform':
                 pass
             elif objType == 'anchor':
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
                 pass
@@ -450,19 +420,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -480,19 +440,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -513,19 +463,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -546,19 +486,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -579,19 +509,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -604,13 +524,11 @@ class Action():
             metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'hydraulic_hammer':
-            # logic for hydraulic_hammer capability (only platform, anchor, and site objects compatible)
+            # logic for hydraulic_hammer capability (only platform and anchor objects compatible)
             # object logic checked
             if objType == 'platform':
                 pass
             elif objType == 'anchor': # for fixed bottom installations
-                pass
-            elif objType == 'site': # if site conditions impact hydraulic hammering
                 pass
             else:
                 pass
@@ -622,13 +540,11 @@ class Action():
             metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'vibro_hammer':
-            # logic for vibro_hammer capability (only platform, anchor, and site objects compatible)
+            # logic for vibro_hammer capability (only platform and anchor objects compatible)
             # object logic checked
             if objType == 'platform':
                 pass
             elif objType == 'anchor': # for fixed bottom installations
-                pass
-            elif objType == 'site': # if site conditions impact vibro hammering
                 pass
             else:
                 pass
@@ -640,7 +556,7 @@ class Action():
             metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'drilling_machine':
-            # logic for drilling_machine capability (only platform, anchor, cable, and site objects compatible)
+            # logic for drilling_machine capability (only platform, anchor, and cable objects compatible)
             # Considering drilling both for export cables, interarray, and anchor/fixed platform install
             # object logic checked
             if objType == 'platform':
@@ -648,8 +564,6 @@ class Action():
             elif objType == 'anchor':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site': # if site conditions impact drilling 
                 pass
             else:
                 pass
@@ -669,19 +583,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -693,11 +597,9 @@ class Action():
             metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'cable_plough':
-            # logic for cable_plough capability (only cable and site objects compatible)
+            # logic for cable_plough capability (only cable objects compatible)
             # object logic checked
             if  objType == 'cable':
-                pass
-            elif objType == 'site': # if site conditions impact cable installation
                 pass
             else:
                 pass
@@ -708,15 +610,13 @@ class Action():
             metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'rock_placement':
-            # logic for rock_placement capability (only platform, anchor, cable, and site objects compatible)
+            # logic for rock_placement capability (only platform, anchor, and cable objects compatible)
             # object logic checked
             if objType == 'platform':
                 pass
             elif objType == 'anchor':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -728,11 +628,11 @@ class Action():
             metrics['rock_size_range_mm'] = None if None > metrics.get('rock_size_range_mm') else metrics.get('rock_size_range_mm')
 
         elif cap == 'container':
-            # logic for container capability (only wec, wtg, and cable objects compatible)
+            # logic for container capability (only platform, turbine, and cable objects compatible)
             # object logic checked
             if objType == 'wec':
                 pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
                 pass
@@ -754,19 +654,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -778,15 +668,13 @@ class Action():
             metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'positioning_system':
-            # logic for positioning_system capability (only platform, anchor, cable, and site objects compatible)
+            # logic for positioning_system capability (only platform, anchor, and cable objects compatible)
             # object logic checked
             if objType == 'platform':
                 pass
             elif objType == 'anchor':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site': # if positioning aids are impacted by site conditions
                 pass
             else:
                 pass
@@ -805,19 +693,9 @@ class Action():
                 pass
             elif objType == 'component':
                 pass
-            elif objType == 'wec':
-                pass
-            elif objType == 'platform_semisub':
-                pass
-            elif objType == 'platform_spar':
-                pass
-            elif objType == 'platform_tlp':
-                pass
-            elif objType == 'wtg':
+            elif objType == 'turbine':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -827,13 +705,11 @@ class Action():
             metrics['sampling_rate_hz'] = None if None > metrics.get('sampling_rate_hz') else metrics.get('sampling_rate_hz')
 
         elif cap == 'sonar_survey':
-            # logic for sonar_survey capability (only anchor, cable, and site objects compatible)
+            # logic for sonar_survey capability (only anchor and cable objects compatible)
             # object logic checked
             if objType == 'anchor':
                 pass
             elif objType == 'cable':
-                pass
-            elif objType == 'site':
                 pass
             else:
                 pass
@@ -1017,7 +893,7 @@ class Action():
             pass
         elif self.type == 'install_tlp':
             pass
-        elif self.type == 'install_wtg':
+        elif self.type == 'install_turbine':
             pass
 
         # --- Cable Operations ---
