@@ -4377,10 +4377,16 @@ class Project():
                         # we have a shared anchor here, put mooring in array_mooring
                         if fairleads:
                             # append mooring line to array_moor section
-                            arrayMoor.append([current_config,moor.attached_to[0].id, moor.attached_to[1].id, 'None',flB])
+                            arrayMoor.append([current_config, 
+                                              mapAnchNames[atts[is_anch][0].id], 
+                                              moor.attached_to[1].id, 
+                                              'None',
+                                              flB])
                         else:
                             # append mooring line to array_moor section
-                            arrayMoor.append([current_config,moor.attached_to[0].id, moor.attached_to[1].id])
+                            arrayMoor.append([current_config,
+                                              mapAnchNames[atts[is_anch][0].id], 
+                                              moor.attached_to[1].id])
                     else:
                         # not shared anchor or shared mooring, add line to mooring system 
                         if fairleads:
