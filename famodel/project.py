@@ -3954,7 +3954,7 @@ class Project():
                         # we have a shared anchor here, put mooring in array_mooring
                         headA = 'None' # no heading at end A because it's an anchor
                         # append mooring line to array_moor section
-                        arrayMoor.append([current_config,moor.attached_to[0].id, moor.attached_to[1].id, headA,headB,int(0)])
+                        arrayMoor.append([current_config, mapAnchNames[atts[is_anch][0].id], moor.attached_to[1].id, headA,headB,int(0)])
                     else:
                         # not shared anchor or shared mooring, add line to mooring system 
                         msys.append([current_config,
