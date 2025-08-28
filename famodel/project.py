@@ -1944,7 +1944,9 @@ class Project():
                              substation_r=[None],ss_id=200,id_method='location',
                              keep_old_cables=False, connect_ss=True, 
                              cableConfig=None, configType=0,heading_buffer=30,
-                             route_anchors=True, adj_dir=1):
+                             route_anchors=False, adj_dir=1, 
+                             consider_alternate_side=False):
+
         '''Adds cables and connects them to existing platforms/substations based on info in connDict
         Designed to work with cable optimization output designed by Michael Biglu
 
@@ -1974,6 +1976,14 @@ class Project():
             0 = default to dynamic-static-dynamic cables, 1 = default to suspended cable systems
         heading_buffer : float, optional
             Minimum buffer between moorings and cables (degrees). Default is 30
+        route_anchors: bool, optional
+            True=automatically route cables around anchors
+        adj_dir: int, optional
+            Control initial direction to adjust cable headings to avoid mooring anchors
+            1 for positive angle adjustment, -1 for negative angle adjustment
+        consider_alternate_side: bool, optional
+            True- take into account mooring headings of platform on other side
+            if it is within 2 mooring radii
 
         Returns
         -------
@@ -2099,7 +2109,8 @@ class Project():
                 msp = list(moors.values())[0].span + attA.rFair + 200 # add a bit extra
                 # consider mooring headings from both ends if close enough
                 pfsp = np.linalg.norm(attA.r-attB.r) 
-                if pfsp-2*attA.rFair < msp+dc0s:
+
+                if consider_alternate_side and pfsp-2*attA.rFair < msp+dc0s:
                     headingA = head_adjust([attA,attB],
                                            headingA,
                                            rad_buff=rad_buff,

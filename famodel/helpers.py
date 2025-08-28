@@ -287,6 +287,7 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1, adj_dir=1):
                 newbuff = rad_buff/2
                 headnew = mhead + newbuff*endA_dir*ang_diff_dir
                 return(headnew)
+
     return(headnew)
 
 def getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal):
