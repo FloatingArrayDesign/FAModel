@@ -30,7 +30,7 @@ site:
             -[x2, y2]
     
     bathymetry:
-        file:   './bathymetry200m_sample.txt'
+        file:   'bathymetry200m_sample.txt'
     
     seabed:
       x : [-10901,    0,  10000]
@@ -112,12 +112,6 @@ array:
         -  [FOWT1,     1,         1,         ms3,          -1600,         -1600,     0,       180 ]    # 2 turbine array
         -  [FOWT2,     1,         1,         ms3,          0,           -1600,       0,       0   ] 
         -  [OSS1,      2,         2,         ms3,          1600,           -1600,    0,       180   ] # substation
-        # -  [FOWT3,     1,         1,         ms3,          -1600,          0,      0,      0   ]
-        # -  [FOWT5,     1,         1,         ms3,          0,              0,      0,      45   ]
-        # -  [FOWT6,     1,         1,         ms3,          1600,              0,   0,         0   ]
-        # -  [FOWT7,     1,         1,         ms3,          -1600,           1600,  0,          0   ]
-        # -  [FOWT8,     1,         1,         ms3,          0,              1600,   0,         0   ]
-        # -  [FOWT9,     1,         1,         ms3,          1600,           1600,   0,         0   ] 
 
 
 # Array-level mooring system (in addition to any per-turbine entries later)
@@ -127,16 +121,17 @@ array_mooring:
     anchor_data :
           
     line_keys : 
-          [MooringConfigID  ,  endA,   endB,  headingA, headingB, lengthAdjust]
+          [MooringConfigID  ,  endA,   endB,  fairleadA, fairleadB]
     line_data :
-        # - [ rope_shared       ,  FOWT1,  FOWT2, 270,  270,  0]
+        # - [ rope_shared       ,  FOWT1,  FOWT2, 0,  0,  None] # shared mooring doesn't need a heading specification
+        # - [ semitaut-poly_1,  FOWT1,  Anchor1, None,  0,  30] # shared anchor doesn't need a fairleadA specification
 
 
 # Array cables 
 array_cables:   
-    keys:  [ AttachA,  AttachB,  DynCableA, DynCableB, headingA, headingB, cableType]
+    keys:  [ AttachA,  AttachB,  DynCableA, DynCableB, JTubeA, JTubeB, headingA, headingB, cableType]
     data:
-      - [ FOWT2, OSS1, suspended_1, None, 90, 90, None] # suspended cable, so only one dynamic cable configuration, no static cable
+      - [ FOWT2, OSS1, suspended_1, None, 2, 2, 90, 90, None] # suspended cable, so only one dynamic cable configuration, no static cable
 
 
 # ----- Mooring system -----
@@ -147,11 +142,11 @@ mooring_systems:
     ms3:
         name: 3-line semi-taut polyester mooring system
         
-        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        keys: [MooringConfigID,  heading, anchorType, fairlead, lug] # fairlead and lug listings are optional; if not specified, fairlead list follows order of fairleads in the platform definition
         data:
-          - [  semitaut-poly_1,  150 ,    drag-embedment1,   0 ]
-          - [  semitaut-poly_1,  30 ,     drag-embedment1,   0 ]
-          - [  semitaut-poly_1,  270,     drag-embedment1,   0 ]
+          - [  semitaut-poly_1,  30 ,    drag-embedment1,   1, 1 ]
+          - [  semitaut-poly_1,  150 ,     drag-embedment1,   2,   1 ]
+          - [  semitaut-poly_1,  270,     drag-embedment1,   3,    1 ]
 
 
 # Mooring line configurations
@@ -164,23 +159,39 @@ mooring_line_configs:
 
         
         sections:
+          - subsections: # subsections are used to define segments of mooring that run in parallel, such as a bridle
+              - - connectorType: h_link # end A connector to the fairlead A0
+                - type: chain_185 # each outer list is a separate subsection, each inner list is the segments of the subsection that are connected in series
+                  length: 40 
+              - - connectorType: h_link # end A connector to the fairlead A1
+                - type: chain_185
+                  length: 40  
           - connectorType: h_link
           - type: rope
-            length: 150
+            length: 110
           - connectorType: clump_weight_80
           - type: rope
-            length: 1172
+            length: 500
+          - connectorType: triplate
+          - subsections: # a subsection that is not on the end of a mooring connects back to the connector on either side
+              - - type: chain_185
+                  length: 180
+              - - type: chain_185
+                  length: 180 
+          - connectorType: triplate
+          - type: rope
+            length: 500
           - connectorType: clump_weight_80
           - type: rope
-            length: 150
+            length: 110
           - connectorType: h_link
-        
-        bridle_sections:
-          bridle_radius: 
-          - type: 
-          - connectorType:
-          - type:
-            length:
+          - subsections:
+              - - type: chain_185
+                  length: 40 
+                - connectorType: h_link # end B connector to the fairlead B0
+              - - type: chain_185
+                  length: 40  
+                - connectorType: h_link # end B connector to the fairlead B1
 
     
     semitaut-poly_1:  # mooring line configuration identifier
@@ -198,6 +209,29 @@ mooring_line_configs:
           - mooringFamily: polyester        # ID of a mooring line section type
             d_nom: .182
             length: 199.8           # [m] length (unstretched)
+
+    semitaut-poly_1_bridle:  # mooring line configuration identifier
+    
+        name: Semitaut polyester configuration 1  # descriptive name
+        
+        span: 642
+        
+        sections:                 #in order from anchor to fairlead
+          - mooringFamily: chain      # ID of a mooring line section type
+            d_nom: .1549
+            length: 497.7            # [m] usntretched length of line section
+            adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+          - connectorType: h_link   
+          - mooringFamily: polyester        # ID of a mooring line section type
+            d_nom: .182
+            length: 119.8           # [m] length (unstretched)
+          - subsections:
+            - - mooringFamily: polyester        # ID of a mooring line section type
+                d_nom: .182
+                length: 80           # [m] length (unstretched)
+            - - mooringFamily: polyester        # ID of a mooring line section type
+                d_nom: .182
+                length: 80           # [m] length (unstretched)
 
    
     
@@ -349,7 +383,6 @@ dynamic_cable_configs:
         A: 300
         cable_type: dynamic_cable_66_1        # ID of a cable section type1
         length: 353.505                   # [m] length (unstretched) 
-        rJTube : 5 # [m] radial distance from center of platform that J-tube is located
        
         sections: 
           - type: buoyancy_module_1 #_w_buoy # (section properties including averaged effect of buoyancy modules)
@@ -364,11 +397,10 @@ dynamic_cable_configs:
     suspended_1:
         name: Dynamic suspended cable configuration 1 
         voltage: 33 
-        span: 1512    
+        span: 1590    
         cable_type: dynamic_cable_66        # ID of a cable section type1
         A: 300
-        length: 1550                   # [m] length (unstretched)
-        rJTube : 58 # [m] radial distance from center of platform that J-tube is located
+        length: 1610                   # [m] length (unstretched)
             
         sections:            
           - type: Buoyancy_750m #_w_buoy # (section properties including averaged effect of buoyancy modules)
@@ -391,11 +423,13 @@ cables:
         attachID: FOWT1            # FOWT/substation/junction ID
         heading:  260                  # [deg] heading of attachment at end A
         dynamicID: lazy_wave1  # ID of dynamic cable configuration at this end
+        JTube: 1 # index of Jtube list in platform definition
     
     endB:
         attachID: FOWT2            # FOWT/substation/junction ID
         heading:  280                   # [deg] heading of attachment at end B
         dynamicID: lazy_wave1  # ID of dynamic cable configuration at this end
+        JTube: 1 # index of Jtube list in platform definition
     
     routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
       - [-900, -1450, 20] 
@@ -1529,8 +1563,14 @@ platforms:
   - potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
     dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
     qtfPath      :  'IEA-15-240-RWT-UMaineSemi.12d'      # path to the qtf file for the platform
-    rFair        :  58
-    zFair        :  -14
+    fairleads    :  # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
+                   - name: fairlead1
+                     r_rel: [58, 0, -14]
+                     headings: [30, 150, 270, 35] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
+    Jtubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
+                   - name: Jtube1
+                     r_rel: [5, 0, -20]
+                     headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
     type         :  FOWT
     z_location   :  0 # optional to put the depth of this platform type
 
@@ -1628,6 +1668,14 @@ platforms:
     qtfPath      :  'IEA-15-240-RWT-UMaineSemi.12d'      # path to the qtf file for the platform
     rFair        :  58
     zFair        :  -15
+    fairleads    :  # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
+                   - name: fairlead1
+                     r_rel: [58, 0, -14]
+                     headings: [30, 150, 270, 35] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
+    Jtubes:
+                   - name: Jtube1
+                     r_rel: [5, 0, -20]
+                     headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
     type         :  Substation
   
     members:   # list all members here

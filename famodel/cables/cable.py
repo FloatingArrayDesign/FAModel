@@ -8,7 +8,7 @@ import shapely as sh
 
 from famodel.cables.dynamic_cable import DynamicCable
 from famodel.cables.static_cable import StaticCable
-from famodel.cables.components import Joint
+from famodel.cables.components import Joint, Jtube
 from famodel.famodel_base import Edge
 
 
@@ -122,7 +122,7 @@ class Cable(Edge):
         Parameters
         ----------
         headings : list, optional
-            List of headings associated with the platform/substation attached
+            List of absolute compass headings associated with the platform/substation attached
             to each end of the cable. The default is None.
         project : FAModel project object, optional
             FAModel project object associated with this cable, only used if 
@@ -139,24 +139,43 @@ class Cable(Edge):
         '''
         # reposition cable and set end points for the first and last cable sections (or the dynamic cable for a suspended cable)
         if not headings:
-            headingA = self.subcomponents[0].headingA - self.attached_to[0].phi
-            headingB = self.subcomponents[-1].headingB - self.attached_to[1].phi
+            # convert headings to unit circle
+            headingA = np.pi/2 - self.subcomponents[0].headingA
+            headingB = np.pi/2 - self.subcomponents[-1].headingB
         else:
-            headingA = headings[0]
-            headingB = headings[1]
+            # convert headings to unit circle
+            headingA = np.pi/2 - headings[0]
+            self.subcomponents[0].headingA = headings[0]
+            headingB = np.pi/2 - headings[1]
+            self.subcomponents[-1].headingB = headings[1]
             
-        if not rad_fair:
-            rad_fair = [self.attached_to[x].rFair if self.attached_to[x].rFair else 0 for x in range(2)]
-        else:
-            for i,r in enumerate(rad_fair):
-                if r==None:
-                    rad_fair[i] = self.attached_to[i].rFair if self.attached_to[i] else 0
+        if not isinstance(self.subcomponents[0].attached_to[0], Jtube):
+            if not rad_fair:
+                rf = self.attached_to[0].rFair if self.attached_to[0] else 0
+            else:
+                if rad_fair[0] == None:
+                    rf = self.attached_to[0].rFair if self.attached_to[0] else 0
+                else:
+                    rf = rad_fair[0]
 
-        # calculate fairlead locations (can't use reposition method because both ends need separate repositioning)
-        Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rad_fair[0], self.attached_to[0].r[1]+np.sin(headingA)*rad_fair[0], self.attached_to[0].zFair]
-        Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*rad_fair[1], self.attached_to[1].r[1]+np.sin(headingB)*rad_fair[1], self.attached_to[1].zFair]
-        self.subcomponents[0].rA = Aloc; self.rA = Aloc
-        self.subcomponents[-1].rB = Bloc; self.rB = Bloc
+            # calculate fairlead locations
+            Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rf, 
+                    self.attached_to[0].r[1]+np.sin(headingA)*rf, 
+                    self.attached_to[0].zFair+self.attached_to[0].r[2]]
+            self.subcomponents[0].rA = Aloc; self.rA = Aloc
+        if not isinstance(self.subcomponents[-1].attached_to[-1], Jtube):
+            if not rad_fair:
+                rf = self.attached_to[1].rFair if self.attached_to[1] else 0
+            else:
+                if rad_fair[1] == None:
+                    rf = self.attached_to[1].rFair if self.attached_to[1] else 0
+                else:
+                    rf = rad_fair[1]
+
+            Bloc = [self.attached_to[1].r[0]+np.cos(headingB)*rf, 
+                    self.attached_to[1].r[1]+np.sin(headingB)*rf, 
+                    self.attached_to[1].zFair+self.attached_to[1].r[2]]
+            self.subcomponents[-1].rB = Bloc; self.rB = Bloc
         
         if project:
             # set end points of subcomponents
@@ -236,7 +255,7 @@ class Cable(Edge):
         self.L = L
         
     def makeLine(self,buff_rad=20,include_dc=True):
-        
+        '''Make a 2D shapely linestring of the cable'''
         coords = []
         for sub in self.subcomponents:
             if isinstance(sub,Joint):

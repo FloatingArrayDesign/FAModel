@@ -17,13 +17,18 @@ array:
 
 platform:
   type         :  FOWT
+  Jtubes       :
+                - name: Jtube1
+                  r   : 5
+                  z   : -20
+                  headings : [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
 
 # Array cables 
 array_cables:   
-    keys:  [ AttachA,  AttachB,  DynCableA, DynCableB, headingA, headingB, cableType]
+    keys:  [ AttachA,  AttachB,  DynCableA, DynCableB, headingA, headingB, JtubeA, JtubeB, cableType]
     data:
-      - [ fowt0, fowt1, suspended_1, None, 90, 270, None] # suspended cable, so only one dynamic cable configuration, no static cable
-      - [ fowt1, fowt2, lazy_wave1,  lazy_wave1, 90, 270, static_cable_66]
+      - [ fowt0, fowt1, suspended_1, None, 90, 270, 1, 2, None] # suspended cable, so only one dynamic cable configuration, no static cable
+      - [ fowt1, fowt2, lazy_wave1,  lazy_wave1, 90, 270, 1, 3, static_cable_66]
 
 # Dynamic and cable configurations
 dynamic_cable_configs:
