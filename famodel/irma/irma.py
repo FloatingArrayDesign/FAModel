@@ -110,24 +110,30 @@ def unifyUnits(d):
     # >>> dcopy = deepcopy(d)
     
     for asset in d.values():  # loop through each asset's dict
-        for capability in asset['capabilities'].values():
-            for key, val in capability.items():  # look at each capability metric
+        
+        capabilities = {}  # new dict of capabilities to built up
+        
+        for cap_key, cap_val in asset['capabilities'].items():
+            
+            # make the capability type sub-dictionary
+            capabilities[cap_key] = {}
+        
+            for key, val in cap_val.items():  # look at each capability metric
                 try:
                     i = keys1.index(key)  # find if key is on the list to convert
                     
                     
-                    if keys2[i] in capability.keys():
+                    if keys2[i] in cap_val.keys():
                         raise Exception(f"Specification '{keys2[i]}' already exists")
                     
-                    capability[keys2[i]] = val * facts[i]  # create a new SI entry
-                    
-                    breakpoint()
-                    
-                    del capability[keys1[i]]  # remove the original?
+                    capabilities[cap_key][keys2[i]] = val * facts[i]  # make converted entry
+                    #capability[keys2[i]] = val * facts[i]  # create a new SI entry
+                    #del capability[keys1[i]]  # remove the original?
                     
                 except:
-                    print('not found')
-
+                    
+                    capabilities[cap_key][key] = val  # copy over original form
+                 
 
 class Scenario():
 
@@ -144,7 +150,7 @@ class Scenario():
         vessels = loadYAMLtoDict('vessels.yaml', already_dict=True)
         objects = loadYAMLtoDict('objects.yaml', already_dict=True)
         
-        #unifyUnits(vessels)  # (function doesn't work yet!) <<<
+        unifyUnits(vessels)  # (function doesn't work yet!) <<<
         
         # ----- Validate internal cross references -----
         
@@ -378,7 +384,6 @@ if __name__ == '__main__':
         
         # add and register anchor install action(s)
         a1 = sc.addAction('install_anchor', f'install_anchor-{akey}', objects=[anchor])
-        a1.evaluateAssets({'carrier' : sc.vessels["MPSV_01"]})
         
         # register the actions as necessary for the anchor <<< do this for all objects??
         anchor.install_dependencies = [a1]
@@ -436,6 +441,10 @@ if __name__ == '__main__':
     
     # ----- Check tasks for suitable vessels and the associated costs/times -----
     
+    # preliminary/temporary test of anchor install asset suitability
+    for akey, anchor in project.anchorList.items():
+        for a in anchor.install_dependencies:  # go through required actions (should just be the anchor install)
+            a.evaluateAssets({'carrier' : sc.vessels["MPSV_01"]})  # see if this example vessel can do it
     
     
     # ----- Call the scheduler -----

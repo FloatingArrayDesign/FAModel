@@ -331,6 +331,7 @@ class Action():
             # object logic checked
             vol = 0
             length = 0
+            '''
             if objType == 'cable':
                 for cable in cables: # TODO: figure out this iteration
                     if cable is cable and not other thing in cables object: # TODO figure out how to only check cables, not j-tubes or any other parts
@@ -339,7 +340,7 @@ class Action():
             else:
                 vol = -1
                 length = -1
-                
+            '''
             # Assign the capabilties metrics
             metrics['volume_m3'] = vol if vol > metrics.get('volume_m3') else metrics.get('volume_m3')
             metrics['cable_capacity_m'] = length if length > metrics.get('cable_capacity_m') else metrics.get('cable_capacity_m')
@@ -760,14 +761,15 @@ class Action():
             else:
                 if obj in self.objectList:
                     print(f"Warning: Object '{obj}' is already in the action's object list. Capabilities will be overwritten.")
-
+                '''
                 # Set capability requirements based on object
                 for role, caplist in self.requirements.items():
                     for cap in caplist:
                         metrics = self.getMetrics(cap, caplist[cap], obj) # pass in the metrics dict for the cap and the obj
 
                         self.requirements[role][cap] = metrics  # assign metric of capability cap based on value required by obj
-
+                # MH: commenting our for now just so the code will run, but it may be better to make the above a separate step anyway
+                '''
                 self.objectList.append(obj)
 
     
