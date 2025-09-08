@@ -4260,9 +4260,6 @@ class Project():
         for i,anch in enumerate(self.anchorList.values()):  
             newanch = True
             name = anch.dd['name'] if 'name' in anch.dd else str(len(anchConfigs))
-            if len(anch.attachments)>1:
-                # shared anchor, add to arrayAnch list
-                arrayAnch.append([anch.id,name,anch.r[0],anch.r[1],0])
             # add mass if available
             aad = deepcopy(anch.dd['design'])
             if anch.mass is not None and anch.mass>0:
@@ -4276,6 +4273,9 @@ class Project():
                     name = ac[0] # reset name to matching config name
             if newanch:
                 anchConfigs[name] = aad
+            if len(anch.attachments)>1:
+                # shared anchor, add to arrayAnch list
+                arrayAnch.append([anch.id,name,anch.r[0],anch.r[1],0])
 
             mapAnchNames[anch.id] = name
         
@@ -4378,15 +4378,15 @@ class Project():
                         if fairleads:
                             # append mooring line to array_moor section
                             arrayMoor.append([current_config, 
-                                              mapAnchNames[atts[is_anch][0].id], 
-                                              moor.attached_to[1].id, 
+                                              atts[0].id, 
+                                              atts[1].id, 
                                               'None',
                                               flB])
                         else:
                             # append mooring line to array_moor section
                             arrayMoor.append([current_config,
-                                              mapAnchNames[atts[is_anch][0].id], 
-                                              moor.attached_to[1].id])
+                                              atts[0].id, 
+                                              atts[1].id])
                     else:
                         # not shared anchor or shared mooring, add line to mooring system 
                         if fairleads:
