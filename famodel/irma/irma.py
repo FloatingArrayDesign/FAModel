@@ -382,8 +382,12 @@ if __name__ == '__main__':
     
     for akey, anchor in project.anchorList.items():
         
+        ## Test action.py for anchor install   
+
         # add and register anchor install action(s)
         a1 = sc.addAction('install_anchor', f'install_anchor-{akey}', objects=[anchor])
+        duration, cost = a1.evaluateAssets({'carrier' : sc.vessels["MPSV_01"], 'operator':sc.vessels["AHTS_alpha"]})
+        print(f'Anchor install action {a1.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
         
         # register the actions as necessary for the anchor <<< do this for all objects??
         anchor.install_dependencies = [a1]
@@ -396,14 +400,20 @@ if __name__ == '__main__':
         # note origin and destination
         
         # --- lay out all the mooring's actions (and their links)
+
+        ## Test action.py for mooring load
+
         # create load vessel action
         a2 = sc.addAction('load_mooring', f'load_mooring-{mkey}', objects=[mooring])
-        
+        # duration, cost = a2.evaluateAssets({'carrier2' : sc.vessels["HL_Giant"], 'carrier1' : sc.vessels["Barge_squid"], 'operator' : sc.vessels["HL_Giant"]})
+        # print(f'Mooring load action {a2.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
+
         # create ship out mooring action
         
         # create lay mooring action
         a3 = sc.addAction('lay_mooring', f'lay_mooring-{mkey}', objects=[mooring], dependencies=[a2])
-        sc. addActionDependencies(a3, mooring.attached_to[0].install_dependencies) # in case of shared anchor
+        sc.addActionDependencies(a3, mooring.attached_to[0].install_dependencies) # in case of shared anchor
+
         
         # mooring could be attached to anchor here - or could be lowered with anchor!!
         #(r=r_anch, mooring=mooring, anchor=mooring.anchor...)

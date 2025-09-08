@@ -286,19 +286,23 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['area_m2'] = None if None > metrics.get('area_m2') else metrics.get('area_m2')
-            metrics['max_load_t'] = None if None > metrics.get('max_load_t') else metrics.get('max_load_t')
+            # metrics['area_m2'] = None if None > metrics.get('area_m2') else metrics.get('area_m2')
+            # metrics['max_load_t'] = None if None > metrics.get('max_load_t') else metrics.get('max_load_t')
 
         elif cap == 'chain_locker':
             # logic for chain_locker capability (only mooring objects compatible)
             # object logic checked
-            vol = 0
-            length = 0
+
             if objType == 'mooring':
+
+                # set baseline values for summation
+                vol = 0
+                length = 0
+
                 for i, sec in enumerate(obj.dd['sections']): # add up the volume and length of all chain in the object
                     if sec['type']['chain']:
                         diam = sec['type']['d_nom']           # diameter [m]
-                        vol += 0.0 # TODO: calculate chain_locker volume from sec['L'] and diam. Can we just use volumetric diam here?
+                        vol += 0.0 # TODO: calculate chain_locker volume from sec['L'] and diam. Use Delmar data from Rudy. Can we make function of chain diam?
                         length += sec['L']                     # length [m]
 
             else:
@@ -310,9 +314,13 @@ class Action():
         elif cap == 'line_reel':
             # logic for line_reel capability (only mooring objects compatible)
             # object logic checked, complete
-            vol = 0
-            length = 0
+
             if objType == 'mooring':
+
+                # set baseline values for summation
+                vol = 0
+                length = 0
+
                 for i, sec in enumerate(obj.dd['sections']): # add up the volume and length of all non_chain line in the object
                     if not sec['type']['chain']: # any line type thats not chain
                         vol += sec['L'] * np.pi * (sec['type']['d_nom'] / 2) ** 2 # volume [m^3]
@@ -362,10 +370,10 @@ class Action():
             else:
                 pass
 
-            # Assign the capabilties metrics
-            metrics['max_line_pull_t'] = None if None > metrics.get('max_line_pull_t') else metrics.get('max_line_pull_t')
-            metrics['brake_load_t'] = None if None > metrics.get('brake_load_t') else metrics.get('brake_load_t')
-            metrics['speed_mpm'] = None if None > metrics.get('speed_mpm') else metrics.get('speed_mpm')
+            # # Assign the capabilties metrics
+            # metrics['max_line_pull_t'] = None if None > metrics.get('max_line_pull_t') else metrics.get('max_line_pull_t')
+            # metrics['brake_load_t'] = None if None > metrics.get('brake_load_t') else metrics.get('brake_load_t')
+            # metrics['speed_mpm'] = None if None > metrics.get('speed_mpm') else metrics.get('speed_mpm')
 
         elif cap == 'bollard_pull':
             # per calwave install report (section 7.2): bollard pull can be described as function of vessel speed and load
@@ -387,7 +395,7 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['max_force_t'] = None if None > metrics.get('max_force_t') else metrics.get('max_force_t')
+            # metrics['max_force_t'] = None if None > metrics.get('max_force_t') else metrics.get('max_force_t')
 
         elif cap == 'crane':
             # logic for deck_space capability (all compatible)
@@ -408,8 +416,8 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['capacity_t'] = None if None > metrics.get('capacity_t') else metrics.get('capacity_t')
-            metrics['hook_height_m'] = None if None > metrics.get('hook_height_m') else metrics.get('hook_height_m')
+            # metrics['capacity_t'] = None if None > metrics.get('capacity_t') else metrics.get('capacity_t')
+            # metrics['hook_height_m'] = None if None > metrics.get('hook_height_m') else metrics.get('hook_height_m')
 
         elif cap == 'station_keeping':
             # logic for station_keeping capability
@@ -429,7 +437,7 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['typev'] = None if None > metrics.get('typev') else metrics.get('typev')
+            # metrics['type'] = None if None > metrics.get('type') else metrics.get('type')
 
         elif cap == 'mooring_work':
             # logic for mooring_work capability
@@ -449,10 +457,10 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['line_typesvvv'] = None if None > metrics.get('line_typesvvv') else metrics.get('line_typesvvv')
-            metrics['stern_roller'] = None if None > metrics.get('stern_roller') else metrics.get('stern_roller')
-            metrics['shark_jaws'] = None if None > metrics.get('shark_jaws') else metrics.get('shark_jaws')
-            metrics['towing_pin_rating_t'] = None if None > metrics.get('towing_pin_rating_t') else metrics.get('towing_pin_rating_t')
+            # metrics['line_types'] = None if None > metrics.get('line_types') else metrics.get('line_types')
+            # metrics['stern_roller'] = None if None > metrics.get('stern_roller') else metrics.get('stern_roller')
+            # metrics['shark_jaws'] = None if None > metrics.get('shark_jaws') else metrics.get('shark_jaws')
+            # metrics['towing_pin_rating_t'] = None if None > metrics.get('towing_pin_rating_t') else metrics.get('towing_pin_rating_t')
 
         elif cap == 'pump_surface':
             # logic for pump_surface capability
@@ -472,10 +480,10 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
-            metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            # metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'pump_subsea':
             # logic for pump_subsea capability
@@ -495,10 +503,10 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
-            metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            # metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'pump_grout':
             # logic for pump_grout capability
@@ -518,11 +526,11 @@ class Action():
                 pass
             
             # Assign the capabilties metrics
-            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
-            metrics['flow_rate_m3hr'] = None if None > metrics.get('flow_rate_m3hr') else metrics.get('flow_rate_m3hr')
-            metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            # metrics['flow_rate_m3hr'] = None if None > metrics.get('flow_rate_m3hr') else metrics.get('flow_rate_m3hr')
+            # metrics['pressure_bar'] = None if None > metrics.get('pressure_bar') else metrics.get('pressure_bar')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'hydraulic_hammer':
             # logic for hydraulic_hammer capability (only platform and anchor objects compatible)
@@ -535,10 +543,10 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
-            metrics['energy_per_blow_kJ'] = None if None > metrics.get('energy_per_blow_kJ') else metrics.get('energy_per_blow_kJ')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            # metrics['energy_per_blow_kJ'] = None if None > metrics.get('energy_per_blow_kJ') else metrics.get('energy_per_blow_kJ')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'vibro_hammer':
             # logic for vibro_hammer capability (only platform and anchor objects compatible)
@@ -551,10 +559,10 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
-            metrics['centrifugal_force_kN'] = None if None > metrics.get('centrifugal_force_kN') else metrics.get('centrifugal_force_kN')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            # metrics['centrifugal_force_kN'] = None if None > metrics.get('centrifugal_force_kN') else metrics.get('centrifugal_force_kN')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'drilling_machine':
             # logic for drilling_machine capability (only platform, anchor, and cable objects compatible)
@@ -570,9 +578,9 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'torque_machine':
             # logic for torque_machine capability
@@ -592,10 +600,10 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
-            metrics['torque_kNm'] = None if None > metrics.get('torque_kNm') else metrics.get('torque_kNm')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            # metrics['torque_kNm'] = None if None > metrics.get('torque_kNm') else metrics.get('torque_kNm')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'cable_plough':
             # logic for cable_plough capability (only cable objects compatible)
@@ -606,9 +614,9 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['power_kW'] = None if None > metrics.get('power_kW') else metrics.get('power_kW')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'rock_placement':
             # logic for rock_placement capability (only platform, anchor, and cable objects compatible)
@@ -623,10 +631,10 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['placement_method'] = None if None > metrics.get('placement_method') else metrics.get('placement_method')
-            metrics['max_depth_m'] = None if None > metrics.get('max_depth_m') else metrics.get('max_depth_m')
-            metrics['accuracy_m'] = None if None > metrics.get('accuracy_m') else metrics.get('accuracy_m')
-            metrics['rock_size_range_mm'] = None if None > metrics.get('rock_size_range_mm') else metrics.get('rock_size_range_mm')
+            # metrics['placement_method'] = None if None > metrics.get('placement_method') else metrics.get('placement_method')
+            # metrics['max_depth_m'] = None if None > metrics.get('max_depth_m') else metrics.get('max_depth_m')
+            # metrics['accuracy_m'] = None if None > metrics.get('accuracy_m') else metrics.get('accuracy_m')
+            # metrics['rock_size_range_mm'] = None if None > metrics.get('rock_size_range_mm') else metrics.get('rock_size_range_mm')
 
         elif cap == 'container':
             # logic for container capability (only platform, turbine, and cable objects compatible)
@@ -641,8 +649,8 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'rov':
             # logic for rov capability (all compatible)
@@ -663,10 +671,10 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['class'] = None if None > metrics.get('class') else metrics.get('class')
-            metrics['depth_rating_m'] = None if None > metrics.get('depth_rating_m') else metrics.get('depth_rating_m')
-            metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
-            metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
+            # metrics['class'] = None if None > metrics.get('class') else metrics.get('class')
+            # metrics['depth_rating_m'] = None if None > metrics.get('depth_rating_m') else metrics.get('depth_rating_m')
+            # metrics['weight_t'] = None if None > metrics.get('weight_t') else metrics.get('weight_t')
+            # metrics['dimensions_m'] = None if None > metrics.get('dimensions_m') else metrics.get('dimensions_m')
 
         elif cap == 'positioning_system':
             # logic for positioning_system capability (only platform, anchor, and cable objects compatible)
@@ -681,8 +689,8 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['accuracy_m'] = None if None > metrics.get('accuracy_m') else metrics.get('accuracy_m')
-            metrics['methods'] = None if None > metrics.get('methods') else metrics.get('methods')
+            # metrics['accuracy_m'] = None if None > metrics.get('accuracy_m') else metrics.get('accuracy_m')
+            # metrics['methods'] = None if None > metrics.get('methods') else metrics.get('methods')
 
         elif cap == 'monitoring_system':
             # logic for monitoring_system capability
@@ -702,8 +710,8 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['metrics'] = None if None > metrics.get('metrics') else metrics.get('metrics')
-            metrics['sampling_rate_hz'] = None if None > metrics.get('sampling_rate_hz') else metrics.get('sampling_rate_hz')
+            # metrics['metrics'] = None if None > metrics.get('metrics') else metrics.get('metrics')
+            # metrics['sampling_rate_hz'] = None if None > metrics.get('sampling_rate_hz') else metrics.get('sampling_rate_hz')
 
         elif cap == 'sonar_survey':
             # logic for sonar_survey capability (only anchor and cable objects compatible)
@@ -716,8 +724,8 @@ class Action():
                 pass
 
             # Assign the capabilties metrics
-            metrics['types'] = None if None > metrics.get('types') else metrics.get('types')
-            metrics['resolution_m'] = None if None > metrics.get('resolution_m') else metrics.get('resolution_m')
+            # metrics['types'] = None if None > metrics.get('types') else metrics.get('types')
+            # metrics['resolution_m'] = None if None > metrics.get('resolution_m') else metrics.get('resolution_m')
 
         else:
             raise Exception(f"Unsupported capability '{cap}'.")
@@ -862,7 +870,11 @@ class Action():
 
         # --- Mooring & Anchors ---
         elif self.type == 'install_anchor':
-            pass
+
+            # Place holder duration, will need a mini-model to calculate
+            self.duration += 0.2 # 0.2 days
+            self.cost += self.duration * (self.assets['carrier']['day_rate'] + self.assets['operator']['day_rate'])
+
         elif self.type == 'retrieve_anchor':
             pass
         elif self.type == 'load_mooring':
@@ -875,7 +887,7 @@ class Action():
                         duration_min += sec['L'] / self.assets['carrier2']['winch']['speed_mpm'] # duration [minutes]
             
             self.duration += duration_min / 60 / 24 # convert minutes to days
-            self.cost += self.duration * self.assets['carrier2']['day_rate'] # cost [$]
+            self.cost += self.duration * (self.assets['carrier1']['day_rate'] + self.assets['carrier2']['day_rate'] + self.assets['operator']['day_rate']) # cost of all assets involved for the duration of the action [$]
 
             # check for deck space availability, if carrier 1 met transition to carrier 2.
 
@@ -953,9 +965,7 @@ class Action():
         # Check that all roles in the action are filled
         for role_name in self.requirements.keys():
             if self.assets[role_name] is None:
-                
-                for role_name in assets.keys(): # Clear the assets dictionary
-                    assets[role_name] = None
+
                 raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
 
 
