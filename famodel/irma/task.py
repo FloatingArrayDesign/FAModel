@@ -93,3 +93,37 @@ class Task():
         longest_path_edges = list(zip(longest_path, longest_path[1:]))  # Convert path into edge pairs
         total_duration = sum(self.actionList[node].duration for node in longest_path)
         return G  
+    
+    def get_row(self, assets):
+        '''Get a matrix of (cost, duration) tuples for each asset to perform this task. Will be a row in the task_asset matrix.
+        
+        Parameters
+        ----------
+        assets : list
+            A list of all assets available to perform the task.
+        
+        Returns
+        -------
+        matrix : array-like
+            A 2D array of (cost, duration) tuples indicating the cost and duration for each asset to perform this task.
+            Must be 2x len(assets).
+        
+        '''
+
+        matrix = np.zeros((len(assets), 2))
+        # TODO: build row of matrix that holds (cost, duration) tuple of asset / assets (?) to complete task
+
+        # Could look something like...
+        ''' 
+        for i, asset in enumerate(assets):
+            for action in self.actionList: # can we do this without the double loop?
+                if asset in action.roles:
+                    action = self.actionList[asset.name]
+                    matrix[i, 0] = action.cost
+                    matrix[i, 1] = action.duration
+                else:
+                    matrix[i, 0] = -1 # negative cost/duration means asset cannot perform task
+                    matrix[i, 1] = -1
+        '''
+
+        return np.zeros((len(assets), 2)) # placeholder, replace with actual matrix

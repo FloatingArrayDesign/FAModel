@@ -436,8 +436,9 @@ if __name__ == '__main__':
 
     
     # ----- Generate tasks (groups of Actions according to specific strategies) -----
-        
+    tasks = []
     t1 = Task(sc.actions, 'install_mooring_system')
+    tasks.append(t1)
 
     # ----- Do some graph analysis -----
     
@@ -455,8 +456,17 @@ if __name__ == '__main__':
     for akey, anchor in project.anchorList.items():
         for a in anchor.install_dependencies:  # go through required actions (should just be the anchor install)
             a.evaluateAssets({'carrier' : sc.vessels["MPSV_01"]})  # see if this example vessel can do it
-    
-    
+
+
+    # ----- Generate the task_asset_matrix for scheduler -----
+    # UNUSED FOR NOW
+    task_asset_matrix = np.zeros((len(tasks), len(sc.vessels), 2))
+    for i, task in enumerate(tasks):
+        row = task.get_row(sc.vessels)
+        if row.shape != (len(sc.vessels), 2):
+            raise Exception(f"Task '{task.name}' get_row output has wrong shape {row.shape}, should be {(2, len(sc.vessels))}")
+        task_asset_matrix[i, :] = row
+
     # ----- Call the scheduler -----
     # for timing with weather windows and vessel assignments 
     
