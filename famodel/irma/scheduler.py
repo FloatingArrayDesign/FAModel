@@ -12,6 +12,9 @@
 - [] Add a delay cost, i.e. a cost for each time period where X = 0
 - [] Do we want to return any form of info dictionary?
 - [] Figure out if this can be parallelized
+- [] Consolidate the loops in the constraints building section
+- [] Figure out how to determine which constraint is violated if the problem is infeasible
+- [] Add testing
 '''
 
 from famodel.irma.task import Task
@@ -34,7 +37,7 @@ class Scheduler:
         ------
         task_asset_matrix : array-like
             A 3D array of (cost, duration) tuples indicating the cost and duration for each asset to perform each task.
-            Must be len(tasks) x len(assets) x 2.
+            Must be len(tasks) x len(assets) x 2. NOTE: The duration must be in units of scheduling periods (same as weather period length).
         tasks : list
             A list of Task objects to be scheduled.
         assets : list
@@ -61,12 +64,7 @@ class Scheduler:
         self.assets = assets
         self.weather = weather
         self.task_dependencies = task_dependencies
-
-        self.num_tasks = len(self.tasks)
-        self.num_assets = len(self.assets)
-
         self.period_duration = period_duration # duration of each scheduling period. Used for converting from periods to real time.
-        self.num_periods = len(weather)  # number of scheduling periods
 
         # --- Check for valid inputs ---
 
@@ -97,8 +95,17 @@ class Scheduler:
         if self.period_duration <= 0:
             raise ValueError("period_duration must be positive non-zero.")
         
+        # --- Process inputs ---
+
+        self.num_tasks = len(self.tasks)
+        self.num_assets = len(self.assets)
+        self.num_periods = len(weather)  # number of scheduling periods
+
+        # Checks for negative duration and cost in task_asset_matrix (0 cost or duration permitted)
+        self.num_valid_ta_pairs = int(np.sum((self.task_asset_matrix[:,:,0] >=0) | (self.task_asset_matrix[:,:,1] >= 0))) # number of valid task-asset pairs (cost*duration >= 0)
+
         # --- Debug helpers ---
-        # make a list of indicies to help with building constraints
+        # make a list of indices to help with building constraints
         self.x_indices = []
         for p in range(self.num_periods):
             for t in range(self.num_tasks):
@@ -181,7 +188,7 @@ class Scheduler:
         # lb <= x <= ub
             # Constrain decision variables to be 0 or 1
         bounds = optimize.Bounds(0, 1)  # 0 <= x_i <= 1
-        integrality = np.full_like(decision_vars, True)  # x_i are integers
+        integrality = np.ones(decision_vars.shape) # x_i are int. So set integrality to 1
 
         if wordy > 0:
             print("Bounds and integrality for decision variables set. Begining to build constraints...")
@@ -195,7 +202,7 @@ class Scheduler:
         '''
         A note on constraints: There are two constraint matrices, the equality constraints (A_eq, b_eq) and the upper bound constraints (A_ub, b_ub).
         Each row in the coefficient matrices corresponds to a constraint, and each column corresponds to a decision variable. Thus the number of columns 
-        is equal to the number of decision variables (num_periods * num_tasks * num_assets), and the number of rows is equal to the number of constraints.
+        is equal to the number of decision variables (P * T * A), and the number of rows is equal to the number of constraints.
         Similarly, the length of the limits matrices (b_eq, b_ub) is equal to the number of constraints.
 
         The equality constraints are expressed in the form A_eq * x = b_eq. Where A_eq is the coefficient matrix and b_eq is the limits matrix. 
@@ -215,18 +222,16 @@ class Scheduler:
         The lower and upper bound constraints on the decision variables (lb <= x <= ub) is handled above, limiting them to integer values of 0 or 1.
 
         The shape of decision vars is: 
-            period_0_task_0_asset_0, period_0_task_0_asset_1, ..., period_0_task_1_asset_0, ..., period_1_task_0_asset_0, ...
-        or equivalently:
-            period_0_task_0_asset_0, ..., period_0_task_0_asset_max, period_0_task_1_asset_0, ..., period_0_task_max_asset_max, period_1_task_0_asset_0, ..., period_max_task_max_asset_max,
+            x_{p,t,a} for p in 0:P, t in 0:T, a in 0:A
 
         Constraints column (decision variable) indexing used in definitions below:
-        x = x_000, ..., x_00a, x_001, ..., x_00a, ..., x_0t1, ..., x_0ta,  # task asset pairings in period 0
-            x_100, ..., x_10a, x_101, ..., x_10a, ..., x_1t1, ..., x_1ta,  # task asset pairings in period 1
+        x = x_000, ..., x_00A, x_001, ..., x_00A, ..., x_0T1, ..., x_0TA,  # task asset pairings in period 0
+            x_100, ..., x_10A, x_101, ..., x_10A, ..., x_1T1, ..., x_1TA,  # task asset pairings in period 1
             ...,
-            x_p00, ..., x_p0a, x_p21, ..., x_p2a, ..., x_pt1, ..., x_pta   # task asset pairings in period p
+            x_P00, ..., x_P0A, x_P21, ..., x_P2A, ..., x_PT1, ..., x_PTA   # task asset pairings in period p
 
         where:
-        - 0:p is the period index, 0:t is the task index, and 0:a is the asset index
+        - p is the period index (0 to P), t is the task index (0 to T), and a is the asset index (0 to A)
         - x is the flattened decision variable tensor X[p, t, a]
         '''
 
@@ -243,7 +248,7 @@ class Scheduler:
         # 0) Total number of assignments needs to be less than or equal to the number of periods available
         '''
         the sum of the total amount of periods assigned to tasks cannot be more than the total number of periods available:
-        (x_000 + ... + x_pta) <= N
+        (x_000 + ... + x_pta) <= P
         '''
 
         # 1 row
@@ -260,13 +265,13 @@ class Scheduler:
         '''
         if task j cannot be performed by asset k, then x_pjk = 0 for all periods p
 
-        (x_0jk + ... + x_pjk) = 0   # for all tasks j in range(0:t) and assets k in range(0:a) where task_asset_matrix[j, k, goal_index] < 0
+        (x_0jk + ... + x_pjk) = 0   # for all tasks j in range(0:t) and assets k in range(0:a) where task_asset_matrix[j, k, goal_index] <= 0
         '''
         
         mask = np.zeros(X.shape, dtype=int)
 
         for p in range(self.num_periods):
-            mask[p,:,:] = self.task_asset_matrix[:, :, goal_index] < 0  # Create a mask of invalid task-asset pairings where cost is negative (indicating invalid)
+            mask[p,:,:] = self.task_asset_matrix[:, :, goal_index] <= 0  # Create a mask of invalid task-asset pairings where cost is negative (indicating invalid)
 
         # 1 row
         A_eq_1 = mask.flatten().reshape(1, -1)  # Flatten the mask to match the decision variable shape, and reshape to be a single row
@@ -281,88 +286,234 @@ class Scheduler:
         b_eq_list.append(b_eq_1)
 
         # 2) task dependencies must be respected (i.e., a task cannot start until all its dependencies have been satisfied)
-        # TODO: enforce task dependencies
+        # '''
+        # This enforces task dependencies by ensuring that a task can only be assigned to a time period if all its dependencies have been completed in previous periods.
+        # TODO: right now this doesnt necessarily enforce that the dependency task has been completed, just that it was assigned in a previous period. This will need to change when 
+        # tasks are assigned to the number of periods their duration is.
+
+        # The period of the dependency task must be less than the period of the current task:
+        # p * x_pra  < p * x_pta    # for each task t in tasks, for all dependencies r in task_dependencies[t], for all assets a in assets, for all periods p in periods
+        # '''
+        
+        # # Number of task dependency rows
+        # A_lb_2 = np.zeros((len(self.task_dependencies), len(decision_vars)), dtype=int)
+        # b_lb_2 = np.zeros(len(self.task_dependencies), dtype=int)
+
+        # # Extract dependencies from task_dependencies dict
+        # index = 0
+        # for task, deps in self.task_dependencies.items():
+            
+        #     # if the task has dependencies, build the constraint
+        #     if len(deps) > 0:
+                
+        #         # get task index by matching task name and index in self.tasks
+        #         if task not in self.tasks:
+        #             raise ValueError(f"Task '{task}' in task_dependencies not found in tasks list.")
+                
+        #         t = self.tasks.index(task)
+    
+        #         mask = np.zeros(X.shape, dtype=int)
+
+        #         for dep in deps:
+        #             # get task index by matching dependency name and index in self.tasks
+        #             if dep not in self.tasks:
+        #                 raise ValueError(f"Dependency task '{dep}' for task '{task}' not found in tasks list.")
+        #             r = self.tasks.index(dep) # get index of dependency
+                    
+        #             # TODO: need to figure out how to enforce / track temporal ordering of tasks
+                    
+        #     A_lb_2[index, :] = mask.flatten()
+        #     index += 1
+
+        # if wordy > 2:
+        #     print("A_lb_2^T:")
+        #     print("            T1   T2  ") # Header for 2 tasks
+        #     for i in range(A_lb_2.transpose().shape[0]):
+        #         pstring = str(self.x_indices[i])
+        #         for column in A_lb_2.transpose()[i]:
+        #             pstring += f"{ column:5}"
+        #         print(pstring)
+        #     print("b_lb_2: ", b_lb_2)
+
+        # if wordy > 0:
+        #     print("Constraint 2 built.")
 
         # 3) assets cannot be assigned in a time period where the weather is above the maximum capacity
         # TODO: weather is disabled until this is added
 
         # 4) assets cannot be assigned to multiple tasks in the same time period
         '''
-        this is a simplification, eventually we may want to allow multiple assets per task, or parallel tasks
-
-        Sum of all pairings in a period must be <= 1:
-        (x_000 + ... + x_0ta) <= 1   # for period 0
-        (x_100 + ... + x_1ta) <= 1   # for period 1
+        this is a simplification, eventually we want to allow multiple assets per task, or parallel tasks
+        Sum of all asset-period pairs must be <= 1:
+        
+        (x_000 + ... + x_pt0) <= 1   # for asset 0
+        (x_001 + ... + x_pt1) <= 1   # for asset 1
         ...
-        (x_p00 + ... + x_pta) <= 1   # for period p
+        (x_00a + ... + x_pta) <= 1   # for asset t
         '''
         
-        # num_periods rows
-        A_ub_4 = np.zeros((self.num_periods, len(decision_vars)), dtype=int)
-        b_ub_4 = np.ones(self.num_periods, dtype=int)  # right-hand side is 1 for each period
+        # num-periods * num_assets rows
+        A_ub_4 = np.zeros((self.num_periods * self.num_assets, len(decision_vars)), dtype=int)
+        b_ub_4 = np.ones(self.num_periods * self.num_assets, dtype=int)  # right-hand side is 1 for each asset
 
+        index = 0
         for p in range(self.num_periods):
-            # Create a mask for all variables in period p
-            mask = np.zeros(X.shape, dtype=int) 
-            mask[p, :, :] = 1             # Set all task-asset pairings in period p to 1 (so they are included in the sum)
-            A_ub_4[p, :] = mask.flatten()
+            for a in range(self.num_assets):
+                # Create a mask for all variables for asset a
+                mask = np.zeros(X.shape, dtype=int)
+                mask[p, :, a] = 1             # Set all periods and tasks for asset a to 1 (so they are included in the sum)
 
+                A_ub_4[index, :] = mask.flatten()
+                index += 1
+
+        if wordy > 2:
+            print("A_ub_4^T:")
+            print("            P1A1 P1A2 P2A1") # Header for 2 tasks and 2 assets example with T2A2 invalid
+            for i in range(A_ub_4.transpose().shape[0]):
+                pstring = str(self.x_indices[i])
+                for column in A_ub_4.transpose()[i]:
+                    pstring += f"{ column:5}"
+                print(pstring)
+            print("b_ub_4: ", b_ub_4)
+ 
         A_ub_list.append(A_ub_4)
         b_ub_list.append(b_ub_4)
 
         if wordy > 0:
             print("Constraint 4 built.")
 
-        # 5) The total number of tasks assigned cannot be greater than the number of tasks available
+        # 5) The total number of tasks assigned cannot be greater than the number of tasks available (NOTE: Is this necessary or is it already enforced by the fact that there t = number of tasks?)
         # TODO: enforce task limits
 
-        # 6) The total number of assets assigned cannot be greater than the number of assets available
+        # 6) The total number of assets assigned cannot be greater than the number of assets available (NOTE: Is this necessary or is it already enforced by the fact that there a = number of assets?)
         # TODO: enforce asset limits
 
-        # 7) There is a penalty associated with a time period with no assigned tasks
-        # TODO: This delay costs enforces tasks are finished as soon as possible
+        # 7) Ensure tasks are assigned as early as possible 
+        '''
+        A task cannot be assigned if it could have been assigned in an earlier period. This encourages the solver to assign tasks to the earliest possible periods.
+        '''
+        # TODO: implement this constraint
 
-        # 8) All tasks must be assigned to a time period once
+        # 8) All tasks must be assigned to at least one time period
         '''
 
-        The sum of all decision variables for each task must equal 1, indicating that each task is assigned to exactly one time period. This does not support parallel tasks.
+        The sum of all decision variables for each task must be greater than 1, indicating all tasks were assigned at least once:
 
-        (x_000 + ... + x_p0a) = 1   # for task 0
-        (x_010 + ... + x_p1a) = 1   # for task 1
+        (x_000 + ... + x_p0a) >= 1   # for task 0
+        (x_010 + ... + x_p1a) >= 1   # for task 1
         ...
-        (x_pta + ... + x_pta) = 1   # for task t
+        (x_0t0 + ... + x_pta) >= 1   # for task t
         '''
 
         # num_tasks rows
-        A_eq_8 = np.zeros((self.num_tasks, len(decision_vars)), dtype=int)
-        b_eq_8 = np.ones(self.num_tasks, dtype=int)
+        A_lb_8 = np.zeros((self.num_tasks, len(decision_vars)), dtype=int)
+        b_lb_8 = np.ones(self.num_tasks, dtype=int)
 
         for t in range(self.num_tasks):
             # Create a mask for all variables for task t
             mask = np.zeros(X.shape, dtype=int)
             mask[:, t, :] = 1             # Set all periods and assets for task t to 1 (so they are included in the sum)
-            A_eq_8[t, :] = mask.flatten()
+            A_lb_8[t, :] = mask.flatten()
 
-            if wordy > 0:
+            if wordy > 2:
                 print(f"Task {t}:")
                 for i in range(len(self.x_indices)):
-                    print(f"  {self.x_indices[i]}: {A_eq_8[t, i]}")
+                    print(f"  {self.x_indices[i]}: {A_lb_8[t, i]}")
 
-        A_eq_list.append(A_eq_8)
-        b_eq_list.append(b_eq_8)
+        A_lb_list.append(A_lb_8)
+        b_lb_list.append(b_lb_8)
 
         if wordy > 0:
             print("Constraint 8 built.")
 
-        # 9) A task must be assigned to the number of time periods equal to its duration for the asset assigned to it
-        # TODO: this enforces task lengths for assets that are assigned
+        # # 9) A task must be assigned to the continuous number of time periods equal to its duration for the asset assigned to it
+        # '''
+        # This ensures the duration of a task-asset pair is respected. If a task has a duration of 3 periods, it must be assigned to 3 consecutive periods.
 
+        # (x_ijk + x_(i+1)jk + ... + x_(i+d-1)jk) >= d   # for all tasks j in range(0:t) and assets k in range(0:a) where d is the duration of task j with asset k, and i is the period index. This formulation does not allow for multiple assets per task
 
+        # '''
+
+        # # num task-asset pairings rows
+        # A_eq_9 = np.zeros((self.num_valid_ta_pairs, len(decision_vars)), dtype=int)
+        # b_eq_9 = np.zeros(self.num_valid_ta_pairs, dtype=int)
+
+        # # Loop through tasks and assets
+        # pair_i = 0
+        # for t in range(self.num_tasks):
+        #     for a in range(self.num_assets):
+
+        #         duration = self.task_asset_matrix[t, a, 1]  # duration of task t with asset a
+        #         if duration > 0: # If valid pairing, make constraint
+                    
+        #             # Create a mask for all variables for task t and asset a
+        #             mask = np.zeros(X.shape, dtype=int)
+        #             for p in range(self.num_periods):
+        #                 mask[p:p+duration, t, a] = 1
+                    
+        #             b_eq_9[pair_i] = self.task_asset_matrix[t, a, 1] # Duration
+        #             A_eq_9[pair_i, :] = mask.flatten()
+        #             pair_i += 1
+
+        # if wordy > 0:
+        #     # Print out the constraint matrix for debugging 
+        #     print("A_eq_9^T:")
+        #     print("            T1A1 T1A2 T2A1") # Header for 2 tasks and 2 assets example with T2A2 invalid
+        #     for i in range(A_eq_9.transpose().shape[0]):
+        #         pstring = str(self.x_indices[i])
+        #         for column in A_eq_9.transpose()[i]:
+        #             pstring += f"{ column:5}"
+        #         print(pstring)
+        #     print("b_eq_9: ", b_eq_9)
+
+        # A_eq_list.append(A_eq_9)
+        # b_eq_list.append(b_eq_9)
+
+        # if wordy > 0:
+        #     print("Constraint 9 built.")
+
+        # 10) A task duration plus the first time period it is assigned to must be less than the total number of time periods available
+        '''
+        This ensures that a task is not assigned to a period that would cause it to exceed the total number of periods available.
+
+        (p * x_{p,t,a} + d_{t,a} * x_{p,t,a}) <= P   # for all t in 0..T, a in 0..A, p in 0..P
+        '''
+        
+        # num_periods rows
+        A_ub_10 = np.zeros((self.num_periods, len(decision_vars)), dtype=int)
+        b_ub_10 = np.ones(self.num_periods, dtype=int) * self.num_periods  
+
+        for p in range(self.num_periods):
+            # Create a mask for the period
+            mask = np.zeros(X.shape, dtype=int)
+            
+            # Loop through pairs
+            for t in range(self.num_tasks):
+                for a in range(self.num_assets):
+                    duration = self.task_asset_matrix[t, a, 1]  # duration of task t with asset a
+                    if duration > 0:
+                        mask[p, t, a] = p + duration  # Set the specific variable to i + d_jk
+
+            A_ub_10[p, :] = mask.flatten()
+            
+            if wordy > 2:
+                print(f"Period {p}:")
+                for i in range(len(self.x_indices)):
+                    print(f"  {self.x_indices[i]}: {A_ub_10[p, i]}")
+                print("Upper bound limit: ", b_ub_10[p])
+
+        A_ub_list.append(A_ub_10)
+        b_ub_list.append(b_ub_10)
+
+        if wordy > 0:
+            print("Constraint 10 built.")
+
+        # --- End Constraints ---
 
         if wordy > 0:
             print("All constraints built. Stacking and checking constraints...")
 
-        # --- Build the constraints ---
+        # --- Assemble the SciPy Constraints ---
         # A series of linear constraints required by the solver by stacking the constraint matrices and limits vectors
         # The number of rows in these matrices is equal to the number of constraints, so they can be vertically stacked
 
@@ -474,7 +625,7 @@ class Scheduler:
         if res.success:
             # Reshape the flat result back into the (num_periods, num_tasks, num_assets) shape
 
-            if wordy > 0:
+            if wordy > 1:
                 print("Decision variable [periods][tasks][assets]:")
                 for i in range(len(self.x_indices)):
                     print(f"  {self.x_indices[i]}: {res.x[i]}")
@@ -487,7 +638,6 @@ class Scheduler:
                     print_string = f"Period {p+1}:"
                     whitespace = " " * (3 - len(str(p+1)))  # adjust spacing for single vs double digit periods. Limited to 99 periods.
                     print_string += whitespace
-                    displayed = False
                     for t in range(self.num_tasks):
                         for a in range(self.num_assets):
                             if X_optimal[p, t, a] == 1:
@@ -495,54 +645,46 @@ class Scheduler:
                                 asset_name = self.assets[a]['name'] if 'name' in self.assets[a] else f"Asset {a+1}"
                                 cost = self.task_asset_matrix[t, a, 0]
                                 duration = self.task_asset_matrix[t, a, 1]
-                                print_string += f"Task '{task_name}' assigned to Asset '{asset_name}' (Cost: {cost}, Duration: {duration})"
-                                displayed = True
-                                break # break because we only support one asset per task per period for now
-                            else:
-                                print_string += "No assignment"
-                                displayed = True
-                                break # break because we only support one asset per task per period for now
-                        if displayed:
-                            break
+                                print_string += f"Asset '{asset_name}' assigned to Task '{task_name}' (Cost: {cost}, Duration: {duration})"
 
                     print(print_string)
 
         if wordy > 0:
-            print("Optimization complete.")
+            print("Optimization function complete.")
         
 
 if __name__ == "__main__":
 
-    # A dummy system to test the scheduler
+    os.system("clear") # for clearing terminal on Mac
 
-    # 21 weather periods = 21 time periods
-    weather = [3]*5 + [2]*1 + [1]*10 + [2]*3 + [3]*2 # Three weather types for now. Example weather windows. The length of each window is equal to min_duration
+    # A simple dummy system to test the scheduler
+
+    # 10 weather periods = 10 time periods
+    weather = [1]*5 # Three weather types for now. Example weather windows. The length of each window is equal to min_duration
     
     # Example tasks, assets, dependencies, and task_asset_matrix. Eventually try with more tasks than assets, more assets than tasks, etc.
     tasks = [
         "task1",
-        "task2",
-        "task3"
+        "task2"
     ]
     assets = [
         {"name": "asset1", "max_weather" : 3},
-        {"name": "asset2", "max_weather" : 2},
-        {"name": "asset3", "max_weather" : 1}
+        {"name": "asset2", "max_weather" : 2}
     ]
 
     # task dependencies
     task_dependencies = {
-        "task1": [],
-        "task2": ["task1_start"],
-        "task3": ["task1_end", "task2_start"]
+        "task1": ["task1"],
+        "task2": []
     }
 
     # cost and duration tuples for each task-asset pair. -1 indicates asset-task paring is invalid
     task_asset_matrix = np.array([
-        [(1000, 5), (2000, 3), (1500, 4)],    # task 1: asset 1, asset 2, asset 3
-        [(1200, 4), (  -1,-1), (1800, 3)],    # task 2: asset 1, asset 2, asset 3
-        [(1100, 6), (2100, 4), (1600, 5)]     # task 3: asset 1, asset 2, asset 3
+        [(1000, 2), (2000, 3)],    # task 1: asset 1, asset 2
+        [(1200, 5), (  -1,-1)]     # task 2: asset 1, asset 2
     ])
+
+    # optimal assignment: task 1 with asset 1 in periods 1-2, task 2 with asset 1 in period 3
 
     # Find the minimum time period duration based on the task_asset_matrix
     min_duration = np.min(task_asset_matrix[:, :, 1][task_asset_matrix[:, :, 1] > 0])  # minimum non-zero duration
@@ -550,3 +692,46 @@ if __name__ == "__main__":
     # Sandbox for building out the scheduler
     scheduler = Scheduler(task_asset_matrix, tasks, assets, task_dependencies, weather, min_duration)
     scheduler.optimize()
+
+    
+    
+    # # A more complex dummy system to test the scheduler (uncomment and comment out above to run)
+
+    # # 10 weather periods = 10 time periods
+    # weather = [1]*5 + [2]*1 + [3]*1 + [1]*3 # Three weather types for now. Example weather windows. The length of each window is equal to min_duration
+    
+    # # Example tasks, assets, dependencies, and task_asset_matrix. Eventually try with more tasks than assets, more assets than tasks, etc.
+    # tasks = [
+    #     "task1",
+    #     "task2",
+    #     "task3"
+    # ]
+    # assets = [
+    #     {"name": "asset1", "max_weather" : 3},
+    #     {"name": "asset2", "max_weather" : 2},
+    #     {"name": "asset3", "max_weather" : 1},
+    #     {"name": "asset4", "max_weather" : 1}
+    # ]
+
+    # # task dependencies
+    # task_dependencies = {
+    #     "task1": [],
+    #     "task2": ["task1"],
+    #     "task3": ["task1"]
+    # }
+
+    # # random cost and duration tuples for each task-asset pair. -1 indicates asset-task paring is invalid
+    # task_asset_matrix = np.array([
+    #     [(3000, 2), (2000, 3), (1000, 4), (4000, 5)],    # task 1: asset 1, asset 2, asset 3, asset 4
+    #     [(1200, 5), (  -1,-1), (  -1,-1), (  -1,-1)],    # task 2: asset 1, asset 2, asset 3, asset 4
+    #     [(2500, 3), (1500, 2), (  -1,-1), (  -1,-1)]     # task 3: asset 1, asset 2, asset 3, asset 4
+    # ])
+
+    # # optimal assignment: task 1 with asset 1 in periods 1-2, task 2 with asset 1 in period 3
+
+    # # Find the minimum time period duration based on the task_asset_matrix
+    # min_duration = np.min(task_asset_matrix[:, :, 1][task_asset_matrix[:, :, 1] > 0])  # minimum non-zero duration
+
+    # # Sandbox for building out the scheduler
+    # scheduler = Scheduler(task_asset_matrix, tasks, assets, task_dependencies, weather, min_duration)
+    # scheduler.optimize()
