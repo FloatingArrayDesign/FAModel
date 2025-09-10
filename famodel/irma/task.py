@@ -32,15 +32,19 @@ class Task():
     
     '''
     
-    def __init__(self, actionList, name, **kwargs):
+    def __init__(self, actions, action_sequence, name, **kwargs):
         '''Create an action object...
         It must be given a name and a list of actions.
         The action list should be by default coherent with actionTypes dictionary.
         
         Parameters
         ----------
-        actionList : list
+        actions : list
             A list of all actions that are part of this task.
+        action_sequence : dict
+            A dictionary where each key is the name of each action, and the values are
+            each a list of which actions (by name) must be completed before the current
+            one.
         name : string
             A name for the action. It may be appended with numbers if there
             are duplicate names.
@@ -49,17 +53,34 @@ class Task():
         
         '''
         
-        self.actionList   = actionList  # all actions that are carried out in this task
+        # Make a dict by name of all actions that are carried out in this task
+        self.actions = {}
+        for act in actions:
+            self.actions[act.name] = act
+        
+        
+        # Create a graph of the sequence of actions in this task based on action_sequence
+        
+        # >>> Rudy to do <<<
+        
         self.name = name
+        
         self.status = 0  # 0, waiting;  1=running;  2=finished
+        
+        self.actions_ti = {}  # relative start time of each action [h]
+        self.t_actions = {}  # timing of task's actions, relative to t1 [h]
+        # t_actions is a dict with keys same as action names, and entries of [t1, t2]
         
         self.duration = 0  # duration must be calculated based on lengths of actions
         self.cost     = 0  # cost must be calculated based on the cost of individual actions.
-
+        self.ti =0  # task start time [h?]
+        self.tf =0  # task end time [h?]
+        
         # what else do we need to initialize the task?
         
         # internal graph of the actions within this task.
         self.G = self.getTaskGraph()
+    
     
     def organizeActions(self):
         '''Organizes the actions to be done by this task into the proper order
@@ -77,6 +98,15 @@ class Task():
         individual actions and their order of operation.'''
         
         # Does Rudy have graph-based code that can do this?
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
     def getTaskGraph(self):
         '''Generate a graph of the action dependencies.
@@ -84,15 +114,17 @@ class Task():
         
         # Create the graph
         G = nx.DiGraph()
-        for item, data in self.actionList.items():
+        for item, data in self.actions.items():
             for dep in data.dependencies:
                 G.add_edge(dep, item, duration=data.duration)  # Store duration as edge attribute
 
         # Compute longest path & total duration
         longest_path = nx.dag_longest_path(G, weight='duration')
         longest_path_edges = list(zip(longest_path, longest_path[1:]))  # Convert path into edge pairs
-        total_duration = sum(self.actionList[node].duration for node in longest_path)
+
+        total_duration = sum(self.actions[node].duration for node in longest_path)
         return G  
+
     
     def get_row(self, assets):
         '''Get a matrix of (cost, duration) tuples for each asset to perform this task. Will be a row in the task_asset matrix.
@@ -116,9 +148,9 @@ class Task():
         # Could look something like...
         ''' 
         for i, asset in enumerate(assets):
-            for action in self.actionList: # can we do this without the double loop?
+            for action in self.actions: # can we do this without the double loop?
                 if asset in action.roles:
-                    action = self.actionList[asset.name]
+                    action = self.actions[asset.name]
                     matrix[i, 0] = action.cost
                     matrix[i, 1] = action.duration
                 else:
@@ -127,3 +159,4 @@ class Task():
         '''
 
         return np.zeros((len(assets), 2)) # placeholder, replace with actual matrix
+

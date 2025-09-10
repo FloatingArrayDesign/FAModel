@@ -126,6 +126,8 @@ class Action():
         
         self.duration = getFromDict(actionType, 'duration', default=0) # this will be overwritten by calcDurationAndCost. TODO: or should it overwrite any duration calculation?
         self.cost = 0 # this will be overwritten by calcDurationAndCost
+        self.ti = 0  # action start time [h?]
+        self.tf = 0  # action end time [h?]
 
         self.supported_objects = [] # list of FAModel object types supported by the action
         

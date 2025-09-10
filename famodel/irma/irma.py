@@ -237,6 +237,7 @@ class Scenario():
         
         # Initialize some things
         self.actions = {}
+        self.tasks = {}
         
         
     def registerAction(self, action):
@@ -331,13 +332,136 @@ class Scenario():
                 i += 1
         plt.legend()
         return G    
+    
+    
+    def registerTask(self, task):
+        '''Registers an already created task'''
         
+        # this also handles creation of unique dictionary keys
+        
+        if task.name in self.tasks:  # check if there is already a key with the same name
+            raise Warning(f"Action '{task.name}' is already registered.")
+            print(f"Task name '{task.name}' is in the tasks list so incrementing it...")
+            task.name = increment_name(task.name)
+
+        # Add it to the actions dictionary
+        self.tasks[task.name] = task
+        
+        
+    def addTask(self, actions, action_sequence, task_name, **kwargs):
+        '''Creates a task and adds it to the register'''
+        
+        # Create the action
+        task = Task(actions, action_sequence, task_name, **kwargs)        
+        
+        # Register the action
+        self.registerTask(task)
+        
+        return task
+    
+    
+    
     def findCompatibleVessels(self):
         '''Go through actions and identify which vessels have the required
         capabilities (could be based on capability presence, or quantitative.
         '''
         
         pass
+
+
+    def figureOutTaskRelationships(self):
+        '''Calculate timing within tasks and then figure out constraints
+        between tasks.
+        '''
+        
+        # Figure out task durations (for a given set of asset assignments?)
+        for task in self.tasks.values():
+            task.calcTiming()
+        
+        # Figure out timing constraints between tasks based on action dependencies
+        n = len(self.tasks)
+        dt_min = np.zeros((n,n))  # matrix of required time offsets between tasks
+        
+        for i1, task1 in enumerate(self.tasks.values()):
+            for i2, task2 in enumerate(self.tasks.values()):
+                # look at all action dependencies from tasks 1 to 2 and
+                # identify the limiting case (the largest time offset)...
+                dt_min_1_2, dt_min_2_1 = findTaskDependencies(task1, task2)
+                
+                # for now, just look in one direction
+                dt_min[i1, i2] = dt_min_1_2
+
+        return dt_min
+    
+
+def findTaskDependencies(task1, task2):
+    '''Finds any time dependency between the actions of two tasks.
+    Returns the minimum time separation required from task 1 to task 2,
+    and from task 2 to task 1. I
+    '''
+    
+    time_1_to_2 = []
+    time_2_to_1 = []
+    
+    # Look for any dependencies where act2 depends on act1:
+    #for i1, act1 in enumerate(task1.actions.values()):
+    #    for i2, act2 in enumerate(task2.actions.values()):
+    for a1, act1 in task1.actions.items():
+        for a2, act2 in task2.actions.items():
+        
+            if a1 in act2.dependencies:  # if act2 depends on act1
+                time_1_to_2.append(task1.actions_ti[a1] + act1.duration
+                                   - task2.actions_ti[a2])
+        
+            if a2 in act1.dependencies:  # if act2 depends on act1
+                time_2_to_1.append(task2.actions_ti[a2] + act2.duration
+                                   - task1.actions_ti[a1])
+    
+    print(time_1_to_2)
+    print(time_2_to_1)
+    
+    dt_min_1_2 = min(time_1_to_2)  # minimum time required from t1 start to t2 start
+    dt_min_2_1 = min(time_2_to_1)  # minimum time required from t2 start to t1 start
+    
+    if dt_min_1_2 + dt_min_2_1 > 0:
+        print(f"The timing between these two tasks seems to be impossible...")
+    
+    breakpoint()
+    return dt_min_1_2, dt_min_2_1
+
+
+def implementStrategy_staged(sc):
+    '''This sets up Tasks in a way that implements a staged installation
+    strategy where all of one thing is done before all of a next thing.
+    '''
+    
+    # ----- Create a Task for all the anchor installs -----
+    
+    # gather the relevant actions
+    acts = []
+    for action in sc.actions.values():
+        if action.type == 'install_anchor':
+            acts.append(action)
+    
+    # create a dictionary of dependencies indicating that these actions are all in series
+    act_sequence = {}  # key is action name, value is a list of what action names are to be completed before it
+    for i in range(len(acts)):
+        if i==0:  # first action has no dependencies
+            act_sequence[acts[i].name] = []
+        else:  # remaining actions are just a linear sequence
+            act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
+    
+    sc.addTask(acts, act_sequence, 'install_all_anchors')
+    
+    # ----- Create a Task for all the mooring installs -----
+    
+    
+    
+    
+    # ----- Create a Task for the platform tow-out and hookup -----
+    
+    
+    
 
 
 if __name__ == '__main__':
@@ -436,17 +560,18 @@ if __name__ == '__main__':
 
     
     # ----- Generate tasks (groups of Actions according to specific strategies) -----
-    tasks = []
-    t1 = Task(sc.actions, 'install_mooring_system')
-    tasks.append(t1)
+
+    #t1 = Task(sc.actions, 'install_mooring_system')
 
     # ----- Do some graph analysis -----
     
     G = sc.visualizeActions()
     
+    # make some tasks with one strategy...
+    implementStrategy_staged(sc)
     
 
-    
+    # dt_min = sc.figureOutTaskRelationships()
     
     
     
@@ -460,8 +585,8 @@ if __name__ == '__main__':
 
     # ----- Generate the task_asset_matrix for scheduler -----
     # UNUSED FOR NOW
-    task_asset_matrix = np.zeros((len(tasks), len(sc.vessels), 2))
-    for i, task in enumerate(tasks):
+    task_asset_matrix = np.zeros((len(sc.tasks), len(sc.vessels), 2))
+    for i, task in enumerate(sc.tasks.values()):
         row = task.get_row(sc.vessels)
         if row.shape != (len(sc.vessels), 2):
             raise Exception(f"Task '{task.name}' get_row output has wrong shape {row.shape}, should be {(2, len(sc.vessels))}")
