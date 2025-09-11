@@ -76,7 +76,7 @@ class Task():
         self.getSequenceGraph(action_sequence, plot=True) # this also updates duration
         
         self.cost = sum(action.cost for action in self.actions.values())
-        0
+        
         print(f"---------------------- Initializing Task '{self.name} ----------------------")
         print(f"Task '{self.name}' initialized with duration = {self.duration:.2f} h.")
         print(f"Task '{self.name}' initialized with cost     = ${self.cost:.2f} ")
