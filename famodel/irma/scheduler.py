@@ -24,7 +24,7 @@ from scipy.optimize import milp
 import numpy as np
 import os
 
-wordy = 1  # level of verbosity for print statements
+wordy = 2  # level of verbosity for print statements
 
 class Scheduler:
 
@@ -255,6 +255,15 @@ class Scheduler:
         A_ub_0 = np.ones((1, len(decision_vars)), dtype=int)  # Every period assigned to a task counts as 1 towards the total assigned periods. This assumes one pair per period
         b_ub_0 = np.array([self.num_periods])
 
+        if wordy > 1:
+            print("A_ub_0^T:")
+            for i in range(A_ub_0.transpose().shape[0]):
+                pstring = str(self.x_indices[i])
+                for column in A_ub_0.transpose()[i]:
+                    pstring += f"{ column:5}"
+                print(pstring)
+            print("b_ub_0: ", b_ub_0)
+
         A_ub_list.append(A_ub_0)
         b_ub_list.append(b_ub_0)
 
@@ -282,8 +291,20 @@ class Scheduler:
             for i in range(len(self.x_indices)):
                 print(f"  {self.x_indices[i]}: {A_eq_1[0, i]}")
 
+        if wordy > 1:
+            print("A_eq_1^T:")
+            for i in range(A_eq_1.transpose().shape[0]):
+                pstring = str(self.x_indices[i])
+                for column in A_eq_1.transpose()[i]:
+                    pstring += f"{ column:5}"
+                print(pstring)
+            print("b_eq_1: ", b_eq_1)
+
         A_eq_list.append(A_eq_1)
         b_eq_list.append(b_eq_1)
+
+        if wordy > 0:
+            print("Constraint 1 built.")
 
         # 2) task dependencies must be respected (i.e., a task cannot start until all its dependencies have been satisfied)
         # '''
@@ -325,7 +346,7 @@ class Scheduler:
         #     A_lb_2[index, :] = mask.flatten()
         #     index += 1
 
-        # if wordy > 2:
+        # if wordy > 1:
         #     print("A_lb_2^T:")
         #     print("            T1   T2  ") # Header for 2 tasks
         #     for i in range(A_lb_2.transpose().shape[0]):
@@ -366,9 +387,9 @@ class Scheduler:
                 A_ub_4[index, :] = mask.flatten()
                 index += 1
 
-        if wordy > 2:
+        if wordy > 1:
             print("A_ub_4^T:")
-            print("            P1A1 P1A2 P2A1") # Header for 2 tasks and 2 assets example with T2A2 invalid
+            print("            P1A1 P1A2 P2A1 P2A2 P3A1 P3A2 P4A1 P4A2 P5A1 P5A2") # header for 5 periods and 2 assets example
             for i in range(A_ub_4.transpose().shape[0]):
                 pstring = str(self.x_indices[i])
                 for column in A_ub_4.transpose()[i]:
@@ -420,6 +441,16 @@ class Scheduler:
                 for i in range(len(self.x_indices)):
                     print(f"  {self.x_indices[i]}: {A_lb_8[t, i]}")
 
+        if wordy > 1:
+            print("A_lb_8^T:")
+            print("              T1   T2") # Header for 2 tasks
+            for i in range(A_lb_8.transpose().shape[0]):
+                pstring = str(self.x_indices[i])
+                for column in A_lb_8.transpose()[i]:
+                    pstring += f"{ column:5}"
+                print(pstring)
+            print("b_lb_8: ", b_lb_8)
+
         A_lb_list.append(A_lb_8)
         b_lb_list.append(b_lb_8)
 
@@ -455,7 +486,7 @@ class Scheduler:
         #             A_eq_9[pair_i, :] = mask.flatten()
         #             pair_i += 1
 
-        # if wordy > 0:
+        # if wordy > 1:
         #     # Print out the constraint matrix for debugging 
         #     print("A_eq_9^T:")
         #     print("            T1A1 T1A2 T2A1") # Header for 2 tasks and 2 assets example with T2A2 invalid
@@ -501,6 +532,17 @@ class Scheduler:
                 for i in range(len(self.x_indices)):
                     print(f"  {self.x_indices[i]}: {A_ub_10[p, i]}")
                 print("Upper bound limit: ", b_ub_10[p])
+
+        
+        if wordy > 1:
+            print("A_ub_10^T:")
+            print("              P1   P2   P3   P4   P5") # Header for 5 periods
+            for i in range(A_ub_10.transpose().shape[0]):
+                pstring = str(self.x_indices[i])
+                for column in A_ub_10.transpose()[i]:
+                    pstring += f"{ column:5}"
+                print(pstring)
+            print("b_ub_10: ", b_ub_10)
 
         A_ub_list.append(A_ub_10)
         b_ub_list.append(b_ub_10)

@@ -40,7 +40,7 @@ $$
 ### 2. Task Dependencies (**Disabled/In-progress**)
 Tasks with dependencies must be scheduled after their dependencies are completed. This might need to be reworked, still figuring out the best way to enforce temporal constraints. 
 $$
-p * x_{p,r,a} < p * x_{p,t,a} \quad t \in T, \forall r \in R_t, p \in P, a \in A  
+p * x_{p,r,a} + d_r < p * x_{p,t,a} \quad t \in T, \forall r \in R_t, p \in P, a \in A  
 $$
 
 ### 3. Weather Constraints (**TODO**)
