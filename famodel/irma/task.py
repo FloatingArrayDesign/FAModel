@@ -59,16 +59,11 @@ class Task():
             self.actions[act.name] = act
         
         
-        # Create a graph of the sequence of actions in this task based on action_sequence
-        self.getSequenceGraph(action_sequence)
 
         self.name = name
         
         self.status = 0  # 0, waiting;  1=running;  2=finished
-        
         self.actions_ti = {}  # relative start time of each action [h]
-        self.t_actions = {}  # timing of task's actions, relative to t1 [h]
-        # t_actions is a dict with keys same as action names, and entries of [t1, t2]
         
         self.duration = 0  # duration must be calculated based on lengths of actions
         self.cost     = 0  # cost must be calculated based on the cost of individual actions.
@@ -77,9 +72,14 @@ class Task():
         
         # what else do we need to initialize the task?
         
-        # internal graph of the actions within this task.
-        self.G = self.getTaskGraph()
-    
+        # Create a graph of the sequence of actions in this task based on action_sequence
+        self.getSequenceGraph(action_sequence, plot=True) # this also updates duration
+        
+        self.cost = sum(action.cost for action in self.actions.values())
+        0
+        print(f"---------------------- Initializing Task '{self.name} ----------------------")
+        print(f"Task '{self.name}' initialized with duration = {self.duration:.2f} h.")
+        print(f"Task '{self.name}' initialized with cost     = ${self.cost:.2f} ")
     
     def organizeActions(self):
         '''Organizes the actions to be done by this task into the proper order
@@ -103,7 +103,7 @@ class Task():
         
         
         
-    def getSequenceGraph(self, action_sequence):
+    def getSequenceGraph(self, action_sequence, plot=True):
         '''Generate a multi-directed graph that visalizes action sequencing within the task.
                 Build a MultiDiGraph with nodes:
                 Start -> CP1 -> CP2 -> ... -> End
@@ -164,7 +164,7 @@ class Task():
 
         pos = nx.shell_layout(H, nlist=shells)
 
-        xmin, xmax = -2.0, 2.0
+        xmin, xmax = -2.0, 2.0  # maybe would need to change those later on.
         pos["Start"] = (xmin, 0)
         pos["End"]   = (xmax, 0)
 
@@ -186,57 +186,76 @@ class Task():
                 else:  # lv == max_level
                     H.add_edge(f"CP{num_cps}", "End", key=action, duration=action.duration, cost=action.cost)
 
-        fig, ax = plt.subplots()
-        # pos = nx.shell_layout(G)
-        nx.draw(H, pos, with_labels=True, node_size=500, node_color="lightblue", edge_color='white')
 
-        # Group edges by unique (u, v) pairs
-        for (u, v) in set((u, v) for u, v, _ in H.edges(keys=True)):
-            # get all edges between u and v (dict keyed by edge key)
-            edge_dict = H.get_edge_data(u, v)  # {key: {attrdict}, ...}
-            n = len(edge_dict)
-
-            # curvature values spread between -0.3 and +0.3
-            if n==1:
-                rads = [0]
-            else:
-                rads = np.linspace(-0.3, 0.3, n)
-            
-            # draw each edge
-            durations = [d.get("duration", 0.0) for d in edge_dict.values()]
-            scale = max(max(durations), 0.0001)
-            width_scale = 4.0 / scale  # normalize largest to ~4px
-
-            for rad, (k, d) in zip(rads, edge_dict.items()):
-                nx.draw_networkx_edges(
-                    H, pos, edgelist=[(u, v)], ax=ax,
-                    connectionstyle=f"arc3,rad={rad}",
-                    arrows=True, arrowstyle="-|>",
-                    edge_color="gray",
-                    width=max(0.5, d.get("duration", []) * width_scale),
-                )
-
-        # --- after drawing edges ---
-        edge_labels = {}
-        for u, v, k, d in H.edges(keys=True, data=True):
-            # each edge may have a unique key; include it in the label if desired
-            label = k.name
-            edge_labels[(u, v, k)] = label
-
-        nx.draw_networkx_edge_labels(
-            H,
-            pos,
-            edge_labels=edge_labels,
-            font_size=8,
-            label_pos=0.5,   # position along edge (0=start, 0.5=middle, 1=end)
-            rotate=False     # keep labels horizontal
-        )
-
-        ax.axis("off")
-        plt.tight_layout()
-        plt.show()
+        # 3. Compute cumulative start time for each level
+        level_groups = {}
+        for action, lv in levels.items():
+            level_groups.setdefault(lv, []).append(action)
         
+        level_durations = {lv: max(self.actions[a].duration for a in acts)
+                        for lv, acts in level_groups.items()}        
+
+        task_duration = sum(level_durations.values())
+
+        level_start_time = {}
+        elapsed = 0.0
+        cp_string = []
+        for lv in range(1, max_level + 1):
+            level_start_time[lv] = elapsed
+            elapsed += level_durations.get(lv, 0.0)
+            # also collect all actions at this level for title
+            acts = [a for a, l in levels.items() if l == lv]
+            if acts and lv <= num_cps:
+                cp_string.append(f"CP{lv}: {', '.join(acts)}")
+            elif acts and lv > num_cps:
+                cp_string.append(f"End: {', '.join(acts)}")
+
+        # Assign to self:
+        self.duration = task_duration
+        self.actions_ti = {a: level_start_time[lv] for a, lv in levels.items()}
         self.sequence_graph = H
+        
+        title_str = f"Task {self.name}. Duration {self.duration:.2f} : " + " | ".join(cp_string)
+
+        if plot:
+            fig, ax = plt.subplots()
+            # pos = nx.shell_layout(G)
+            nx.draw(H, pos, with_labels=True, node_size=500, node_color="lightblue", edge_color='white')
+
+            label_positions = {}  # to store label positions for each edge
+            # Group edges by unique (u, v) pairs
+            for (u, v) in set((u, v) for u, v, _ in H.edges(keys=True)):
+                # get all edges between u and v (dict keyed by edge key)
+                edge_dict = H.get_edge_data(u, v)  # {key: {attrdict}, ...}
+                n = len(edge_dict)
+
+                # curvature values spread between -0.3 and +0.3 [helpful to visualize multiple edges]
+                if n==1:
+                    rads = [0]
+                    offsets = [0.5]
+                else:
+                    rads = np.linspace(-0.3, 0.3, n)
+                    offsets = np.linspace(0.2, 0.8, n)
+                
+                # draw each edge
+                durations = [d.get("duration", 0.0) for d in edge_dict.values()]
+                scale = max(max(durations), 0.0001)  # avoid div by zero
+                width_scale = 4.0 / scale  # normalize largest to ~4px
+
+                for rad, offset, (k, d) in zip(rads, offsets, edge_dict.items()):
+                    nx.draw_networkx_edges(
+                        H, pos, edgelist=[(u, v)], ax=ax,
+                        connectionstyle=f"arc3,rad={rad}",
+                        arrows=True, arrowstyle="-|>",
+                        edge_color="gray",
+                        width=max(0.5, d.get("duration", []) * width_scale),
+                    )
+                    label_positions[(u, v, k)] = offset  # store position for edge label
+
+            ax.set_title(title_str, fontsize=12, fontweight="bold")
+            ax.axis("off")
+            plt.tight_layout()
+
         return H
                 
         

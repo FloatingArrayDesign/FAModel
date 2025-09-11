@@ -450,10 +450,6 @@ def implementStrategy_staged(sc):
             act_sequence[acts[i].name] = []
         else:  # remaining actions are just a linear sequence
             act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
-    # Just for testing different examples.
-    # act_sequence = {'install_anchor-fowt0a': [], 
-    #                 'install_anchor-fowt0b': ['install_anchor-fowt0a'], 
-    #                 'install_anchor-fowt0c': ['install_anchor-fowt0a']}
     sc.addTask(acts, act_sequence, 'install_all_anchors')
     
     # ----- Create a Task for all the mooring installs -----
