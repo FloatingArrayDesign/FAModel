@@ -1019,7 +1019,7 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
         mooring.z_anch = mooring.dd['zAnchor']
         mooring.rad_anch = np.linalg.norm(r_anch[:2]-r[:2])
         span = mooring.rad_anch - fairlead_rad
-        mooring.setEndPosition(r_anch, 'a')  # set the anchor position
+        mooring.setEndPosition(r_anch, 'a', sink=True)  # set the anchor position
 
         #move anchor attachments
         for i,att in enumerate(mooring.attached_to):
@@ -1062,7 +1062,6 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
         mooring.span = span
             
     elif method == 'horizontal':
-        
         def func_TH_L(X, args):
             '''Apply specified section L, return the horizontal pretension error.'''
             ss.lineList[i_line].setL(X[0])
