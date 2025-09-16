@@ -311,9 +311,11 @@ class Scenario():
         if len(longest_path)>=1:
             last_node = longest_path[-1]  # Identify last node of the longest path
             # Define layout
-            pos = nx.shell_layout(G)        
+            pos = nx.shell_layout(G)
             # Draw all nodes and edges (default gray)
-            nx.draw(G, pos, with_labels=True, node_size=500, node_color='skyblue', font_size=10, font_weight='bold', font_color='black', edge_color='gray')
+            nx.draw(G, pos, with_labels=True, node_size=500, 
+                    node_color='skyblue', font_size=10, font_weight='bold', 
+                    font_color='black', edge_color='gray')
 
             # Highlight longest path in red
             nx.draw_networkx_edges(G, pos, edgelist=longest_path_edges, edge_color='red', width=2)
@@ -450,16 +452,56 @@ def implementStrategy_staged(sc):
             act_sequence[acts[i].name] = []
         else:  # remaining actions are just a linear sequence
             act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
+    
+    # create the task, passing in the sequence of actions
     sc.addTask(acts, act_sequence, 'install_all_anchors')
     
     # ----- Create a Task for all the mooring installs -----
     
+    # gather the relevant actions
+    acts = []
+    # first load each mooring
+    for action in sc.actions.values():
+        if action.type == 'load_mooring':
+            acts.append(action)
+    # next lay each mooring (eventually route logic could be added)
+    for action in sc.actions.values():
+        if action.type == 'lay_mooring':
+            acts.append(action)
     
+    # create a dictionary of dependencies indicating that these actions are all in series
+    act_sequence = {}  # key is action name, value is a list of what action names are to be completed before it
+    for i in range(len(acts)):
+        if i==0:  # first action has no dependencies
+            act_sequence[acts[i].name] = []
+        else:  # remaining actions are just a linear sequence
+            act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
+    
+    # create the task, passing in the sequence of actions
+    sc.addTask(acts, act_sequence, 'install_all_moorings')
     
     
     # ----- Create a Task for the platform tow-out and hookup -----
     
+    # gather the relevant actions
+    acts = []
+    # first tow out the platform
+    acts.append(sc.actions['tow'])
+    # next hook up each mooring
+    for action in sc.actions.values():
+        if action.type == 'mooring_hookup':
+            acts.append(action)
     
+    # create a dictionary of dependencies indicating that these actions are all in series
+    act_sequence = {}  # key is action name, value is a list of what action names are to be completed before it
+    for i in range(len(acts)):
+        if i==0:  # first action has no dependencies
+            act_sequence[acts[i].name] = []
+        else:  # remaining actions are just a linear sequence
+            act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
+    
+    # create the task, passing in the sequence of actions
+    sc.addTask(acts, act_sequence, 'tow_and_hookup')
     
 
 
