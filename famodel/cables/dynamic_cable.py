@@ -79,6 +79,7 @@ class DynamicCable(Edge):
                 self.headingB = 0
         elif 'headingB' in self.dd:
             self.headingB = self.dd['headingB'] # <<< ??
+            # if there's no headingA, likely a suspended cable - headingA = headingB+180 degrees
             self.headingA = 0
 
         else:

@@ -117,4 +117,3 @@ class Turbine(Node):
                                         self.grid_pitch, self.grid_f6)
         
         return f6
-        
