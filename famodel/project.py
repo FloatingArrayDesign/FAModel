@@ -2011,7 +2011,8 @@ class Project():
                 # >>>> TODO: Update the above to add optional inputs for bounds (vmin/vmax) on contour plot colors for bathymetry <<<<
             
                 if not bare:  # Add colorbar with label
-                    cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)')
+                    import matplotlib.ticker as tkr
+                    cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)', format=tkr.FormatStrFormatter('%.0f'))
         # if plot_seabed:
         #     if len(self.soil_x) > 1 and len(self.soil_y) > 1:
         #         sX, sY = np.meshgrid(self.soil_x, self.soil_y)
