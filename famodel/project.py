@@ -4334,7 +4334,7 @@ class Project():
 
         return wts, yaw_init  
     
-    def FFarmCompatibleMDOutput(self, filename, unrotateTurbines=True, renameBody=True, removeBody=True, MDoptionsDict={}, bathymetryFile=None):
+    def FFarmCompatibleMDOutput(self, filename, MDoptionsDict=None, **kwargs):
         '''
         Function to create FFarm-compatible MoorDyn input file:
 
@@ -4342,22 +4342,51 @@ class Project():
         ----------
         filename : str
             Name of the MoorDyn output file (.dat)
-        unrotateTurbines: bool, optional
-            A flag to unrotate turbine (body) objects when passing it to MoorPy unload function [FFarm takes fairlead points in the local-unrotated reference frame]
-        renameBody: bool, optional
-            A flag to rename `Body` objects in the output MD file into `Turbine` to be compatible with FFarm. 
-        removeBody: boo., optional
-            A flag to remove 'Body' objects in the Bodies list in the output MD file to be compatible with FFarm.
-        MDoptionsDict: dictionary, optional
-            MoorDyn Options. If not given, default options are considered.            
-        '''          
-        from moorpy.helpers import subsystem2Line    
+        MDoptionsDict: dict, optional
+            MoorDyn Options. If not given, default options are considered.
+        **kwargs : optional
+            unrotateTurbines : bool
+                A flag to unrotate turbine (body) objects when passing it to MoorPy unload function 
+                [FFarm takes fairlead points in the local-unrotated reference frame]
+            renameBody : bool
+                A flag to rename `Body` objects in the output MD file into `Turbine` to be compatible with FFarm.
+            removeBody : bool
+                A flag to remove 'Body' objects in the Bodies list in the output MD file to be compatible with FFarm.
+            outputList : dict
+                Output options for MoorDyn.
+            bathymetryFile : str
+                Path to bathymetry file.
+            flag : str
+                Extra flag to append to MD entries.
+        '''
+
+        # --- Default values ---
+        defaults = {
+            "unrotateTurbines": True,
+            "renameBody": True,
+            "removeBody": True,
+            "outputList": [],
+            "bathymetryFile": None,
+            "flag": "-"
+        }
+
+        # Merge defaults with kwargs
+        opts = {**defaults, **kwargs}
+
+        # Assign variables for convenience
+        unrotateTurbines = opts["unrotateTurbines"]
+        renameBody       = opts["renameBody"]
+        removeBody       = opts["removeBody"]
+        outputList       = opts["outputList"]
+        bathymetryFile   = opts["bathymetryFile"]
+        flag             = opts["flag"]
+
+        if MDoptionsDict is None:
+            MDoptionsDict = {}       
+        from moorpy.helpers import ss2lines    
         
         # convert SS to lines
-        ms_temp = deepcopy(self.ms)  # copy to avoid affecting self.ms
-        lineCount = len(ms_temp.lineList)
-        for _ in range(lineCount):
-            subsystem2Line(ms_temp, 0)
+        ms_temp = ss2lines(self.ms)
         
         # Unrotate turbines if needed
         if unrotateTurbines:
@@ -4368,7 +4397,18 @@ class Project():
         else:
             phi = None
         
-        ms_temp.unload(fileName=filename, phi=phi, MDoptionsDict=MDoptionsDict)
+        # Setup nNodes of lines manually <<< TODO: Need to figure out a more automatic way of signing those numbers
+        for line in ms_temp.lineList:
+            if 0 < line.L < 20:
+                line.nNodes = 3
+            elif 20 <= line.L < 100:
+                line.nNodes = 6
+            elif 100 <= line.L < 700:
+                line.nNodes = 11
+            elif line.L >= 700:
+                line.nNodes = 16
+
+        ms_temp.unload(fileName=filename, phi=phi, MDoptionsDict=MDoptionsDict, outputList=outputList, flag=flag)
         
         # rename Body to Turbine if needed
         if renameBody:
