@@ -108,18 +108,20 @@ def test_check_connections():
         
         # check number of things connected to platform
         if i == 1 or i == 3:
-            assert len(pf.attachments) == 5 # 3 lines, 1 turbine, 1 cable 
+            assert len(pf.attachments) == 11 # 3 lines, 1 turbine, 1 cable , 3 fairleads, 3 j-tubes
         else:
-            assert len(pf.attachments) == 6 # 3 lines, 1 turbine, 2 cables
+            assert len(pf.attachments) == 12 # 3 lines, 1 turbine, 2 cables, 3 fairleads, 3 j-tubes
             
 def test_headings_repositioning():
     dir = os.path.dirname(os.path.realpath(__file__))
     project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     # check angles and repositioning for regular mooring line and shared mooring line, reg cable and suspended cable
     assert_allclose(np.hstack((project.mooringList['FOWT1a'].rA,project.mooringList['FOWT1-FOWT2'].rA)),
-                    np.hstack(([-828.637,-828.637,-600],[40.5,0,-20])),rtol=0,atol=0.5)
+                    np.hstack(([-820.25,-835.07,-600],[40.5,0,-20])),rtol=0,atol=0.5)
+    x_off = 5*np.cos(np.radians(-60))
+    y_off = 5*np.sin(np.radians(-60))
     assert_allclose(np.hstack((project.cableList['array_cable12'].subcomponents[0].rB,project.cableList['cable0'].subcomponents[0].rB)),
-                    np.hstack(([605,0,-600],[0,1615.5,-20])),rtol=0,atol=0.5)
+                    np.hstack(([600+x_off,0+y_off,-600],[0+x_off,1656+y_off,-20])),rtol=0,atol=0.5)
     
 def test_marine_growth():
     dir = os.path.dirname(os.path.realpath(__file__))

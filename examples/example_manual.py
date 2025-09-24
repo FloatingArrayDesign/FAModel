@@ -9,16 +9,14 @@ import moorpy as mp
 import matplotlib.pyplot as plt
 
 ### INPUTS ###
-inputfolder = './Inputs/'
-bathfile = 'bathymetry200m_Array.txt'
-soilfile = 'soil_sample.txt'
-boundfile = 'boundary_sample.csv'
-moordynfile = 'Moordyn_semitaut200m.dat'
+dir = os.path.dirname(os.path.realpath(__file__))
+bathfile = dir+'\bathymetry200m_Array.txt'
+soilfile = dir+'\soil_sample.txt'
+boundfile = dir+'\boundary_sample.csv'
+moordynfile = dir+'\Moordyn_semitaut200m.dat'
 n_pfs = 4
 pf_spacing = 1600
 
-# change to input directory
-os.chdir(inputfolder)
 
 # create empty project
 project = Project()

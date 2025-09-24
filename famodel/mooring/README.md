@@ -22,18 +22,23 @@ includes a design dictionary with the following details:
 - rad_fair : Fairlead radius
 - z_fair   : Fairlead depth 
 - span     : 2D distance from fairlead to anchor (or fairlead to fairlead)
-- Sections: List of line segment detail dictionaries, becomes list of section objects
-	- type : Line section type dictionary
-		- d_nom, d_vol : diameter (nominal and volume-equivalent) [m]
-		- material
-		- cost [USD]
-		- m : linear mass [g/m]
-		- w : weight [N/m]
-		- MBL : minimum breaking load [N]
-		- EA : stiffness coefficient [N]
-	- L : Line section length [m]
+- Subcomponents: List of line sections and connectors in order from end A to end B
+    The values in each subcomponent type vary depending on if it is a section or connector. For sections:
+		- type : material property dictionary
+			- d_nom, d_vol : diameter (nominal and volume-equivalent) [m]
+			- material
+			- cost [USD]
+			- m : linear mass [g/m]
+			- w : weight [N/m]
+			- MBL : minimum breaking load [N]
+			- EA : stiffness coefficient [N]
+		- L : Line section length [m]
+	For connectors:
+	    - m : mass [kg]
+		- v : volume [kg/m^3]
+		- CdA 
 	
-The Mooring object contains subcomponent objects that represent each component of the full mooring line. Line segments are Section objects, while connectors between segments and at the ends of the lines are Connector objects. These segments alternate.
+The Mooring object contains subcomponent objects that represent each component of the full mooring line. Line segments are Section objects, while connectors between segments and at the ends of the lines are Connector objects. These segments alternate, and are listed in the subcomponents section of the design dictionary in order from end A to end B. If there are parallel sections, such as in the case of a bridle, the parallel sections are described with nested lists.
 
 ## Mooring Properties
 - dd
@@ -55,13 +60,15 @@ The Mooring object contains subcomponent objects that represent each component o
 - rA : end A absolute coordinates
 - rB : end B absolute coordinates
 - heading : compass heading from B to A
+- ss : MoorPy subsystem representation of this Mooring, pristine
+- ss_mod : modified MoorPy subsystem of thie Mooring, could have marine growth etc
+- span : 2D (x-y) distance from fairlead to anchor or fairlead to fairlead. If bridles, the distance is calculated from the midpoint of all bridle fairlead points
 - adjuster : custom function that can adjust mooring
 - shared : int for anchored line (0), shared line (1) or half of a shared line (2)
 - symmetric : boolean for if the mooring line is symmetric shared line
 - rho : water density
 - g : acceleration due to gravity
 - envelopes : 2D motion envelopes, buffers, etc.
-- loads : dictionary of loads on the mooring line
 - reliability : dictionary of reliability information on the line
 - cost : dictionary of line costs
 - failure_probability : dictionary of failure probabilities
@@ -88,7 +95,7 @@ Set the position of an end of the mooring
 Finds the cost based on the MoorPy subsystem cost estimates
 
 ### updateTensions
-Gets tensions from subsystem and updates the max tensions dictionary if it is larger than a previous tension
+Gets tensions from subsystem and updates the max tensions dictionaries of each Section object if it is larger than a previous tension
 
 ### createSubsystem
 
@@ -123,7 +130,7 @@ the following details:
 	- volume 
 	- CdA
 	
-The connector class also contains an xyz location of the connector, and a connector object in MoorPy.
+The connector class also contains an xyz location of the connector, and a connector object in MoorPy (mpConn).
 
 ## Connector methods
 
@@ -135,7 +142,11 @@ Create a MoorPy connector object in a MoorPy system. Mass, volume, and CdA are a
 
 The Section class provides a data structure for the mooring line section material and length. The Section class inherits from dict and Edge.
 
-The line material properties (linear mass, material, MBL, Cd, etc) are stored in the type dictionary of the Section class.
+The line material properties (linear mass, material, MBL, Cd, etc) are stored in the type dictionary of the Section class. If a moorpy system is developed, the the line object representing this section is listed in the mpLine parameter. Loads are stored in the loads dictionary, and safety factors are stored in the safety_factors dictionary property.
+
+### Section methods
+- makeMoorPyLine
+Create a moorpy line object in a moorpy system
 
 [Back to Top](#moorings-sections-and-connectors)
 

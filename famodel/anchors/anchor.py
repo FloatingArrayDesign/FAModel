@@ -123,10 +123,9 @@ class Anchor(Node):
             MoorPy system 
 
         '''
-        # create anchor as a fixed point in MoorPy system
-        ms.addPoint(1,self.r)
-        # assign this point as mpAnchor in the anchor class instance
-        self.mpAnchor = ms.pointList[-1]
+        # create anchor as a fixed body in MoorPy system and assign to mpAnchor property
+        r6 = [self.r[0],self.r[1],self.r[2],0,0,0]
+        self.mpAnchor = ms.addBody(1,r6)
 
         # add mass if available
         if 'm' in self.dd['design'] and self.dd['design']['m']:
@@ -550,14 +549,14 @@ class Anchor(Node):
                 # get line type
                 for att in self.attachments.values():
                     if isinstance(att['obj'],Mooring):
-                        mtype = att['obj'].dd['sections'][0]['type']['material']
+                        mtype = att['obj'].sections()[0]['type']['material']
                         if not 'chain' in mtype:
                             print('No chain on seafloor, setting Ta=Tm')
                             nolugload = True
                             break
                         else:
-                            md = att['obj'].dd['sections'][0]['type']['d_nom']
-                            mw = att['obj'].dd['sections'][0]['type']['w']
+                            md = att['obj'].sections()[0]['type']['d_nom']
+                            mw = att['obj'].sections()[0]['type']['w']
                 soil = next(iter(self.soilProps.keys()), None)
                 ground_conds = self.soilProps[soil]
                 # update soil conds as needed to be homogeneous

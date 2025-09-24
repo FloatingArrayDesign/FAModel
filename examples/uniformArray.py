@@ -12,17 +12,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # point to location of yaml file with uniform array info
-input_directory = 'Inputs/' # relative location of directory for input files (yaml, bath files, etc)
-filename = 'OntologySample200m_uniformArray.yaml' # yaml file to make initial platform(s)
+dir = os.path.dirname(os.path.realpath(__file__))
+filename = '\OntologySample200m_uniformArray.yaml' # yaml file to make initial platform(s)
 # This yaml file does not contain explicit locations of each platform in the array table,
 # but rather has a 'uniform_array' section that describes # of rows, cols, spacing, etc.
 # This info is then used to automatically make a uniform array when the yaml file is loaded
 
-# switch to directory of input files
-os.chdir(input_directory)
 
 # load in yaml
-project = Project(file=filename,raft=True)
+project = Project(file=dir+filename,raft=True)
 project.plot2d()
 # plot the system
 project.plot3d(fowt=True)
