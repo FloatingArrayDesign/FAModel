@@ -24,15 +24,19 @@ class Mooring(Edge):
         dd: dictionary
             Design dictionary that contains all information on a mooring line needed to create a MoorPy subsystem
             Layout: {
-                     sections:
+                     subcomponents: # always starts and ends with connectors even if connector dict is blank
                          {
-                             0 
-                                 {
+                             0   
+                                 { # connector
+                                 type: {m, v, CdA}
+                                 }
+                             1
+                                 { # section
                                   type:
                                       {
                                          name, d_nom, material, d_vol, m, EA, EAd, EAd_Lm, MBL, cost, weight
                                       }
-                                  L
+                                  L # length in [m]
                                  }
                          }
                      connectors:
@@ -43,17 +47,7 @@ class Mooring(Edge):
                      zAnchor
                      z_fair
                      rad_fair
-                     EndPositions:
-                                  {
-                                    endA, endB
-                                  }
                     }
-        Initialize an empty object for a mooring line.
-        Eventually this will fully set one up from ontology inputs.
-        
-        >>> This init method is a placeholder that currently may need
-        some additional manual setup of the mooring object after it is
-        called. <<<
         
         '''    
         Edge.__init__(self, id)  # initialize Edge base class
@@ -211,7 +205,7 @@ class Mooring(Edge):
     def setSectionLength(self, L, i):
         '''Sets length of section, including in the subdsystem if there is
         one.'''
-        sec = self.getSubcomponents(self.i_sec[i])
+        sec = self.getSubcomponent(self.i_sec[i])
         sec['L'] = L  # set length in dd (which is also Section/subcomponent)
         
         if self.ss:  # is Subsystem exists, adjust length there too
@@ -229,7 +223,7 @@ class Mooring(Edge):
     def setSectionType(self, lineType, i):
         '''Sets lineType of section, including in the subdsystem 
         if there is one.'''
-        sec = self.getSubcomponents(self.i_sec[i])
+        sec = self.getSubcomponent(self.i_sec[i])
         # set type dict in dd (which is also Section/subcomponent)
         sec['type'] = lineType  
         
@@ -325,8 +319,7 @@ class Mooring(Edge):
                 else:
                     print('Warning: depth of mooring line, anchor, and subsystem must be updated manually.')
 
-                self.setEndPosition(np.hstack([self.rB[:2] + self.span*u, self.z_anch]), 'a', sink=True)
-
+                self.setEndPosition(np.hstack([self.rB[:2] + self.span*u, self.z_anch]), 'a', sink=True)                
                 self.adjuster(self, method = 'horizontal', r=r_centerB, project=project, target = self.target, i_line = self.i_line)
             
         elif self.shared == 1: # set position of end A at platform end A if no fairlead objects
@@ -457,6 +450,7 @@ class Mooring(Edge):
         ''' Gets tensions from subsystem and updates the max tensions dictionary if it is larger than a previous tension
         '''
         Ts = []
+        Tc = []
         # get tensions for each section
         for sec in self.sections():
             if not 'Tmax' in sec.loads:
@@ -465,8 +459,50 @@ class Mooring(Edge):
             if Tmax*DAF > sec.loads['Tmax']:
                 sec.loads['Tmax'] = deepcopy(Tmax)*DAF
             Ts.append(sec.loads['Tmax'])
+        for conn in self.connectors():
+            if not 'Tmax' in conn.loads:
+                conn.loads['Tmax'] = 0
+            Tmax = np.linalg.norm(conn.mpConn.getForces())
+            if Tmax*DAF > conn.loads['Tmax']:
+                conn.loads['Tmax'] = deepcopy(Tmax)*DAF
+            Tc.append(conn.loads['Tmax'])
             
         return max(Ts)
+    
+    def updateSafetyFactors(self,key='tension',load='Tmax', prop='MBL', 
+                            sections=True, connectors=True, info={}):
+        """Update safety factors for desired factor type, load type, and property
+        
+        Parameters
+        ---------
+        key: str/int, optional
+            safety_factor dictionary key. Default is 'tension'. 
+        load: str, optional
+            key in loads dictionary. Default is 'Tmax'
+        prop: str, optional
+            key in line type dictionary. Default is 'MBL'
+        info: str, optional
+            information string to add to safety_factors dictionary
+            
+        Returns
+        -------
+        Minimum safety factor for the given key across all sections in the mooring line
+        """
+        
+        # get safety factors for each section
+        if sections:
+            for sec in self.sections():
+                if prop in sec['type']:
+                    sec.safety_factors[key] = sec['type'][prop]/sec.loads[load]
+                sec.safety_factors['info'] = info
+        if connectors:
+            for con in self.connectors():
+                if 'type' in con and prop in con['type']:
+                    con.safety_factors[key] = con['type'][prop]/con.loads[load]
+                sec.safety_factors['info'] = info
+
+            
+            
     
     
     def createSubsystem(self, case=0, pristine=True, dd=None, ms=None):
@@ -512,8 +548,6 @@ class Mooring(Edge):
             ss=Subsystem(mooringSys=ms, depth=-dd['zAnchor'], rho=self.rho, g=self.g, 
                           span=dd['span'], rad_fair=self.rad_fair,
                           z_fair=self.z_fair)#, bathymetry=dict(x=project.grid_x, y=project.grid_y, depth=project.grid_depth))    # don't necessarily need to import anymore
-        
-            #ss.setSSBathymetry(project.grid_x, project.grid_y, project.grid_depth)
             
             lengths = []
             types = []

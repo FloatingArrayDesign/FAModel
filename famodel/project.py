@@ -1906,36 +1906,6 @@ class Project():
                 
         # return fairlead object
         return(jt)
-   
-
-    def cableDesignInterpolation(self,depth,cables):
-        '''Interpolates between dynamic cable designs for different depths to produce 
-        a design for the given depth
-        '''
-        # grab list of values for all cables
-        cabdesign = {}
-        cabdesign['span'] = [x.dd['span'] for x in cables]
-        depths = [-x.z_anch for x in cables]
-        cabdesign['n_buoys'] = [x.dd['buoyancy_sections']['N_modules'] for x in cables]
-        cabdesign['spacings'] = [x.dd['buoyancy_sections']['spacing'] for x in cables]
-        cabdesign['L_mids'] = [x.dd['buoyancy_sections']['L_mid'] for x in cables]
-        cabdesign['L'] = [x.dd['L'] for x in cables]
-
-        # sort and interp all lists by increasing depths
-        sorted_indices = np.argsort(depths)
-        depths_sorted = [depths[i] for i in sorted_indices]
-        newdd = deepcopy(cable[0].dd)
-        newdd['span'] = np.interp(depth,depths_sorted,[cabdesign['span'][i] for i in sorted_indices])
-        newdd['buoyancy_sections']['N_modules'] = np.interp(depth, depths_sorted,
-                                                            [cabdesign['n_buoys'][i] for i in sorted_indices])
-        newdd['buoyancy_sections']['spacing'] = np.interp(depth,depths_sorted, 
-                                                          [cabdesign['spacings'][i] for i in sorted_indices])
-        newdd['buoyancy_sections']['L_mids'] = np.interp(depth,depths_sorted,
-                                                         [cabdesign['L_mids'][i] for i in sorted_indices])
-        newdd['L'] = np.interp(depth,depths,[cabdesign['L'][i] for i in sorted_indices])
-
-        
-        return(newdd)
 
 
 
@@ -2054,11 +2024,12 @@ class Project():
                 # get depth at these locs
                 initial_depths.append(self.getDepthAtLocation(*endLocA))
                 initial_depths.append(self.getDepthAtLocation(*endLocB))
-                
                 # select cable and collect design dictionary info on cable
-                selected_cable, dd = getCableDesign(connDict[i], cableType_def, 
-                                                    cableConfig, configType, 
-                                                    depth=np.mean(initial_depths))
+                selected_cable, dd, cable_candidates = getCableDesign(
+                    connDict[i], cableType_def, 
+                    cableConfig, configType, 
+                    depth=np.mean(initial_depths)
+                    )
             else:
                 dd = {}
                 dd['cables'] = []
@@ -2098,6 +2069,9 @@ class Project():
             cab.attachTo(attB,end='b')
             
             if cableConfig:
+                if cable_candidates:
+                    cab.subcomponents[0].alternate_cables=cable_candidates
+                    cab.subcomponents[-1].alternate_cables=cable_candidates
                 if 'head_offset' in selected_cable:
                     headingA += np.radians(selected_cable['head_offset'])
                     headingB -= np.radians(selected_cable['head_offset'])
@@ -2288,7 +2262,7 @@ class Project():
                                           Xuvec=[1,0,0], Yuvec=[0,1,0],label=labs)  
                 elif mooring.parallels:
                     for i,line in enumerate(lineList):
-                        line.drawLine2d(0, ax, color="self", endpoints=False,
+                        line.drawLine2d(0, ax, color="self",
                                         Xuvec=[1,0,0], Yuvec=[0,1,0],label=labs[i])
 
                 else: # simple line plot
@@ -2736,7 +2710,6 @@ class Project():
                 
                 # create subsystem
                 if pristineLines:
-
                     mooring.createSubsystem(pristine=True, ms=self.ms)
 
                     # set location of subsystem for simpler coding
@@ -4028,14 +4001,16 @@ class Project():
         angs = np.arange(0,360+ang_spacing,ang_spacing)
         n_angs = len(angs)
         
-        # lists to save info in       
-        minSag = [None]*len(self.cableList)
-        minCurvSF = [None]*len(self.cableList)
-        CminTenSF = [None]*len(self.cableList)
+        # lists to save info in  
         minTenSF = [None]*len(self.mooringList)
+        CminTenSF = [None]*len(self.cableList)
+        minCurvSF = [None]*len(self.cableList)
         F = [None]*len(self.anchorList) 
         x = np.zeros((len(self.platformList),n_angs))
         y = np.zeros((len(self.platformList),n_angs))
+        
+        info = {'analysisType': 'quasi-static (MoorPy)',
+                'info': f'determined from arrayWatchCircle() with DAF of {DAF}'}
         
         lBots = np.zeros(len(self.mooringList))  # initialize for maximum laid length per mooring
         if not self.ms:
@@ -4069,40 +4044,30 @@ class Project():
                         anch.loads['Vm'] = F[j][2]
                         anch.loads['thetam'] = np.degrees(np.arctan(anch.loads['Vm']/anch.loads['Hm'])) #[deg]
                         anch.loads['mudline_load_type'] = 'max'
-                        anch.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
+                        anch.loads.update(info)
                             
                 # get tensions on mooring line
                 for j, moor in enumerate(self.mooringList.values()):
                     lBot = 0
                     moor.updateTensions(DAF=DAF)
-                    for sec in moor.sections():
-                        sec.safety_factors['tension'] = sec['type']['MBL']/sec.loads['Tmax']
-                        sec.safety_factors['analysisType'] = 'quasi-static (MoorPy)'
-                        sec.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
-                        if moor_seabed_disturbance:
+                    moor.updateSafetyFactors(info=info)
+                    if moor_seabed_disturbance:
+                        for sec in moor.sections():
                             lBot += sec.mpLine.LBot
-                    lBots[j] = max(lBots[j], lBot)
+                        lBots[j] = max(lBots[j], lBot)
 
                                 
                 # get tensions and curvature on cables
                 for j,cab in enumerate(self.cableList.values()):
                     dcs = [a for a in cab.subcomponents if isinstance(a,DynamicCable)] # dynamic cables in this cable 
-                    ndc = len(dcs) # number of dynamic cable objects in this single cable object
-                    CminTenSF[j] = [None]*ndc
-                    minCurvSF[j] = [None]*ndc
-                    minSag[j] = [None]*ndc
+                    cab.updateTensions(DAF=DAF)
+                    cab.updateSafetyFactors(info=info)
+                    minCurvSF[j] = [None]*len(dcs)
+                    CminTenSF[j] = [None]*len(dcs)
                     if dcs[0].ss:
-                        for jj,dc in enumerate(dcs):               
-                            MBLA = dc.ss.lineList[0].type['MBL']
-                            MBLB = dc.ss.lineList[-1].type['MBL']
-                            CMTSF = min([abs(MBLA/dc.ss.TA),abs(MBLB/dc.ss.TB)])
-                            if CminTenSF[j][jj] is None or CminTenSF[j][jj]>CMTSF:
-                                CminTenSF[j][jj] = deepcopy(CMTSF)
-                                dc.loads['TAmax'] = dc.ss.TA*DAF
-                                dc.loads['TBmax'] = dc.ss.TB*DAF
-                                dc.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
-                                dc.safety_factors['tension'] = CminTenSF[j][jj]
-                            # CatenMax[j], CbtenMax[j] = cab.updateTensions()
+                        
+                        for jj,dc in enumerate(dcs):
+                            CminTenSF[j][jj] = dc.safety_factors['tension']
                             dc.ss.calcCurvature()
                             mCSF = dc.ss.getMinCurvSF()
                             if not minCurvSF[j][jj] or minCurvSF[j][jj]>mCSF:

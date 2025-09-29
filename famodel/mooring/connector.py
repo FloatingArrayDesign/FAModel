@@ -38,6 +38,9 @@ class Connector(Node, dict):
         # MoorPy Point Object for Connector
         self.mpConn = None
         
+        # dictionary of loads
+        self.loads = {}
+        
         # dictionary of failure probabilities
         self.failure_probability = {}
         

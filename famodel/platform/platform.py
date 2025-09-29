@@ -394,13 +394,13 @@ class Platform(Node):
                 for j,moor in enumerate(moorings): 
                     lBot = 0
                     moor.updateTensions(DAF=DAF)
-                    for sec in moor.sections():
-                        sec.safety_factors['tension'] = sec['type']['MBL']/sec.loads['Tmax']
-                        sec.safety_factors['analysisType'] = 'quasi-static (MoorPy)'
-                        sec.loads['info'] = f'determined from platform.getWatchCircle() with DAF of {DAF}'
-                        if moor_seabed_disturbance:
+                    info = {'analysisType': 'quasi-static (MoorPy)',
+                            'info': f'determined from platform.getWatchCircle() with DAF of {DAF}'}
+                    moor.updateSafetyFactors(info=info)
+                    if moor_seabed_disturbance:
+                        for sec in moor.sections():
                             lBot += sec.mpLine.LBot
-                    lBots[j] = max(lBots[j], lBot)
+                        lBots[j] = max(lBots[j], lBot)
                 
                 # get tensions, sag, and curvature on cable
                 for j,cab in enumerate(dcs):

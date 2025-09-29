@@ -110,6 +110,9 @@ class DynamicCable(Edge):
         self.rho = rho
         self.g = g
         
+        # alternate designs to interpolate between when depth changes
+        self.alternate_designs = None
+        
         # Dictionaries for addition information
         self.loads = {}
         self.safety_factors = {} # calculated safety factor

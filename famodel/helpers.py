@@ -290,6 +290,71 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1, adj_dir=1):
 
     return(headnew)
 
+def cableDesignInterpolation(dd, cables, depth):
+    '''Interpolates between dynamic cable designs for different depths to produce 
+    a design for the given depth
+    
+    Parameters
+    ----------
+    dd : dict
+        Design dictionary of cable object before interpolation
+    cables : list
+        List of dictionaries of cable designs to interpolate between
+    depth : float
+        Depth (abs val) of cable to interpolate design for
+    '''
+    # grab list of values for all cables
+    
+    n_bs = len(dd['buoyancy_sections'])
+    cabdesign = {'n_buoys':[[] for _ in range(n_bs)],
+                 'spacings':[[] for _ in range(n_bs)],
+                 'L_mids':[[] for _ in range(n_bs)],
+                 'span': [],
+                 'L': []}
+    depths = []
+    for cab in cables:
+        if len(cab['buoyancy_sections'])==n_bs:
+            for ii in range(n_bs):
+                cabdesign['n_buoys'][ii].append(
+                    cab['buoyancy_sections'][ii]['N_modules'])
+                cabdesign['spacings'][ii].append(
+                    cab['buoyancy_sections'][ii]['spacing'])
+                cabdesign['L_mids'][ii].append(
+                    cab['buoyancy_sections'][ii]['L_mid'])
+
+            cabdesign['L'].append(cab['L'])
+            depths.append(cab['depth'])
+            cabdesign['span'].append(cab['span'])
+
+    # sort and interp all lists by increasing depths
+    sorted_indices = np.argsort(depths)
+    depths_sorted = [depths[i] for i in sorted_indices]
+    newdd = deepcopy(dd)
+    if depth > depths_sorted[-1]:
+        # depth outside range, can't interpolate - just adjust length
+        newdd['L'] = cabdesign['L'][sorted_indices[-1]] + depth-depths_sorted[-1]
+    elif depth < depths_sorted[0]:
+        # depth outside range, can't interpolate - just adjust length
+        newdd['L'] = cabdesign['L'][sorted_indices[0]] - depth-depths_sorted[0]
+    else:
+        # interpolate designs
+        newdd['span'] = np.interp(depth,depths_sorted,
+                                  [cabdesign['span'][i] for i in sorted_indices])
+        for i,bs in enumerate(newdd['buoyancy_sections']):
+            bs['N_modules'] = np.interp(depth, depths_sorted,
+                            [cabdesign['n_buoys'][i][j] for j in sorted_indices])
+            bs['spacing'] = np.interp(depth,depths_sorted, 
+                                    [cabdesign['spacings'][i][j] for j in sorted_indices])
+            bs['L_mid'] = np.interp(depth,depths_sorted,
+                                    [cabdesign['L_mids'][i][j] for j in sorted_indices])
+        newdd['L'] = np.interp(depth,depths_sorted,
+                           [cabdesign['L'][j] for j in sorted_indices])
+        newdd['depth'] = depth
+        newdd['z_anch'] = -depth
+
+    
+    return(newdd)
+
 def getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal):
     '''
     get cable design dictionary from a cableConfig yaml. Primarily used for project.addCablesConnections()
@@ -321,11 +386,11 @@ def getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal):
     # get connector and joint costs if they were given
     dd['connector_cost'] = getFromDict(selected_cable,'connector_cost',default=0)
     joint_cost = getFromDict(selected_cable,'joint_cost',default=0)
-    
+    depth = cableConfig['cableTypes'][selected_cable['sections'][0]]['depth']
     for j in range(len(selected_cable['sections'])):
         dd['cables'].append(deepcopy(cableConfig['cableTypes'][selected_cable['sections'][j]]))
         cd = dd['cables'][j]
-        cd['z_anch'] = -selected_cable['depth']
+        cd['z_anch'] = -depth
         # cd['cable_type'] = cableConfig['cableTypes'][selected_cable['sections'][j]] # assign info in selected cable section dict to cd
         cd['A'] = selected_cable['A']
         cd['voltage'] = cableType_def[-2:]
@@ -358,73 +423,140 @@ def getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal):
         
     return(dd)
 
+def getCandidateCableDesigns(cable_reqs, cable_configs):
+    '''
+    Returns list of cable designs that meet requirements
+
+    Parameters
+    ----------
+    cable_reqs : TYPE
+        DESCRIPTION.
+    cable_configs : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    '''
+    candidate_cables = []
+    for config in cable_configs:
+        if np.allclose(
+                np.array([cable_reqs[key] for key in cable_reqs.keys()]),
+                np.array([config[key] for key in cable_reqs.keys()])
+                ):
+            candidate_cables.append(config)
+            
+    return(candidate_cables)
+
 def getCableDesign(connVal, cableType_def, cableConfig, configType, depth=None):
     # go through each index in the list and create a cable, connect to platforms
     
     dd = {}
     dd['cables'] = []
     # collect design dictionary info on cable
-
-    # create reference cables (these are not saved into the cableList, just used for reference)
+    if connVal['cable_id']>100:
+        # connected to substation, overwrite cable type
+        ctype = 0 
+    else:
+        ctype=configType
+        
+    cable_reqs = {'A': connVal['conductor_area'],
+                  'type': ctype }
     
-    # find associated cable in cableConfig dict
-    cableAs = []
-    cableDs = []
-    cable_selection = []
-    for cabC in cableConfig['configs']:
-        if connVal['conductor_area'] == cabC['A']:
-            cableAs.append(cabC)
-    if not cableAs:
-        raise Exception('Cable configs provided do not match required conductor area')
-    elif len(cableAs) == 1:
-        cable_selection = cableAs
-    else:                        
-        for cabA in cableAs:                           
-            # only check distance if the cable is NOT connected to substation
-            if 'dist' in cabA and connVal['cable_id']<100:
-                if abs(connVal['2Dlength'] - cabA['dist']) < 0.1:
-                    cableDs.append(cabA)    
+    if ctype>0:
+        cable_reqs['dist'] = connVal['2Dlength']
         
-        #if there's no matching distance, assume the nonsuspended cables 
-        if cableDs == []:
-            for cabA in cableAs:
-                if cabA['type'] == 0:
-                    cableDs.append(cabA)
-        
-        
-        for cabD in cableDs:
-            if connVal['cable_id']>=100 and cabD['type']==0:
-                # connected to a substation, use a dynamic-static-dynamic configuration
-                cable_selection.append(cabD)
-                
-            elif connVal['cable_id']<100 and cabD['type']==configType:
-                # not connected to substation, use default config type
-                cable_selection.append(cabD)
-
-        # if no cables are found to match, override the configType
-
-        if cable_selection == []:
-            for cabD in cableDs:
-                if connVal['cable_id']<100:
-                    cable_selection.append(cabD)
-            
-    if len(cable_selection)> 1:
+    cable_candidates = getCandidateCableDesigns(cable_reqs, 
+                                                cableConfig['configs'])
+    if not cable_candidates:
+        # change type to dynamic-static-dynamic and try again
+        cable_reqs['type']=0 
+        cable_candidates = getCandidateCableDesigns(cable_reqs, 
+                                                    cableConfig['configs'])
+       
+    if len(cable_candidates)> 1:
         # downselect by depth
-        depthdiff = np.array([x['depth']-depth for x in cable_selection])
-        selected_cable = cable_selection[np.argmin(depthdiff)]
-        # else:
-        #     raise Exception(f"Multiple cables match selection criteria for cable {connDict[i]['cable_id']}")
-    elif len(cable_selection) == 1:
+        depthdiff = np.array([x['depth']-depth for x in cable_candidates])
+        selected_cable = cable_candidates[np.argmin(depthdiff)]
+    elif len(cable_candidates) == 1:
         # found the correct cable
-        selected_cable = cable_selection[0]
-
+        selected_cable = cable_candidates[0]
     else:
         raise Exception(f"No cable matching the selection criteria found for cable {connVal['cable_id']}")
+    
+    # # create reference cables (these are not saved into the cableList, just used for reference)
+    
+    # # find associated cable in cableConfig dict
+    # cableAs = []
+    # cableDs = []
+    # cable_selection = []
+    # for cabC in cableConfig['configs']:
+    #     if connVal['conductor_area'] == cabC['A']:
+    #         cableAs.append(cabC)
+    # if not cableAs:
+    #     raise Exception('Cable configs provided do not match required conductor area')
+    # elif len(cableAs) == 1:
+    #     cable_selection = cableAs
+    #     cableDs = cableAs # needed for interpolation procedure
+    # else:                        
+    #     for cabA in cableAs:                           
+    #         # only check distance if the cable is NOT connected to substation
+    #         if 'dist' in cabA and connVal['cable_id']<100:
+    #             if abs(connVal['2Dlength'] - cabA['dist']) < 0.1:
+    #                 cableDs.append(cabA)    
         
-    dd = getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal)           
+    #     #if there's no matching distance, assume the nonsuspended cables 
+    #     if cableDs == []:
+    #         for cabA in cableAs:
+    #             if cabA['type'] == 0:
+    #                 cableDs.append(cabA)
+        
+        
+    #     for cabD in cableDs:
+    #         if connVal['cable_id']>=100 and cabD['type']==0:
+    #             # connected to a substation, use a dynamic-static-dynamic configuration
+    #             cable_selection.append(cabD)
+                
+    #         elif connVal['cable_id']<100 and cabD['type']==configType:
+    #             # not connected to substation, use default config type
+    #             cable_selection.append(cabD)
+
+    #     # if no cables are found to match, override the configType
+
+    #     if cable_selection == []:
+    #         for cabD in cableDs:
+    #             if connVal['cable_id']<100:
+    #                 cable_selection.append(cabD)
+            
+    # if len(cable_selection)> 1:
+    #     # downselect by depth
+    #     depthdiff = np.array([x['depth']-depth for x in cable_selection])
+    #     selected_cable = cable_selection[np.argmin(depthdiff)]
+    #     # else:
+    #     #     raise Exception(f"Multiple cables match selection criteria for cable {connDict[i]['cable_id']}")
+    # elif len(cable_selection) == 1:
+    #     # found the correct cable
+    #     selected_cable = cable_selection[0]
+
+    # else:
+    #     raise Exception(f"No cable matching the selection criteria found for cable {connVal['cable_id']}")   
+    dd = getCableDD(dd,selected_cable,cableConfig,cableType_def,connVal) 
+    i_dc = [i for i,sec in enumerate(dd['cables']) if sec['type']=='dynamic']         
     dd['name'] = cableType_def
+    dc_cands = []
+    # pull out the dc definitions of candidate cables
+    for cand in cable_candidates:
+        cand = dict(cand)
+        for sec in cand['sections']:
+            typedef = cableConfig['cableTypes'][sec]
+            if typedef['type']=='dynamic' and typedef not in dc_cands:
+                dc_cands.append(cableConfig['cableTypes'][sec])
+    for i in i_dc:
+        dd['cables'][i] = cableDesignInterpolation(
+            dd['cables'][i], dc_cands, depth)
         
-    return(selected_cable,deepcopy(dd))
+    return(selected_cable,deepcopy(dd), cable_candidates)
 
 def getDynamicCables(cable_config, cable_types, cable_appendages, depth, 
                      rho_water=1025, g=9.81):
@@ -1243,6 +1375,8 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
                                  args=dict(direction='horizontal'), 
                                  Xmin=[10], Xmax=[2000], dX_last=[10], 
                                  maxIter=50, stepfac=4)
+        # update design dictionary L
+        mooring.setSectionLength(ss.lineList[i_line].L,i_line)
 
     else:
         print('Invalid method. Must be either pretension or horizontal')
