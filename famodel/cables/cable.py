@@ -347,7 +347,7 @@ class Cable(Edge):
 
         """
         for dc in self.dynamicCables():
-            dc.safety_factors[key] = dc.dd['type'][prop]/dc.loads[load]
+            dc.safety_factors[key] = dc.dd['cable_type'][prop]/dc.loads[load]
             dc.safety_factors['info'] = info
         
     
