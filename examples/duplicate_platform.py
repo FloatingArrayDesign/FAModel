@@ -9,13 +9,11 @@ import os
 import matplotlib.pyplot as plt
 
 #### INPUTS ####
-input_directory = 'Inputs/' # relative location of directory for input files (yaml, bath files, etc)
-filename = 'OntologySample200m.yaml' # yaml file to make initial platform(s)
+dir = os.path.dirname(os.path.realpath(__file__))
+filename = dir+'\OntologySample200m.yaml' # yaml file to make initial platform(s)
 rep_pf_name = 'FOWT1' # platform to replicate (look at yaml file array data table to get platform names)
 new_pf_loc = [0,0]
 
-# switch to directory of input files
-os.chdir(input_directory)
 
 # first load in single platform from yaml
 project = Project(file=filename)

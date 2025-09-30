@@ -333,7 +333,8 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths,
         f.write('\n')
     f.close()
 
-def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows=100):
+
+def getLeaseAndBathymetryInfo(lease_name, bathymetry_file, bath_ncols=100, bath_nrows=100, write_bathymetry=True):
 
     # initialize the conventional lat/long CRS
     latlong_crs = getLatLongCRS()
@@ -348,27 +349,35 @@ def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows
     lease_xs, lease_ys, centroid_utm = convertLatLong2Meters(lease_longs, lease_lats, centroid, 
                                                              latlong_crs, custom_crs, return_centroid=True)
 
-    # get bathymetry information from a GEBCO file (or other)
-    bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry(gebco_file)
+    if write_bathymetry:
+        # get bathymetry information from a GEBCO file (or other)
+        bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry(bathymetry_file)
+        # convert bathymetry to meters
+        bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, custom_crs, bath_ncols, bath_nrows)
+        # export to MoorPy-readable file
+        bathymetry_file = f'bathymetry_{bath_ncols}x{bath_nrows}.txt'
+        writeBathymetryFile(bathymetry_file, bath_xs, bath_ys, bath_depths)
     
-    # convert bathymetry to meters
-    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, 
-                                                             latlong_crs, custom_crs, bath_ncols, bath_nrows)
-    # export to MoorPy-readable file
-    bathymetryfile = f'bathymetry_{bath_ncols}x{bath_nrows}.txt'
-    writeBathymetryFile(bathymetryfile, bath_xs, bath_ys, bath_depths)
+    ms = mp.System(bathymetry=bathymetry_file)
 
     info = {}
     info['lease_longs'] = lease_longs
     info['lease_lats'] = lease_lats
     info['lease_centroid'] = centroid
+    info['centroid_utm'] = centroid_utm
     info['lease_xs'] = lease_xs
     info['lease_ys'] = lease_ys
-    info['bath_longs'] = bath_longs
-    info['bath_lats'] = bath_lats
-    info['bath_xs'] = bath_xs
-    info['bath_ys'] = bath_ys
-    info['bath_depths'] = bath_depths
+    if write_bathymetry:
+        info['bath_longs'] = bath_longs
+        info['bath_lats'] = bath_lats
+        info['bath_xs'] = bath_xs
+        info['bath_ys'] = bath_ys
+        info['bath_depths'] = bath_depths
+    else:
+        info['bath_xs'] = ms.bathGrid_Xs
+        info['bath_ys'] = ms.bathGrid_Ys
+        info['bath_depths'] = ms.bathGrid
+
 
     return info
 
@@ -917,6 +926,7 @@ if __name__ == '__main__':
     y_center = np.mean(info['lease_ys'])
     
     zoom = 8000  
+
 
     xbounds = [x_center - zoom, x_center + zoom]
     ybounds = [y_center - zoom, y_center + zoom]

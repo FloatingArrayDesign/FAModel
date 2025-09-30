@@ -2,7 +2,10 @@
 from famodel.project import Project
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+import pytest
 
+<<<<<<< HEAD
 # --- Helper goes at module level ---
 def assign_soil(anchor, soil_label, project):
     soil_def = project.soilProps[soil_label]
@@ -20,8 +23,15 @@ def assign_soil(anchor, soil_label, project):
 
 def test_anchor_loads():
     # load in famodel project 
+=======
+@pytest.fixture
+def project():
+>>>>>>> dev
     dir = os.path.dirname(os.path.realpath(__file__))
-    project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
+    return(Project(file=os.path.join(dir,'testOntology.yaml'), raft=False))
+
+def test_anchor_loads(project):
+    # load in famodel project 
     project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
    
@@ -35,6 +45,7 @@ def test_anchor_loads():
     Vm = anch.loads.get('Vm')
     zlug = anch.dd['design']['zlug']
 
+<<<<<<< HEAD
     # Compute lug loads
     _, Ha, Va = anch.getLugForces(Hm, Vm, zlug, plot=False)
     anch.loads['Ha'] = Ha
@@ -46,9 +57,10 @@ def test_anchor_loads():
     assert anch.loads['Ha'] != anch.loads['Hm']
     
 def test_anchor_capacities():
+=======
+def test_anchor_capacities(project):
+>>>>>>> dev
     # load in famodel project (suction pile anchor)
-    dir = os.path.dirname(os.path.realpath(__file__))
-    project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
     project.getMoorPyArray(cables=1)
     anch = project.anchorList['FOWT1a']
 
