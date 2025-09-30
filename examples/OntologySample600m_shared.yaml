@@ -103,8 +103,8 @@ array:
     data : #    ID#        ID#        ID#          [m]             [m]           [deg]
         -  [FOWT1,     1,         1,         ms3,          0,         0,          180   ]    # 2 array, shared moorings
         -  [FOWT2,     1,         1,         ms2,          1600,           0,            0   ] 
-        -  [FOWT3,     1,         1,         ms1,          0,           1656,            180   ]
-        -  [FOWT4,     1,         1,         ms4,          1600,        1600,             180]
+        -  [FOWT3,     1,         1,         ms1,          0,           1700.4577,            180   ]
+        -  [FOWT4,     1,         1,         ms4,          1600,        1700.4577,             180]
         # -  [4,     1,         2,         ms4,          -1200,              0,            0   ]
         # -  [5,     1,         1,         ms5,          0,              0,            0   ]
         # -  [6,     1,         1,         ms6,          1200,              0,            0   ]
@@ -118,7 +118,7 @@ array_mooring:
     anchor_keys :
           [ID, type,  x,  y,  embedment ]
     anchor_data :
-        - [  Anch1,  suction_pile1, -828  , 828  ,  2   ]
+        - [  Anch1,  suction_pile1, -829  , 850.22887  ,  2   ]
         # - [  2,  suction1,  -1900 ,  -1200 ,  2   ]
         # - [  3,  suction1,  -850 ,  -1806 ,  2   ]
         # - [  4,  suction1,  -850 ,  600 ,  2   ]
@@ -127,18 +127,18 @@ array_mooring:
     line_keys : 
           [MooringConfigID  ,  endA,   endB,  fairleadA, fairleadB, lengthAdjust]
     line_data :
-        - [ rope_shared   ,  FOWT1,  FOWT2,  1, 1, 0]
-        - [ rope_1   ,  Anch1,  FOWT1, NONE, 3,  0]
-        - [ rope_1   ,  Anch1,  FOWT3, NONE, 2,  0]
+        - [ rope_shared_bridle   ,  FOWT1,  FOWT2,  [4,5], [4,5], 0]
+        - [ rope_1   ,  Anch1,  FOWT1, NONE,   2,  0]
+        - [ rope_1   ,  Anch1,  FOWT3, NONE,  1,  0]
         # - [ shared-2-clump       ,  FOWT 2,  FOWT 3, 0,  0,  0]
 
 
 # Array cables (compact table format, without routing info)
 array_cables:   
-    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB,  JtubeA, JtubeB, headingA, headingB, cableType, lengthAdjust]
+    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB,  headingA, headingB, cableType, lengthAdjust]
     data: 
-      - [ FOWT1, FOWT3, suspended_1, NONE, 2, 3, 180,  0,   NONE, 0]
-      - [ FOWT3, FOWT4,  lazy_wave1, lazy_wave1, 3, 1, 285,   80, static_cable_36, 0] 
+      - [ FOWT1, FOWT3, suspended_1, NONE, 180,  0,   NONE, 0]
+      - [ FOWT3, FOWT4,  lazy_wave1, lazy_wave1, 290,   70, static_cable_36, 0] 
 
 
 # ----- turbines and platforms -----
@@ -1203,14 +1203,18 @@ platforms:
     rFair        :  40.5    # platform fairlead radius
     zFair        :  -20     # platform fairlead z-location
     type         :  FOWT
-    fairleads    :  # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
+    fairleads    : 
+                   # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: fairlead1
-                     r_rel: [40.5,0,-20]
-                     headings: [270, 30, 150] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
-    Jtubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
-                   - name: Jtube1
-                     r_rel: [5, 0, -20]
-                     headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
+                     r_rel: [58, 0, -14] # relative coordinates of fairlead to platform center
+                     headings: [30, 150, 270] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)  
+                   - name: fairleads2
+                     r_rel: [-57.779,-5.055, -14]
+                   - name: fairleads3
+                     r_rel: [-57.779, 5.055, -14]
+    rFair        :  40.5    # platform fairlead radius
+    zFair        :  -20     # platform fairlead z-location
+    type         :  FOWT
     
     members:   # list all members here
         
@@ -1312,32 +1316,32 @@ mooring_systems:
         
         keys: [MooringConfigID,  heading, anchorType, fairlead] 
         data:
-          - [  rope_1,   270 ,    suction_pile1,   1 ]
-          - [  rope_1,  135 ,    suction_pile1,   3 ]
+          - [  rope_1_bridle,   270 ,    suction_pile1,   [4,5] ]
+          - [  rope_1,  135 ,    suction_pile1,   2 ]
 
     ms2:
         name: 2-line semitaut with a third shared line
         
-        keys: [MooringConfigID,  heading, anchorType, fairlead] 
+        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
         data:
-          - [  rope_1,   45 ,    suction_pile1,   2 ]
-          - [  rope_1,  135 ,    suction_pile1,   3 ]
+          - [  rope_1,   45 ,    suction_pile1,   0 ]
+          - [  rope_1,  135 ,    suction_pile1,   0 ]
           
     ms3: 
         name: 3-line semi-taut polyester mooring system with one line shared anchor and one shared line
         
         keys: [MooringConfigID,  heading, anchorType, fairlead] 
         data:
-          - [  rope_1,  45 ,    suction_pile1,   2 ]
+          - [  rope_1,  45 ,    suction_pile1,   1 ]
 
     ms4:
         name: 3 line taut poly mooring system
 
         keys: [MooringConfigID,  heading, anchorType, fairlead] 
         data:
-          - [  rope_1,   45 ,    suction_pile1,   2 ]
-          - [  rope_1,  135 ,    suction_pile1,   3 ]
-          - [  rope_1,   270 ,    suction_pile1,   1 ]
+          - [  rope_1,   45 ,    suction_pile1,   1 ]
+          - [  rope_1,  135 ,    suction_pile1,   2 ]
+          - [  rope_1,   270 ,    suction_pile1,   3 ]
 
 
 # Mooring line configurations
@@ -1356,6 +1360,67 @@ mooring_line_configs:
           - type: rope       # ID of a mooring line section type
             length: 1170            # [m] usntretched length of line section
             adjustable: True      # flags that this section could be adjusted to accommodate different spacings...
+
+    rope_1_bridle:  # mooring line configuration identifier
+    
+        name: rope configuration 1 with a bridle  # descriptive name
+        
+        span: 1131.37
+
+        
+        sections:                 #in order from anchor to fairlead
+          - type: chain_155mm
+            length: 20
+          - type: rope       # ID of a mooring line section type
+            length: 500            # [m] usntretched length of line section
+          - connectorType: triplate
+          - subsections: # double chain section
+            - - mooringFamily: chain
+                d_nom: 0.1      
+                length: 120            
+            - - mooringFamily: chain  
+                d_nom: 0.1    
+                length: 120  
+          - connectorType: triplate          
+          - type: rope       # ID of a mooring line section type
+            length: 500            # [m] usntretched length of line section
+          - subsections:  # bridle sections for end B
+              - - type: rope
+                  length: 50
+                - connectorType: shackle
+              - - type: rope
+                  length: 50
+                - connectorType: shackle
+
+    rope_shared_bridle:
+        name: shared rope with a bridle on each end
+        
+        span: 1484
+
+        
+        sections:
+          - subsections:  # bridle sections for end B
+              - - connectorType: shackle
+                - type: rope
+                  length: 50
+              - - connectorType: shackle
+                - type: rope
+                  length: 50
+          - type: rope
+            length: 100
+          - connectorType: clump_weight_80
+          - type: rope
+            length: 1172
+          - connectorType: clump_weight_80
+          - type: rope
+            length: 100
+          - subsections:  # bridle sections for end B
+              - - type: rope
+                  length: 50
+                - connectorType: shackle
+              - - type: rope
+                  length: 50
+                - connectorType: shackle
 
     rope_shared:
         name: shared rope 
@@ -1488,6 +1553,11 @@ mooring_connector_types:
     shackle:
         m   : 200
         v   : .2
+    
+    triplate:
+        m   : 1000
+        v   : 0.1
+        # note: triplate is a connector that connects three mooring lines together, e.g., for a double chain section
 
 # Anchor type properties
 anchor_types:
@@ -1530,14 +1600,13 @@ cables:
       type: static_cable_36
       endA: 
           attachID: FOWT1            # FOWT/substation/junction ID
-          heading:  270                  # [deg] heading of attachment at end A
+          heading:  260                  # [deg] heading of attachment at end A
           dynamicID: lazy_wave1  # ID of dynamic cable configuration at this end
-          Jtube: 2
+          rJTube : 5 # [m] radial distance from center of platform that J-tube is located
       endB:
           attachID: FOWT2
-          heading: 270
+          heading: 280
           dynamicID: lazy_wave1
-          Jtube: 2
       routing_x_y_r:
           - [700,150,20] # [x (m), y (m), radius (m)]
           - [900,150,20]
@@ -1570,7 +1639,7 @@ dynamic_cable_configs:
         name: Dynamic suspended cable configuration 1 
         voltage: 33 
         span: 1500
-        rJTube : 58 # [m] radial distance from center of platform that J-tube is located   
+        rJTube : 58 # [m] radial distance from center of platform that J-tube is located         
         cable_type: dynamic_cable_33        # ID of a cable section type1
         A: 300
         length: 1650                   # [m] length (unstretched)

@@ -7,10 +7,10 @@ anchor capacity functions, along with safety factors and material costs.
 from famodel.project import Project
 import os
 
-os.chdir('./Inputs/')
+dir = os.path.dirname(os.path.realpath(__file__))
 
 # set yaml file location and name
-ontology_file = 'OntologySample200m_1turb.yaml'
+ontology_file = dir+'\OntologySample200m_1turb.yaml'
 
 # create project class
 project = Project(file=ontology_file)

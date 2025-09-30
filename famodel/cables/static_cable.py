@@ -181,13 +181,12 @@ class StaticCable(Edge):
 
         '''
 
-        if coords:
+        if coords is not None and len(coords)>0:
             self.x = [coord[0] for coord in coords]  # cable route vertex global x coordinate [m]
             self.y = [coord[1] for coord in coords]  # cable route vertex global y coordinate [m]
             # Check if radius available
             if len(coords[0]) == 3:
                 self.r = [coord[2] for coord in coords]  # cable route vertex corner radius [m]
-
                 
         # update static cable length
         self.getLength()

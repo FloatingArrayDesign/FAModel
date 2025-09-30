@@ -38,14 +38,19 @@ class Connector(Node, dict):
         # MoorPy Point Object for Connector
         self.mpConn = None
         
+        # dictionary of loads
+        self.loads = {}
+        
         # dictionary of failure probabilities
         self.failure_probability = {}
         
         # cost dictionary
         self.cost = {}
         
-        self.getProps()
         
+        self.getProps()
+    
+    
     def makeMoorPyConnector(self, ms):
         '''Create a MoorPy connector object in a MoorPy system
         Parameters
@@ -57,10 +62,15 @@ class Connector(Node, dict):
         -------
         ms : class instance
             MoorPy system 
-
         '''
+        
+        if self.isJoined(): # if the connector is joined to something
+            pointType = 1  # make it a fixed point
+        else:
+            pointType = 0  # otherwise a free point
+        
         # create connector as a point in MoorPy system
-        ms.addPoint(0,self.r)
+        ms.addPoint(pointType, self.r)
         
         # assign this point as mpConn in the anchor class instance
         self.mpConn = ms.pointList[-1]
@@ -71,10 +81,9 @@ class Connector(Node, dict):
         
         # set point type in ms
         self.getProps()
-            
         
-
         return(ms)
+    
     
     def getProps(self):
         '''
@@ -94,8 +103,11 @@ class Connector(Node, dict):
                 if self['CdA']>0:
                     details['CdA'] = self['CdA']
                 if self.mpConn:
+                    # add point type to system and assign to point entity if mp connector point exists
                     pt = self.mpConn.sys.setPointType(design,**details)
+                    self.mpConn.entity = pt
                 else:
+                    # otherwise, jsut get the point properties dict and return
                     props = loadPointProps(None)
                     pt = getPointProps(design, Props=props, **details)
                 self.required_safety_factor = pt['FOS']
@@ -104,17 +116,26 @@ class Connector(Node, dict):
             
         return(pt)
     
+    
     def getCost(self,update=True, fx=0.0, fz=0.0, peak_tension=None, MBL=None):
         '''Get cost of the connector from MoorPy pointProps.
         Wrapper for moorpy's getCost_and_MBL helper function'''
         if update:
-            if self.mpConn:
-                # use pointProps to update cost
-                try:
-                    self.getProps()
-                    self.cost['materials'], MBL, info = self.mpConn.getCost_and_MBL(fx=fx, fz=fz, peak_tension=peak_tension)
-                except:
-                    print('Warning: unable to find cost from MoorPy pointProps, cost dictionary not updated')
+            # use pointProps to update cost
+            try:
+                # get point properties from wrapper function
+                ptype = self.getProps()
+                if self.mpConn:
+                    point = self.mpConn
+                else:
+                    from moorpy import System
+                    ms = System() # create a blank moorpy system
+                    point = ms.addPoint(0, r=[0,0]) # add a dummy point
+                    point.entity = ptype # get the point properties and assign to point entity
+                # calculate cost with any given forces/tensions
+                self.cost['materials'], MBL, info = point.getCost_and_MBL(fx=fx, fz=fz, peak_tension=peak_tension)
+            except:
+                print('Warning: unable to find cost from MoorPy pointProps, cost dictionary not updated')
         # if update == False, just return existing costs
                 
         return sum(self.cost.values())
@@ -140,3 +161,39 @@ class Section(Edge, dict):
         # if the type dict wasn't provided, set as none to start with
         if not 'type' in self:
             self['type'] = None
+        
+        # MoorPy Line object for the section
+        self.mpLine = None
+        
+        # dictionary of loads on section
+        self.loads = {}
+        
+        # dictionary of safety factors
+        self.safety_factors = {}
+
+    
+    def makeMoorPyLine(self, ms):
+        '''Create a MoorPy Line object in a MoorPy system.
+        If this section is attached to connectors that already have associated
+        MoorPy point objects, then those attachments will also be made in 
+        MoorPy.
+        
+        Parameters
+        ----------
+        ms : MoorPy System object
+            The MoorPy system to create the Line object in.
+        '''
+        
+        # See if this section is attached to any already-created MoorPy Points
+        pointA = 0
+        if self.attached_to[0]:  # if an end A attachment
+            if self.attached_to[0].mpConn:  # if it has a MoorPy point object
+                pointA = self.attached_to[0].mpConn.number  # get its number
+        pointB = 0
+        if self.attached_to[1]:
+            if self.attached_to[1].mpConn:
+                pointB = self.attached_to[1].mpConn.number
+        
+        # Create a Line for the section in MoorPy system
+        self.mpLine = ms.addLine(self['L'], self['type'], pointA=pointA, pointB=pointB)
+        

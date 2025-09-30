@@ -61,6 +61,11 @@ class Joint(Node, dict):
 
         return(ms)
 
+class Jtube(Node,dict):
+    def __init__(self,id, r=None,**kwargs):
+        dict.__init__(self, **kwargs)  # initialize dict base class (will put kwargs into self dict)
+        Node.__init__(self, id)  # initialize Node base class
+    
 """
 class Cable(Edge, dict):
     '''A length of a subsea power cable product (i.e. same cross section of
