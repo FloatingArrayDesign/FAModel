@@ -386,6 +386,7 @@ def getLeaseAndBathymetryInfo(lease_name, bathymetry_file, bath_ncols=100, bath_
     info['lease_longs'] = lease_longs
     info['lease_lats'] = lease_lats
     info['lease_centroid'] = centroid
+    info['centroid_utm'] = centroid_utm
     info['lease_xs'] = lease_xs
     info['lease_ys'] = lease_ys
     if write_bathymetry:

@@ -1967,7 +1967,7 @@ class Project():
             platform.r[1] = platform.body.r6[1]
         
     
-    def plot2d(self, ax=None, plot_seabed=True,plot_bathymetry=True, plot_boundary=True, bare=False, axis_equal=True,save=False,**kwargs):
+    def plot2d(self, ax=None, plot_seabed=False,draw_soil=False,plot_bathymetry=True, plot_boundary=True, bare=False, axis_equal=True,save=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -1991,6 +1991,9 @@ class Project():
         plot_moorings = kwargs.get('plot_moorings',True)
         plot_cables = kwargs.get('plot_cables',True)
         cable_labels = kwargs.get('cable_labels', False)
+        depth_vmin = kwargs.get('depth_vmin', None)
+        depth_vmax = kwargs.get('depth_vmax', None)
+        bath_levels = kwargs.get('bath_levels', None)
         
         
         # if axes not passed in, make a new figure
@@ -2002,21 +2005,41 @@ class Project():
         
         # Bathymetry 
         if plot_bathymetry:
+            if plot_seabed:
+                raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time')
             if len(self.grid_x) > 1 and len(self.grid_y) > 1:
-                num_levels = 100  # Adjust this value as needed
-                X, Y = np.meshgrid(self.grid_x, self.grid_y)
                 
-                contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
-                #contourf = ax.contourf(X, Y, self.grid_depth, num_levels, cmap='Blues', vmin=500, vmax=1300)
-                # >>>> TODO: Update the above to add optional inputs for bounds (vmin/vmax) on contour plot colors for bathymetry <<<<
-            
+                X, Y = np.meshgrid(self.grid_x, self.grid_y)
+
+                num_levels = bath_levels if bath_levels is not None else 50
+                vmin = depth_vmin if depth_vmin is not None else np.min(self.grid_depth)
+                vmax = depth_vmax if depth_vmax is not None else np.max(self.grid_depth)
+                grid_depth = np.clip(self.grid_depth, vmin, vmax)
+
+                contourf = ax.contourf(X, Y, grid_depth, num_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
+
+                contourf.set_clim(depth_vmin, depth_vmax)
+
                 if not bare:  # Add colorbar with label
                     import matplotlib.ticker as tkr
                     cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)', format=tkr.FormatStrFormatter('%.0f'))
-        # if plot_seabed:
-        #     if len(self.soil_x) > 1 and len(self.soil_y) > 1:
-        #         sX, sY = np.meshgrid(self.soil_x, self.soil_y)
-        #         ax.scatter(sX, sY, self.soil_names)
+
+
+        if plot_seabed:
+            if plot_bathymetry:
+                raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time')
+            import matplotlib.colors as mcolors
+            soil_types = np.unique(self.soil_names)
+            soil_type_to_int = {name: i for i,name in enumerate(soil_types)}
+            soil_colors = {'mud':'green', 'hard':'brown'}
+            soil_int = np.vectorize(soil_type_to_int.get)(self.soil_names)
+            cmap = mcolors.ListedColormap([soil_colors.get(name, 'white') for name in soil_types])
+
+            X, Y = np.meshgrid(self.soil_x, self.soil_y)
+            ax.pcolormesh(X, Y, soil_int, cmap=cmap, shading='auto')
+
+            soil_handles = [plt.Line2D([0], [0], marker='s', color='w', label=name, markerfacecolor=soil_colors.get(name, 'white'), markersize=10) for name in soil_types if name != '0' ]
+        
                     
         if plot_boundary:
             if len(self.boundary) > 1:
@@ -2160,6 +2183,9 @@ class Project():
             ax.set_aspect('equal',adjustable='box')
 
         handles, labels = plt.gca().get_legend_handles_labels()
+        if plot_seabed:
+            handles += soil_handles
+            labels += [h.get_label() for h in soil_handles]
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
         ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=4)
         if save:
