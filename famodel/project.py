@@ -4397,17 +4397,10 @@ class Project():
         else:
             phi = None
         
-        # Setup nNodes of lines manually <<< TODO: Need to figure out a more automatic way of signing those numbers
-        for line in ms_temp.lineList:
-            if 0 < line.L < 20:
-                line.nNodes = 3
-            elif 20 <= line.L < 100:
-                line.nNodes = 6
-            elif 100 <= line.L < 700:
-                line.nNodes = 11
-            elif line.L >= 700:
-                line.nNodes = 16
-
+        # Setup nNodes of lines manually based on the segment length desired.
+        from moorpy.helpers import lengthAwareSegmentation
+        
+        lengthAwareSegmentation(ms_temp.lineList)
         ms_temp.unload(fileName=filename, phi=phi, MDoptionsDict=MDoptionsDict, outputList=outputList, flag=flag)
         
         # rename Body to Turbine if needed
