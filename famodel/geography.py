@@ -357,7 +357,7 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths,
 
 
 
-def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows=100):
+def getLeaseAndBathymetryInfo(lease_name, bathymetry_file, bath_ncols=100, bath_nrows=100, write_bathymetry=True):
 
     # initialize the conventional lat/long CRS
     latlong_crs = getLatLongCRS()
@@ -371,25 +371,35 @@ def getLeaseAndBathymetryInfo(lease_name, gebco_file, bath_ncols=100, bath_nrows
     # convert the lease boundary to meters
     lease_xs, lease_ys, centroid_utm = convertLatLong2Meters(lease_longs, lease_lats, centroid, latlong_crs, custom_crs, return_centroid=True)
 
-    # get bathymetry information from a GEBCO file (or other)
-    bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry(gebco_file)
-    # convert bathymetry to meters
-    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, custom_crs, bath_ncols, bath_nrows)
-    # export to MoorPy-readable file
-    bathymetryfile = f'bathymetry_{bath_ncols}x{bath_nrows}.txt'
-    writeBathymetryFile(bathymetryfile, bath_xs, bath_ys, bath_depths)
+    if write_bathymetry:
+        # get bathymetry information from a GEBCO file (or other)
+        bath_longs, bath_lats, bath_depths, ncols, nrows = getMapBathymetry(bathymetry_file)
+        # convert bathymetry to meters
+        bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(bath_longs, bath_lats, bath_depths, centroid, centroid_utm, latlong_crs, custom_crs, bath_ncols, bath_nrows)
+        # export to MoorPy-readable file
+        bathymetry_file = f'bathymetry_{bath_ncols}x{bath_nrows}.txt'
+        writeBathymetryFile(bathymetry_file, bath_xs, bath_ys, bath_depths)
+    
+    ms = mp.System(bathymetry=bathymetry_file)
 
     info = {}
     info['lease_longs'] = lease_longs
     info['lease_lats'] = lease_lats
     info['lease_centroid'] = centroid
+    info['centroid_utm'] = centroid_utm
     info['lease_xs'] = lease_xs
     info['lease_ys'] = lease_ys
-    info['bath_longs'] = bath_longs
-    info['bath_lats'] = bath_lats
-    info['bath_xs'] = bath_xs
-    info['bath_ys'] = bath_ys
-    info['bath_depths'] = bath_depths
+    if write_bathymetry:
+        info['bath_longs'] = bath_longs
+        info['bath_lats'] = bath_lats
+        info['bath_xs'] = bath_xs
+        info['bath_ys'] = bath_ys
+        info['bath_depths'] = bath_depths
+    else:
+        info['bath_xs'] = ms.bathGrid_Xs
+        info['bath_ys'] = ms.bathGrid_Ys
+        info['bath_depths'] = ms.bathGrid
+
 
     return info
 
@@ -941,7 +951,7 @@ if __name__ == '__main__':
     __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
     lease_name = 'GulfofMaine_ResearchArray'
     gebco_file = __location__+'\\..\\geography\\gebco_2024_n44.1458_s41.4761_w-70.9497_e-66.2146.asc'
-    info = getLeaseAndBathymetryInfo(lease_name, gebco_file)
+    info = getLeaseAndBathymetryInfo(lease_name, bathymetry_file)
 
 
     plt.show()
