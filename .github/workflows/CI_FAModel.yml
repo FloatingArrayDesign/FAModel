@@ -49,7 +49,7 @@ jobs:
 
             - name: Overwrite MoorPy
               run: |
-                  pip uninstall moorpy  # need to uninstall the old version to install the current dev branch
+                  pip uninstall -y moorpy  # need to uninstall the old version to install the current dev branch
                   pip install git+https://github.com/NREL/MoorPy@dev
 
             - name: Example run
