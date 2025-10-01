@@ -141,7 +141,7 @@ def dsolve(eval_func, X0, Ytarget=[], step_func=None, args=[], tol=0.0001, maxIt
 
     # process inputs and format as arrays in case they aren't already
 
-    X = np.array(X0, dtype=np.float_)         # start off design variable
+    X = np.array(X0, dtype=np.float64)         # start off design variable
     N = len(X)
 
     Xs = np.zeros([maxIter,N]) # make arrays to store X and error results of the solve
@@ -152,9 +152,9 @@ def dsolve(eval_func, X0, Ytarget=[], step_func=None, args=[], tol=0.0001, maxIt
 
     # check the target Y value input
     if len(Ytarget)==N:
-        Ytarget = np.array(Ytarget, dtype=np.float_)
+        Ytarget = np.array(Ytarget, dtype=np.float64)
     elif len(Ytarget)==0:
-        Ytarget = np.zeros(N, dtype=np.float_)
+        Ytarget = np.zeros(N, dtype=np.float64)
     else:
         raise TypeError("Ytarget must be of same length as X0")
 
@@ -193,14 +193,14 @@ def dsolve(eval_func, X0, Ytarget=[], step_func=None, args=[], tol=0.0001, maxIt
     if len(Xmin)==0:
         Xmin = np.zeros(N)-np.inf
     elif len(Xmin)==N:
-        Xmin = np.array(Xmin, dtype=np.float_)
+        Xmin = np.array(Xmin, dtype=np.float64)
     else:
         raise TypeError("Xmin must be of same length as X0")
 
     if len(Xmax)==0:
         Xmax = np.zeros(N)+np.inf
     elif len(Xmax)==N:
-        Xmax = np.array(Xmax, dtype=np.float_)
+        Xmax = np.array(Xmax, dtype=np.float64)
     else:
         raise TypeError("Xmax must be of same length as X0")
 
@@ -209,7 +209,7 @@ def dsolve(eval_func, X0, Ytarget=[], step_func=None, args=[], tol=0.0001, maxIt
     if len(dX_last)==0:
         dX_last = np.zeros(N)
     else:
-        dX_last = np.array(dX_last, dtype=np.float_)
+        dX_last = np.array(dX_last, dtype=np.float64)
 
     if display>1:
         print(f"Starting dsolve iterations>>>   aiming for Y={Ytarget}")
@@ -365,7 +365,7 @@ def dsolve2(eval_func, X0, Ytarget=[], step_func=None, args=[], tol=0.0001, maxI
     start_time = time.time()
     # process inputs and format as arrays in case they aren't already
 
-    X = np.array(X0, dtype=np.float_)         # start off design variable
+    X = np.array(X0, dtype=np.float64)         # start off design variable
     N = len(X)
 
     Xs = np.zeros([maxIter,N]) # make arrays to store X and error results of the solve
@@ -376,9 +376,9 @@ def dsolve2(eval_func, X0, Ytarget=[], step_func=None, args=[], tol=0.0001, maxI
 
     # check the target Y value input
     if len(Ytarget)==N:
-        Ytarget = np.array(Ytarget, dtype=np.float_)
+        Ytarget = np.array(Ytarget, dtype=np.float64)
     elif len(Ytarget)==0:
-        Ytarget = np.zeros(N, dtype=np.float_)
+        Ytarget = np.zeros(N, dtype=np.float64)
     else:
         raise TypeError("Ytarget must be of same length as X0")
 
@@ -393,14 +393,14 @@ def dsolve2(eval_func, X0, Ytarget=[], step_func=None, args=[], tol=0.0001, maxI
     if len(Xmin)==0:
         Xmin = np.zeros(N)-np.inf
     elif len(Xmin)==N:
-        Xmin = np.array(Xmin, dtype=np.float_)
+        Xmin = np.array(Xmin, dtype=np.float64)
     else:
         raise TypeError("Xmin must be of same length as X0")
 
     if len(Xmax)==0:
         Xmax = np.zeros(N)+np.inf
     elif len(Xmax)==N:
-        Xmax = np.array(Xmax, dtype=np.float_)
+        Xmax = np.array(Xmax, dtype=np.float64)
     else:
         raise TypeError("Xmax must be of same length as X0")
 
@@ -454,7 +454,7 @@ def dsolve2(eval_func, X0, Ytarget=[], step_func=None, args=[], tol=0.0001, maxI
     if len(dX_last)==0:
         dX_last = np.zeros(N)
     else:
-        dX_last = np.array(dX_last, dtype=np.float_)
+        dX_last = np.array(dX_last, dtype=np.float64)
 
     if display>0:
         print(f"Starting dsolve iterations>>>   aiming for Y={Ytarget}")
@@ -639,7 +639,7 @@ def dopt(eval_func, X0, tol=0.0001, maxIter=20, Xmin=[], Xmax=[], a_max=1.2, dX_
     if len(X0) == 0:
         raise ValueError("X0 cannot be empty")
 
-    X = np.array(X0, dtype=np.float_)         # start off design variable (optimized)
+    X = np.array(X0, dtype=np.float64)         # start off design variable (optimized)
 
     # do a test call to see what size the results are
     f, g, Xextra, Yextra, oths, stop = eval_func(X) #, XtLast, Ytarget, args)
@@ -657,20 +657,20 @@ def dopt(eval_func, X0, tol=0.0001, maxIter=20, Xmin=[], Xmax=[], a_max=1.2, dX_
     if len(Xmin)==0:
         Xmin = np.zeros(N)-np.inf
     elif len(Xmin)==N:
-        Xmin = np.array(Xmin, dtype=np.float_)
+        Xmin = np.array(Xmin, dtype=np.float64)
     else:
         raise TypeError("Xmin must be of same length as X0")
 
     if len(Xmax)==0:
         Xmax = np.zeros(N)+np.inf
     elif len(Xmax)==N:
-        Xmax = np.array(Xmax, dtype=np.float_)
+        Xmax = np.array(Xmax, dtype=np.float64)
     else:
         raise TypeError("Xmax must be of same length as X0")
 
 
     if len(dX_last)==N:
-        dX_last = np.array(dX_last, dtype=np.float_)
+        dX_last = np.array(dX_last, dtype=np.float64)
     elif len(dX_last)==0:
         dX_last = np.zeros(N)
     else:
@@ -748,7 +748,7 @@ def dopt(eval_func, X0, tol=0.0001, maxIter=20, Xmin=[], Xmax=[], a_max=1.2, dX_
 
             dX = np.zeros(N)  # optimization step size to take
 
-            X2 = np.array(X, dtype=np.float_)
+            X2 = np.array(X, dtype=np.float64)
 
             Jf = np.zeros([N])
             Jg = np.zeros([N,m])
@@ -1136,7 +1136,7 @@ def dopt2(eval_func, X0, tol=0.0001, maxIter=20, Xmin=[], Xmax=[], a_max=1.2, dX
     if len(X0) == 0:
         raise ValueError("X0 cannot be empty")
 
-    X = np.array(X0, dtype=np.float_)         # start off design variable (optimized)
+    X = np.array(X0, dtype=np.float64)         # start off design variable (optimized)
 
     # do a test call to see what size the results are
     f, g, Xextra, Yextra, oths, stop = eval_func(X, args) #, XtLast, Ytarget, args)
@@ -1154,20 +1154,20 @@ def dopt2(eval_func, X0, tol=0.0001, maxIter=20, Xmin=[], Xmax=[], a_max=1.2, dX
     if len(Xmin)==0:
         Xmin = np.zeros(N)-np.inf
     elif len(Xmin)==N:
-        Xmin = np.array(Xmin, dtype=np.float_)
+        Xmin = np.array(Xmin, dtype=np.float64)
     else:
         raise TypeError("Xmin must be of same length as X0")
 
     if len(Xmax)==0:
         Xmax = np.zeros(N)+np.inf
     elif len(Xmax)==N:
-        Xmax = np.array(Xmax, dtype=np.float_)
+        Xmax = np.array(Xmax, dtype=np.float64)
     else:
         raise TypeError("Xmax must be of same length as X0")
 
 
     if len(dX_last)==N:
-        dX_last = np.array(dX_last, dtype=np.float_)
+        dX_last = np.array(dX_last, dtype=np.float64)
     elif len(dX_last)==0:
         dX_last = np.zeros(N)
     else:
@@ -1264,7 +1264,7 @@ def dopt2(eval_func, X0, tol=0.0001, maxIter=20, Xmin=[], Xmax=[], a_max=1.2, dX
 
             dX = np.zeros(N)  # optimization step size to take
 
-            X2 = np.array(X, dtype=np.float_)
+            X2 = np.array(X, dtype=np.float64)
 
             Jf = np.zeros([N])
             Jg = np.zeros([N,m])
