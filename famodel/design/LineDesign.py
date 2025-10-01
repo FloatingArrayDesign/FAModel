@@ -185,34 +185,48 @@ class LineDesign(Mooring):
             shared=0
             shareCase=0        
         # make a dummy design dictionary for Mooring to make a Subsystem with???
-        dd = dict(sections={}, connectors={})
-        dd['sections']   = [{} for i in range(self.nLines)]
-        dd['connectors'] = [{} for i in range(self.nLines + 1)]
+        dd = dict(subcomponents={})
+        
+        # Create subcomponents list: alternating Connectors and Sections
+        # Pattern: [Connector, Section, Connector, Section, ..., Connector]
+        # Total length: 2*nLines + 1 (nLines sections + nLines+1 connectors)
+        dd['subcomponents'] = [{} for i in range(2*self.nLines + 1)]
         
         # the sizing function coefficients to use in the design
         self.lineProps = loadLineProps(lineProps)
         
-        # Assign section properties for use in Mooring's Subsystem.makeGeneric call
+        # Build alternating subcomponents list
         for i in range(self.nLines):
-            dd['sections'][i]['type'] = getLineProps(Ds[i], 
+            # Connector at position 2*i (even indices: 0, 2, 4, ...)
+            connector_idx = 2*i
+            section_idx = 2*i + 1
+            
+            # Initialize connector properties (will be populated below)
+            dd['subcomponents'][connector_idx] = {'m': 0, 'v': 0, 'CdA': 0}
+            
+            # Assign section properties
+            dd['subcomponents'][section_idx]['type'] = getLineProps(Ds[i], 
                 material=lineTypeNames[i], name=i, lineProps=self.lineProps)
-            dd['sections'][i]['L'] = Ls[i]
+            dd['subcomponents'][section_idx]['L'] = Ls[i]
         
-        # Assign props of intermediate point if shared
+        # Add final connector at end
+        dd['subcomponents'][2*self.nLines] = {'m': 0, 'v': 0, 'CdA': 0}
+        
+        # Assign props of first connector if shared (midpoint weight)
         if self.shared==1:
             pointDict = self.getClumpMV(Ws[0])
-
-            dd['connectors'][0]['m'] = pointDict['m']
-            dd['connectors'][0]['v'] = pointDict['v']
+            dd['subcomponents'][0]['m'] = pointDict['m']
+            dd['subcomponents'][0]['v'] = pointDict['v']
         
-        # Assign props for intermediate points/connectors
+        # Assign props for intermediate connectors
         for i in range(self.nLines-1):
-            # if this is an intermediate line
-            pointDict = self.getClumpMV(Ws[ i + 1*(shared==1)]) 
+            # Intermediate connectors are at positions 2, 4, 6, ... (2*(i+1))
+            connector_idx = 2*(i+1)
+            pointDict = self.getClumpMV(Ws[ i + 1*(self.shared==1)]) 
             
-            dd['connectors'][i+1]['m'] = pointDict['m']
-            dd['connectors'][i+1]['v'] = pointDict['v']
-            # CdA?
+            dd['subcomponents'][connector_idx]['m'] = pointDict['m']
+            dd['subcomponents'][connector_idx]['v'] = pointDict['v']
+            # CdA could be added here if needed
         
         # General mooring dimension info
         dd['span'    ] = self.span
@@ -239,13 +253,13 @@ class LineDesign(Mooring):
             # HARDCODING THIS FOR NOW (MIDPOINT WEIGHT MUST BE UPDATED)
             pointDict = self.getClumpMV(.5*Ws[0]) 
     
-            self.dd['connectors'][0]['m'] = pointDict['m']
-            self.dd['connectors'][0]['v'] = pointDict['v']
+            self.dd['subcomponents'][0]['m'] = pointDict['m']
+            self.dd['subcomponents'][0]['v'] = pointDict['v']
             
             self.ss.pointList[0].m = pointDict['m']
             self.ss.pointList[0].v = pointDict['v']
             
-        self.ss.eqtol= 0.002  # position tolerance to use in equilibrium solves [m]
+        self.ss.eqtol = getFromDict(kwargs, 'eqtol', default=0.002)  # position tolerance to use in equilibrium solves [m]
 
         # load a custom line props scaling dict if provided ??
         #self.ss.lineProps = lineProps 
@@ -287,9 +301,7 @@ class LineDesign(Mooring):
         # set the anchor type and initialize the horizontal and vertical capacities of the anchor
         self.anchorType = getFromDict(kwargs, 'anchorType', dtype=str, default='drag-embedment')
         self.anchorFx   = 0.0
-        self.anchorFz   = 0.0
-        self.anchorFx0  = 0.0
-        self.anchorFz0  = 0.0
+        self.anchorFz   = 0.0            
         
         
         # ----- optimization stuff -----
@@ -455,7 +467,7 @@ class LineDesign(Mooring):
                         span=self.span, rBfair=[-self.rad_fair, 0, self.z_fair])
 
                 # set up the Subsystem design, with references to the types in dd
-                types = [sec['type'] for sec in self.dd['sections']]
+                types = [self.dd['subcomponents'][i]['type'] for i in range(1, len(self.dd['subcomponents']), 2)]
                 ss.makeGeneric(lengths=Ls, types=types)
                 self.ms.lineList.append(ss)  # add the SubSystem to the System's lineList
                 ss.number = i+1
@@ -467,7 +479,7 @@ class LineDesign(Mooring):
             self.ms.initialize()
         
         # initialize the created mooring system
-        self.ss.initialize()
+        self.ss.initialize(daf_dict = {'DAFs': self.DAFs})
         self.ss.setOffset(0)
         self.updateDesign(self.X0, normalized=False)  # assuming X0/AllVars is not normalized                                                     
     
@@ -513,8 +525,8 @@ class LineDesign(Mooring):
                     
                     pointDict = self.getClumpMV(.5*X[dvi]) 
             
-                    self.dd['connectors'][0]['m'] = pointDict['m']
-                    self.dd['connectors'][0]['v'] = pointDict['v']
+                    self.dd['subcomponents'][0]['m'] = pointDict['m']
+                    self.dd['subcomponents'][0]['v'] = pointDict['v']
                     
                     self.ss.pointList[0].m = pointDict['m']
                     self.ss.pointList[0].v = pointDict['v']
@@ -559,10 +571,10 @@ class LineDesign(Mooring):
                 dvi = self.Xindices[3*i+2]          # design variable index
                 if dvi in range(self.nX):           # only update if it's tied to a design variable
                     lineType = getLineProps(X[dvi], 
-                                  material=self.dd['sections'][i]['type']['material'], 
+                                  material=self.dd['subcomponents'][2*i+1]['type']['material'], 
                                   name=i, lineProps=self.lineProps)
                     # use the update method to preserve refs to the original dict - this 'points'/connects to the subsystem object too!
-                    self.dd['sections'][i]['type'].update(lineType)
+                    self.dd['subcomponents'][2*i+1]['type'].update(lineType)
             
             # apply corrosion to the mooring's MBL dictionary (which gets references in the getTenSF constraint in subsystem)
             self.addCorrosion(corrosion_mm=self.corrosion_mm)
@@ -574,9 +586,8 @@ class LineDesign(Mooring):
              
                     pointDict = self.getClumpMV(X[dvi])
 
-            
-                    self.dd['connectors'][i+1]['m'] = pointDict['m']
-                    self.dd['connectors'][i+1]['v'] = pointDict['v']
+                    self.dd['subcomponents'][2*(i+1)]['m'] = pointDict['m']
+                    self.dd['subcomponents'][2*(i+1)]['v'] = pointDict['v']
                     
                     self.ss.pointList[i+1].m = pointDict['m'] # update clump buoyancy
                     self.ss.pointList[i+1].v = pointDict['v'] # update clump mass
@@ -591,239 +602,11 @@ class LineDesign(Mooring):
 
             # >>> TODO: check for negative line lengths that somehow get set <<<
 
-            try:
-                Lmax = 0.95*(self.ss.span + self.depth+self.rBFair[2])
-                if sum([self.ss.lineList[i].L for i in range(self.nLines)]) > Lmax:     # check to make sure the total length of line is less than the maximum L shape (helpful for GA optimizations)
-                    
-                    if self.solve_for=='none':
-                        self.x_mean_in = -1e3
-                        self.x_mean_out = 1e3
-                    self.x_mean_eval = 1e3      # arbitrary high number to set the offset (and constraints)
 
-                    for i,con in enumerate(self.constraints):
-                        val = -1e3
-                        self.convals[i] = val / self.con_denorm[i] # (normalized)
-                        self.constraints[i]['value'] = val  # save to dict (not normalized)
-
+            Lmax = 0.95*(self.ss.span + self.depth+self.rBFair[2])
+            
+            if sum([self.ss.lineList[i].L for i in range(self.nLines)]) > Lmax:     # check to make sure the total length of line is less than the maximum L shape (helpful for GA optimizations)
                 
-                else:            
-                    
-                    # ----- Length adjustment (seems sketchy) -----
-                    # print(self.ms.bodyList[0].r6[2])
-                    # set x0 as a 1D list of the line length to be solved for
-                    x0 = [self.ss.lineList[self.iL].L]
-                    
-                    # maximum length of the segment being sized to avoid fully slack
-                    Lmax = 0.99*(self.ss.span + self.depth+self.rBFair[2]) - sum([self.ss.lineList[i].L for i in range(self.nLines) if i != self.iL])
-                    
-                    # >>> may need a different Lmax for shared lines <<<
-                    
-                    if x0[0] >= Lmax:
-                        x0[0] = 0.8*Lmax 
-                    
-                    
-                    # ----- Solver process -----
-                    
-                    # call dsolve2 to tune line length - eval function depends on solve_for
-                    # note: use a high stepfac so that dsolve2 detects a nonzero slope even when the slope is quite shallow
-                    if self.solve_for == "tension":
-                        x, y, info = dsolve2(self.func_TH_L, x0, tol=[0.4*self.ss.eqtol], args=dict(direction='horizontal'),
-                                            Xmin=[10], Xmax=[Lmax], dX_last=[10], maxIter=40,
-                                            stepfac=100, display=self.display-1)
-                    elif self.solve_for == "offset":
-                        
-                        args = dict(xOffset=self.x_target, display=self.display-1)
-                        
-                        x, y, info = dsolve2(self.func_fx_L, x0, args=args, 
-                                            tol=[0.4*self.ss.eqtol], Xmin=[10], Xmax=[Lmax], 
-                                            dX_last=[10], stepfac=100, maxIter=40, 
-                                            display=self.display-1)
-
-                    elif self.solve_for == "none":
-                        pass
-                        # >>> can remove this from if else block once solve_for error check is done in init func <<<
-                    
-                    elif self.solve_for == 'stiffness':
-                        
-                        x, y, info = dsolve2(self.func_kx_L, x0, args=dict(display=display2),
-                                            tol=[0.4*self.ss.eqtol], Xmin=[10], Xmax=[Lmax], 
-                                            dX_last=[10], stepfac=100, display=self.display-1)
-                        
-                        # this solves for the line length to meet a stiffness equality constraint
-                        # which means that we can still have an offset constraint since the line 
-                        # length isn't being solved for to meet a certain offset
-
-                    
-                    elif self.solve_for == 'fancy':    # a new option to allow lower mean offsets (need to rename!)
-                        # Outer loop determines offset that gives target tension SF, inner loop adjusts line length to achieve said offset
-                        def tuneLineLengthsForOffset(xCurrent, args):   # this function does the standard "offset"-mode solve, but now it can be done in the loop of another solve
-                            
-                            args = dict(xOffset=xCurrent[0], fx_target=self.fx_target)
-                            
-                            # tune line length until thrust force is balanced at this mean offset
-                            x, y, info = dsolve2(self.func_fx_L, x0, args=args,
-                                                tol=[0.4*self.ss.eqtol], Xmin=[10], Xmax=[Lmax],
-                                                dX_last=[10], stepfac=100, display=0)
-                        
-                            stopFlag = False if info['success'] else True  # if the line length solve was unsuccessful, set the flat to stop the mean offset solve
-                        
-                            # check strength constraint at this offset + some dynamic additional offset
-                            # (doing this manually here for now, and avoiding the strength constaint at higher levels >>> do not use tension_safety_factor! <<<)
-                            '''This ensures the MBL of the line is always greater than the maximum tension the line feels times a safety factor'''
-                            self.ss.lineList[self.iL].setL(x[0])                            # make sure the design is up to date (in terms of tuned line length)
-                            self.ss.setOffset(xCurrent[0] + 10)  # offset the body the desired amount (current mean offset + wave offset)
-                            cMin = self.ss.getMinSF(display=display) - 2.0          # compute the constraint value     
-                            
-                            print(f" xmax={xCurrent[0]:8.2f}  L={x[0]:8.3f}  dFx={y[0]:8.0f}  minSF={self.getMinSF():7.3f}")
-                            #breakpoint()
-                            
-                            return np.array([cMin]), dict(status=1), stopFlag     # return the constraint value - we'll actually solve for this to be zero - finding the offset that just barely satisifes the SFs
-                        
-                        # solve for mean offset that will satisfy tension safety factor constraint (after dynamic wave offset is added)
-                        x, y, info = dsolve2(tuneLineLengthsForOffset, [5], tol=[4*self.ss.eqtol], Xmin=[1], Xmax=[4*self.x_target], dX_last=[5], stepfac=10, display=1)
-                    
-                    
-                    elif self.solve_for=='ghost': 
-                        '''Use very large anchor spacing and compute an imaginary
-                        anchor spacing and line length based on the desired lay
-                        length.'''
-                        
-                        # Compute the offset with the adjusted design variables
-                        self.x_mean_out = self.getOffset(self.fx_target)
-                        self.ms.bodyList[0].setPosition([0,0,0,0,0,0])  # ensure body is re-centered
-
-                        # self.span and self.ss.span seems redundant. Does LD/Mooring need it?? <<<
-                        
-                        # figure out tension in least laid length scenario...
-                        self.ss.setOffset(self.x_mean_out)  # apply max static offsets
-                        self.ss.setDynamicOffset(self.x_mean_out + self.x_ampl)  # move to dynamic offset
-                        max_anchor_tension = self.ss.TeD[0,0]  # save tension at anchor
-
-                        # Set anchoring radius a bit larger than needed, and evaluate once (ss only)
-                        length_to_add = 0.2 * self.rad_anch
-                        new_length = self.dd['sections'][0]['L'] + length_to_add/(1 + max_anchor_tension/self.ss.lineList[0].EA)
-                        self.rad_anch = float(self.rad_anch + length_to_add)
-                        self.ss.span  = self.rad_anch - self.rBFair[0]
-                        self.ss.setEndPosition([-self.rad_anch, 0, -self.depth], endB=False)
-                        Mooring.setSectionLength(self, new_length, 0)  # ss only, skip ms
-
-                        # Figure out lay length
-                        self.ss.setOffset(self.x_mean_out)  # apply max static offsets
-                        self.ss.setDynamicOffset(self.x_mean_out + self.x_ampl)  # move to dynamic offset
-                        max_anchor_tension = self.ss.TeD[0,0]  # save tension at anchor
-                        min_lay_length = self.ss.getLayLength()  # record minimum lay length
-
-                        # Adjust anchor positions to hit target
-                        unused_length = min_lay_length - self.lay_length_target
-                        new_length = self.dd['sections'][0]['L'] - unused_length
-                        new_spacing = self.rad_anch - unused_length*(1 + max_anchor_tension/self.ss.lineList[0].EA)
-                        self.setAnchoringRadius(new_spacing)
-                        self.setSectionLength(new_length, 0)
-
-                        # Update the Subsystem solutions after the adjustments
-                        self.ss.staticSolve()
-                        for ss in self.ms.lineList:
-                            ss.staticSolve()
-                        
-                        #print(f"{self.iter}  {self.ss.offset:6.2f}m offset,  {self.rad_anch:6.2f} rad_anch, {self.ss.lineList[0].L:6.2f} L")
-
-                    else:
-                        raise Exception("solve_for must one of 'offset', 'tension', 'none', 'stiffness, 'fancy', or 'ghost'")
-                    
-                    
-                    if not self.solve_for in ['none', 'ghost']:
-                        if info["success"] == False:
-                            print("Warning: dsolve2 line length tuning solve did not converge.")
-                            #breakpoint()    # <<<< handle non convergence <<<
-                        else:
-                            #>>>>> deal with nonzero y - penalize it somehow - for optimizer <<<<<
-                            
-                            # ensure system uses latest tuned line length
-                            #self.ss.lineList[self.iL].setL(x[0])
-                            self.setSectionLength(x[0], self.iL)
-                    
-                    
-                    # ----- Compute (or set) high and low mean offsets -----
-                    # (solve for the offsets at which the horizontal mooring reactions balance with fx_target)
-                    if self.solve_for in ['none', 'ghost']:
-                        self.x_mean_out = self.getOffset(self.fx_target) 
-                        self.x_mean_in = -self.getOffset(-self.fx_target)
-                        if display > 1: print(f" Found offsets  x_mean_out: {self.x_mean_out:.2f},  x_mean_in: {self.x_mean_in:.2f}")
-                        self.ms.bodyList[0].setPosition([0,0,0,0,0,0])  # ensure body is re-centered
-                    
-                    # x_mean_in is the offset when the input headings are flipped, representing the opposite loading direction.
-                    # This will only be worst-case/best-case offsets when one of the input headings is either completely upwind or completely downwind.
-                    
-                    
-                    # ----- Evaluate system state and constraint values at offsets -----
-                    
-                    # Evaluate any constraints in the list, at the appropriate displacements.
-                    # The following function calls will fill in the self.convals array.
-                    
-                    
-                    # ZERO OFFSET:
-                    self.ss.setOffset(0)
-                    
-                    # get undisplaced tensions of each line section and anchors
-                    for i, line in enumerate(self.ss.lineList):
-                        self.Te0[i,0] = np.linalg.norm(line.fA)
-                        self.Te0[i,1] = np.linalg.norm(line.fB)
-                        
-                    self.anchorFx0 = self.ss.lineList[0].fA[0]
-                    self.anchorFz0 = self.ss.lineList[0].fA[2]
-                    
-                    # Call any constraints that evaluate at the undisplaced position
-                    #self.calcCurvature()
-                    for con in self.constraints:
-                        if con['offset'] == 'zero':
-                            con['fun'](X)
-                    
-                    
-                    # MAX OFFSET: 
-                    self.ss.setOffset(self.x_mean_out)  # apply static offsets
-                    self.ss.setDynamicOffset(self.x_mean_out + self.x_ampl)  # move to dynamic offset
-                    # save worst-case anchor tensions for use in cost calculations (includes DAF)
-                    self.anchorFx = self.ss.anchorFx0 + self.ss.DAFs[-1]*(self.ss.lineList[0].fA[0] - self.ss.anchorFx0)
-                    self.anchorFz = self.ss.anchorFz0 + self.ss.DAFs[-2]*(self.ss.lineList[0].fA[2] - self.ss.anchorFz0)
-                    
-                    self.min_lay_length = self.ss.getLayLength()  # record minimum lay length
-                    #print(f"{self.iter}  {self.ss.offset:6.2f}m offset,  {self.rad_anch:6.2f} rad_anch, {self.ss.lineList[0].L:6.2f} L")
-                    #print(f"Min lay length is {self.min_lay_length}")
-                    self.x_mean_eval = float(self.x_mean_out)    # the x_mean value to evaluate if there's an offset constraint
-                    
-                    # Call any constraints needing a positive displacement
-                    for con in self.constraints:
-                        if con['offset'] == 'max':
-                            con['fun'](X)
-
-                    
-                    # MIN OFFSET: 
-                    self.ss.setOffset(-self.x_mean_in)  # apply static offset
-                    self.ss.setDynamicOffset(-self.x_mean_in + -self.x_ampl)  # peak offset
-
-                    self.max_lay_length = self.ss.getLayLength()  # record maximum lay length
-
-                    self.x_mean_eval = float(self.x_mean_in)    # the x_mean value to evaluate if there's an offset constraint
-                    
-                    # Call any constraints needing a negative displacement
-                    for con in self.constraints:
-                        if con['offset'] == 'min':
-                            con['fun'](X)
-                    
-                    
-                    # OTHER: 
-                    self.ss.setOffset(0)  # restore to zero offset and static EA            
-                    # or at least set back to static states
-                    
-                    # Call any constraints that depend on results across offsets
-                    for con in self.constraints:
-                        if con['offset'] == 'other' or con['offset'] == 'zero':
-                            con['fun'](X)
-                    
-                    ############################################################
-                
-            except:
-
                 if self.solve_for=='none':
                     self.x_mean_in = -1e3
                     self.x_mean_out = 1e3
@@ -833,7 +616,222 @@ class LineDesign(Mooring):
                     val = -1e3
                     self.convals[i] = val / self.con_denorm[i] # (normalized)
                     self.constraints[i]['value'] = val  # save to dict (not normalized)
+
+            
+            else:            
+            
+                # ----- Length adjustment (seems sketchy) -----
+                # print(self.ms.bodyList[0].r6[2])
+                # set x0 as a 1D list of the line length to be solved for
+                x0 = [self.ss.lineList[self.iL].L]
                 
+                # maximum length of the segment being sized to avoid fully slack
+                Lmax = 0.99*(self.ss.span + self.depth+self.rBFair[2]) - sum([self.ss.lineList[i].L for i in range(self.nLines) if i != self.iL])
+                
+                # >>> may need a different Lmax for shared lines <<<
+                
+                if x0[0] >= Lmax:
+                    x0[0] = 0.8*Lmax 
+                
+                
+                # ----- Solver process -----
+                
+                # call dsolve2 to tune line length - eval function depends on solve_for
+                # note: use a high stepfac so that dsolve2 detects a nonzero slope even when the slope is quite shallow
+                if self.solve_for == "tension":
+                    x, y, info = dsolve2(self.func_TH_L, x0, tol=[0.4*self.ss.eqtol], args=dict(direction='horizontal'),
+                                        Xmin=[10], Xmax=[Lmax], dX_last=[10], maxIter=40,
+                                        stepfac=100, display=self.display-1)
+                elif self.solve_for == "offset":
+                    
+                    args = dict(xOffset=self.x_target, display=self.display-1)
+                    
+                    x, y, info = dsolve2(self.func_fx_L, x0, args=args, 
+                                        tol=[0.4*self.ss.eqtol], Xmin=[10], Xmax=[Lmax], 
+                                        dX_last=[10], stepfac=100, maxIter=40, 
+                                        display=self.display-1)
+
+                elif self.solve_for == "none":
+                    pass
+                    # >>> can remove this from if else block once solve_for error check is done in init func <<<
+                
+                elif self.solve_for == 'stiffness':
+                    
+                    x, y, info = dsolve2(self.func_kx_L, x0, args=dict(display=display2),
+                                        tol=[0.4*self.ss.eqtol], Xmin=[10], Xmax=[Lmax], 
+                                        dX_last=[10], stepfac=100, display=self.display-1)
+                    
+                    # this solves for the line length to meet a stiffness equality constraint
+                    # which means that we can still have an offset constraint since the line 
+                    # length isn't being solved for to meet a certain offset
+
+                
+                elif self.solve_for == 'fancy':    # a new option to allow lower mean offsets (need to rename!)
+                    # Outer loop determines offset that gives target tension SF, inner loop adjusts line length to achieve said offset
+                    def tuneLineLengthsForOffset(xCurrent, args):   # this function does the standard "offset"-mode solve, but now it can be done in the loop of another solve
+                        
+                        args = dict(xOffset=xCurrent[0], fx_target=self.fx_target)
+                        
+                        # tune line length until thrust force is balanced at this mean offset
+                        x, y, info = dsolve2(self.func_fx_L, x0, args=args,
+                                            tol=[0.4*self.ss.eqtol], Xmin=[10], Xmax=[Lmax],
+                                            dX_last=[10], stepfac=100, display=0)
+                    
+                        stopFlag = False if info['success'] else True  # if the line length solve was unsuccessful, set the flat to stop the mean offset solve
+                    
+                        # check strength constraint at this offset + some dynamic additional offset
+                        # (doing this manually here for now, and avoiding the strength constaint at higher levels >>> do not use tension_safety_factor! <<<)
+                        '''This ensures the MBL of the line is always greater than the maximum tension the line feels times a safety factor'''
+                        self.ss.lineList[self.iL].setL(x[0])                            # make sure the design is up to date (in terms of tuned line length)
+                        self.ss.setOffset(xCurrent[0] + 10)  # offset the body the desired amount (current mean offset + wave offset)
+                        cMin = self.ss.getMinSF(display=display) - 2.0          # compute the constraint value     
+                        
+                        print(f" xmax={xCurrent[0]:8.2f}  L={x[0]:8.3f}  dFx={y[0]:8.0f}  minSF={self.getMinSF():7.3f}")
+                        #breakpoint()
+                        
+                        return np.array([cMin]), dict(status=1), stopFlag     # return the constraint value - we'll actually solve for this to be zero - finding the offset that just barely satisifes the SFs
+                    
+                    # solve for mean offset that will satisfy tension safety factor constraint (after dynamic wave offset is added)
+                    x, y, info = dsolve2(tuneLineLengthsForOffset, [5], tol=[4*self.ss.eqtol], Xmin=[1], Xmax=[4*self.x_target], dX_last=[5], stepfac=10, display=1)
+                
+                
+                elif self.solve_for=='ghost': 
+                    '''Use very large anchor spacing and compute an imaginary
+                    anchor spacing and line length based on the desired lay
+                    length.'''
+                    
+                    # Compute the offset with the adjusted design variables
+                    self.x_mean_out = self.getOffset(self.fx_target)
+                    self.ms.bodyList[0].setPosition([0,0,0,0,0,0])  # ensure body is re-centered
+
+                    # self.span and self.ss.span seems redundant. Does LD/Mooring need it?? <<<
+                    
+                    # figure out tension in least laid length scenario...
+                    self.ss.setOffset(self.x_mean_out)  # apply max static offsets
+                    self.ss.setDynamicOffset(self.x_mean_out + self.x_ampl)  # move to dynamic offset
+                    max_anchor_tension = self.ss.TeD[0,0]  # save tension at anchor
+
+                    # Set anchoring radius a bit larger than needed, and evaluate once (ss only)
+                    length_to_add = 0.2 * self.rad_anch
+                    new_length = self.dd['subcomponents'][1]['L'] + length_to_add/(1 + max_anchor_tension/self.ss.lineList[0].EA)
+                    self.rad_anch = float(self.rad_anch + length_to_add)
+                    self.ss.span  = self.rad_anch - self.rBFair[0]
+                    self.ss.setEndPosition([-self.rad_anch, 0, -self.depth], endB=False)
+                    Mooring.setSectionLength(self, new_length, 0)  # ss only, skip ms
+
+                    # Figure out lay length
+                    self.ss.setOffset(self.x_mean_out)  # apply max static offsets
+                    self.ss.setDynamicOffset(self.x_mean_out + self.x_ampl)  # move to dynamic offset
+                    max_anchor_tension = self.ss.TeD[0,0]  # save tension at anchor
+                    min_lay_length = self.ss.getLayLength()  # record minimum lay length
+
+                    # Adjust anchor positions to hit target
+                    unused_length = min_lay_length - self.lay_length_target
+                    new_length = self.dd['subcomponents'][1]['L'] - unused_length
+                    new_spacing = self.rad_anch - unused_length*(1 + max_anchor_tension/self.ss.lineList[0].EA)
+                    self.setAnchoringRadius(new_spacing)
+                    self.setSectionLength(new_length, 0)
+
+                    # Update the Subsystem solutions after the adjustments
+                    self.ss.staticSolve()
+                    for ss in self.ms.lineList:
+                        ss.staticSolve()
+                    
+                    #print(f"{self.iter}  {self.ss.offset:6.2f}m offset,  {self.rad_anch:6.2f} rad_anch, {self.ss.lineList[0].L:6.2f} L")
+
+                else:
+                    raise Exception("solve_for must one of 'offset', 'tension', 'none', 'stiffness, 'fancy', or 'ghost'")
+                
+                
+                if not self.solve_for in ['none', 'ghost']:
+                    if info["success"] == False:
+                        print("Warning: dsolve2 line length tuning solve did not converge.")
+                        #breakpoint()    # <<<< handle non convergence <<<
+                    else:
+                        #>>>>> deal with nonzero y - penalize it somehow - for optimizer <<<<<
+                        
+                        # ensure system uses latest tuned line length
+                        #self.ss.lineList[self.iL].setL(x[0])
+                        self.setSectionLength(x[0], self.iL)
+                
+                
+                # ----- Compute (or set) high and low mean offsets -----
+                # (solve for the offsets at which the horizontal mooring reactions balance with fx_target)
+                if self.solve_for in ['none', 'ghost']:
+                    self.x_mean_out = self.getOffset(self.fx_target) 
+                    self.x_mean_in = -self.getOffset(-self.fx_target)
+                    if self.display > 1: print(f" Found offsets  x_mean_out: {self.x_mean_out:.2f},  x_mean_in: {self.x_mean_in:.2f}")
+                    self.ms.bodyList[0].setPosition([0,0,0,0,0,0])  # ensure body is re-centered
+                
+                # x_mean_in is the offset when the input headings are flipped, representing the opposite loading direction.
+                # This will only be worst-case/best-case offsets when one of the input headings is either completely upwind or completely downwind.
+                
+                
+                # ----- Evaluate system state and constraint values at offsets -----
+                
+                # Evaluate any constraints in the list, at the appropriate displacements.
+                # The following function calls will fill in the self.convals array.
+                
+                
+                # ZERO OFFSET:
+                self.ss.setOffset(0)
+                
+                # get undisplaced tensions of each line section and anchors
+                for i, line in enumerate(self.ss.lineList):
+                    self.Te0[i,0] = np.linalg.norm(line.fA)
+                    self.Te0[i,1] = np.linalg.norm(line.fB)
+                    
+
+                
+                # Call any constraints that evaluate at the undisplaced position
+                #self.calcCurvature()
+                for con in self.constraints:
+                    if con['offset'] == 'zero':
+                        con['fun'](X)
+                
+                
+                # MAX OFFSET: 
+                self.ss.setOffset(self.x_mean_out)  # apply static offsets
+                self.ss.setDynamicOffset(self.x_mean_out + self.x_ampl)  # move to dynamic offset
+                # save maximum anchor tensions for use in cost calculations (includes DAF)
+                self.anchorFx = self.ss.anchorFxD
+                self.anchorFz = self.ss.anchorFzD
+                
+                self.min_lay_length = self.ss.getLayLength()  # record minimum lay length
+                #print(f"{self.iter}  {self.ss.offset:6.2f}m offset,  {self.rad_anch:6.2f} rad_anch, {self.ss.lineList[0].L:6.2f} L")
+                #print(f"Min lay length is {self.min_lay_length}")
+                self.x_mean_eval = float(self.x_mean_out)    # the x_mean value to evaluate if there's an offset constraint
+                
+                # Call any constraints needing a positive displacement
+                for con in self.constraints:
+                    if con['offset'] == 'max':
+                        con['fun'](X)
+
+                
+                # MIN OFFSET: 
+                self.ss.setOffset(-self.x_mean_in)  # apply static offset
+                self.ss.setDynamicOffset(-self.x_mean_in + -self.x_ampl)  # peak offset
+
+                self.max_lay_length = self.ss.getLayLength()  # record maximum lay length
+
+                self.x_mean_eval = float(self.x_mean_in)    # the x_mean value to evaluate if there's an offset constraint
+                
+                # Call any constraints needing a negative displacement
+                for con in self.constraints:
+                    if con['offset'] == 'min':
+                        con['fun'](X)
+                
+                
+                # OTHER: 
+                self.ss.setOffset(0)  # restore to zero offset and static EA            
+                # or at least set back to static states
+                
+                # Call any constraints that depend on results across offsets
+                for con in self.constraints:
+                    if con['offset'] == 'other' or con['offset'] == 'zero':
+                        con['fun'](X)
+                
+                ############################################################  
             
             # ----- Evaluate objective function -----
             
@@ -1602,7 +1600,7 @@ class LineDesign(Mooring):
         (ProfileType=4) in its negative extreme mean position'''
         # ['max_line_length', index, value] # index and value are completely arbitrary right now
         
-        Lmax = (self.span-self.ss.rBFair[0]-self.x_mean_out + self.depth+self.rBFair[2]) # (3-14-23) this method might now be deprecated with more recent updates to ensure the combined line lengths aren't too large
+        Lmax = 0.95*(self.ss.span + self.depth+self.rBFair[2])
 
         total_linelength =  sum([self.ss.lineList[i].L for i in range(self.nLines)])
         c = Lmax-total_linelength
@@ -1629,16 +1627,13 @@ class LineDesign(Mooring):
         return x[0]
         '''
         self.ms.bodyList[0].f6Ext = np.array([FxApplied, 0,0, 0,0,0])
-        try:
-            self.ms.solveEquilibrium(DOFtype='both')
-            return self.ms.bodyList[0].r6[0]
-            #offset = self.ms.bodyList[0].r6[0]
-            #self.ms.bodyList[0].f6Ext = [0,0,0,0,0,0]
-            #self.ms.bodyList[0].setPosition([0,0,0,0,0,0])
-            #self.ms.solveEquilibrium()
-            #return offset
-        except:
-            return 1e3
+        self.ms.solveEquilibrium(DOFtype='both')
+        #offset = self.ms.bodyList[0].r6[0]
+        #self.ms.bodyList[0].f6Ext = [0,0,0,0,0,0]
+        #self.ms.bodyList[0].setPosition([0,0,0,0,0,0])
+        #self.ms.solveEquilibrium()
+        #return offset
+        return self.ms.bodyList[0].r6[0]
         
     
     def con_offset0(self, X, index, value):

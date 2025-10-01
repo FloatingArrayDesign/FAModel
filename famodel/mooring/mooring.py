@@ -1128,7 +1128,7 @@ class Mooring(Edge):
 
         '''
         for i in self.i_sec:
-            sec = self.getSubcomponent[i]
+            sec = self.getSubcomponent(i)
             if sec['type']['material']=='chain':
                 MBL_cor = sec['type']['MBL']*( (sec['type']['d_nom']-(corrosion_mm/1000))/sec['type']['d_nom'] )**2  # corroded MBL
             else:
