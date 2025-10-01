@@ -147,10 +147,7 @@ def test_DEA_Chain_COBYLA_tension():
     assert abs(X3[1] -  102.869) < 0.01
 
 
-test_DEA_Chain_COBYLA_none()
-test_DEA_Chain_COBYLA_offset()
-test_DEA_Chain_COBYLA_tension()
-a = 2
+
 '''
 def test_DEA_Chain_Polyester_COBYLA_none():
 

@@ -2,7 +2,7 @@
 
 import moorpy as mp # type: ignore
 #import moordesign.MoorSolve as msolve
-from fadesign.fadsolvers import dsolve2, dopt2, doptPlot
+from famodel.design.fadsolvers import dsolve2, dopt2, doptPlot
 from moorpy.MoorProps import getAnchorProps # type: ignore
 from moorpy.helpers import (loadLineProps, getLineProps,  # type: ignore
                             rotationMatrix, getFromDict) 
