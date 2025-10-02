@@ -795,7 +795,8 @@ def MooringProps(mCon, lineTypes, rho_water, g, checkType=1):
         # else:
         #     d_vol = dd['d']
         dd['w'] = (dd['m']-np.pi/4*d_vol**2*rho_water)*g
-        dd['MBL'] = float(dd['MBL'])
+        if 'MBL' in dd:
+            dd['MBL'] = float(dd['MBL'])
         if 'mooringFamily' in mCon:
             raise Exception('type and moorFamily listed in yaml - use type to reference a mooring type in the mooring_line_types section of the yaml and mooringFamily to obtain mooring properties from MoorProps_default.yaml')
     elif 'mooringFamily' in mCon:
@@ -862,7 +863,8 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
             config[-1]['type']['name'] = str(ct)+'_'+str(lt['name'])
             # make EA a float not a string
             config[-1]['type']['EA'] = float(lt['EA'])  
-            config[-1]['type']['MBL'] = float(lt['MBL'])
+            if 'MBL' in lt:
+                config[-1]['type']['MBL'] = float(lt['MBL'])
             # set line length
             config[-1]['L'] = lc['length']
 

@@ -986,6 +986,7 @@ class Project():
         self.rho_air = getFromDict(site['general'], 'rho_air', default=1.225)
         self.mu_air = getFromDict(site['general'], 'mu_air', default=1.81e-5)
         
+        
         # load bathymetry information, if provided
         if 'bathymetry' in site and site['bathymetry']:
             if 'file' in site['bathymetry'] and site['bathymetry']['file']: # make sure there was a file provided even if the key is there
@@ -2179,6 +2180,7 @@ class Project():
         depth_vmin = kwargs.get('depth_vmin', None)
         depth_vmax = kwargs.get('depth_vmax', None)
         bath_levels = kwargs.get('bath_levels', None)
+        show_legend = kwargs.get('show_legend', True)
         
         
         # if axes not passed in, make a new figure
@@ -2383,12 +2385,14 @@ class Project():
         if axis_equal:
             ax.set_aspect('equal',adjustable='box')
 
-        handles, labels = plt.gca().get_legend_handles_labels()
+        handles, labels = ax.get_legend_handles_labels()
         if plot_seabed:
             handles += soil_handles
             labels += [h.get_label() for h in soil_handles]
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
-        ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=4)
+        
+        if show_legend:
+            ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=4)
         if save:
             plt.savefig('2dfarm.png', dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
             
