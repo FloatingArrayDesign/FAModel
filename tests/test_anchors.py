@@ -5,6 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import pytest
 
+print('hola')
 # --- Helper goes at module level ---
 def assign_soil(anchor, soil_label, project):
     soil_def = project.soilProps[soil_label]
