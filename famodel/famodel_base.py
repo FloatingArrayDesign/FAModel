@@ -98,7 +98,7 @@ class Node():
         self.part_of = None  # whether this object is part of an Edge group
     
         # position/orientation variables
-        self.r = np.zeros(2)  # position [m]
+        self.r = np.zeros(2)  # position [m]  <<< Rudy: Can we consider 3D here??
         self.theta = 0  # heading [rad] CCW+
         self.R = np.eye(2)  # rotation matrix
     

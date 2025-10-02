@@ -706,88 +706,78 @@ class Mooring(Edge):
                             else:
                                 print('end of parallel')
                                 breakpoint()
-    
-    def mirror(self,create_subsystem=True):
-        ''' Mirrors a half design dictionary. Useful for symmetrical shared mooring lines where 
-        only half of the line is provided 
 
-        Parameters
-        ----------
-        create_subsystem : bool, optional
-            Controls whether to create a new subsystem after mirroring dd.
-            Default is True
+    def mirror(self, create_subsystem=True):
         '''
-        # disconnect all sections and connectors
-        # TODO: update to work with dd['subcomponents']
+        Mirrors a half design to create a full line (symmetry assumption).
+        Works with self.sections() and self.connectors() instead of self.dd.
+        '''
+
+        # detach existing subcomponents
         for i in self.i_sec:
             sec = self.getSubcomponent(i)
             sec.detachFrom(end='a')
             sec.detachFrom(end='b')
-        # find out if the connector at end A (center of line) is empty 
-        if not self.dd['connectors'][0] or self.dd['connectors'][0]['m']==0:
-            # do not double the middle section length
-            doubleL = True
+
+        # copy base sections and connectors
+        sections = deepcopy(self.sections())
+        connectors = deepcopy(self.connectors())
+
+        # check middle connector (connector[0] assumed at line center)
+        if not connectors[0] or connectors[0].get('m', 0) == 0:
+            doubleL = True   # double the middle section length instead
         else:
-            # double the middle section length 
-            doubleL = False
-        from copy import deepcopy
-        # sections list is currently reversed (second half of full list)
-        addSections = deepcopy(self.dd['sections'])
-        addConns = deepcopy(self.dd['connectors'])
-        # reverse to get first half of full list
-        self.dd['sections'].reverse()
-        self.dd['connectors'].reverse()
-        # combine middle mirrored sections into one by removing from add list and doubling length
+            doubleL = False  # double connector mass/volume instead
+
+        # prepare mirrored versions
+        addSections = deepcopy(sections)
+        addConns = deepcopy(connectors)
+
+        # handle the middle connector
         if doubleL:
-            # remove mirror section and connector in middle, double length of middle section
+            # drop first section + connector, double middle section length
             addSections.pop(0)
             addConns.pop(0)
-            self.dd['connectors'].pop(-1)
-            self.dd['sections'][-1]['L'] = self.dd['sections'][-1]['L']*2
+            connectors.pop(0)  # drop first original connector
+            sections[0]['L'] *= 2
         else:
+            # drop first mirrored connector, double last connector’s props
             addConns.pop(0)
-            self.dd['connectors'][-1]['m'] *= 2
-            self.dd['connectors'][-1]['v'] *= 2
+            connectors[0]['m'] *= 2
+            connectors[0]['v'] *= 2
 
-            
-        # combine addSections and current reversed sectiosn list
-        self.dd['sections'].extend(addSections)
-        self.dd['connectors'].extend(addConns)
+        # reverse and extend lists
+        sections.reverse()
+        connectors.reverse()
+        sections.extend(addSections)
+        connectors.extend(addConns)
 
-        # create Section objects for ALL sections and connectors
-        for i, sec in enumerate(self.dd['sections']):
-            self.dd['sections'][i] = Section('Section'+str(i),**self.dd['sections'][i])
-        
-        for i,con in enumerate(self.dd['connectors']):
-            if con and 'type' in con:
-                Cid=con['type']+str(i)
-            else:
-                Cid = 'Conn'+str(i)
-                
-            self.dd['connectors'][i] = Connector(Cid,**self.dd['connectors'][i])        
-        
-        # Connect them and store them in self(Edge).subcomponents!
-        subcons = []  # temporary list of node-edge-node... to pass to the function
-        for i in range(len(self.dd['sections'])):
-            subcons.append(self.dd['connectors'][i])
-            subcons.append(self.dd['sections'][i])
-        subcons.append(self.dd['connectors'][-1])
-        self.addSubcomponents(subcons)  # Edge method to connect and store em
-        
-        self.n_sec = len(self.dd['sections'])
-        # Indices of connectors and sections in self.subcomponents list
-        self.i_con = list(range(0, 2*self.n_sec+1, 2))
-        self.i_sec = list(range(1, 2*self.n_sec+1, 2))
-    
+        # update Mooring design dictionary with these sections and connectors
 
-        # creat subsystem if asked
+
+
+        # -----------------------------
+        # build alternating subcomponent list
+        # [C0, S0, C1, S1, ..., Sn, Cn+1], where n is the number of sections.
+        # -----------------------------
+        subs_list = []
+        for i in range(len(sections)):
+            subs_list.append(connectors[i])
+            subs_list.append(sections[i])
+        subs_list.append(connectors[-1])
+
+        # convert dicts into Section/Connector objects
+        self.dd['subcomponents'] = subs_list
+        self.subcomponents = []
+        self.i_con = []  # reset indices
+        self.i_sec = []        
+        self.convertSubcomponents(subs_list)        
+        self.addSubcomponents(self.dd['subcomponents'])
+        # create subsystem if asked
         if create_subsystem:
             self.createSubsystem(case=1)
 
 
-
-        
-    
     """
     # rough method ideas...maybe not necessary or can use existing dict methods
     def ddApply():

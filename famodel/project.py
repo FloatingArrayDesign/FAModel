@@ -1667,7 +1667,7 @@ class Project():
         # attach subordinately to platform and provide relative location
         if platform:
             platform.attach(fl, r_rel=r_rel)
-            
+            fl.r = platform.r + r_rel # absolute location
         # attach equally to mooring end connector
         if mooring:
             if end in ['a','A',0]:
@@ -4282,8 +4282,14 @@ class Project():
             ts_loc = 0
             msys = []
             newms = True
-            fairleads = [att['r_rel'] for att in pf.attachments.values() if isinstance(att['obj'], Fairlead)]
-            jtubes = [att['r_rel'] for att in pf.attachments.values() if isinstance(att['obj'], Jtube)]
+            fairleads = [att['r_rel'] for att in pf.attachments.values() if isinstance(att['obj'], Fairlead)]  # Rudy: this line is getting att['r_rel'] only. But in LoadDesign, it's looking for the 'heading' or 'r_rel' attribute of the fairlead. Therefore, I omitted '[r_rel']' here and passed the att object as a whole.
+            # Rudy: maybe consider this instead:
+            # pf_dd_['fairleads'] = [
+            #                 {'r_rel': att['r_rel']} 
+            #                 for att in platform.attachments.values() 
+            #                 if isinstance(att['obj'], Fairlead)
+            #                       ]            
+            jtubes = [att['r_rel'] for att in pf.attachments.values() if isinstance(att['obj'], Jtube)]  # Rudy: perhaps same here too???
             if not 'type' in pf.dd:                    
                 pf_type_info = [pf.rFair, pf.zFair, pf.entity, fairleads, jtubes]
                 if not pf_type_info in pf_types:
