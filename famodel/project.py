@@ -1346,6 +1346,40 @@ class Project():
                 'Su_bot': Su0 + k * default_layer}
 
             self.profile_map[name] = [layer]  # just layers!
+            
+    def convertLayeredToUniform(self):
+        '''
+        Converts self.profile_map (layered format) into soilProps (uniform format)
+        assuming a single clay layer with linear Su(z) = Su0 + k*z.
+        Matches the structure expected by uniform soil models.
+        '''
+        self.soilProps = {}
+
+        for name, layers in self.profile_map.items():
+            if not layers or len(layers) != 1:
+                raise ValueError('convertLayeredToUniform only supports a single-layer profile')
+
+            layer = layers[0]
+            if str(layer.get('soil_type', '')).lower() != 'clay':
+                raise ValueError('convertLayeredToUniform only supports clay')
+
+            top = float(layer['top'])
+            bot = float(layer['bottom'])
+            Su_top = float(layer['Su_top'])
+            Su_bot = float(layer['Su_bot'])
+            gamma = float(layer['gamma_top'])  # gamma_top == gamma_bot in your format
+
+            if bot <= top:
+                raise ValueError('Invalid layer thickness (bottom <= top)')
+
+            thickness = bot - top
+            k = (Su_bot - Su_top)/thickness
+            Su0 = Su_top - k*top
+
+            self.soilProps[name] = {
+                'gamma': [gamma],
+                'Su0': [Su0],
+                'k': [k]}
 
     # # ----- Anchor 
     def updateAnchor(self,anch='all',update_loc=True):
