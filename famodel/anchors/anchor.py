@@ -270,13 +270,13 @@ class Anchor(Node):
         '''
         for att in self.attachments.values():
             if isinstance(att['obj'], Mooring):
-                mtype = att['obj'].dd['sections'][0]['type']['material'].lower()
+                mtype = att['obj'].sections()[0]['type']['material'].lower()
                 if 'chain' not in mtype:
                     print('No chain below seafloor, setting Ta=Tm (no load transfer).')
                     return mtype, None, None, True
                 else:
-                    d_nom = att['obj'].dd['sections'][0]['type']['d_nom']
-                    w_nom = att['obj'].dd['sections'][0]['type']['w']
+                    d_nom = att['obj'].sections()[0]['type']['d_nom']
+                    w_nom = att['obj'].sections()[0]['type']['w']
                     return 'chain', d_nom, w_nom, False
         raise ValueError('No mooring line attachment found for anchor.')
 
@@ -326,7 +326,10 @@ class Anchor(Node):
                                 self.loads['mudline_load_type'] = 'max_force'
                                 break
         else:
-            loads = self.mpAnchor.getForces(lines_only=lines_only, seabed=seabed, xyz=xyz)
+            # loads = self.mpAnchor.getForces(lines_only=lines_only, seabed=seabed, xyz=xyz)
+            # MoorPy Body.getForces does not accept seabed/lines_only in current API.
+            # Get forces (total), optionally post-process seabed if needed.
+            loads = self.mpAnchor.getForces()
             Hm = np.sqrt(loads[0]**2 + loads[1]**2)
             Vm = loads[2]
             thetam = np.degrees(np.arctan2(Vm, Hm))
