@@ -863,9 +863,23 @@ class Action():
         Some good preliminary work on this is in https://github.com/FloatingArrayDesign/FAModel/blob/IOandM_development/famodel/installation/
         and in assets.py
         """
+        
+        # --- Mobilization ---
+        if self.type == 'mobilize':
+            pass
+        elif self.type == 'demobilize':
+            pass
+        elif self.type == 'load_cargo':
+            pass
 
         # --- Towing & Transport ---
-        if self.type == 'tow':
+        elif self.type == 'tow':
+            pass
+        elif self.type == 'transit':
+            pass
+        elif self.type == 'transit_tug':
+            pass
+        elif self.type == 'at_site_support':
             pass
         elif self.type == 'transport_components':
             pass
@@ -895,7 +909,7 @@ class Action():
 
             # think through operator costs, carrier 1 costs.
 
-        elif self.type == 'lay_mooring':
+        elif self.type == 'install_mooring':
             pass
         elif self.type == 'mooring_hookup':
             pass
@@ -914,6 +928,8 @@ class Action():
 
         # --- Cable Operations ---
         elif self.type == 'lay_cable':
+            pass
+        elif self.type == 'cable_hookup':
             pass
         elif self.type == 'retrieve_cable':
             pass

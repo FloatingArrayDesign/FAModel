@@ -37,7 +37,7 @@ from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamic
                             configureAdjuster, route_around_anchors)
 
 import networkx as nx
-from action import Action, increment_name
+from calwave_action import Action, increment_name
 from task import Task
 
 from assets import Vessel, Port
@@ -145,10 +145,10 @@ class Scenario():
         
         # ----- Load database of supported things -----
         
-        actionTypes = loadYAMLtoDict('actions.yaml', already_dict=True)  # Descriptions of actions that can be done
-        capabilities = loadYAMLtoDict('capabilities.yaml')
-        vessels = loadYAMLtoDict('vessels.yaml', already_dict=True)
-        objects = loadYAMLtoDict('objects.yaml', already_dict=True)
+        actionTypes = loadYAMLtoDict('calwave_actions.yaml', already_dict=True)  # Descriptions of actions that can be done
+        capabilities = loadYAMLtoDict('calwave_capabilities.yaml')
+        vessels = loadYAMLtoDict('calwave_vessels.yaml', already_dict=True)
+        objects = loadYAMLtoDict('calwave_objects.yaml', already_dict=True)
         
         unifyUnits(vessels)  # (function doesn't work yet!) <<<
         
@@ -264,7 +264,7 @@ class Scenario():
         '''Creates and action and adds it to the register'''
         
         if not action_type_name in self.actionTypes:
-            raise Exception(f"Specified action type name {'action_type_name'} is not in the list of loaded action types.")
+            raise Exception(f"Specified action type name {action_type_name} is not in the list of loaded action types.")
         
         # Get dictionary of action type information
         action_type = self.actionTypes[action_type_name]
@@ -520,7 +520,7 @@ if __name__ == '__main__':
     print(os.getcwd())
     # create project object
     # project = Project(file='C:/Code/FAModel/examples/OntologySample200m_1turb.yaml', raft=False) # for Windows
-    project = Project(file='../../examples/OntologySample200m_1turb.yaml', raft=False) # for Mac
+    project = Project(file='calwave_ontology.yaml', raft=False) # for Mac
     # create moorpy system of the array, include cables in the system
     project.getMoorPyArray(cables=1)
     # plot in 3d, using moorpy system for the mooring and cable plots
@@ -551,7 +551,10 @@ if __name__ == '__main__':
 
         # add and register anchor install action(s)
         a1 = sc.addAction('install_anchor', f'install_anchor-{akey}', objects=[anchor])
-        duration, cost = a1.evaluateAssets({'carrier' : sc.vessels["MPSV_01"], 'operator':sc.vessels["AHTS_alpha"]})
+        duration, cost = a1.evaluateAssets({
+            'carrier' : sc.vessels["Jag"], 
+            'operator':sc.vessels["San_Diego"]
+            })   
         print(f'Anchor install action {a1.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
         
         # register the actions as necessary for the anchor <<< do this for all objects??
@@ -621,7 +624,7 @@ if __name__ == '__main__':
     # preliminary/temporary test of anchor install asset suitability
     for akey, anchor in project.anchorList.items():
         for a in anchor.install_dependencies:  # go through required actions (should just be the anchor install)
-            a.evaluateAssets({'carrier' : sc.vessels["MPSV_01"]})  # see if this example vessel can do it
+            a.evaluateAssets({'carrier' : sc.vessels["San_Diego"]})  # see if this example vessel can do it
 
 
     # ----- Generate the task_asset_matrix for scheduler -----

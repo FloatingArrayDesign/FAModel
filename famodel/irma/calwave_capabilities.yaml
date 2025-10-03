@@ -1,0 +1,175 @@
+# This file defines standardized capabilities for vessels and equipment.
+# Each entry needs numeric values per specific asset in vessels.yaml.
+# Vessel actions will be checked against capabilities/actions for validation.
+
+# The code that calculates the values for these capabilities is action.getMetrics(). 
+# Changes here won't be reflected in Irma unless the action.getMetrics() code is also updated.
+
+# >>> Units to be converted to standard values, with optional converter script
+# for allowing conventional unit inputs. <<<
+
+# --- Vessel (on-board) ---
+ - name: engine
+  # description: Engine on-board of the vessel
+  # fields:
+   power_hp:               # power [horsepower]
+   speed_kn:               # speed [knot]
+
+ - name: bollard_pull
+  # description: Towing/holding force capability
+  # fields:
+   max_force_t:             # bollard pull [t]
+ 
+ - name: deck_space
+  # description: Clear usable deck area and allowable load
+  # fields:
+   area_m2:                # usable area [m2]
+   max_load_t:             # allowable deck load [t]
+
+ - name: chain_locker
+  # description: Chain storage capacity
+  # fields:
+   volume_m3:               # storage volume [m3]
+
+ - name: line_reel
+  # description: Chain/rope storage on drum or carousel
+  # fields:
+   volume_m3:               # storage volume [m3]
+   rope_capacity_m:         # total rope length storage [m]
+
+ - name: cable_reel
+  # description: Cable storage on drum or carousel
+  # fields:
+   volume_m3:               # storage volume [m3]
+   cable_capacity_m:        # total cable length stowable [m]
+
+ - name: winch
+  # description: Deck winch pulling capability
+  # fields:
+   max_line_pull_t:         # continuous line pull [t]
+   brake_load_t:            # static brake holding load [t]
+   speed_mpm:               # payout/haul speed [m/min]
+
+ - name: crane
+  # description: Main crane lifting capability
+  # fields:
+   capacity_t:              # SWL at specified radius [t]
+   hook_height_m:           # max hook height [m]
+
+ - name: station_keeping
+  # description: Vessel station keeping capability (dynamic positioning or anchor-based)
+  # fields:
+   type:                   # e.g., DP0, DP1, DP2, DP3, anchor_based
+
+ - name: mooring_work
+  # description: Suitability for anchor/mooring operations
+  # fields:
+   line_types:           # e.g., [chain, ropes...]
+   stern_roller:            # presence of stern roller (optional)
+   shark_jaws:              # presence of chain stoppers/jaws (optional)
+   towing_pin_rating_t:     # rating of towing pins [t] (optional)
+
+# --- Equipment (portable) ---
+
+ - name: pump_surface
+  # description: Surface-connected suction pump
+  # fields:
+   power_kW: 
+   pressure_bar: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: pump_subsea
+  # description: Subsea suction pump (electric/hydraulic)
+  # fields:
+   power_kW: 
+   pressure_bar: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: pump_grout
+  # description: Grout mixing and pumping unit
+  # fields:
+   power_kW: 
+   flow_rate_m3hr: 
+   pressure_bar: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: hydraulic_hammer
+  # description: Impact hammer for pile driving
+  # fields:
+   power_kW: 
+   energy_per_blow_kJ: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: vibro_hammer
+  # description: Vibratory hammer
+  # fields:
+   power_kW: 
+   centrifugal_force_kN: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: drilling_machine
+  # description: Drilling/rotary socket machine
+  # fields:
+   power_kW: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: torque_machine
+  # description: High-torque rotation unit
+  # fields:
+   power_kW: 
+   torque_kNm: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: cable_plough
+  # description:
+  # fields:
+   power_kW: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: rock_placement
+  # description: System for controlled placement of rock for trench backfill, scour protection, and seabed stabilization.
+  # fields:
+   placement_method:   # e.g., fall_pipe, side_dump, grab
+   max_depth_m:        # maximum operational water depth
+   accuracy_m:         # placement accuracy on seabed
+   rock_size_range_mm: # min and max rock/gravel size
+
+ - name: container
+  # description: Control/sensors container for power pack and monitoring
+  # fields:
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: rov
+  # description: Remotely Operated Vehicle
+  # fields:
+   class:             # e.g., OBSERVATION, LIGHT, WORK-CLASS
+   depth_rating_m: 
+   weight_t: 
+   dimensions_m:      # LxWxH
+
+ - name: positioning_system
+  # description: Seabed placement/positioning aids
+  # fields:
+   accuracy_m: 
+   methods:           # e.g., [USBL, LBL, DVL, INS]
+
+ - name: monitoring_system
+  # description: Installation performance monitoring
+  # fields:
+   metrics:           # e.g., [pressure, flow, tilt, torque, bathymetry, berm_shape...]
+   sampling_rate_hz: 
+
+ - name: sonar_survey
+  # description: Sonar systems for survey and verification
+  # fields:
+   types:             # e.g., [MBES, SSS, SBP]
+   resolution_m:

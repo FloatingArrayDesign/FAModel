@@ -1299,4 +1299,3 @@ anchor_types:
         L      :     16.4  # length of pile [m]
         D      :     5.45  # diameter of pile [m]
         zlug   :     9.32  # embedded depth of padeye [m]
-
