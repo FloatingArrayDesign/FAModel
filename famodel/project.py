@@ -4874,6 +4874,16 @@ class Project():
         from moorpy.helpers import lengthAwareSegmentation
         
         lengthAwareSegmentation(ms_temp.lineList)
+
+        # Remove anchors from ms_temp
+        bodies_to_be_deleted = []
+        for body in ms_temp.bodyList:
+            if body.r6[2] < 0:
+                # this is an anchor, remove it
+                bodies_to_be_deleted.append(body)
+        for body in bodies_to_be_deleted:
+            ms_temp.bodyList.remove(body)
+
         ms_temp.unload(fileName=filename, phi=phi, MDoptionsDict=MDoptionsDict, outputList=outputList, flag=flag)
         
         # rename Body to Turbine if needed
