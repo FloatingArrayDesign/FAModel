@@ -110,7 +110,7 @@ Sand can also be classified ranging from soft to hard. and are chracterize by th
 |    Very Dense    |   < 50   |          9.5 - 11.5          |   ~ 0.45   |                 12 - 16                |        > 45         |         > 85         |
 
 ## Anchor Types
-The supported anchor types are listed below with their associated FAModel names in italics. Anchors types have specific [anchor capacity](#anchor-capacity-modules) and [anchor installation](#anchor-installation-modules) application modules, these are shown for clarity below as well.
+The supported anchor types are listed below with their associated FAModel labels in italics (*Labels are not case sensitive*). Anchors types have specific [anchor capacity](#anchor-capacity-modules) and [anchor installation](#anchor-installation-modules) application modules, these are shown for clarity below as well.
 
 |                                                        | Capacity       | Installation |
 |--------------------------------------------------------|----------------|--------------|
