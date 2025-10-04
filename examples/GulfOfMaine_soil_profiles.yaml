@@ -1,0 +1,67 @@
+pro_0:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 10
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 10.0
+      Su_bot: 20.0
+    - soil_type: clay
+      top: 10
+      bottom: 20
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 15.0
+      Su_bot: 25.0
+pro_1:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 20
+      gamma_top: 8.2
+      gamma_bot: 8.2
+      Su_top: 12.0
+      Su_bot: 22.0
+pro_2:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 5
+      gamma_top: 8.4
+      gamma_bot: 8.4
+      Su_top: 14.0
+      Su_bot: 24.0
+    - soil_type: clay
+      top: 5
+      bottom: 20
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 15.0
+      Su_bot: 25.0
+
+pro_3:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 5
+      gamma_top: 8.6
+      gamma_bot: 8.6
+      Su_top: 16.0
+      Su_bot: 26.0
+    - soil_type: clay
+      top: 5
+      bottom: 20
+      gamma_top: 8.0
+      gamma_bot: 8.0
+      Su_top: 25.0
+      Su_bot: 35.0
+pro_4:
+  layers:
+    - soil_type: clay
+      top: 0
+      bottom: 20
+      gamma_top: 8.8
+      gamma_bot: 8.8
+      Su_top: 18.0
+      Su_bot: 28.0
