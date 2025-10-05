@@ -156,16 +156,22 @@ class LineDesign(Mooring):
         Clump weights and buoyancy floats are not specified directly. They are both 'weights' and can have either a postitive or negative value
         '''
         
-        # first set the weight, length, and diameter lists based on the allVars inputs. Don't worry about design variables yet
+        # first set the weight, length, and diameter lists based on the allVars inputs. Don't worry about design variables yet. Create the units list too.
+        
         if self.shared==1:
             if self.span == 0:  raise Exception("For shared arrangements, a span must be provided to the Mooring object.")
             Ws = self.allVars[0::3].tolist()
         else:
             self.span = self.allVars[0]*10 - self.rBFair[0] # in tens of meters
             Ws = self.allVars[3::3].tolist()
+
         Ls = self.allVars[1::3].tolist()
         Ds = self.allVars[2::3].tolist()
-        
+
+        unitPattern = ['t', 'm', 'mm']
+        self.allVarsUnits = [unitPattern[i % 3] for i in range(len(self.allVars))]
+        if self.shared==0:
+            self.allVarsUnits[0] = 'm'
         # if any of the input lengths are in ratio form, convert them to real value form
         # (this can currently only handle 1 ration variable per Mooring)
         if len(self.rInds) > 0:
@@ -318,7 +324,7 @@ class LineDesign(Mooring):
         
         # fill in the X0 value (initial design variable values) based on provided allVars and Xindices (uses first value if a DV has multiple in allVars)
         self.X0 = np.array([self.allVars[self.Xindices.index(i)] for i in range(self.nX)])
-        
+        self.X0Units = np.array(self.allVarsUnits)[[self.Xindices.index(i) for i in range(self.nX)]]  # corresponding units
         self.X_denorm = np.ones(self.nX)  # normalization factor for design variables
         self.obj_denorm = 1.0  # normalization factor for objective function
 
@@ -340,10 +346,34 @@ class LineDesign(Mooring):
                            "max_sag"               : self.con_max_sag,        # a maximum for the lowest point's depth at x=x_extr_neg
                            "max_total_length"      : self.con_total_length,   # a maximum line length    
                            "min_yaw_stiff"         : self.con_yaw_stiffness,  # a minimum yaw stiffness for the whole system about the extreme negative position
-                           "max_damage"            : self.con_damage,          # a maximum fatigue damage for a specified mooring line (scales from provided damage from previous iteration)
-                           "min_tension"           : self.con_min_tension           # a minimum line tension
+                           "max_damage"            : self.con_damage,         # a maximum fatigue damage for a specified mooring line (scales from provided damage from previous iteration)
+                           "min_tension"           : self.con_min_tension,    # a minimum line tension
+                           "min_angle"             : self.con_min_angle,      # a minimum inclination angle for the line
+                           "max_angle"             : self.con_max_angle       # a maximum inclination angle for the line
                            }   
         
+        # a hard-coded dictionary of the units associated with the constraints
+        conUnitsDict = {"min_Kx"                : "N/m",
+                        "max_offset"            : "m",
+                        "min_lay_length"        : "m",
+                        "rope_contact"          : "m",
+                        "tension_safety_factor" : "-",
+                        "min_sag"               : "m",
+                        "max_sag"               : "m",
+                        "max_total_length"      : "m",
+                        "min_yaw_stiff"         : "Nm/deg",
+                        "max_damage"            : "-",
+                        "min_tension"           : "N",
+                        "min_angle"             : "deg",
+                        "max_angle"             : "deg"
+                        }
+
+        # add units to the constraints dictionary
+        for con in self.constraints:
+            if con['name'] in conUnitsDict:
+                con['unit'] = conUnitsDict[con['name']]
+            else:
+                raise Exception(f"The constraint name '{con['name']}' is not recognized.")
         # set up list of active constraint functions
         self.conList = []
         self.convals = np.zeros(len(self.constraints))  # array to hold constraint values
@@ -1288,30 +1318,59 @@ class LineDesign(Mooring):
         if len(self.log['x']) == 0:
             print("No optimization trajectory saved (log is empty). Nothing to plot.")
             return
-            
-        fig, ax = plt.subplots(len(self.X0)+1+len(self.constraints),1, sharex=True, figsize=[6,8])
-        fig.subplots_adjust(left=0.4)
+        
         Xs = np.array(self.log['x'])
         Fs = np.array(self.log['f'])
         Gs = np.array(self.log['g'])
         
-        for i in range(len(self.X0)):
-            ax[i].plot(Xs[:,i])
-            #ax[i].axhline(self.Xmin[i], color=[0.5,0.5,0.5], dashes=[1,1])
-            #ax[i].axhline(self.Xmax[i], color=[0.5,0.5,0.5], dashes=[1,1])
+        n_dv  = len(self.X0)
+        n_con = len(self.constraints)
+        n_rows = max(n_dv, n_con, 1)
 
-        ax[len(self.X0)].plot(Fs)
-        ax[len(self.X0)].set_ylabel("cost", rotation='horizontal')
+        fig, axes = plt.subplots(n_rows, 3, sharex=True, figsize=[12, 3*n_rows])
+        fig.subplots_adjust(left=0.1, right=0.95, hspace=0.5, wspace=0.4)
+        
+        if n_rows == 1:
+            axes = axes[np.newaxis, :]        
 
+        # --- Column 1: Design variables ---
+        for i in range(n_dv):
+            ax = axes[i, 0]
+            ax.plot(Xs[:, i], color='blue')
+            ax.set_title(f"d.v.{i+1} [{self.X0Units[i]}]")
+        
+        # turn off unused subplots
+        for i in range(n_dv, n_rows):
+            axes[i, 0].axis("off")
+
+        # --- Column 2: Constraints ---
         for i, con in enumerate(self.constraints):
-            j = i+1+len(self.X0)
-            ax[j].axhline(0, color=[0.5,0.5,0.5])
-            ax[j].plot(Gs[:,i])
-            ax[j].set_ylabel(f"{con['name']}({con['threshold']})", 
-                           rotation='horizontal', labelpad=80)
+            tol = 0.005 * (max(Gs[:, 0])-min(Gs[:, 0]))
+            ax = axes[i, 1]
+            ax.axhline(0, color=[0.5,0.5,0.5])
+            color = 'green' if Gs[-1, i] >= -tol else 'red'
+            ax.plot(Gs[:, i], color=color)
+            ax.set_title(f"{con['name']} ({con['threshold']}) [{con['unit']}]")
+        
+        for i in range(n_con, n_rows):
+            axes[i, 1].axis("off")
 
-        ax[j].set_xlabel("function evaluations")
-    
+        # --- Column 3: Cost ---
+        ax_cost = axes[0, 2]
+        ax_cost.plot(Fs/1e6, color='black')
+        ax_cost.set_title('cost [$M]')
+        
+        for i in range(1, n_rows):
+            axes[i, 2].axis("off")
+
+        # x-label
+        for i in range(n_rows):
+            for j in range(3):
+                if axes[i, j].has_data():
+                    axes[i, j].set_xlabel("function evaluations")
+        
+        plt.tight_layout()
+        plt.savefig("/Users/ralkarem/Documents/projects/FADesign/scripts/concepts2/LineDesign_optimization_ex.pdf", dpi=200)
     def plotGA(self):
         '''A function dedicated to plotting relevant GA outputs'''
 
@@ -1802,7 +1861,14 @@ class LineDesign(Mooring):
         a certain maximum depth.'''
         return self.ss.getSag(index) - threshold
     
+    # ----- angle constraints -----
+    def con_min_angle(self, X, index, threshold, display=0):
+        '''Ensure the angle of a line section is above a minimum value.'''
+        return self.ss.getAng(index) - threshold
 
+    def con_max_angle(self, X, index, threshold, display=0):
+        '''Ensure the angle of a line section is below a maximum value.'''
+        return threshold - self.ss.getAng(index)
 
     # ----- utility functions -----
             
