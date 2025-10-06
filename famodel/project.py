@@ -4964,14 +4964,9 @@ class Project():
         
         # Change all platform locations and associated anchors/moorings/cables
         for pf in self.platformList.values():
-            pf.r[:2]-=delta
-            for i, att in enumerate(pf.attachments.values()):
-                obj = att['obj']
-                if isinstance(obj, Mooring):           
-                    obj.reposition(project=self)
-
-                if isinstance(obj, Cable):
-                    obj.reposiiton(project=self)
+            r2 = pf.r[:2] - delta
+            r3 = np.append(r2, 0)
+            pf.setPosition(r3)
 
         # Change RAFTDict if available.
         if self.RAFTDict:
@@ -5060,25 +5055,11 @@ class Project():
         
         # Rotate the platforms
         for pf in self.platformList.values():
-            pf.r[:2] = np.dot(R, pf.r[:2].T).T
-            pf.phi = pf.phi + windHeadingRef - windHeading
-        
+            r2 = np.dot(R, pf.r[:2].T).T
+            phi = pf.phi + windHeadingRef - windHeading
+            r3 = np.append(r2, 0)
+            pf.setPosition(r3, heading=phi, degrees=False)
 
-        # Rotate moorings
-        for moor in self.mooringList.values():
-            # if not moor.shared:
-            mooringHeading = np.radians(moor.heading) + windHeadingRef - windHeading
-            moor.reposition(heading=mooringHeading, project=self)
-            # else:
-            #     mooringHeading = np.radians(obj.heading)
-            #     moor.reposition(heading=mooringHeading)
-            
-            
-
-            #     if isinstance(obj, Cable):
-            #         cableHeading = [obj.subcomponents[0].headingA + phi, obj.subcomponents[-1].headingB + phi]
-            #         obj.reposiiton(headings=cableHeading, project=self)
-        
         # Change RAFTDict if available.
         if self.RAFTDict:
             x_idx = self.RAFTDict['array']['keys'].index('x_location')
