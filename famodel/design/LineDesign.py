@@ -1313,8 +1313,14 @@ class LineDesign(Mooring):
         return conList
     
 
-    def plotOptimization(self):
-    
+    def plotOptimization(self, layout="grid"):
+        '''Plot the optimization trajectory, including design variables, constraints and cost.
+        
+        Parameters
+        ----------
+        layout : str
+            "tall" (default) or "grid" layout for subplots. The grid will place all d.v.s in the first column, all constraints in the second column, and cost in the third column.
+        '''
         if len(self.log['x']) == 0:
             print("No optimization trajectory saved (log is empty). Nothing to plot.")
             return
@@ -1325,52 +1331,77 @@ class LineDesign(Mooring):
         
         n_dv  = len(self.X0)
         n_con = len(self.constraints)
-        n_rows = max(n_dv, n_con, 1)
-
-        fig, axes = plt.subplots(n_rows, 3, sharex=True, figsize=[12, 3*n_rows])
-        fig.subplots_adjust(left=0.1, right=0.95, hspace=0.5, wspace=0.4)
         
-        if n_rows == 1:
-            axes = axes[np.newaxis, :]        
+        if layout=="tall":
+            n_rows = n_dv + n_con + 1
+            fig, axes = plt.subplots(n_rows, 1, sharex=True, figsize=[6, 1.5*n_rows])
+            axes = axes.reshape(-1, 1)
+        elif layout=="grid":
+            n_rows = max(n_dv, n_con, 1)
+            fig, axes = plt.subplots(n_rows, 3, sharex=True, figsize=[12, 1.5*n_rows])
+            if n_rows == 1:
+                axes = axes[np.newaxis, :]                
 
         # --- Column 1: Design variables ---
         for i in range(n_dv):
             ax = axes[i, 0]
             ax.plot(Xs[:, i], color='blue')
-            ax.set_title(f"d.v.{i+1} [{self.X0Units[i]}]")
-        
-        # turn off unused subplots
-        for i in range(n_dv, n_rows):
-            axes[i, 0].axis("off")
+            ax.set_ylabel(f"d.v.{i+1} ({self.X0Units[i]})", rotation=0, labelpad=20,fontsize=10, ha='right', va='center')
 
-        # --- Column 2: Constraints ---
+        # --- Column 2 / stacked: Constraints ---
         for i, con in enumerate(self.constraints):
-            tol = 0.005 * (max(Gs[:, 0])-min(Gs[:, 0]))
-            ax = axes[i, 1]
+            idx = i if layout == "grid" else n_dv + i
+            ax = axes[idx, 1 if layout == "grid" else 0]
             ax.axhline(0, color=[0.5,0.5,0.5])
+            tol = 0.005 * (max(Gs[:, i])-min(Gs[:, i]))
             color = 'green' if Gs[-1, i] >= -tol else 'red'
             ax.plot(Gs[:, i], color=color)
-            ax.set_title(f"{con['name']} ({con['threshold']}) [{con['unit']}]")
-        
-        for i in range(n_con, n_rows):
-            axes[i, 1].axis("off")
-
-        # --- Column 3: Cost ---
-        ax_cost = axes[0, 2]
+            ax.set_ylabel(f"{con['name']} ({con['unit']})",
+                        rotation=0, labelpad=20,
+                        ha='right', va='center',
+                        fontsize=10)
+            # Show threshold value inside plot
+            ax.text(0.98, 0.90, f"{con['threshold']}",
+                    transform=ax.transAxes,
+                    va='top', ha='right', fontsize=8, color='black')
+            
+        # --- Column 3 / stacked: Cost ---
+        if layout == "grid":
+            ax_cost = axes[0, 2]
+        else:
+            ax_cost = axes[-1, 0]
         ax_cost.plot(Fs/1e6, color='black')
-        ax_cost.set_title('cost [$M]')
-        
-        for i in range(1, n_rows):
-            axes[i, 2].axis("off")
+        ax_cost.set_ylabel('cost (M$)', rotation=0, labelpad=20, ha='right', va='center', fontsize=10)
 
-        # x-label
+        # remove unused axes if layout='grid'
+        if layout=="grid":
+            for i in range(n_dv, n_rows):
+                axes[i, 0].axis('off')
+            
+            for i in range(n_con, n_rows):
+                axes[i, 1].axis('off')  
+            
+            for i in range(1, n_rows):
+                axes[i, 2].axis('off')
+
+        # --- X labels only on bottom subplots ---
         for i in range(n_rows):
-            for j in range(3):
+            for j in range(axes.shape[1]):
                 if axes[i, j].has_data():
-                    axes[i, j].set_xlabel("function evaluations")
-        
+                    if layout == "tall":
+                        if i == n_rows-1:  # only bottom row
+                            axes[i, j].set_xlabel("function evaluations")
+                        else:
+                            axes[i, j].set_xlabel("")
+                    elif layout == "grid":
+                        if (i == n_dv-1 and j == 0) or (i == n_con-1 and j == 1) or (i == 0 and j == 2):
+                            axes[i, j].set_xlabel("function evaluations")
+                        else:
+                            axes[i, j].set_xlabel("")
+
+
         plt.tight_layout()
-        plt.savefig("/Users/ralkarem/Documents/projects/FADesign/scripts/concepts2/LineDesign_optimization_ex.pdf", dpi=200)
+
     def plotGA(self):
         '''A function dedicated to plotting relevant GA outputs'''
 
