@@ -1313,7 +1313,7 @@ class LineDesign(Mooring):
         return conList
     
 
-    def plotOptimization(self, layout="grid"):
+    def plotOptimization(self, layout="tall"):
         '''Plot the optimization trajectory, including design variables, constraints and cost.
         
         Parameters
