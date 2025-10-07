@@ -11,7 +11,7 @@ import time
 from famodel.mooring.mooring import Mooring
 from famodel.seabed.seabed_tools import getDepthFromBathymetry
 from famodel.project import Project
-from fadesign.fadsolvers import dsolve2
+from famodel.design.fadsolvers import dsolve2
 
 
 def create_initial_layout(lease_xs, lease_ys, ms, grid_x, grid_y, grid_depth, update_ms=True, display=0):
@@ -818,7 +818,7 @@ def adjustMS4Bath(ms, ms_xy, grid_x, grid_y, grid_depth, iLine=-1, nLines_in_ms=
     return ms
 
 
-def adjustSS4Pretension(ssin, i_line=0, T_init=None, horizontal=False, display=0, tol=0.01):
+def adjustSS4Pretension(ssin, i_line=0, T_init=None, horizontal=False, display=0, stepfac=10, tol=0.01):
 
     ss = deepcopy(ssin)
 
@@ -855,15 +855,16 @@ def adjustSS4Pretension(ssin, i_line=0, T_init=None, horizontal=False, display=0
     L_final, T_final, _ = dsolve2(eval_func, X0, Ytarget=[T_init], 
                                   Xmin=[1], Xmax=[1.1*np.linalg.norm(ss.rB-ss.rA)],
                                   dX_last=[1], tol=[tol], 
-                                  maxIter=200, stepfac=100, display=display)
+                                  maxIter=200, stepfac=stepfac, display=display)
     
-    ss.lineList[i_line].setL(L_final[0])  # assign the solved_for length
+    #ss.lineList[i_line].setL(L_final[0])  # assign the solved_for length
     if display > 0: print(f'    L_init = {L_init:6.1f}, LF = {L_final[0]:6.1f}')
     if display > 0: print(f'    T_init = {T_init:8.2e}, TF = {T_final[0]:8.2e}')
     
-    ss.staticSolve()    # reset the subsystem
+    #ss.staticSolve()    # reset the subsystem
 
     return L_final[0]
+    #return ss
 
 
 

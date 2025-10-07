@@ -63,7 +63,7 @@ class Platform(Node):
         self.raftResults = {}
     
     
-    def setPosition(self, r, heading=None, degrees=False,project=None):
+    def setPosition(self, r, heading=None, degrees=False,project=None, update_moorings=True):
         '''
         Set the position/orientation of the platform as well as the associated
         anchor points. 
@@ -93,27 +93,28 @@ class Platform(Node):
         
         # Update the position of any Moorings
         count = 0 # mooring counter (there are some attachments that aren't moorings)
-        for i, att in enumerate(self.attachments):
-            if isinstance(self.attachments[att]['obj'], Mooring): 
-        
-                # Heading of the mooring line
-                heading_i = self.mooring_headings[count] + self.phi
-                # Reposition the whole Mooring if it is an anchored line
-                if not self.attachments[att]['obj'].shared:
-                    self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
-                
-                count += 1
-                
-            if isinstance(self.attachments[att]['obj'], Cable):
-                
-                cab = self.attachments[att]['obj']
-                
-                # update heading stored in subcomponent for attached end
-                # pf_phis = [cab.attached_to[0].phi, cab.attached_to[1].phi]
-                # headings = [cab.subcomponents[0].headingA + pf_phis[0], cab.subcomponents[-1].headingB + pf_phis[1]]
-                
-                # reposition the cable
-                cab.reposition(project=project)
+        if update_moorings:
+            for i, att in enumerate(self.attachments):
+                if isinstance(self.attachments[att]['obj'], Mooring): 
+            
+                    # Heading of the mooring line
+                    heading_i = self.mooring_headings[count] + self.phi
+                    # Reposition the whole Mooring if it is an anchored line
+                    if not self.attachments[att]['obj'].shared:
+                        self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
+                    
+                    count += 1
+                    
+                if isinstance(self.attachments[att]['obj'], Cable):
+                    
+                    cab = self.attachments[att]['obj']
+                    
+                    # update heading stored in subcomponent for attached end
+                    # pf_phis = [cab.attached_to[0].phi, cab.attached_to[1].phi]
+                    # headings = [cab.subcomponents[0].headingA + pf_phis[0], cab.subcomponents[-1].headingB + pf_phis[1]]
+                    
+                    # reposition the cable
+                    cab.reposition(project=project)
     
     
     def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None, project=None):
