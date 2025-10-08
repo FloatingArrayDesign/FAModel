@@ -5,7 +5,6 @@ import os
 import matplotlib.pyplot as plt
 import pytest
 
-print('hola')
 # --- Helper goes at module level ---
 def assign_soil(anchor, soil_label, project):
     soil_def = project.soilProps[soil_label]
@@ -91,7 +90,7 @@ def test_anchor_capacities(project):
        
     # check DRILLED & GROUTED PILE (need to change material to rock)
     loads = {'Ha':4.5e5, 'Va':1.9e5} # again assign new loads    
-    anch.dd['type'] = 'dandg'
+    anch.dd['type'] = 'drilled'
     anch.dd['design'] = {'L':10, 'D':3, 'zlug':0}
     assign_soil(anch, 'weak_rock', project)
     Ha = loads['Ha']

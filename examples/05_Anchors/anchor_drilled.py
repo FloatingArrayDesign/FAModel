@@ -17,15 +17,14 @@ profile_map = [
 # --- Create driven pile anchor ---
 anchor = Anchor(
     dd = {
-        'type': 'dandg',
+        'type': 'drilled',
         'design': {
             'L': 10.0,        # Embedded length
             'D': 2.85,        # Diameter
             'zlug': 1.0       # Padeye depth
         }
     },
-    r = [0.0, 0.0, 0.0]
-)
+    r = [0.0, 0.0, 0.0])
 
 # Assign mooring loads
 anchor.loads = {

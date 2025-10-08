@@ -55,7 +55,7 @@ class Anchor(Node):
             print(f"[Anchor] No type provided. Defaulting to 'suction'.")
         
         # raise errors/warnings if the anchor type is not what it needs to be
-        anchor_type_options = ['suction', 'sepla', 'dea', 'depla', 'vla', 'plate', 'torpedo', 'helical', 'driven', 'dandg']
+        anchor_type_options = ['suction', 'sepla', 'dea', 'depla', 'vla', 'plate', 'torpedo', 'helical', 'driven', 'drilled']
         if self.anchType not in anchor_type_options:
             raise ValueError(f"The anchor 'type' needs to explicitly be one of {anchor_type_options} (Case not sensitive)")
         # if self.anchType not in ['drag-embedment', 'gravity', 'suction', 'SEPLA', 'VLA', 'driven']:
@@ -466,7 +466,7 @@ class Anchor(Node):
         from .anchors_famodel.capacity_torpedo import getCapacityTorpedo
         from .anchors_famodel.capacity_helical import getCapacityHelical
         from .anchors_famodel.capacity_driven import getCapacityDriven
-        from .anchors_famodel.capacity_dandg import getCapacityDandG
+        from .anchors_famodel.capacity_drilled import getCapacityDrilled
            
         capacity_dispatch = {
             'suction': getCapacitySuction,
@@ -478,7 +478,7 @@ class Anchor(Node):
             'torpedo': getCapacityTorpedo,
             'helical': getCapacityHelical,
             'driven': getCapacityDriven,
-            'dandg': getCapacityDandG}
+            'drilled': getCapacityDrilled}
         
         if self.display > 0: print('[DEBUG] profile_name:', self.profile_name)
         if self.display > 0: print('[DEBUG] soil_profile passed as profile_map:')
@@ -608,7 +608,7 @@ class Anchor(Node):
                 Ha=Ha, Va=Va,
                 plot=plot, display=display)
         
-        elif anchType_clean == 'dandg':
+        elif anchType_clean == 'drilled':
             self.capacity_format = 'component'           
             L = self.dd['design']['L']
             D = self.dd['design']['D']
@@ -636,7 +636,7 @@ class Anchor(Node):
         if anchType_clean in ['suction', 'torpedo', 'plate', 'sepla', 'dea', 'depla', 'vla']:
             self.anchorCapacity['UC'] = results.get('Unity check', np.nan)
         
-        elif anchType_clean in ['helical', 'driven', 'dandg']:
+        elif anchType_clean in ['helical', 'driven', 'drilled']:
             self.anchorCapacity['Unity check (horizontal)'] = results.get('Unity check (horizontal)', np.nan)
             self.anchorCapacity['Unity check (vertical)'] = results.get('Unity check (vertical)', np.nan)
         
@@ -693,7 +693,7 @@ class Anchor(Node):
                 ratio = self.dd['design'].get('zlug_ratio', self.dd['design']['zlug']/self.dd['design']['L'])
                 self.dd['design']['zlug_ratio'] = ratio
                 self.dd['design']['zlug'] = ratio*self.dd['design']['L']
-            elif 'dandg' in anchType_clean:
+            elif 'drilled' in anchType_clean:
                 self.dd['design']['zlug'] = 0
     
         def get_lambda():
@@ -702,7 +702,7 @@ class Anchor(Node):
                 A_wing = (self.dd['design']['D1'] - self.dd['design']['D2']) * self.dd['design']['L1']
                 A_shaft = self.dd['design']['D2'] * L
                 D = (A_wing + A_shaft) / L
-            elif np.any([name in anchType_clean for name in ['driven', 'dandg', 'helical', 'suction']]):
+            elif np.any([name in anchType_clean for name in ['driven', 'drilled', 'helical', 'suction']]):
                 L = self.dd['design']['L']
                 D = self.dd['design']['D']
             elif np.any([name in anchType_clean for name in ['plate', 'sepla', 'dea', 'depla', 'vla']]):
@@ -812,7 +812,7 @@ class Anchor(Node):
                     return 'continue'
             return 'continue'
         
-        def termination_condition_dandg():
+        def termination_condition_drilled():
             UC_v = self.anchorCapacity['Va']/self.anchorCapacity['Vmax']
             disp_lat = abs(self.anchorCapacity.get('Lateral displacement', 0.0))
             disp_rot = abs(self.anchorCapacity.get('Rotational displacement', 0.0))
@@ -912,7 +912,7 @@ class Anchor(Node):
                 
             if self.display > 0: print('[Warning] While-loop search reached bounds without meeting criteria.')
                     
-        if 'dandg' in anchType_clean:
+        if 'drilled' in anchType_clean:
             L0, D0 = geom if len(geom) == 2 else [5.0, 1.0]
             self.dd['design']['L'] = L0
             self.dd['design']['D'] = D0
@@ -949,7 +949,7 @@ class Anchor(Node):
                         iter_count += 1
                         if not all(is_valid(v) for v in [UC_v, disp_lat, disp_rot]):
                             continue
-                        if termination_condition_dandg():
+                        if termination_condition_drilled():
                             print(f'\nTermination criteria met.')
                             print('Design:', self.dd['design'])
                             print('Capacity Results:', self.anchorCapacity)
@@ -969,7 +969,7 @@ class Anchor(Node):
                         disp_rot = abs(self.anchorCapacity.get('Rotational displacement', 0.0))
                         if self.display > 0: print(f'[Iter {iter_count}] L={L:.2f}, D={D:.2f}, UC_v={UC_v:.3f}, lat={disp_lat:.3f} m, rot={disp_rot:.3f} deg')
                         iter_count += 1
-                        status = termination_condition_dandg()
+                        status = termination_condition_drilled()
                         if status == 'terminate':
                             print(f'Termination criteria met.')
                             print('Design:', self.dd['design'])
@@ -977,7 +977,7 @@ class Anchor(Node):
                             return
                         elif status == 'continue':
                             continue
-                    status = termination_condition_dandg()
+                    status = termination_condition_drilled()
                     if status == 'terminate':
                         print(f'\nTermination criteria met.')
                         print('Design:', self.dd['design'])
@@ -1339,7 +1339,7 @@ class Anchor(Node):
 
         anchType_clean = self.anchType.lower().replace(' ', '')
 
-        if anchType_clean in ['helical', 'driven', 'dandg']:
+        if anchType_clean in ['helical', 'driven', 'drilled']:
             UC_v = self.anchorCapacity.get('Unity check (vertical)', None)
             UC_h = self.anchorCapacity.get('Unity check (horizontal)', None)
 
@@ -1760,7 +1760,7 @@ class Anchor(Node):
             # convalB = 1 - results['UC'] 
             return(conval)
         
-        def conFun_DandG(vars, geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs):
+        def conFun_Drilled(vars, geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs):
 
             newGeom = dict(zip(geomKeys, vars))
             self.dd['design'].update(newGeom)
@@ -1879,9 +1879,9 @@ class Anchor(Node):
                            {'type':'ineq','fun':conFunV,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
                            {'type':'ineq','fun':conBounds,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)}]
         
-        elif 'dandg' in anchType:
+        elif 'drilled' in anchType:
             constraints = [{'type':'ineq','fun':conFun_LD,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
-                           {'type':'ineq','fun':conFun_DandG,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
+                           {'type':'ineq','fun':conFun_Drilled,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
                            {'type':'ineq','fun':conFunH,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
                            {'type':'ineq','fun':conFunV,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)},
                            {'type':'ineq','fun':conBounds,'args':(geomKeys, input_loads, fix_zlug, LD_con, geomBounds, minfs)}]
@@ -1893,7 +1893,7 @@ class Anchor(Node):
         # Run the optimization to find sizing that satisfy UC close to 1
         print('optimizing anchor size')
         
-        if 'suction' in anchType or 'dandg' in anchType:
+        if 'suction' in anchType or 'drilled' in anchType:
             solution = minimize(objective, initial_guess, args=dict(geomKeys=geomKeys, input_loads=input_loads, fix_zlug=fix_zlug, LD_con=LD_con, geomBounds=geomBounds, minfs=minfs),
                                 method="COBYLA", constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
         else:
@@ -1926,7 +1926,7 @@ class Anchor(Node):
 
                 print('new initial guess',initial_guess)
                 # re-run optimization
-                if 'suction' in anchType or 'dandg' in anchType:
+                if 'suction' in anchType or 'drilled' in anchType:
                     solution = minimize(objective, initial_guess, args=dict(geomKeys=geomKeys, input_loads=input_loads, fix_zlug=fix_zlug, LD_con=LD_con, geomBounds=geomBounds, minfs=minfs),
                                         method="COBYLA", constraints=constraints, options={'rhobeg':0.1, 'catol':0.001})
                 else:
