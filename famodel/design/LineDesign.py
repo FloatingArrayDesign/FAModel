@@ -75,6 +75,7 @@ class LineDesign(Mooring):
             of line sections and the last entry is the DAF to be used for anchor loads. Default is 1.
 
         '''
+        self.settings = kwargs
         
         self.display = getFromDict(kwargs, 'display', default=0)
         
@@ -996,24 +997,37 @@ class LineDesign(Mooring):
         self.con_denorm = np.ones(len(self.constraints))
     
     
-    def optimize(self, gtol=0.03, maxIter=40, nRetry=0, plot=False, display=0, stepfac=4, method='dopt'):
+    def optimize(self, gtol=0.03, maxIter=40, nRetry=0, plot=False, display=0, stepfac=4, method='dopt', continued=False):
         '''Optimize the design variables according to objectve, constraints, bounds, etc.
         '''
         
         # set the display value to use over the entire process
         self.display = display
         
-        # reset iteration counter
-        self.iter = -1
-        
-        # clear optimization progress tracking lists
-        self.log['x'] = []
-        self.log['f'] = []
-        self.log['g'] = []
-        self.log['time'] = []
-        self.log['xe'] = []
-        self.log['a'] = []
-        
+        if not continued:
+            # reset iteration counter
+            self.iter = -1
+            
+            # clear optimization progress tracking lists
+            self.log['x'] = []
+            self.log['f'] = []
+            self.log['g'] = []
+            self.log['time'] = []
+            self.log['xe'] = []
+            self.log['a'] = []
+
+            # Set starting point to normalized value
+            X0 = self.X0 / self.X_denorm
+
+        else:
+            # Update starting point to the Xlast value
+            self.updateDesign(self.Xlast, normalized=False)
+            X0 = self.Xlast / self.X_denorm
+
+        dX_last = self.dX_last / self.X_denorm
+        Xmax = self.Xmax / self.X_denorm
+        Xmin = self.Xmin / self.X_denorm 
+
         def eval_func(X, args):
             '''Mooring object evaluation function condusive with MoorSolve.dopt2'''
             
@@ -1031,11 +1045,7 @@ class LineDesign(Mooring):
         else:
             self.noFail = False
         
-        # Set starting point to normalized value
-        X0 = self.X0 / self.X_denorm
-        dX_last = self.dX_last / self.X_denorm
-        Xmax = self.Xmax / self.X_denorm
-        Xmin = self.Xmin / self.X_denorm
+
         
         
         # call optimizer to perform optimization
