@@ -1384,7 +1384,7 @@ class LineDesign(Mooring):
             for i in range(n_con, n_rows):
                 axes[i, 1].axis('off')  
             
-            for i in range(2, n_rows):
+            for i in range(1, n_rows):
                 axes[i, 2].axis('off')
 
         # --- X labels only on bottom subplots ---
