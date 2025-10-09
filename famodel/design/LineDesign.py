@@ -156,16 +156,22 @@ class LineDesign(Mooring):
         Clump weights and buoyancy floats are not specified directly. They are both 'weights' and can have either a postitive or negative value
         '''
         
-        # first set the weight, length, and diameter lists based on the allVars inputs. Don't worry about design variables yet
+        # first set the weight, length, and diameter lists based on the allVars inputs. Don't worry about design variables yet. Create the units list too.
+        
         if self.shared==1:
             if self.span == 0:  raise Exception("For shared arrangements, a span must be provided to the Mooring object.")
             Ws = self.allVars[0::3].tolist()
         else:
             self.span = self.allVars[0]*10 - self.rBFair[0] # in tens of meters
             Ws = self.allVars[3::3].tolist()
+
         Ls = self.allVars[1::3].tolist()
         Ds = self.allVars[2::3].tolist()
-        
+
+        unitPattern = ['t', 'm', 'mm']
+        self.allVarsUnits = [unitPattern[i % 3] for i in range(len(self.allVars))]
+        if self.shared==0:
+            self.allVarsUnits[0] = 'm'
         # if any of the input lengths are in ratio form, convert them to real value form
         # (this can currently only handle 1 ration variable per Mooring)
         if len(self.rInds) > 0:
@@ -318,7 +324,7 @@ class LineDesign(Mooring):
         
         # fill in the X0 value (initial design variable values) based on provided allVars and Xindices (uses first value if a DV has multiple in allVars)
         self.X0 = np.array([self.allVars[self.Xindices.index(i)] for i in range(self.nX)])
-        
+        self.X0Units = np.array(self.allVarsUnits)[[self.Xindices.index(i) for i in range(self.nX)]]  # corresponding units
         self.X_denorm = np.ones(self.nX)  # normalization factor for design variables
         self.obj_denorm = 1.0  # normalization factor for objective function
 
@@ -340,10 +346,34 @@ class LineDesign(Mooring):
                            "max_sag"               : self.con_max_sag,        # a maximum for the lowest point's depth at x=x_extr_neg
                            "max_total_length"      : self.con_total_length,   # a maximum line length    
                            "min_yaw_stiff"         : self.con_yaw_stiffness,  # a minimum yaw stiffness for the whole system about the extreme negative position
-                           "max_damage"            : self.con_damage,          # a maximum fatigue damage for a specified mooring line (scales from provided damage from previous iteration)
-                           "min_tension"           : self.con_min_tension           # a minimum line tension
+                           "max_damage"            : self.con_damage,         # a maximum fatigue damage for a specified mooring line (scales from provided damage from previous iteration)
+                           "min_tension"           : self.con_min_tension,    # a minimum line tension
+                           "min_angle"             : self.con_min_angle,      # a minimum inclination angle for the line
+                           "max_angle"             : self.con_max_angle       # a maximum inclination angle for the line
                            }   
         
+        # a hard-coded dictionary of the units associated with the constraints
+        conUnitsDict = {"min_Kx"                : "N/m",
+                        "max_offset"            : "m",
+                        "min_lay_length"        : "m",
+                        "rope_contact"          : "m",
+                        "tension_safety_factor" : "-",
+                        "min_sag"               : "m",
+                        "max_sag"               : "m",
+                        "max_total_length"      : "m",
+                        "min_yaw_stiff"         : "Nm/deg",
+                        "max_damage"            : "-",
+                        "min_tension"           : "N",
+                        "min_angle"             : "deg",
+                        "max_angle"             : "deg"
+                        }
+
+        # add units to the constraints dictionary
+        for con in self.constraints:
+            if con['name'] in conUnitsDict:
+                con['unit'] = conUnitsDict[con['name']]
+            else:
+                raise Exception(f"The constraint name '{con['name']}' is not recognized.")
         # set up list of active constraint functions
         self.conList = []
         self.convals = np.zeros(len(self.constraints))  # array to hold constraint values
@@ -1272,7 +1302,7 @@ class LineDesign(Mooring):
       
         if plot:
             self.plotOptimization()
-        
+
         return X, self.cost #, infodict
     
 
@@ -1283,35 +1313,101 @@ class LineDesign(Mooring):
         return conList
     
 
-    def plotOptimization(self):
-    
+    def plotOptimization(self, layout="tall", return_fig=False):
+        '''Plot the optimization trajectory, including design variables, constraints and cost.
+        
+        Parameters
+        ----------
+        layout : str
+            "tall" (default) or "grid" layout for subplots. The grid will place all d.v.s in the first column, all constraints in the second column, and cost in the third column.
+        '''
         if len(self.log['x']) == 0:
             print("No optimization trajectory saved (log is empty). Nothing to plot.")
             return
-            
-        fig, ax = plt.subplots(len(self.X0)+1+len(self.constraints),1, sharex=True, figsize=[6,8])
-        fig.subplots_adjust(left=0.4)
+        
         Xs = np.array(self.log['x'])
         Fs = np.array(self.log['f'])
         Gs = np.array(self.log['g'])
         
-        for i in range(len(self.X0)):
-            ax[i].plot(Xs[:,i])
-            #ax[i].axhline(self.Xmin[i], color=[0.5,0.5,0.5], dashes=[1,1])
-            #ax[i].axhline(self.Xmax[i], color=[0.5,0.5,0.5], dashes=[1,1])
+        n_dv  = len(self.X0)
+        n_con = len(self.constraints)
+        
+        if layout=="tall":
+            n_rows = n_dv + n_con + 1
+            fig, axes = plt.subplots(n_rows, 1, sharex=True, figsize=[6, 1.5*n_rows])
+            axes = axes.reshape(-1, 1)
+        elif layout=="grid":
+            n_rows = max(n_dv, n_con, 1)
+            fig, axes = plt.subplots(n_rows, 3, sharex=True, figsize=[12, 1.5*n_rows])
+            if n_rows == 1:
+                axes = axes[np.newaxis, :]                
 
-        ax[len(self.X0)].plot(Fs)
-        ax[len(self.X0)].set_ylabel("cost", rotation='horizontal')
+        # --- Column 1: Design variables ---
+        for i in range(n_dv):
+            ax = axes[i, 0]
+            ax.plot(Xs[:, i], color='blue')
+            ax.set_ylabel(f"d.v.{i+1} ({self.X0Units[i]})", rotation=90, fontsize=10, va='center')
 
+        # --- Column 2 / stacked: Constraints ---
         for i, con in enumerate(self.constraints):
-            j = i+1+len(self.X0)
-            ax[j].axhline(0, color=[0.5,0.5,0.5])
-            ax[j].plot(Gs[:,i])
-            ax[j].set_ylabel(f"{con['name']}({con['threshold']})", 
-                           rotation='horizontal', labelpad=80)
-
-        ax[j].set_xlabel("function evaluations")
+            idx = i if layout == "grid" else n_dv + i
+            ax = axes[idx, 1 if layout == "grid" else 0]
+            ax.axhline(0, color=[0.5,0.5,0.5])
+            tol = 0.005 * (max(Gs[:, i])-min(Gs[:, i]))
+            color = 'green' if Gs[-1, i] >= -tol else 'red'
+            ax.plot(Gs[:, i], color=color)
+            if con['name']=='tension_safety_factor':
+                con_name = 'SF'
+            else:
+                con_name = con['name']
+            ax.set_ylabel(f"{con_name} ({con['unit']})",
+                        rotation=90, 
+                        va='center', fontsize=10)
+            # Show threshold value inside plot
+            ax.text(0.98, 0.90, f"{con['threshold']}",
+                    transform=ax.transAxes,
+                    va='top', ha='right', fontsize=8, color='black')
+            
+        # --- Column 3 / stacked: Cost ---
+        if layout == "grid":
+            ax_cost = axes[0, 2]
+        else:
+            ax_cost = axes[-1, 0]
+        ax_cost.plot(Fs/1e6, color='black')
+        ax_cost.set_ylabel('cost (M$)', rotation=90, va='center', fontsize=10)
     
+        # remove unused axes if layout='grid'
+        if layout=="grid":
+            for i in range(n_dv, n_rows):
+                axes[i, 0].axis('off')
+            
+            for i in range(n_con, n_rows):
+                axes[i, 1].axis('off')  
+            
+            for i in range(2, n_rows):
+                axes[i, 2].axis('off')
+
+        # --- X labels only on bottom subplots ---
+        for i in range(n_rows):
+            for j in range(axes.shape[1]):
+                if axes[i, j].has_data():
+                    if layout == "tall":
+                        if i == n_rows-1:  # only bottom row
+                            axes[i, j].set_xlabel("function evaluations")
+                        else:
+                            axes[i, j].set_xlabel("")
+                    elif layout == "grid":
+                        if (i == n_dv-1 and j == 0) or (i == n_con-1 and j == 1) or (i == 0 and j == 2):
+                            axes[i, j].set_xlabel("function evaluations")
+                        else:
+                            axes[i, j].set_xlabel("")
+
+
+        plt.tight_layout()
+
+        if return_fig:
+            return fig, axes
+
     def plotGA(self):
         '''A function dedicated to plotting relevant GA outputs'''
 
@@ -1802,7 +1898,14 @@ class LineDesign(Mooring):
         a certain maximum depth.'''
         return self.ss.getSag(index) - threshold
     
+    # ----- angle constraints -----
+    def con_min_angle(self, X, index, threshold, display=0):
+        '''Ensure the angle of a line section is above a minimum value.'''
+        return self.ss.getAng(index) - threshold
 
+    def con_max_angle(self, X, index, threshold, display=0):
+        '''Ensure the angle of a line section is below a maximum value.'''
+        return threshold - self.ss.getAng(index)
 
     # ----- utility functions -----
             
@@ -2003,7 +2106,7 @@ class LineDesign(Mooring):
         info['design']['X'         ] = self.Xlast.tolist()                                              # design variables
         #info['design']['Gdict'     ] = self.evaluateConstraints([])[1]                                  # dict of constraint names and values of evaluated constraint functions
         info['design']['Ls'        ] = [float(line.L              )       for line in self.ss.lineList]    # length of each segment
-        info['design']['Ds'        ] = [float(line.type['input_d'])       for line in self.ss.lineList]    # *input* diameter  of each segment 
+        info['design']['Ds'        ] = [float(line.type['d_nom'])       for line in self.ss.lineList]    # *input* diameter  of each segment 
         info['design']['lineTypes' ] = [str(line.type['material'])        for line in self.ss.lineList]    # line type of each segment (may be redundant with what's in arrangement)
         info['design']['anchorType'] = self.anchorType                                                  # (may be redundant with what's in arrangement)
         info['design']['span'   ] = float(self.span)                                              # platform-platform of platfom-anchor horizontal span just in case it's changed
