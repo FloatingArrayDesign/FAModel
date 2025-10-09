@@ -1302,7 +1302,7 @@ class LineDesign(Mooring):
       
         if plot:
             self.plotOptimization()
-        
+
         return X, self.cost #, infodict
     
 
@@ -1313,7 +1313,7 @@ class LineDesign(Mooring):
         return conList
     
 
-    def plotOptimization(self, layout="tall"):
+    def plotOptimization(self, layout="tall", return_fig=False):
         '''Plot the optimization trajectory, including design variables, constraints and cost.
         
         Parameters
@@ -1346,7 +1346,7 @@ class LineDesign(Mooring):
         for i in range(n_dv):
             ax = axes[i, 0]
             ax.plot(Xs[:, i], color='blue')
-            ax.set_ylabel(f"d.v.{i+1} ({self.X0Units[i]})", rotation=0, labelpad=20,fontsize=10, ha='right', va='center')
+            ax.set_ylabel(f"d.v.{i+1} ({self.X0Units[i]})", rotation=90, fontsize=10, va='center')
 
         # --- Column 2 / stacked: Constraints ---
         for i, con in enumerate(self.constraints):
@@ -1356,10 +1356,13 @@ class LineDesign(Mooring):
             tol = 0.005 * (max(Gs[:, i])-min(Gs[:, i]))
             color = 'green' if Gs[-1, i] >= -tol else 'red'
             ax.plot(Gs[:, i], color=color)
-            ax.set_ylabel(f"{con['name']} ({con['unit']})",
-                        rotation=0, labelpad=20,
-                        ha='right', va='center',
-                        fontsize=10)
+            if con['name']=='tension_safety_factor':
+                con_name = 'SF'
+            else:
+                con_name = con['name']
+            ax.set_ylabel(f"{con_name} ({con['unit']})",
+                        rotation=90, 
+                        va='center', fontsize=10)
             # Show threshold value inside plot
             ax.text(0.98, 0.90, f"{con['threshold']}",
                     transform=ax.transAxes,
@@ -1371,8 +1374,8 @@ class LineDesign(Mooring):
         else:
             ax_cost = axes[-1, 0]
         ax_cost.plot(Fs/1e6, color='black')
-        ax_cost.set_ylabel('cost (M$)', rotation=0, labelpad=20, ha='right', va='center', fontsize=10)
-
+        ax_cost.set_ylabel('cost (M$)', rotation=90, va='center', fontsize=10)
+    
         # remove unused axes if layout='grid'
         if layout=="grid":
             for i in range(n_dv, n_rows):
@@ -1381,7 +1384,7 @@ class LineDesign(Mooring):
             for i in range(n_con, n_rows):
                 axes[i, 1].axis('off')  
             
-            for i in range(1, n_rows):
+            for i in range(2, n_rows):
                 axes[i, 2].axis('off')
 
         # --- X labels only on bottom subplots ---
@@ -1401,6 +1404,9 @@ class LineDesign(Mooring):
 
 
         plt.tight_layout()
+
+        if return_fig:
+            return fig, axes
 
     def plotGA(self):
         '''A function dedicated to plotting relevant GA outputs'''
@@ -2100,7 +2106,7 @@ class LineDesign(Mooring):
         info['design']['X'         ] = self.Xlast.tolist()                                              # design variables
         #info['design']['Gdict'     ] = self.evaluateConstraints([])[1]                                  # dict of constraint names and values of evaluated constraint functions
         info['design']['Ls'        ] = [float(line.L              )       for line in self.ss.lineList]    # length of each segment
-        info['design']['Ds'        ] = [float(line.type['input_d'])       for line in self.ss.lineList]    # *input* diameter  of each segment 
+        info['design']['Ds'        ] = [float(line.type['d_nom'])       for line in self.ss.lineList]    # *input* diameter  of each segment 
         info['design']['lineTypes' ] = [str(line.type['material'])        for line in self.ss.lineList]    # line type of each segment (may be redundant with what's in arrangement)
         info['design']['anchorType'] = self.anchorType                                                  # (may be redundant with what's in arrangement)
         info['design']['span'   ] = float(self.span)                                              # platform-platform of platfom-anchor horizontal span just in case it's changed
