@@ -2153,7 +2153,7 @@ class Project():
             platform.r[1] = platform.body.r6[1]
         
     
-    def plot2d(self, ax=None, plot_seabed=False,draw_soil=False,plot_bathymetry=True, plot_boundary=True, bare=False, axis_equal=True,save=False,**kwargs):
+    def plot2d(self, ax=None, plot_seabed=False,draw_soil=False,plot_bathymetry=True, plot_boundary=True, color_lineDepth=False, bare=False, axis_equal=True,save=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2163,6 +2163,8 @@ class Project():
         ...
         bare : bool
             If True, supress display of extra labeling like the colorbar.
+        color_lineDepth: bool
+            If True, color mooring lines based on depth. Only works if plot_bathymetry=False.
         '''
      
         # Handle extra keyword arguments or use default values
@@ -2182,7 +2184,8 @@ class Project():
         bath_levels = kwargs.get('bath_levels', None)
         show_legend = kwargs.get('show_legend', True)
         
-        
+        max_line_depth = kwargs.get('max_line_depth', None)  # max depth for line coloring if color_lineDepth is True
+        only_shared    = kwargs.get('only_shared', False)   # if color_lineDepth is True, only color shared lines
         # if axes not passed in, make a new figure
         if ax == None:
             fig, ax = plt.subplots(1,1, figsize=figsize)
@@ -2250,6 +2253,16 @@ class Project():
                     ax.fill(env['x'], env['y'], edgecolor=edgecolor, facecolor='none', linestyle='dashed', lw=0.8, label='Platform Envelope')
         
         if plot_moorings:
+            line_depth_settings = None
+            if color_lineDepth:
+                if plot_bathymetry:
+                    raise ValueError("Cannot use depth-based line coloring with plot_bathymetry=True. Disable bathymetry to avoid confusion.")
+                line_depth_settings = {
+                    "cmap": "Blues",
+                    "vmin": max_line_depth if max_line_depth else -np.max(self.grid_depth),
+                    "vmax": 0,
+                    "only_shared": only_shared
+                }            
             for mooring in self.mooringList.values():
                 for name, env in mooring.envelopes.items():
                     #if 'shape' in env:  # if there's a shapely object
@@ -2284,16 +2297,27 @@ class Project():
                     
                 if mooring.ss:
                     mooring.ss.drawLine2d(0, ax, color="self", endpoints=False, 
-                                          Xuvec=[1,0,0], Yuvec=[0,1,0],label=labs)  
+                                          Xuvec=[1,0,0], Yuvec=[0,1,0], line_depth_settings=line_depth_settings, label=labs)  
                 elif mooring.parallels:
                     for i,line in enumerate(lineList):
                         line.drawLine2d(0, ax, color="self",
-                                        Xuvec=[1,0,0], Yuvec=[0,1,0],label=labs[i])
+                                        Xuvec=[1,0,0], Yuvec=[0,1,0], line_depth_settings=line_depth_settings, label=labs[i])
 
                 else: # simple line plot
                     ax.plot([mooring.rA[0], mooring.rB[0]], 
                             [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
-                
+
+        # ---- Add colorbar for line depth ----
+        if line_depth_settings is not None and not bare:
+            import matplotlib.cm as cm
+            import matplotlib.colors as mcolors
+            sm = cm.ScalarMappable(cmap=cm.get_cmap(line_depth_settings["cmap"]),
+                                norm=mcolors.Normalize(vmin=line_depth_settings["vmin"],
+                                                        vmax=line_depth_settings["vmax"]))
+            sm.set_array([])
+            cbar = plt.colorbar(sm, ax=ax, fraction=0.04)
+            cbar.set_label("Line Depth (m)")  
+                          
         if plot_anchors:
             for anchor in self.anchorList.values():
                 ax.plot(anchor.r[0],anchor.r[1], 'mo',ms=2, label='Anchor')
