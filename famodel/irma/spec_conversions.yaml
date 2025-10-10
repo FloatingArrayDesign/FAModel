@@ -1,0 +1,19 @@
+# This file specifies optional capability specification keys that can be used
+# to support inputs in common industry units rather than SI units.
+
+# format:   key name with common unit, conversation factor from common->SI, fundamental key name (SI unit),  
+- [ area_sqf            , 0.092903 , area              ]
+- [ max_load_t          , 9806.7   , max_load          ]
+- [ volume_cf           , 0.028317 , volume            ]
+- [ max_line_pull_t     , 9806.7   , max_line_pull     ]  # continuous line pull [t]
+- [ brake_load_t        , 9806.7   , brake_load        ]  # static brake holding load [t]
+- [ speed_mpm           , 0.01667  , speed             ]  # payout/haul speed [m/min] -> m/s
+- [ max_force_t         , 9806.7   , max_force         ]  # bollard pull [t]
+- [ capacity_t          , 9806.7   , capacity          ]  # SWL at specified radius [t]
+- [ hook_height_ft      , 0.3048   , hook_height       ]  # max hook height [m]
+- [ towing_pin_rating_t , 9806.7   , towing_pin_rating ]  # rating of towing pins [t] (optional)
+- [ power_kW            , 1000.0   , power             ]  # W
+- [ pressure_bar        , 1e5      , pressure          ]  # Pa
+- [ weight_t            , 9806.7   , weight            ]  # N or should this be mass in kg?
+- [ centrifugal_force_kN, 1000.0   , centrifugal_force ]
+- [ torque_kNm          , 1000.0   , torque            ]

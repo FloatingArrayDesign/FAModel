@@ -40,7 +40,7 @@ def getCapacitySuction(D, L, zlug, H, V, soil_type, gamma, Su0=None, k=None, phi
         Maximum vertical capacity [kN]
     '''  
             
-    lambdap = L/D; m = 2/3;         # Suction pile slenderness ratio
+    lambdap = L/D; m = 2/3;          # Suction pile slenderness ratio
     t = (6.35 + D*20)/1e3            # Suction pile wall thickness (m), API RP2A-WSD
     rlug = D/2                       # Radial position of the lug
     thetalug = 5                     # Angle of tilt misaligment, default is 5. (deg)
