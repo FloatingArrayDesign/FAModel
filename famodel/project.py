@@ -4864,7 +4864,8 @@ class Project():
             "removeBody": True,
             "outputList": [],
             "bathymetryFile": None,
-            "flag": "-"
+            "flag": "-",
+            "factor": 1
         }
 
         # Merge defaults with kwargs
@@ -4876,7 +4877,9 @@ class Project():
         removeBody       = opts["removeBody"]
         outputList       = opts["outputList"]
         bathymetryFile   = opts["bathymetryFile"]
+
         flag             = opts["flag"]
+        factor           = opts["factor"]
 
         if MDoptionsDict is None:
             MDoptionsDict = {}       
@@ -4897,7 +4900,7 @@ class Project():
         # Setup nNodes of lines manually based on the segment length desired.
         from moorpy.helpers import lengthAwareSegmentation
         
-        lengthAwareSegmentation(ms_temp.lineList)
+        lengthAwareSegmentation(ms_temp.lineList, factor=factor)
 
         # Remove anchors from ms_temp
         bodies_to_be_deleted = []
