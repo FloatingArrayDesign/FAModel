@@ -2183,6 +2183,8 @@ class Project():
         depth_vmax = kwargs.get('depth_vmax', None)
         bath_levels = kwargs.get('bath_levels', None)
         show_legend = kwargs.get('show_legend', True)
+        legend_x = kwargs.get('legend_x', 0.5)
+        legend_y = kwargs.get('legend_y', -0.1)
         
         max_line_depth = kwargs.get('max_line_depth', None)  # max depth for line coloring if color_lineDepth is True
         only_shared    = kwargs.get('only_shared', False)   # if color_lineDepth is True, only color shared lines
@@ -2416,7 +2418,7 @@ class Project():
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
         
         if show_legend:
-            ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(0.5, -0.1), fancybox=True, ncol=4)
+            ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(legend_x, legend_y), fancybox=True, ncol=4)
         if save:
             plt.savefig('2dfarm.png', dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
             
