@@ -220,7 +220,7 @@ class Node():
         # Register the separation in higher level objects if applicable
         if isinstance(self.part_of, Edge) and isinstance(object.attached_to, Node):
             end = self.part_of.findEnd(self)
-            object.attached_to.dettach(self.part_of, end=end)
+            object.attached_to.detach(self.part_of, end=end)
             
         elif isinstance(self.attached_to, Node) and isinstance(object.part_of, Edge):
             end = object.part_of.findEnd(object)
