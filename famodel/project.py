@@ -2188,6 +2188,7 @@ class Project():
         
         max_line_depth = kwargs.get('max_line_depth', None)  # max depth for line coloring if color_lineDepth is True
         only_shared    = kwargs.get('only_shared', False)   # if color_lineDepth is True, only color shared lines
+        linewidth_multiplier = kwargs.get('linewidth_multiplier', 2)  # multiplier for line widths if color_lineDepth is True
         # if axes not passed in, make a new figure
         if ax == None:
             fig, ax = plt.subplots(1,1, figsize=figsize)
@@ -2263,7 +2264,8 @@ class Project():
                     "cmap": "Blues",
                     "vmin": max_line_depth if max_line_depth else -np.max(self.grid_depth),
                     "vmax": 0,
-                    "only_shared": only_shared
+                    "only_shared": only_shared,
+                    "linewidth_multiplier": linewidth_multiplier
                 }            
             for mooring in self.mooringList.values():
                 for name, env in mooring.envelopes.items():
