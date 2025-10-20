@@ -3,47 +3,11 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
-import moorpy as mp
-from moorpy.helpers import set_axes_equal
-from moorpy import helpers
-import yaml
-from copy import deepcopy
-import string
-try: 
-    import raft as RAFT
-except:
-    pass
-
-#from shapely.geometry import Point, Polygon, LineString
-from famodel.seabed import seabed_tools as sbt
-from famodel.mooring.mooring import Mooring
-from famodel.platform.platform import Platform
-from famodel.anchors.anchor import Anchor
-from famodel.mooring.connector import Connector
-from famodel.substation.substation import Substation
-from famodel.cables.cable import Cable
-from famodel.cables.dynamic_cable import DynamicCable
-from famodel.cables.static_cable import StaticCable
-from famodel.cables.cable_properties import getCableProps, getBuoyProps, loadCableProps,loadBuoyProps
-from famodel.cables.components import Joint
-from famodel.turbine.turbine import Turbine
-from famodel.famodel_base import Node
-
-# Import select required helper functions
-from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamicCables, 
-                            getMoorings, getAnchors, getFromDict, cleanDataTypes, 
-                            getStaticCables, getCableDesign, m2nm, loadYAML, 
-                            configureAdjuster, route_around_anchors)
-
 import networkx as nx
 from calwave_action import Action, increment_name
 from task import Task
-
-from assets import Vessel, Port
-
-
-        
+import yaml
+       
 def loadYAMLtoDict(info, already_dict=False):
     '''Reads a list or YAML file and prepares a dictionary'''
     

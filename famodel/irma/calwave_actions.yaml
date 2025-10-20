@@ -40,7 +40,7 @@ demobilize:
     operator:
     - deck_space
   capabilities: []
-  default_duration_h: 1.0
+  duration_h: 1.0
   description: "Demobilization of vessel in homeport"
   
 load_cargo:
@@ -61,37 +61,41 @@ load_cargo:
 
 # --- Towing & Transport ---
  
-transit:
-  objects: []
+transit_linehaul_self:
+  objects: [anchor]
   roles:
-    carrier:
+    vessel:
     - engine
-    # operator:
-    # - bollard_pull
-  #capabilities: [engine]
-  duration_h: 1.0
-  description: "Transit of self-propelled vessel/tugboat"
+  duration_h:
+  description: "Self-propelled line-haul between port and site"
 
-transit_tug:
-  objects: []
+transit_linehaul_tug:
+  objects: [anchor]
   roles:
     carrier:
     - engine
     operator:
     - bollard_pull
-  #capabilities: [bollard_pull]
-  default_duration_h: 1.0
-  description: "Transit of tugged barge"
+  duration_h: 
+  description: "Tugged line-haul convoy (tug + barge) between port and site"
+  
+transit_onsite_self:
+  objects: [anchor]
+  roles:
+    vessel:
+    - engine
+  duration_h:
+  description: "Self-propelled in-field move between site locations"
 
-transit_deployport:
-  objects: []
+transit_onsite_tug:
+  objects: [anchor]
   roles:
     carrier:
     - engine
     operator:
     - bollard_pull
-  # capabilities: [engine]
-  default_duration_h: 1.0
+  duration_h: 
+  description: "Tug + barge in-field move between site locations"
   
 tow:
   objects: [platform]
@@ -149,7 +153,7 @@ install_anchor:
     - pump_subsea             # pump_surface, drilling_machine, torque_machine
     - positioning_system
     - monitoring_system
-  duration_h:
+  duration_h: 
   Hs_m:
   description: "Anchor installation (suction, driven, helical, DEA, SEPLA) with tensioning and verification."
 
@@ -362,7 +366,7 @@ monitor_installation:
     - positioning_system
     - monitoring_system
     - rov
-  duration_h:
+  duration_h: 4.5
   Hs_m:
   description: "Real-time monitoring of installation operations using ROV and sensor packages."
 
