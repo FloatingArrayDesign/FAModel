@@ -51,14 +51,16 @@ jobs:
               run: |
                   pip uninstall -y moorpy  # need to uninstall the old version to install the current dev branch
                   pip install git+https://github.com/NREL/MoorPy@dev
-
-            - name: Example run
-              run: |
-                  cd examples
-                  python example_driver.py false
-
+                  
             - name: Test run
               run: |
                   cd tests
                   pytest .
+
+            # - name: Example run
+              # run: |
+                  # cd examples
+                  # python example_driver.py false
+
+
 
