@@ -269,37 +269,6 @@ class Scheduler:
         b_eq_list = []
         b_lb_list = []
 
-        # 0) Total number of assignments needs to be less than or equal to the number of periods available
-        '''
-        the sum of the total amount of periods assigned to tasks cannot be more than the total number of periods available:
-        (Xtp_00 + ... + Xtp_TP) <= P
-        '''
-
-        # TODO: I dont know if this is necessary
-        
-        """
-        # 1 row
-        A_ub_0 = np.zeros((1, num_variables), dtype=int)  # Every period assigned to a task counts as 1 towards the total assigned periods. This assumes one pair per period
-        b_ub_0 = np.array([self.P], dtype=int)
-
-        # Set the coefficients for the Xtp variables to 1
-        A_ub_0[0, self.Xtp_start:self.Xtp_end] = 1
-
-        if wordy > 1:
-            print("A_ub_0^T:")
-            for i in range(self.Xtp_start, self.Xtp_end):
-                pstring = str(self.X_indices[i])
-                for column in A_ub_0.transpose()[i]:
-                    pstring += f"{ column:5}"
-                print(pstring)
-            print("b_ub_0: ", b_ub_0)
-
-        A_ub_list.append(A_ub_0)
-        b_ub_list.append(b_ub_0)
-
-        if wordy > 0:
-            print("Constraint 0 built.")
-        """
         # 1) asset can only be assigned to a task if asset is capable of performing the task (value of pairing is non-negative)
         '''
         if task t cannot be performed by asset a, then Xta_ta = 0 
@@ -541,13 +510,13 @@ class Scheduler:
         # (This is automatic for binary variables but explicit for clarity)
         A_ub_4 = np.zeros((self.A * self.P, num_variables), dtype=int)
         b_ub_4 = np.ones(self.A * self.P, dtype=int)
-
+        '''
         row = 0
         for a in range(self.A):
             for p in range(self.P):
                 A_ub_4[row, self.Xap_start + a * self.P + p] = 1  # Xap[a,p] ≤ 1
                 row += 1
-
+        '''
         # Add temporal conflict prevention for tasks that could share assets
         # For each asset that multiple tasks could use, add constraints to prevent
         # simultaneous usage by different tasks
@@ -603,129 +572,6 @@ class Scheduler:
 
         if wordy > 0:
             print("Constraint 4 built.")
-
-        # 5) Every task must be assigned to at least one time period
-        '''
-        Sum of all task-period pairs for each task must be >= 1:
-
-        (Xtp_00 + ... + Xtp_0P) >= 1   # for task 0
-        (Xtp_10 + ... + Xtp_1P) >= 1   # for task 1
-        ...
-        (Xtp_T0 + ... + Xtp_TP) >= 1   # for task T
-        '''
-        # NOTE: Constraint 5 is redundant with Constraint 16, which provides exact duration matching
-        """
-        A_lb_5 = np.zeros((self.T, num_variables), dtype=int)
-        b_lb_5 = np.ones(self.T, dtype=int)
-
-        for t in range (self.T):
-            # set the coefficient for each task t to one
-            A_lb_5[t, (self.Xtp_start + t * self.P):(self.Xtp_start + t * self.P + self.P)] = 1   # Set the coefficients for the Xtp variables to 1 for each task t
-
-        if wordy > 1:
-            print("A_lb_5^T:")
-            print("             T1   T2") # Header for 2 tasks
-            for i in range(self.Xtp_start,self.Xtp_end):
-                pstring = str(self.X_indices[i])
-                for column in A_lb_5.transpose()[i]:
-                    pstring += f"{ column:5}"
-                print(pstring)
-            print("b_lb_5: ", b_lb_5)
-
-        A_lb_list.append(A_lb_5)
-        b_lb_list.append(b_lb_5)
-
-        if wordy > 0:
-            print("Constraint 5 built.")
-        """
-        # 6) The total number of assets assigned cannot be greater than the number of assets available but must be greater than the number of tasks. 
-        '''
-        Sum of all asset-period pairs must be >= T:
-
-        A >= (Xap_00 + ... + Xap_AP) >= T
-        '''
-        """
-        A_6 = np.zeros((1, num_variables), dtype=int)
-        b_lb_6 = np.array([self.T], dtype=int)
-        b_ub_6 = np.array([self.A], dtype=int)
-
-        A_6[0,self.Xap_start:self.Xap_end] = 1
-
-        if wordy > 1:
-            print("A_6^T:")
-            for i in range(self.Xap_start,self.Xap_end):
-                pstring = str(self.X_indices[i])
-                for column in A_6.transpose()[i]:
-                    pstring += f"{ column:5}"
-                print(pstring)
-            print("b_lb_6: ", b_lb_6)
-            print("b_ub_6: ", b_ub_6)
-
-        A_lb_list.append(A_6)
-        b_lb_list.append(b_lb_6)
-        A_ub_list.append(A_6)
-        b_ub_list.append(b_ub_6)
-
-        if wordy > 0:
-            print("Constraint 6 built.")
-
-        # 7) Ensure tasks are assigned as early as possible 
-        '''
-        A task cannot be assigned if it could have been assigned in an earlier period. 
-        This encourages the solver to assign tasks to the earliest possible periods.
-        
-        Practical implementation: Rather than hard constraints (which can cause infeasibility),
-        we add this preference to the objective function by giving later start times
-        higher costs. This encourages early scheduling without making the problem infeasible.
-        '''
-        
-        # No hard constraints for Constraint 7 - implemented in objective function
-        # The preference for earlier start times will be added as small penalties
-        # in the objective function coefficients for Xts variables
-        
-        if wordy > 0:
-            print("Constraint 7 built (implemented as objective function preference).")
-        
-        """
-        # 7) Ensure tasks are assigned as early as possible 
-        '''
-        A task cannot be assigned if it could have been assigned in an earlier period. This encourages the solver to assign tasks to the earliest possible periods.
-        '''
-
-        # 8) All tasks must be assigned to at least one time period
-        '''
-
-        The sum of all task-period decision variables for each task must be greater than 1, indicating all tasks were assigned at least once:
-
-        (Xtp_00 + ... + Xtp_0P) >= 1   # for task 0
-        (Xtp_10 + ... + Xtp_1P) >= 1   # for task 1
-        ...
-        (Xtp_T0 + ... + Xtp_TP) >= 1   # for task T
-        '''
-        """
-        # num_tasks rows
-        A_lb_8 = np.zeros((self.T, num_variables), dtype=int)
-        b_lb_8 = np.ones(self.T, dtype=int)
-
-        A_lb_8[:,self.Xtp_start:self.Xtp_end] = 1
-
-        if wordy > 1:
-            print("A_lb_8^T:")
-            print("             T1   T2") # Header for 2 tasks
-            for i in range(self.Xtp_start,self.Xtp_end):
-                pstring = str(self.X_indices[i])
-                for column in A_lb_8.transpose()[i]:
-                    pstring += f"{ column:5}"
-                print(pstring)
-            print("b_lb_8: ", b_lb_8)
-
-        A_lb_list.append(A_lb_8)
-        b_lb_list.append(b_lb_8)
-
-        if wordy > 0:
-            print("Constraint 8 built.")
-        """
-        # 9) TODO: Empty constraint: fill me in later
 
         # 10) A task duration plus the start-time it is assigned to must be less than the total number of time periods available
         '''
@@ -872,36 +718,6 @@ class Scheduler:
         if wordy > 0:
             print("Constraint 12 built.")
 
-        # 13) The total number of asset period pairs must be greater than or equal to the number of task-period pairs
-        '''
-        This ensures that the 0 asset-period pairs solution is not selected
-
-        (Xap_00 + ... + Xap_AP) >= (Xtp_00 + ... + Xtp_TP)   # for all periods p in range(0:P)
-        '''
-        """
-        A_lb_13 = np.zeros((self.P, num_variables), dtype=int)
-        b_lb_13 = np.ones(self.P, dtype=int) * 2
-
-        for p in range(self.P):
-            A_lb_13[p, (self.Xap_start + p * self.A):(self.Xap_start + p * self.A + self.A)] = 1
-            A_lb_13[p, (self.Xtp_start + p):(self.Xtp_start + p + self.P)] = 1
-
-        if wordy > 1:
-            print("A_lb_13^T:")
-            print("             P1   P2   P3   P4   P5") # Header for 5 periods
-            for i in range(self.Xtp_start,self.Xap_end):
-                pstring = str(self.X_indices[i])
-                for column in A_lb_13.transpose()[i]:
-                    pstring += f"{ column:5}"
-                print(pstring)
-            print("b_lb_13: ", b_lb_13)
-        
-        A_lb_list.append(A_lb_13)
-        b_lb_list.append(b_lb_13)
-
-        if wordy > 0:
-            print("Constraint 13 built.")
-        """
         # 14) if a task-starttime pair is selected, the corresponding task-period pair must be selected for the period equal to the start time plus the duration of the task
         '''
         This ensures that if a task is assigned a start time, the corresponding task-period pair for the period equal to the start time plus the duration of the task is also selected.
@@ -996,9 +812,6 @@ class Scheduler:
                     pstring += f"{ column:5}"
                 print(pstring)
             print("b_lb_14: ", b_ub_14)
-
-        #A_lb_list.append(A_lb_14)
-        #b_lb_list.append(b_lb_14)
 
         if wordy > 0:
             print("Constraint 14 built.")
