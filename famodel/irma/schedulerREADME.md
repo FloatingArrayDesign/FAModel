@@ -1,6 +1,6 @@
 # Scheduler Mathematical Formulation (as implemented in scheduler.py)
 
-This document describes the mathematical formulation of the scheduling problem solved by the `Scheduler` class, using multiple decision variables and following the numbering and naming conventions in `scheduler.py`. Incomplete constraints are marked as **TODO**.
+This document describes the mathematical formulation of the scheduling problem solved by the `Scheduler` class, using multiple decision variables and following the numbering and naming conventions in `scheduler.py`.
 
 ## Sets and Indices
 - $T$: Set of tasks, $t = 0, \ldots, T-1$
@@ -15,13 +15,14 @@ This document describes the mathematical formulation of the scheduling problem s
 ## Decision Variables
 - $X_{t,a} \in \{0,1\}$: 1 if task $t$ is assigned to asset $a$, 0 otherwise
 - $X_{t,p} \in \{0,1\}$: 1 if task $t$ is active in period $p$, 0 otherwise
-- $X_{a,p} \in \{0,1\}$: 1 if asset $a$ is used in period $p$, 0 otherwise 
 - $X_{t,s} \in \{0,1\}$: 1 if task $t$ starts at period $s$, 0 otherwise
+
+$x = [X_{t,a}  X_{t,p}  X_{t,s}] $
 
 ## Objective Function
 Minimize total cost (cost is only determined by task-asset assignment):
 $$
-\min \sum_{t=0}^{T-1} \sum_{a=0}^{A-1} c_{t,a} X_{t,a}
+\min \sum c_{t,a} x
 $$
 
 ## Constraints
