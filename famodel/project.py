@@ -37,7 +37,7 @@ from famodel.helpers import (check_headings, head_adjust, getCableDD, getDynamic
                             getMoorings, getAnchors, getFromDict, cleanDataTypes, 
                             getStaticCables, getCableDesign, m2nm, loadYAML, 
                             configureAdjuster, route_around_anchors, attachFairleads,
-                            calc_heading, calc_midpoint)
+                            calc_heading, calc_midpoint, compareDicts)
 
 
 class Project():
@@ -453,8 +453,8 @@ class Project():
                 # add J-tubes
                 pf_jtubes = []
                 jct = 1 
-                if 'Jtubes' in platforms[pfID]:
-                    for jt in platforms[pfID]['Jtubes']:
+                if 'JTubes' in platforms[pfID]:
+                    for jt in platforms[pfID]['JTubes']:
                         if 'headings' in jt:
                             for head in jt['headings']:
                                 # get rotation matrix of heading
@@ -735,8 +735,8 @@ class Project():
                 dyn_cabA = cab['DynCableA'] if not 'NONE' in cab['DynCableA'].upper() else None
                 dyn_cabB = cab['DynCableB'] if not 'NONE' in cab['DynCableB'].upper() else None
                 stat_cab = cab['cableType'] if not 'NONE' in cab['cableType'].upper() else None
-                JtubeA = cab['JtubeA'] if ('JtubeA' in cab) else None
-                JtubeB = cab['JtubeB'] if ('JtubeB' in cab) else None
+                JtubeA = cab['JTubeA'] if ('JTubeA' in cab) else None
+                JtubeB = cab['JTubeB'] if ('JTubeB' in cab) else None
                 rJTubeA = None # if Jtube rel position not provided, this is the radial Jtube position
                 rJTubeB = None
                 
@@ -823,8 +823,8 @@ class Project():
             for cab in cableInfo:
                 
                 rJTubeA = None; rJTubeB = None
-                JtubeA = cab['endA']['Jtube'] if ('Jtube' in cab['endA']) else None
-                JtubeB = cab['endB']['Jtube'] if ('Jtube' in cab['endB']) else None
+                JtubeA = cab['endA']['JTube'] if ('JTube' in cab['endA']) else None
+                JtubeB = cab['endB']['JTube'] if ('JTube' in cab['endB']) else None
                 
                 # create design dictionary for subsea cable
                 dd = {'cables':[],'joints':[]}
@@ -2153,7 +2153,9 @@ class Project():
             platform.r[1] = platform.body.r6[1]
         
     
-    def plot2d(self, ax=None, plot_seabed=False,draw_soil=False,plot_bathymetry=True, plot_boundary=True, color_lineDepth=False, bare=False, axis_equal=True,save=False,**kwargs):
+    def plot2d(self, ax=None, plot_seabed=False, plot_soil=False,
+               plot_bathymetry=True, plot_boundary=True, color_lineDepth=False, 
+               bare=False, axis_equal=True,save=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2305,7 +2307,7 @@ class Project():
                 elif mooring.parallels:
                     for i,line in enumerate(lineList):
                         line.drawLine2d(0, ax, color="self",
-                                        Xuvec=[1,0,0], Yuvec=[0,1,0], line_depth_settings=line_depth_settings, label=labs[i])
+                                        Xuvec=[1,0,0], Yuvec=[0,1,0], label=labs[i])
 
                 else: # simple line plot
                     ax.plot([mooring.rA[0], mooring.rB[0]], 
@@ -2432,9 +2434,9 @@ class Project():
         
         
 
-    def plot3d(self, ax=None, figsize=(10,8), fowt=False, save=False,
-               draw_boundary=True, boundary_on_bath=True, args_bath={}, 
-               draw_axes=True, draw_bathymetry=True, draw_soil=False,
+    def plot3d(self, ax=None, figsize=(10,8), plot_fowt=False, save=False,
+               plot_boundary=True, plot_boundary_on_bath=True, args_bath={}, 
+               plot_axes=True, plot_bathymetry=True, plot_soil=False,
                colorbar=True, boundary_only=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
@@ -2465,8 +2467,8 @@ class Project():
         else:
             fig = ax.get_figure()
 
-        if draw_bathymetry:
-            if draw_soil:
+        if plot_bathymetry:
+            if plot_soil:
                 raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time')
             # # try increasing grid density
             if len(self.grid_x)<=1:
@@ -2535,8 +2537,8 @@ class Project():
                     cb.ax.get_yaxis().labelpad = 15
                     cb.ax.set_ylabel('Water Depth (m)', rotation=270)
         
-        if draw_soil:
-            if draw_bathymetry:
+        if plot_soil:
+            if plot_bathymetry:
                 raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time')
             X, Y = np.meshgrid(self.soil_x, self.soil_y)
             Z = np.ones([len(X), len(X[0])])*-10000
@@ -2560,13 +2562,13 @@ class Project():
         # ax.scatter(X, Y, c=self.soil_rocky, s=4, cmap='cividis_r', vmin=-0.5, vmax=1.5)
         
         # plot the project boundary
-        if draw_boundary:
+        if plot_boundary:
             ax.plot(self.boundary[:,0], self.boundary[:,1], 
                     np.zeros(self.boundary.shape[0]), 
                     'b--', zorder=100, lw=0.5, alpha=0.5)
             
         # plot the projection of the boundary on the seabed, if desired
-        if boundary_on_bath:
+        if plot_boundary_on_bath:
             boundary_z = -self.projectAlongSeabed(self.boundary[:,0], self.boundary[:,1])
             ax.plot(self.boundary[:,0], self.boundary[:,1], boundary_z, 
                     'k--', zorder=10, lw=0.5, alpha=0.7)
@@ -2661,9 +2663,9 @@ class Project():
                         line.drawLine(0,ax,color='self')
                         
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
-        if fowt:
+        if plot_fowt:
             for pf in self.array.fowtList:
-                pf.plot(ax,zorder=6,plot_ms=False)
+                pf.plot(ax,zorder=6,plot_ms=False, axes_around_fowt=False)
             # for i in range(self.nt):
             #     xy = self.turb_coords[i,:]
             #     fowt.setPosition([xy[0], xy[1], 0,0,0,0])
@@ -2676,7 +2678,7 @@ class Project():
             ax.set_zlim([-self.depth,0])
 
         set_axes_equal(ax)
-        if not draw_axes:
+        if not plot_axes:
             ax.axis('off')
         else:
             ax.set_xlabel("X (m)")
@@ -2792,22 +2794,31 @@ class Project():
                         print('This case not implemented yet')
                         breakpoint()
                     elif isinstance(subcom, Node):
-                        # TODO: get rel dist from connector to anchor
-                        # for now, just assume 0 rel dist until anchor lug objects introduced
-                        r_rel = [0,0,0]
-                        subcom.mpConn.type = 1
-                        # attach anchor body to subcom connector point
-                        anchor.mpAnchor.attachPoint(subcom.mpConn.number,r_rel)
+                        if subcom.mpConn:
+                            # TODO: get rel dist from connector to anchor
+                            # for now, just assume 0 rel dist until anchor lug objects introduced
+                            r_rel = [0,0,0]
+                            subcom.mpConn.type = 1
+                            # attach anchor body to subcom connector point
+                            # anchor.mpAnchor.attachPoint(subcom.mpConn.number,r_rel) # COMMENT OUT FOR NOW, may return to this in the future
+                            print('This case should not occur, kept in for future work')
+                            breakpoint()
+                        else:
+                            # attach next section line to anchor
+                            line = mooring.subcomponents[-att['end']+1]
+                            anchor.mpAnchor.attachLine(line.mpLine.number, 
+                                                       att['end'])
+                        
                         # (the section line object(s) should already be attached to this point)
                     #TODO >>> still need to handle possibility of anchor bridle attachment, multiple anchor lugs, etc. <<<
                 
                 else:  # Original case with Subsystem
-                    # need to create "dummy" point to connect to anchor body
-                    point = self.ms.addPoint(1,anchor.r)
-                    # attach dummy point to anchor body
-                    anchor.mpAnchor.attachPoint(point.number,[0,0,0])
+                    # # need to create "dummy" point to connect to anchor body
+                    # point = self.ms.addPoint(1,anchor.r)
+                    # # attach dummy point to anchor body
+                    # anchor.mpAnchor.attachPoint(anchor.mpAnchor.number,[0,0,0])
                     # now attach dummy point to line
-                    point.attachLine(ssloc.number, att['end'])
+                    anchor.mpAnchor.attachLine(ssloc.number, att['end'])
                 
                 # Check for fancy case of any lugs (nodes) attached to the anchor
                 if any([ isinstance(a['obj'], Node) for a in anchor.attachments.values()]):
@@ -2954,8 +2965,7 @@ class Project():
         
         # add in cables if desired
         if cables:
-
-            for i in self.cableList:           
+            for i in self.cableList:   
                 # determine if suspended cable or not - having a static cable as a subcomponent means this is not a suspended cable
                 for j,comp in enumerate(self.cableList[i].subcomponents):
                     # # check for all attachments (may be failurs enacted preventing all attachments) 
@@ -2981,33 +2991,33 @@ class Project():
                         # attach each end to correct bodies
                         attach = comp.attached_to #                                 
                         
-                        if j==0 and attach[0]: # only attach if cable is attached to something
-                            self.ms.addPoint(1,ssloc.rA)
-                            self.ms.pointList[-1].attachLine(ssloc.number,0)
-                            body = comp.attached_to[0].body
-                            body.attachPoint(len(self.ms.pointList),[ssloc.rA[0]-body.r6[0],ssloc.rA[1]-body.r6[1],ssloc.rA[2]])
-                        elif isinstance(attach[0],Joint):
+                        if isinstance(attach[0],Joint):
                             # connect to joint at end A
                             if not comp.attached_to[0].mpConn:
                                 comp.attached_to[0].makeMoorPyConnector(self.ms)
                             joint = comp.attached_to[0].mpConn
                             joint.attachLine(ssloc.number,0)
+                        elif j==0: 
+                            self.ms.addPoint(1,ssloc.rA)
+                            self.ms.pointList[-1].attachLine(ssloc.number,0)
+                            body = self.cableList[i].attached_to[0].body
+                            body.attachPoint(len(self.ms.pointList),[ssloc.rA[0]-body.r6[0],ssloc.rA[1]-body.r6[1],ssloc.rA[2]])
                             
-                        if j==len(self.cableList[i].subcomponents)-1 and attach[1]: # last subcomponent could be first subcomponent
-                            self.ms.addPoint(1,ssloc.rB)
-                            self.ms.pointList[-1].attachLine(ssloc.number,1)
-                            body = comp.attached_to[-1].body
-                            body.attachPoint(len(self.ms.pointList),[ssloc.rB[0]-body.r6[0],ssloc.rB[1]-body.r6[1],ssloc.rB[2]])
-                        elif isinstance(attach[1],Joint):
+                        if isinstance(attach[1],Joint):
                             # connect to joint at end B
                             if not comp.attached_to[-1].mpConn:
                                 comp.attached_to[-1].makeMoorPyConnector(self.ms)
                             joint = comp.attached_to[-1].mpConn
-                            joint.attachLine(ssloc.number,1)                                   
+                            joint.attachLine(ssloc.number,1) 
+                        elif j==len(self.cableList[i].subcomponents)-1: # last subcomponent could be first subcomponent
+                            self.ms.addPoint(1,ssloc.rB)
+                            self.ms.pointList[-1].attachLine(ssloc.number,1)
+                            body = self.cableList[i].attached_to[-1].body
+                            body.attachPoint(len(self.ms.pointList),[ssloc.rB[0]-body.r6[0],ssloc.rB[1]-body.r6[1],ssloc.rB[2]])                                  
 
         # initialize, solve equilibrium, and plot the system 
         self.ms.initialize()
-        self.ms.solveEquilibrium()       
+        self.ms.solveEquilibrium()      
         
         # Plot array if requested
         if plt>0:
@@ -3331,12 +3341,12 @@ class Project():
                     self.platformList[RAFTable[i]['ID']].dd['hydrostatics'] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
             # create moorpy array if it doesn't exist
             if not self.ms:
-                if self.cableList:
-                    self.getMoorPyArray(pristineLines=pristine)
-                else:
-                    self.getMoorPyArray(pristineLines=pristine)
+                self.getMoorPyArray(pristineLines=pristine)
             # assign moorpy array to RAFT object
-            self.array.ms = self.ms
+            if len(self.ms.lineList)>0:
+                self.array.ms = self.ms
+            self.array.ms_tol = .05 # add in solveEquilibrium tolerance
+            self.array.moorMod = 0
             # connect RAFT fowt to the correct moorpy body
             for i in range(0,len(self.platformList)): # do not include substations (these are made last)
                 self.array.fowtList[i].body = self.ms.bodyList[i]
@@ -4088,6 +4098,7 @@ class Project():
                     pass                     
             # solve equilibrium 
             self.ms.solveEquilibrium3(DOFtype='both')
+            
             # save info if requested
             if SFs:
                 # get loads on anchors (may be shared)
@@ -4280,7 +4291,7 @@ class Project():
         mapAnchNames = {}
         mscs = {}
         arrayMoor = []
-        pf_types = []
+
         for i,anch in enumerate(self.anchorList.values()):  
             newanch = True
             name = anch.dd['name'] if 'name' in anch.dd else str(len(anchConfigs))
@@ -4306,33 +4317,72 @@ class Project():
         # build out platform info
         topList = []   
         allconfigs = []
+        # replace all 'headings' fairlead/Jtube defs with r_rel for ease of identification
+        # of any changes in fairlead positions etc.
+        for pt in self.platformTypes:
+            if 'fairleads' in pt:
+                for f,fl in enumerate(pt['fairleads']):
+                    if 'headings' in pt['fairleads']:                      
+                        for head in fl['headings']:
+                            # get rotation matrix of heading
+                            R = rotationMatrix(0,0,np.radians(90-head))
+                            # apply to unrotated r_rel
+                            pt['fairleads'].append(
+                                {'r_rel':np.matmul(R, fl['r_rel'])})
+                        # remove fairlead listing with 'headings'
+                        pt['fairleads'].pop(f)
+            else:
+                pt['fairleads'] = []
+            if 'JTubes' in pt:
+                for f,fl in enumerate(pt['JTubes']):
+                    if 'headings' in pt['JTubes']:                      
+                        for head in fl['headings']:
+                            # get rotation matrix of heading
+                            R = rotationMatrix(0,0,np.radians(90-head))
+                            # apply to unrotated r_rel
+                            pt['JTubes'].append(
+                                {'r_rel':np.matmul(R, fl['r_rel'])})
+                        # remove JTube listing with 'headings
+                        pt['JTubes'].pop(f)
+            else:
+                pt['JTubes'] = []
         for i,pf in enumerate(self.platformList.values()):
             ts_loc = 0
             msys = []
             newms = True
-            fairleads = [att['r_rel'] for att in pf.attachments.values() if isinstance(att['obj'], Fairlead)]  # Rudy: this line is getting att['r_rel'] only. But in LoadDesign, it's looking for the 'heading' or 'r_rel' attribute of the fairlead. Therefore, I omitted '[r_rel']' here and passed the att object as a whole.
+            fairleads = [{'r_rel':att['r_rel']} 
+                         for att in pf.attachments.values() 
+                         if isinstance(att['obj'], Fairlead)] 
+            jtubes = [{'r_rel':att['r_rel']}  
+                      for att in pf.attachments.values() 
+                      if isinstance(att['obj'], Jtube)]
             # Rudy: maybe consider this instead:
-            # pf_dd_['fairleads'] = [
+            # pf.dd['fairleads'] = [
             #                 {'r_rel': att['r_rel']} 
-            #                 for att in platform.attachments.values() 
+            #                 for att in pf.attachments.values() 
             #                 if isinstance(att['obj'], Fairlead)
-            #                       ]            
-            jtubes = [att['r_rel'] for att in pf.attachments.values() if isinstance(att['obj'], Jtube)]  # Rudy: perhaps same here too???
-            if not 'type' in pf.dd:                    
-                pf_type_info = [pf.rFair, pf.zFair, pf.entity, fairleads, jtubes]
-                if not pf_type_info in pf_types:
-                    pf_types.append(pf_type_info)
-                    if not self.platformTypes:
-                        self.platformTypes = []
-                    pf.dd['type'] = len(self.platformTypes)
-                    self.platformTypes.append({'rFair': pf.rFair,
-                                               'zFair': pf.zFair,
-                                               'type': pf.entity,
-                                               'fairleads':fairleads,
-                                               'jTubes':jtubes})
-                else:
-                    tt = [n for n,ps in enumerate(pf_types) if ps==pf_type_info]
-                    pf.dd['type'] = tt[0]
+                                  # ]  
+            pf_info = {'rFair': pf.rFair,
+                       'zFair': pf.zFair,
+                       'type': pf.entity,
+                       'fairleads':fairleads,
+                       'JTubes':jtubes}
+            
+            # update the platform type/add to platform types list if 
+            # no type providd or pf_info different from any platformTypes
+            if not 'type' in pf.dd or not compareDicts(
+                    pf_info,
+                    self.platformTypes[pf.dd['type']]
+                    ):  
+                update_type = True
+            else:
+                update_type = False
+            if update_type:
+                if not self.platformTypes:
+                    self.platformTypes = []
+                pf.dd['type'] = len(self.platformTypes)
+                self.platformTypes.append(pf_info)
+
             # determine any connected topsides
             for att in pf.attachments.values():
                 if not isinstance(att['obj'],(Mooring, Cable, Fairlead, Jtube)):
@@ -4459,7 +4509,7 @@ class Project():
         # figure out keys
         if len(pf_type) > 1:
             pfkey = 'platforms'
-            pfTypes = [self.platformTypes[x] for x in pf_type]
+            pfTypes = [self.platformTypes[x] for x,val in enumerate(pf_type)]
         else:
             pfkey = 'platform'
             pfTypes = self.platformTypes[int(list(pf_type)[0])]

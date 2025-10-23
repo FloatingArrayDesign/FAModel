@@ -9,9 +9,11 @@ For more information on MoorPy, please see MoorPy documentation at https://githu
 
 from famodel import Project
 import matplotlib.pyplot as plt
+import os
 
 # define name of ontology input file
-input_file = '04_array-watch-circle.yaml'
+dir = os.path.dirname(os.path.realpath(__file__))
+input_file = os.path.join(dir,'04_array-watch-circle.yaml')
 
 # initialize Project class with input file, we don't need RAFT for this so mark False
 project = Project(file=input_file,raft=False)

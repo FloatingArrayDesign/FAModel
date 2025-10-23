@@ -10,6 +10,7 @@ from famodel.cables.cable import Cable
 from famodel.anchors.anchor import Anchor
 from famodel.cables.cable import DynamicCable
 from famodel.famodel_base import Node, Edge
+from famodel.helpers import calc_midpoint
 
 class Platform(Node):
     '''
@@ -96,7 +97,7 @@ class Platform(Node):
         if update_moorings:
             for i, att in enumerate(self.attachments):
                 if isinstance(self.attachments[att]['obj'], Mooring): 
-            
+                    self.updateMooringPoints()
                     # Heading of the mooring line
                     heading_i = self.mooring_headings[count] + self.phi
                     # Reposition the whole Mooring if it is an anchored line
@@ -202,19 +203,34 @@ class Platform(Node):
                                 print('This case not implemented yet')
                                 breakpoint()
                             elif isinstance(subcom, Node):
-                                # TODO: get rel dist from connector to anchor
-                                # for now, just assume 0 rel dist until anchor lug objects introduced
-                                r_rel = [0,0,0]
-                                # attach anchor body to subcom connector point
-                                subcom.mpConn.type = 1
-                                att.mpAnchor.attachPoint(subcom.mpConn.number,r_rel)
+                                # # TODO: get rel dist from connector to anchor
+                                # # for now, just assume 0 rel dist until anchor lug objects introduced
+                                # r_rel = [0,0,0]
+                                # # attach anchor body to subcom connector point
+                                # subcom.mpConn.type = 1
+                                # att.mpAnchor.attachPoint(subcom.mpConn.number,r_rel)
+                                if subcom.mpConn:
+                                    # TODO: get rel dist from connector to anchor
+                                    # for now, just assume 0 rel dist until anchor lug objects introduced
+                                    r_rel = [0,0,0]
+                                    subcom.mpConn.type = 1
+                                    # attach anchor body to subcom connector point
+                                    # anchor.mpAnchor.attachPoint(subcom.mpConn.number,r_rel) # COMMENT OUT FOR NOW, may return to this in the future
+                                    print('This case should not occur, kept in for future work')
+                                    breakpoint()
+                                else:
+                                    # attach next section line to anchor
+                                    line = mooring.subcomponents[-att['end']+1]
+                                    att.mpAnchor.attachLine(line.mpLine.number, 
+                                                               att['end'])
                         else:                            
-                            # need to create "dummy" point to connect to anchor body
-                            point = self.ms.addPoint(1,att.r)
-                            # attach dummy point to anchor body
-                            att.mpAnchor.attachPoint(point.number,[0,0,0])
-                            # now attach dummy point to line
-                            point.attachLine(ssloc.number, j)
+                            # # need to create "dummy" point to connect to anchor body
+                            # point = self.ms.addPoint(1,att.r)
+                            # # attach dummy point to anchor body
+                            # att.mpAnchor.attachPoint(point.number,[0,0,0])
+                            # # now attach dummy point to line
+                            # point.attachLine(ssloc.number, j)
+                            att.mpAnchor.attachLine(ssloc.number, j)
                             
                     elif isinstance(att,Platform):
                         # attach rB point to platform 
@@ -571,4 +587,25 @@ class Platform(Node):
         self.envelopes['buffer_zones']['y'] = y
 
         return  self.envelopes['buffer_zones']
+    
+    def updateMooringPoints(self):
+        '''
+        update mooring end point based on midpoint of connected fairlead points
+
+        Returns
+        -------
+        None.
+
+        '''
+        moors=self.getMoorings() # get list of connected moorings
+        for mid, moor in moors.items():
+            # get fairleads
+            fairs = moor.fairleads(self.attachments[mid]['end'])
+            if len(fairs)>0:
+                # calc midpoint 
+                midpoint = calc_midpoint([f.r for f in fairs])
+                # update end position from midpoint of fairleads
+                moor.setEndPosition(
+                    midpoint,
+                    self.attachments[mid]['end'])
 

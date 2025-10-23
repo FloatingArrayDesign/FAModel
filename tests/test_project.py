@@ -105,7 +105,6 @@ def test_check_connections():
             assert moor.attached_to[0] == anch
             
     for i, pf in enumerate(project.platformList.values()):
-        
         # check number of things connected to platform
         if i == 1 or i == 3:
             assert len(pf.attachments) == 11 # 3 lines, 1 turbine, 1 cable , 3 fairleads, 3 j-tubes

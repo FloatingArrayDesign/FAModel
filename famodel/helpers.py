@@ -328,14 +328,14 @@ def cableDesignInterpolation(dd, cables, depth):
 
     # sort and interp all lists by increasing depths
     sorted_indices = np.argsort(depths)
-    depths_sorted = [depths[i] for i in sorted_indices]
+    depths_sorted = [float(depths[i]) for i in sorted_indices]
     newdd = deepcopy(dd)
-    if depth > depths_sorted[-1]:
+    if float(depth) > depths_sorted[-1]:
         # depth outside range, can't interpolate - just adjust length
         newdd['L'] = cabdesign['L'][sorted_indices[-1]] + depth-depths_sorted[-1]
-    elif depth < depths_sorted[0]:
+    elif float(depth) < depths_sorted[0]:
         # depth outside range, can't interpolate - just adjust length
-        newdd['L'] = cabdesign['L'][sorted_indices[0]] - depth-depths_sorted[0]
+        newdd['L'] = cabdesign['L'][sorted_indices[0]] - (depth-depths_sorted[0])
     else:
         # interpolate designs
         newdd['span'] = np.interp(depth,depths_sorted,
@@ -1058,9 +1058,11 @@ def attachFairleads(moor, end, platform, fair_ID_start=None, fair_ID=None, fair_
     platform : Platform class instance
         Platform that is associated with the fairlead
     fair_ID_start : str, optional
-        start of fairlead ID, the index will be appended to this. Not needed if fair_ID provided
+        start of fairlead ID, the indexes in fair_inds will be appended to this. Not needed if fair_ID provided
     fair_ID : list, optional
         fairlead ID list for each fairlead. If fair_ID_start is not provided, fair_ID must be provided
+    fair_inds : list, optional
+        indices of fairleads to attach, only needed if fair_ID_start used instead of fair_ID
 
 
     Returns
@@ -1082,7 +1084,7 @@ def attachFairleads(moor, end, platform, fair_ID_start=None, fair_ID=None, fair_
         if not len(moor.subcons_B)==len(fair_ID):
             raise Exception(f'Number of fairleads must equal number of parallel sections at end {end}')
     else:
-        raise Exception('Either fairlead indices or fairlead IDs must be provided')
+        raise Exception('Either fairlead indices (fair_inds) or fairlead IDs (fair_ID) must be provided')
     # grab correct end
     end_subcons = moor.subcons_B if end in [1,'b','B'] else moor.subcons_A
     
@@ -1325,14 +1327,14 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
                     att.r = iend
                 if att.mpAnchor:
                     att.mpAnchor.r = att.r
-                    
+        
         # Estimate the correct line length to start with based on % of total length
         L_tot = sum([line.L for line in ss.lineList])
         initial_L_ratio = ss.lineList[i_line].L/L_tot
         ss.lineList[i_line].setL(np.linalg.norm(mooring.rB - mooring.rA)*initial_L_ratio)
-            
+
         # Next we could adjust the line length/tension (if there's a subsystem)
-           
+        
         def eval_func(X, args):
             '''Tension evaluation function for different line lengths'''
             ss.lineList[i_line].L = X[0]  # set the first line section's length
@@ -1360,7 +1362,6 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
             '''Apply specified section L, return the horizontal pretension error.'''
             ss.lineList[i_line].setL(X[0])
             ss.staticSolve()
-            
             #Fx is the horizontal pretension
             Fx = np.linalg.norm([ss.fB_L[0], ss.fB_L[1]])
             
@@ -1401,6 +1402,35 @@ def yamlList(in_list):
     yaml_list = ruamel.yaml.comments.CommentedSeq(in_list)
     yaml_list.fa.set_flow_style()
     return(yaml_list)
+
+def compareDicts(d1, d2):
+    '''Function to determine if keys and values of d1 are in d2, works for 
+    nested dictionaries.
+    Returns True if d1 keys and vals are in d2
+    d2 can have more keys than d1, but all d1 must be in d2
+    for a True return
+    '''
+    for key in d1:
+        if key in d2:
+            if type(d1[key]) is dict:
+                compareDicts(d1[key],d2[key])
+            elif isinstance(d1[key],(list, np.ndarray)):
+                for i,ix in enumerate(d1[key]):
+                    if type(d1[key][i]) is dict:
+                        compareDicts(ix,d2[key][i])
+                    elif isinstance(ix,(list, np.ndarray)):
+                        for j,jx in ix:
+                            if jx != d2[key][i][j]:
+                                return(False)
+                    else:
+                        if ix != d2[key][i]:
+                            return(False)
+            else:
+                if d1[key] != d2[key]:
+                    return(False)
+        else:
+            return(False)
+    return(True)
 
 def cleanDataTypes(info, convert_lists=True):
     '''

@@ -7,6 +7,7 @@ from moorpy import helpers
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge, Node
 from famodel.helpers import calc_midpoint
+from famodel.platform.fairlead import Fairlead
 
 class Mooring(Edge):
     '''
@@ -536,10 +537,15 @@ class Mooring(Edge):
             if not ms:
                 raise Exception('A MoorPy system (ms) must be provided for a Mooring with parallel/bridle parts.')
             # Make Points
-            for con in conns:
+            # check where the mooring line is connected to anchor, don't make that connector
+            for i in [0,-1]: # no bridles for anchors, so shouldn't be multiple anchor connectors
+                # if attached to anchor, remove connector from list
+                if hasattr(self.attached_to[i], 'mpAnchor'):
+                    conns.pop(i)
+            # make connector points
+            for i,con in enumerate(conns):
                 # >>> leah had some checks here that I didn't understand <<<
                 con.makeMoorPyConnector(ms)
-                            
             # Make Lines
             for sec in secs:
                 sec.makeMoorPyLine(ms) # this also will connect the Lines to Points
@@ -1421,6 +1427,21 @@ class Mooring(Edge):
                 conns.append(self.getSubcomponent(i))
             
         return conns
+    
+    def fairleads(self, end):
+        '''
+        returns list of fairleads connected to the mooring
+        '''
+        fairs = []
+        if end in [1, 'b', 'B']:
+            for sub in self.subcons_B:
+                fairs = [att['obj'] for att in sub.attachments.values() if isinstance(att['obj'],Fairlead)]
+        if end in [0, 'a', 'A']:
+            for sub in self.subcons_A:
+                fairs = [att['obj'] for att in sub.attachments.values() if isinstance(att['obj'],Fairlead)]
+            
+        return fairs
+            
     
     # def convertSubcomponents(self,subs_list, level=0, index=[0]):
     #     ind = index

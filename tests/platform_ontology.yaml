@@ -38,8 +38,8 @@ topsides:
       nBlades     : 3     # number of blades
       Zhub        : 150.0        # hub height [m]
       Rhub        : 3.97        # hub radius [m]
-      precone     : 4.0     # [deg]
-      shaft_tilt  : 6.0     # [deg]
+      precone     : -4.0     # [deg]
+      shaft_tilt  : -6.0     # [deg]
       overhang    : -12.0313 # [m]
       aeroServoMod : 2          # 0 aerodynamics off; 1 aerodynamics on (no control); 2 aerodynamics and control on
       
@@ -1059,7 +1059,7 @@ topsides:
           dlsMax       :  5.0     # maximum node splitting section amount; can't be 0
       
           name      :  tower                     # [-]    an identifier (no longer has to be number)       
-          type      :  1                         # [-]    
+          type      :  rigid                        # [-]    
           rA        :  [ 0, 0,  15]              # [m]    end A coordinates
           rB        :  [ 0, 0, 144.582]          # [m]    and B coordinates
           shape     :  circ                      # [-]    circular or rectangular
@@ -1095,7 +1095,7 @@ platforms:
     members:   # list all members here
         
       - name      :  center_column             # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [ 0, 0, -20]              # [m]    end A coordinates
         rB        :  [ 0, 0,  15]              # [m]    and B coordinates
         shape     :  circ                      # [-]    circular or rectangular
@@ -1117,7 +1117,7 @@ platforms:
 
         
       - name      :  outer_column              # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [51.75, 0, -20]           # [m]    end A coordinates
         rB        :  [51.75, 0,  15]           # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
@@ -1143,7 +1143,7 @@ platforms:
 
         
       - name      :  pontoon                   # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [  5  , 0, -16.5]         # [m]    end A coordinates
         rB        :  [ 45.5, 0, -16.5]         # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
@@ -1164,7 +1164,7 @@ platforms:
         
         
       - name      :  upper_support             # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [  5  , 0, 14.545]        # [m]    end A coordinates
         rB        :  [ 45.5, 0, 14.545]        # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)

@@ -23,7 +23,8 @@ import os
 import matplotlib.pyplot as plt
 
 # set yaml file location and name
-ontology_file = "OntologySample200m.yaml"
+dir = os.path.dirname(os.path.realpath(__file__))
+ontology_file = os.path.join(dir,"OntologySample200m.yaml")
 
 #%% Section 1: Project without RAFT
 print('Creating project without RAFT\n')
@@ -41,12 +42,11 @@ print('\nCreating project with RAFT \n')
 #create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
 project = Project(file=ontology_file,raft=True)
 # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
-project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False,save=True)
+project.plot3d(plot_fowt=True,plot_boundary=False,plot_boundary_on_bath=False,save=True)
 
 # get location of RAFT model (stored as array property in project class)
 model = project.array
-model.mooring_currentMod = 0 # temp requirement to work with changes in RAFT
-model.ms.moorMod = 0 # temp requirement to work with changes in RAFT
+
 print('Running RAFT case')
 # run cases
 model.analyzeCases()

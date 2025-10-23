@@ -7,9 +7,11 @@ For more information on using RAFT, please see RAFT documentation at https://git
 
 from famodel import Project
 import matplotlib.pyplot as plt
+import os
 
 # define name of ontology input file
-input_file = '01_platform.yaml'
+dir = os.path.dirname(os.path.realpath(__file__))
+input_file = os.path.join(dir,'01_platform.yaml')
 
 # initialize Project class with input file, we don't need RAFT for this so mark False
 project = Project(file=input_file,raft=True)
@@ -21,7 +23,7 @@ raft_model = project.array # store short cut to raft model
 ## First, let's add a case in to the model's design dictionary (since we didn't add this in the ontology)
 raft_model.design['cases'] = {}
 raft_model.design['cases']['keys'] = ['wind_speed', 'wind_heading', 'turbulence', 'turbine_status', 'yaw_misalign', 'wave_spectrum', 'wave_period', 'wave_height', 'wave_heading']
-raft_model.design['cases']['data'] = [[     0,         0,             0,             'operating',        0,             'JONSWAP',         12,           6,              0        ]]
+raft_model.design['cases']['data'] = [[     0,         0,             0,             'off',        0,             'JONSWAP',         12,           6,              0        ]]
 
 # analyze our case
 raft_model.analyzeCases(display=True) # display what's happening for fun

@@ -7,9 +7,11 @@ of the platform locations (no moorings, cables, anchors, platform design, topsid
 
 from famodel import Project
 import matplotlib.pyplot as plt
+import os
 
 # define name of ontology input file
-input_file = '06_2D-visual_misc_platforms.yaml'
+dir = os.path.dirname(os.path.realpath(__file__))
+input_file = os.path.join(dir,'06_2D-visual_misc_platforms.yaml')
 
 # initialize Project class with input file, we don't need RAFT for this so mark False
 project = Project(file=input_file,raft=False)
