@@ -868,9 +868,29 @@ class Action():
         
         # --- Mobilization ---
         if self.type == 'mobilize':
-            pass
+            # Hard-coded example of mobilization times based on vessel type
+            durations = {
+                'crane_barge': 3.0,
+                'research_vessel': 1.0
+            }
+            for role_name, vessel in self.assets.items():
+                vessel_type = vessel['type'].lower()
+                for key, duration in durations.items():
+                    if key in vessel_type:
+                        self.duration += duration
+                        break
+
         elif self.type == 'demobilize':
-            pass
+            # Hard-coded example of demobilization times based on vessel type
+            durations = {
+                'crane_barge': 3.0,
+                'research_vessel': 1.0
+            }
+            for role_name, vessel in self.assets.items():
+                vessel_type = vessel['type'].lower()
+                for key, duration in durations.items():
+                    if key in vessel_type:
+                        self.duration += duration
         elif self.type == 'load_cargo':
             pass
 
@@ -893,7 +913,7 @@ class Action():
                     tr = vessel['transport']
                     
                     # distance
-                    dist_m = float(tr['site_distance_m'])
+                    dist_m = float(tr['route_length_m'])
                     
                     # speed: linehaul uses transport.cruise_speed_mps
                     speed_mps = float(tr['cruise_speed_mps'])
@@ -925,7 +945,7 @@ class Action():
                     tr_t = tug.get('transport', {})
                     
                     # distance: prefer barge’s transport
-                    dist_m = float(tr_b.get('site_distance_m', tr_t['site_distance_m']))
+                    dist_m = float(tr_b.get('route_length_m', tr_t['route_length_m']))
                     
                     # speed for convoy linehaul: barge (operator) cruise speed
                     operator = self.assets.get('operator') or self.assets.get('vessel')

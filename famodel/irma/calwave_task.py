@@ -7,14 +7,17 @@ Style: single quotes, spaces around + and -, no spaces around * or /
 """
 
 from collections import defaultdict
+import yaml 
 
 class Task:
-    def __init__(self, actions, action_sequence, **kwargs):
+    def __init__(self, name, actions, action_sequence, **kwargs):
         '''
         Create a Task from a list of actions and a dependency map.
 
         Parameters
         ----------
+        name : str
+            Name of the task.
         actions : list
             All Action objects that are part of this task.
         action_sequence : dict or None
@@ -32,6 +35,7 @@ class Task:
         resource_roles = kwargs.get('resource_roles', ('vessel', 'carrier', 'operator'))
 
         # ---- core storage ----
+        self.name = name
         self.actions = {a.name: a for a in actions}
         # allow None → infer solely from Action.dependencies
         self.action_sequence = {k: list(v) for k, v in (action_sequence or {}).items()}
@@ -41,12 +45,13 @@ class Task:
         self.ti = 0.0
         self.tf = 0.0
         self.resource_roles = tuple(resource_roles)
-
+        self.enforce_resources = enforce_resources
+        self.strategy = strategy
         # ---- scheduling ----
-        if strategy == 'levels':
+        if self.strategy == 'levels':
             self._schedule_by_levels()
         else:
-            self._schedule_by_earliest(enforce_resources=enforce_resources)
+            self._schedule_by_earliest(enforce_resources=self.enforce_resources)
 
         # ---- roll-ups ----
         self.cost = sum(float(getattr(a, 'cost', 0.0) or 0.0) for a in self.actions.values())
@@ -66,7 +71,7 @@ class Task:
         return clean
 
     @classmethod
-    def from_scenario(cls, sc, **kwargs):
+    def from_scenario(cls, sc, name, **kwargs):
         actions = list(sc.actions.values())
         base = {a.name: cls._names_from_dependencies(a) for a in actions}
         extra = kwargs.pop('extra_dependencies', None) or {}
@@ -75,7 +80,7 @@ class Task:
             for d in v:
                 if d != k and d not in base[k]:
                     base[k].append(d)
-        return cls(actions=actions, action_sequence=base, **kwargs)
+        return cls(name=name, actions=actions, action_sequence=base, **kwargs)
 
     # --------------------------- Resource & Scheduling ---------------------------
 
@@ -224,3 +229,95 @@ class Task:
             a.period = (a.start_hr, a.end_hr)
             a.label_time = f'{dur:.1f}'
         self.tf = self.ti + self.duration
+
+    def extractSeqYaml(self, output_file=None):
+        """
+        Extract the sequence of actions into a YAML file for user editing.
+
+        Args:
+            output_file (str): The name of the output YAML file.
+        """
+        # Write the sequence data to a YAML file
+        if output_file is None:
+            output_file = f"{self.name}_sequence.yaml"
+        
+        # Build the YAML:
+        task_data = []
+        for action_name, action in self.actions.items():        
+            roles = list(action.requirements.keys())
+            deps  = list(action.dependencies.keys())
+            asset_types = []
+            for role, asset in action.assets.items():
+                asset_types.append(asset['type'])
+
+            entry = {
+                'action': action_name,
+                'duration': round(float(action.duration), 2),
+                'roles': roles,
+                'assets': asset_types,
+                'dependencies': deps,
+            }
+            task_data.append(entry)            
+        
+        yaml_dict = {self.name: task_data}
+
+        with open(output_file, 'w') as yaml_file:
+            yaml.dump(yaml_dict, yaml_file, sort_keys=False)
+
+        print(f"Task sequence YAML file generated: {output_file}")
+
+    def update_from_SeqYaml(self, input_file=None):
+        """
+        Update the Task object based on a user-edited YAML file.
+
+        Args
+        ----
+        input_file : str, optional
+            The name of the YAML file (default: <task_name>_sequence.yaml).
+        """
+        if input_file is None:
+            input_file = f"{self.name}_sequence.yaml"
+
+        # Load YAML content
+        with open(input_file, "r") as yaml_file:
+            seq_data = yaml.safe_load(yaml_file)
+
+        if self.name not in seq_data:
+            raise ValueError(f"Task name '{self.name}' not found in YAML file.")
+
+        updated_actions = seq_data[self.name]
+
+        # Reset internal attributes
+        self.actions_ti = {}
+        self.duration = 0.0
+        self.cost = 0.0
+        self.ti = 0.0
+        self.tf = 0.0
+
+        # Update each action from YAML
+        for entry in updated_actions:
+            a_name = entry["action"]
+            if a_name not in self.actions:
+                print(f"Skipping unknown action '{a_name}' (not in current task).")
+                continue
+
+            a = self.actions[a_name]
+
+            # Update action duration
+            a.duration = float(entry.get("duration", getattr(a, "duration", 0.0)))
+
+            # TODO: Update dependencies
+            # TODO: Update roles
+            # TODO: Update assets
+            # TODO: Update cost
+
+        # ---- re-scheduling ----
+        if self.strategy == 'levels':
+            self._schedule_by_levels()
+        else:
+            self._schedule_by_earliest(enforce_resources=self.enforce_resources)
+
+        # ---- re-roll-ups ----
+        self.cost = sum(float(getattr(a, 'cost', 0.0) or 0.0) for a in self.actions.values())        
+
+        print(f"Task '{self.name}' successfully updated from YAML file: {input_file}")

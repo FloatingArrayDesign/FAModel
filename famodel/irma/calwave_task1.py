@@ -11,24 +11,6 @@ from calwave_task import Task
 
 sc = Scenario()  # now sc exists in *this* session
 
-def eval_set(a, roles, duration=None, **params):
-    """
-    Convenience: call evaluateAssets with roles/params and optionally set .duration.
-    Always stores assigned_assets for plotting/scheduling attribution.
-    """
-    # Your Action.evaluateAssets may return (duration, cost); we still set explicit duration if passed.
-    res = a.evaluateAssets(roles | params)
-    if duration is not None:
-        a.duration = float(duration)
-    elif isinstance(res, tuple) and len(res) > 0 and res[0] is not None:
-        try:
-            a.duration = float(res[0])
-        except Exception:
-            pass
-    # keep roles visible on the action
-    a.assigned_assets = roles
-    return a
-
 # ---------- Core builder ----------
 def build_task1_calwave(sc: Scenario, project: Project):
     """
@@ -144,8 +126,8 @@ def build_task1_calwave(sc: Scenario, project: Project):
         'linehaul_to_home': [linehome_convoy, linehome_by],
         'demobilize': [demob_sd, demob_by]}
 
-# ---------- Evaluation step (assign vessels & durations) ----------
-def evaluate_task1(sc: Scenario, actions: dict):
+# ---------- Assignment step (assign vessels & durations) ----------
+def assign_actions(sc: Scenario, actions: dict):
     """
     Assign vessels/roles and set durations where the evaluator doesn't.
     Keeps creation and evaluation clearly separated.
@@ -153,38 +135,38 @@ def evaluate_task1(sc: Scenario, actions: dict):
     V = sc.vessels  # shorthand
 
     # Mobilize
-    eval_set(actions['mobilize'][0], {'operator': V['San_Diego']}, duration=3.0)
-    eval_set(actions['mobilize'][1], {'operator': V['Beyster']},   duration=1.0)
-
+    actions['mobilize'][0].assignAssets({'operator': V['San_Diego']})
+    actions['mobilize'][1].assignAssets({'operator': V['Beyster']})
+    
     # Transit to site
     convoy_to_site, beyster_to_site = actions['linehaul_to_site']
-    eval_set(convoy_to_site,  {'carrier': V['Jag'], 'operator': V['San_Diego']})
-    eval_set(beyster_to_site, {'vessel': V['Beyster']})
+    convoy_to_site.assignAssets({'carrier': V['Jag'], 'operator': V['San_Diego']})
+    beyster_to_site.assignAssets({'vessel': V['Beyster']})
 
     # Onsite convoy (tug+barge)
     for a_tug in actions['onsite_tug']:
-        eval_set(a_tug, {'carrier': V['Jag'], 'operator': V['San_Diego']})
+        a_tug.assignAssets({'carrier': V['Jag'], 'operator': V['San_Diego']})
         
     # Install (Jag carries, San_Diego operates the install)    
     for a_inst in actions['install']:
-        eval_set(a_inst, {'carrier': V['Jag'], 'operator': V['San_Diego']})
+        a_inst.assignAssets({'carrier': V['Jag'], 'operator': V['San_Diego']})
 
     # Onsite self-propelled (Beyster)    
     for a_by in actions['onsite_by']:
-        eval_set(a_by, {'vessel': V['Beyster']})
+        a_by.assignAssets({'vessel': V['Beyster']})
 
     # Monitor (Beyster as support)
     for a_mon in actions['monitor']:
-        eval_set(a_mon, {'support': V['Beyster']})
+        a_mon.assignAssets({'support': V['Beyster']})
 
     # Transit to home
     convoy_to_home, beyster_to_home = actions['linehaul_to_home']
-    eval_set(convoy_to_home,  {'carrier': V['Jag'], 'operator': V['San_Diego']})
-    eval_set(beyster_to_home, {'vessel': V['Beyster']})
+    convoy_to_home.assignAssets({'carrier': V['Jag'], 'operator': V['San_Diego']})
+    beyster_to_home.assignAssets({'vessel': V['Beyster']})
     
     # Demobilize
-    eval_set(actions['demobilize'][0], {'operator': V['San_Diego']}, duration=3.0)
-    eval_set(actions['demobilize'][1], {'operator': V['Beyster']},   duration=1.0)
+    actions['demobilize'][0].assignAssets({'operator': V['San_Diego']})
+    actions['demobilize'][1].assignAssets({'operator': V['Beyster']})
         
 
 if __name__ == '__main__':
@@ -198,19 +180,25 @@ if __name__ == '__main__':
     # 3) Build (structure only)
     actions = build_task1_calwave(sc, project)
     
-    # 4) Evaluate (assign vessels/roles + durations)
-    evaluate_task1(sc, actions)
+    # 4) Assign (assign vessels/roles)
+    assign_actions(sc, actions)
     
     # 5) schedule once, in the Task
     calwave_task1 = Task.from_scenario(
         sc,
-        strategy='levels',               # or 'levels'
+        name='calwave_task1',
+        strategy='earliest',               # 'earliest' or 'levels'
         enforce_resources=False,         # keep single-resource blocking if you want it
         resource_roles=('vessel', 'carrier', 'operator'))
-        
-    # 6) build the chart input directly from the Task and plot
+    
+    # 6) Extract Task1 sequencing info
+    # calwave_task1.extractSeqYaml()
+
+    # 7) update Task1 if needed
+    calwave_task1.update_from_SeqYaml()  # uncomment to re-apply sequencing from YAML
+    # 8) build the chart input directly from the Task and plot
     chart_view = chart.view_from_task(calwave_task1, sc, title='CalWave Task 1 - Anchor installation plan')
-    chart.plot_task(chart_view)
+    chart.plot_task(chart_view, outpath='calwave_task1_chart.png')
 
 
 

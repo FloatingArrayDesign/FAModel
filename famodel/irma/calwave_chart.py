@@ -84,7 +84,7 @@ def view_from_task(sched_task, sc, title: str | None = None):
         if dur <= 0.0:
             continue
 
-        aa = getattr(a, 'assigned_assets', {}) or {}
+        aa = getattr(a, 'assets', {}) or {}
 
         # collect ALL candidate roles → multiple lanes allowed
         lane_keys = set()

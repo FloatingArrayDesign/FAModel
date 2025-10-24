@@ -5,7 +5,7 @@ San_Diego:
   type: crane_barge
   transport:
       homeport: national_city
-      site_distance_m: 41114       # distance to site
+      route_length_m: 41114       # distance to site
       cruise_speed_mps: 2.5       # ~5 kts, from doc
       Hs_m: 3
   station_keeping:
@@ -43,7 +43,7 @@ Jag:
   type: tug
   transport:
       homeport: national_city
-      site_distance_m: 41114      # distance to site
+      route_length_m: 41114      # distance to site
       cruise_speed_mps: 3.1       # 
       Hs_m: 3.5
   station_keeping:
@@ -70,7 +70,7 @@ Beyster:
   type: research_vessel
   transport:
       homeport: point_loma
-      site_distance_m: 30558       # distance to site
+      route_length_m: 30558       # distance to site
       cruise_speed_mps: 12.9       # 25 kts cruise, from doc
       Hs_m: 2.5
   station_keeping:
@@ -109,7 +109,7 @@ Beyster:
   # type: research_vessel
   # transport:
       # homeport: sio_pier
-      # site_distance_m: 555         # distance to site
+      # route_length_m: 555         # distance to site
       # transit_speed_mps: 10.3      # ~20 kts cruise
       # Hs_m: 1.5
   # station_keeping:
