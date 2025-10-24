@@ -21,9 +21,11 @@ $x = [X_{t,a}  X_{t,p}  X_{t,s}] $
 
 ## Objective Function
 Minimize total cost (cost is only determined by task-asset assignment):
+
 $$
 \min \sum c_{t,a} x
 $$
+
 The $c$ vector also contains 'cost' penalties for later start times $(X_{t,s})$ to prioritize tasks starting as early as they can (used to be Constraint 7)
 
 ## Constraints
@@ -33,6 +35,7 @@ When added together, these are the upperbound constraint, the lower bound constr
 attempts to solve the object objective function subject to: 
 
 subject to:   
+
 $$
 \text{1) } A_{ub} \text{ } x \text{ } \leq b_{ub} \\
 \text{2) } A_{eq} \text{ } x \text{ } = b_{eq}    \\
@@ -42,18 +45,21 @@ $$
 
 ### 1. Task-Asset Validity
 Only valid task-asset pairs can be assigned:
+
 $$
 X_{t,a} = 0 \quad \forall t, a \text{ where } c_{t,a} < 0 \text{ or } d_{t,a} < 0
 $$
 
 ### 3. At Least One Asset Per Task
 Sum of all task-asset pairs must be >= 1 for each task:
+
 $$
 \sum_{a=0}^{A-1} X_{t,a} \geq 1 \quad \forall t
 $$
 
 ### 15. The number of task-starttime pairs must be equal to the number of tasks
 This ensures that each task is assigned exactly 1 start time.
+
 $$
 \sum_{s=0}^{S-1} X_{t,s} = 1 \quad \forall t
 $$
@@ -69,6 +75,7 @@ When a task-asset pair is assigned, then for each start time of that task, it $(
 
 ### 14a. A task must occupy the same period that it starts in
 This ensures that the task start-time decision variable is non-zero if a task is assigned to any period.
+
 $$
 X_{t,p}[t,s] \geq X_{t,s}[t,s] \quad \forall t
 $$
@@ -77,21 +84,19 @@ In every start time for each task, the corresponding period must be equal to tha
 
 ### 14b. A task-asset assignment must be active for the duration required by that assignment
 
-14a ensures that if a task is assigned a start time, the corresponding task-period pair for the period equal to the start time is selected.
+14a ensured that if a task is assigned a start time, the corresponding task-period pair for the period equal to the start time is selected.
 
 14b ensures that if a task is assigned a start time, the number of periods equal to the duration of the task are also turned on.
 
-$ X_{t,a}[t,a] + X_{t,s}[t,s] - X_{t,p}[t,p] <= 1 \quad \forall t,a,s,p(s<s+d_{t,a})$
+$$
+X_{t,a}[t,a] + X_{t,s}[t,s] - X_{t,p}[t,p] <= 1 \quad \forall t,a,s,p(s<s+d_{t,a}) 
+$$
 
 Loops through all tasks, assets, periods, and start times and assigns constraint coefficients $(A)$ to ensure the right number of periods are selected.
 
-For example,
-
-$ X_{t,a}[0,0] + X_{t,s}[0,0] - X_{t,p}[0,0] <= 1 $
-
-ensures that $ X_{t,p}[0,0] $ is equal to 1 when the first task-asset pair is set to start in period 1, as well as the second period, given a task-asset duration of 2:
-
-$ X_{t,a}[0,0] + X_{t,s}[0,0] - X_{t,p}[0,1] <= 1 $
+For example, $X_{t,a}[0,0] + X_{t,s}[0,0] - X_{t,p}[0,0] <= 1$
+ensures that $X_{t,p}[0,0]$ is equal to 1 when the first task-asset pair is set to start in period 1, as well as the second period, given a task-asset duration of 2:
+$X_{t,a}[0,0] + X_{t,s}[0,0] - X_{t,p}[0,1] <= 1$
 
 This ensures that based on the task-asset pair selected and a given start time, the corresponding Xtp values are selected. However, this constraint represents a 'lower_bound', as these constraints don't have any control over the other Xtp values that it doesn't specify. Constraint 16 sets the 'upper bound'.
 
@@ -99,7 +104,9 @@ This ensures that based on the task-asset pair selected and a given start time, 
 
 This constraint ensures that the number of Xtp variables is EXACTLY equal to the task-asset duration, as 14b has some edge cases where some other Xtp values have the option to be turned on.
 
-$ \sum_{p=0}^{P-1} X_{t,p}[t,p] = \sum_{a=0}^{A-1} X_{t,a}[t,a]d_{t,a} $
+$$
+\sum_{p=0}^{P-1} X_{t,p}[t,p] = \sum_{a=0}^{A-1} X_{t,a}[t,a]d_{t,a} 
+$$
 
 This prevents extra periods beyond the requirement from being set.
 
@@ -126,9 +133,11 @@ This constraint is commented out and not used anymore because it created an adve
 
 It was intended to ensure that a task and asset in a task-asset pair were both assigned to the same period (and updated the Xap variables accordingly)
 
-$ 0 <= X_{t,p}[t,p] - X_{a,p}[a,p] + X_{t,a}[t,a] <= 1 $
+$$
+0 <= X_{t,p}[t,p] - X_{a,p}[a,p] + X_{t,a}[t,a] <= 1 
+$$
 
-However, this created a problem that when $ X_{t,a}[0,0] = 1 $, this constraint could set $ X_{t,p}[0,p] = X_{a,p}[0,p] $, but if Asset 0 was used in another task at a different time, it may not occur in that same period.
+However, this created a problem that when $X_{t,a}[0,0] = 1$, this constraint could set $X_{t,p}[0,p] = X_{a,p}[0,p]$, but if Asset 0 was used in another task at a different time, it may not occur in that same period.
 
 Therefore, we have decided to eliminate the need for the Xap variable since they seem redundant after this investigation.
 
@@ -136,7 +145,9 @@ Therefore, we have decided to eliminate the need for the Xap variable since they
 ### 4. Asset Cannot Be Assigned to Multiple Tasks in Same Period
 Ensures that if multiple tasks are assigned to the same asset, then only one can be active in any period p (not using any Xap variables)
 
-$ \sum_{t=0}^{T-1} X_{t,p}[t,p] + \sum_{t=0}^{T-1} X_{t,a}[t,a] <= 1 + T \quad \forall a,p $
+$$
+\sum_{t=0}^{T-1} X_{t,p}[t,p] + \sum_{t=0}^{T-1} X_{t,a}[t,a] <= 1 + T \quad \forall a,p 
+$$
 
 For two tasks, the right hand side will always be 3, which ensures that if the same asset is used for multiple tasks $(X_{t,a}[0,0]=1, X_{t,a}[1,0]=1)$, then only one $X_{t,p}[t,p]$ variable is turned on.
 
@@ -160,9 +171,9 @@ We have a set of different dependency type options:
 - Finish-Finish: the dependent task finishes when the prerequisite task finishes
 - Same-Asset: the dependent task must use the same asset as the prerequisite task
 
-For all valid start times s for task t, if $ X_{t,s}[t,s]=1 $, then there is some other start time $s_d$ for task d so that $ X_{t,s}[d,s_d]=1 $ and $s_d + duration <= s$
+For all valid start times s for task t, if $X_{t,s}[t,s]=1$, then there is some other start time $s_d$ for task d so that $X_{t,s}[d,s_d]=1$ and $s_d + duration <= s$
 
-$ X_{t,s}[t,s] <= \sum X_{t,s}[d,s_d] $ from $s$ to $sd+duration$
+$X_{t,s}[t,s] <= \sum X_{t,s}[d,s_d]$ from $s$ to $sd+duration$
 
 ---
 
