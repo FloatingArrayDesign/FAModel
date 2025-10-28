@@ -29,19 +29,19 @@ wordy = 1  # level of verbosity for print statements
 class Scheduler:
 
     # Inputs are strictly typed, as this is an integer programming problem (ignored by python at runtime, but helpful for readability and syntax checking).
-    def __init__(self, task_asset_matrix : np.ndarray, tasks : list[str] = [], assets : list[dict] = [], task_dependencies = {}, dependency_types = {}, weather : list[int] = [], period_duration : float = 1, **kwargs):
+    def __init__(self, task_asset_matrix : np.ndarray, tasks : list[str] = [], assets : list[dict] = [], task_dependencies = {}, dependency_types = {}, weather : list[int] = [], period_duration : float = 1, asset_groups : list[dict] = [], **kwargs):
         '''
         Initializes the Scheduler with assets, tasks, and constraints.
 
         Inputs
         ------
         task_asset_matrix : array-like
-            A 3D array of (cost, duration) tuples indicating the cost and duration for each asset to perform each task.
-            Must be len(tasks) x len(assets) x 2. NOTE: The duration must be in units of scheduling periods (same as weather period length).
+            A 3D array of (cost, duration) tuples indicating the cost and duration for each asset group to perform each task.
+            Must be len(tasks) x len(asset_groups) x 2. NOTE: The duration must be in units of scheduling periods (same as weather period length).
         tasks : list
             A list of Task objects to be scheduled.
         assets : list
-            A list of Asset objects to be scheduled.
+            A list of individual Asset objects. Used for pre-processing and conflict detection within asset groups.
         task_dependencies : dict
             A dictionary mapping each task to a list of its dependencies.
         dependency_types : dict
@@ -56,6 +56,10 @@ class Scheduler:
             A list of weather windows. The length of this list defines the number of discrete time periods available for scheduling.
         period_duration : float
             The duration of each scheduling period. Used for converting from periods to real time.
+        asset_groups : list[dict]
+            A list of dictionaries defining asset groups. Each dictionary maps group names to lists of individual asset names.
+            Example: [{'group1': ['asset_0']}, {'group2': ['asset_0', 'asset_1']}]
+            The task_asset_matrix dimensions must match len(asset_groups).
         kwargs : dict
             Additional keyword arguments for future extensions.
 
@@ -69,7 +73,8 @@ class Scheduler:
 
         self.task_asset_matrix = task_asset_matrix
         self.tasks = tasks
-        self.assets = assets
+        self.assets = assets  # Individual assets for conflict detection
+        self.asset_groups = asset_groups  # Asset groups for scheduling
         self.weather = weather
         self.task_dependencies = task_dependencies
         self.dependency_types = dependency_types
@@ -77,21 +82,21 @@ class Scheduler:
 
         # --- Check for valid inputs ---
 
-        # check for valid task_asset_matrix dimensions (must be len(tasks) x len(assets) x 2)
-        if self.task_asset_matrix.ndim != 3 or self.task_asset_matrix.shape[0] != len(self.tasks) or self.task_asset_matrix.shape[1] != len(self.assets) or self.task_asset_matrix.shape[2] != 2:
-            raise ValueError("task_asset_matrix must be a 3D array with shape (len(tasks), len(assets), 2).")
+        # check for valid task_asset_matrix dimensions (must be len(tasks) x len(asset_groups) x 2)
+        if self.task_asset_matrix.ndim != 3 or self.task_asset_matrix.shape[0] != len(self.tasks) or self.task_asset_matrix.shape[1] != len(self.asset_groups) or self.task_asset_matrix.shape[2] != 2:
+            raise ValueError(f"task_asset_matrix must be a 3D array with shape (len(tasks), len(asset_groups), 2). Expected: ({len(self.tasks)}, {len(self.asset_groups)}, 2), got: {self.task_asset_matrix.shape}")
         
         # check for integer matrix, try to correct
         if self.task_asset_matrix.dtype != np.dtype('int'):
             try:
                 self.task_asset_matrix = self.task_asset_matrix.astype(int)
             except:
-                raise ValueError("task_asset_matrix must be a 3D array of integers with shape (len(tasks), len(assets), 2).")
+                raise ValueError("task_asset_matrix must be a 3D array of integers with shape (len(tasks), len(asset_groups), 2).")
             else: 
                 print("Input task_asset_matrix was not integer. Converted to integer type.")
 
         # check for valid tasks and assets
-        if not all(isinstance(task, str) for task in self.tasks):
+        if not all(isinstance(task, str) or isinstance(task, dict) for task in self.tasks):
             raise ValueError("All elements in tasks must be strings.")
         if not all(isinstance(asset, dict) for asset in self.assets):
             raise ValueError("All elements in assets must be dictionaries.")
@@ -107,23 +112,64 @@ class Scheduler:
         # --- Process inputs ---
 
         self.T = len(self.tasks)
-        self.A = len(self.assets)
+        self.A = len(self.asset_groups)  # A now represents number of asset groups
         self.P = len(weather)  # number of scheduling periods
         self.S = self.P        # number of start times
+        
+        # Initialize asset group mappings for conflict detection
+        self._initialize_asset_groups()
 
         # Checks for negative duration and cost in task_asset_matrix (0 cost and duration permitted)
-        self.num_valid_ta_pairs = int(np.sum((self.task_asset_matrix[:,:,0] >=0) & (self.task_asset_matrix[:,:,1] >= 0))) # number of valid task-asset pairs (cost and duration >= 0)
+        self.num_valid_ta_pairs = int(np.sum((self.task_asset_matrix[:,:,0] >=0) & (self.task_asset_matrix[:,:,1] >= 0))) # number of valid task-asset group pairs (cost and duration >= 0)
 
         # --- Debug helpers ---
         # make a list of indices to help with building constraints
-        self.Xta_indices = [f"Xta_[{t}][{a}]" for t in range(self.T) for a in range(self.A)]
+        self.Xta_indices = [f"Xtag_[{t}][{ag}]" for t in range(self.T) for ag in range(self.A)]  # task-asset group
         self.Xtp_indices = [f"Xtp_[{t}][{p}]" for t in range(self.T) for p in range(self.P)]
-        self.Xap_indices = [f"Xap_[{a}][{p}]" for a in range(self.A) for p in range(self.P)]
+        self.Xap_indices = [f"Xagp_[{ag}][{p}]" for ag in range(self.A) for p in range(self.P)]  # asset group-period  
         self.Xts_indices = [f"Xts_[{t}][{s}]" for t in range(self.T) for s in range(self.S)]
         self.X_indices = self.Xta_indices + self.Xtp_indices + self.Xap_indices + self.Xts_indices
 
         if wordy > 0:
-            print(f"Scheduler initialized with {self.P} time periods, {self.T} tasks, {self.A} assets, and {self.S} start times.")
+            print(f"Scheduler initialized with {self.P} time periods, {self.T} tasks, {self.A} asset groups, and {self.S} start times.")
+
+    def _initialize_asset_groups(self):
+        '''
+        Initialize asset group mappings for conflict detection.
+        
+        Creates mappings to track:
+        - Which individual assets belong to which asset groups
+        - Which asset groups each individual asset participates in
+        - Individual asset name to index mappings
+        '''
+        # Create individual asset name to index mapping
+        self.individual_asset_name_to_index = {}
+        for i, asset in enumerate(self.assets):
+            asset_name = asset.get('name', f'Asset_{i}')
+            self.individual_asset_name_to_index[asset_name] = i
+        
+        # Create mapping: asset_group_id -> list of individual asset indices
+        self.asset_group_to_individual_assets = {}
+        # Create mapping: individual_asset_index -> list of asset_group_ids it belongs to
+        self.individual_asset_to_asset_groups = {i: [] for i in range(len(self.assets))}
+        
+        for group_id, group_dict in enumerate(self.asset_groups):
+            for group_name, individual_asset_names in group_dict.items():
+                self.asset_group_to_individual_assets[group_id] = []
+                
+                for asset_name in individual_asset_names:
+                    if asset_name in self.individual_asset_name_to_index:
+                        individual_asset_idx = self.individual_asset_name_to_index[asset_name]
+                        self.asset_group_to_individual_assets[group_id].append(individual_asset_idx)
+                        self.individual_asset_to_asset_groups[individual_asset_idx].append(group_id)
+                    else:
+                        print(f"Warning: Individual asset '{asset_name}' in group '{group_name}' not found in assets list")
+        
+        if wordy > 1:
+            print(f"Asset group mappings initialized:")
+            for group_id, individual_asset_indices in self.asset_group_to_individual_assets.items():
+                individual_asset_names = [self.assets[i].get('name', f'Asset_{i}') for i in individual_asset_indices]
+                print(f"  Asset Group {group_id}: {individual_asset_names}")
 
     def set_up_optimizer(self, goal : str = "cost"):
         '''
@@ -454,108 +500,121 @@ class Scheduler:
         if wordy > 0:
             print("Constraint 2 built.")
 
-        # 3) at least one asset must be assigned to each task
+        # 3) exactly one asset must be assigned to each task
         '''
-        Sum of all task-asset pairs must be >= 1 for each task:
-        (Xta_00 + ... + Xta_0A) >= 1   # for task 0
-        (Xta_10 + ... + Xta_1A) >= 1   # for task 1
+        Sum of all task-asset pairs must be = 1 for each task:
+        (Xta_00 + ... + Xta_0A) = 1   # for task 0
+        (Xta_10 + ... + Xta_1A) = 1   # for task 1
         ...
-        (Xta_T0 + ... + Xta_TA) >= 1   # for task T
+        (Xta_T0 + ... + Xta_TA) = 1   # for task T
+        
+        This ensures each task is assigned to exactly one asset group.
         '''
 
         # num_tasks rows
-        A_lb_3 = np.zeros((self.T, num_variables), dtype=int)
-        b_lb_3 = np.ones(self.T, dtype=int)
+        A_eq_3 = np.zeros((self.T, num_variables), dtype=int)
+        b_eq_3 = np.ones(self.T, dtype=int)
 
         for t in range (self.T):
             # set the coefficient for each task t to one
-            A_lb_3[t, (self.Xta_start + t * self.A):(self.Xta_start + t * self.A + self.A)] = 1  # Set the coefficients for the Xta variables to 1 for each task t
+            A_eq_3[t, (self.Xta_start + t * self.A):(self.Xta_start + t * self.A + self.A)] = 1  # Set the coefficients for the Xta variables to 1 for each task t
 
         if wordy > 1:
-            print("A_lb_3^T:")
+            print("A_eq_3^T:")
             print("             T1   T2") # Header for 2 tasks
             for i in range(self.Xta_start,self.Xta_end):
                 pstring = str(self.X_indices[i])
-                for column in A_lb_3.transpose()[i]:
+                for column in A_eq_3.transpose()[i]:
                     pstring += f"{ column:5}"
                 print(pstring)
-            print("b_lb_3: ", b_lb_3)
+            print("b_eq_3: ", b_eq_3)
 
-        A_lb_list.append(A_lb_3)
-        b_lb_list.append(b_lb_3)
+        A_eq_list.append(A_eq_3)
+        b_eq_list.append(b_eq_3)
 
         if wordy > 0:
             print("Constraint 3 built.")
 
-        # 4) each asset can only be used by one task per time period  
+        # 4) Individual asset conflict prevention within asset groups
         '''
-        Multiple tasks can be assigned to the same asset (Xta[t1,a] = Xta[t2,a] = 1),
-        but they cannot use it simultaneously in the same period.
+        We need to ensure that individual assets used within different asset groups 
+        are not assigned to tasks that occur at the same time.
         
-        The relationship is enforced through Constraint 12:
-        Xtp[t,p] + Xta[t,a] - Xap[a,p] ≤ 1 and ≥ 0
+        For each individual asset, each period, and each pair of tasks that could 
+        potentially use that individual asset (through their asset group assignments):
         
-        This means: if Xtp[t,p] = 1 AND Xta[t,a] = 1, then Xap[a,p] = 1
-        Since Xap[a,p] is binary, it can only be 1 for one reason.
+        We create constraints of the form:
+        Xta[task1,ag1] + Xta[task2,ag2] + Xtp[task1,period] + Xtp[task2,period] ≤ 3
         
-        We ensure: Xap[a,p] ≤ 1 for each asset a, period p
-        This constraint is automatically satisfied for binary variables, but we include it explicitly.
+        Where:
+        - ag1 and ag2 are asset groups that both contain the same individual asset
+        - This prevents: task1 assigned to ag1 AND task2 assigned to ag2 AND 
+          both tasks active in the same period (which would conflict on the shared individual asset)
         
-        The key insight: if Constraint 12 is working correctly, it should prevent conflicts
-        by ensuring that if multiple tasks are assigned to the same asset and try to be
-        active simultaneously, the Xap[a,p] variable relationships will prevent this.
+        Examples:
+        - Xta[0,0] + Xta[1,0] + Xtp[0,p] + Xtp[1,p] ≤ 3 (same asset group)
+        - Xta[0,1] + Xta[1,0] + Xtp[0,p] + Xtp[1,p] ≤ 3 (different groups sharing heavy_asset)
         '''
         
-        # Ensure each asset can be active in at most one context per period
-        # (This is automatic for binary variables but explicit for clarity)
-        A_ub_4 = np.zeros((self.A * self.P, num_variables), dtype=int)
-        b_ub_4 = np.ones(self.A * self.P, dtype=int)
-        '''
-        row = 0
-        for a in range(self.A):
-            for p in range(self.P):
-                A_ub_4[row, self.Xap_start + a * self.P + p] = 1  # Xap[a,p] ≤ 1
-                row += 1
-        '''
-        # Add temporal conflict prevention for tasks that could share assets
-        # For each asset that multiple tasks could use, add constraints to prevent
-        # simultaneous usage by different tasks
-        rows_4b = []
-        bounds_4b = []
+        rows_4 = []
+        bounds_4 = []
         
-        for a in range(self.A):
-            tasks_for_asset = [t for t in range(self.T) if self.task_asset_matrix[t, a, 1] > 0]
+        # For each individual asset, create constraints to prevent conflicts
+        for individual_asset_idx in range(len(self.assets)):
+            individual_asset_name = self.assets[individual_asset_idx].get('name', f'Asset_{individual_asset_idx}')
             
-            if len(tasks_for_asset) > 1:  # Multiple tasks could use this asset
-                for p in range(self.P):
-                    # Create a constraint involving ALL tasks that could use this asset
-                    # Σ(Xtp[t,p] for t in tasks_for_asset) + Σ(Xta[t,a] for t in tasks_for_asset) ≤ bound
-                    # Logic: If tasks are assigned to asset a, at most 1 can be active in period p
-                    row = np.zeros(num_variables, dtype=int)
-                    
-                    # Add all task-period variables for this period
-                    for t in tasks_for_asset:
-                        row[self.Xtp_start + t * self.P + p] = 1  # Xtp[t,p]
-                    
-                    # Add all task-asset variables for this asset
-                    for t in tasks_for_asset:
-                        row[self.Xta_start + t * self.A + a] = 1  # Xta[t,a]
-                    
-                    rows_4b.append(row)
-                    
-                    # Calculate bound: if all tasks assigned to asset a, max 1 can be active
-                    num_tasks = len(tasks_for_asset)
-                    max_active_when_all_assigned = 1  # Only 1 task can use asset per period
-                    max_assignments = num_tasks  # All could potentially be assigned to the asset
-                    bound = max_active_when_all_assigned + max_assignments
-                    bounds_4b.append(bound)
-
-        if rows_4b:
-            A_ub_4b = np.vstack(rows_4b)
-            b_ub_4b = np.array(bounds_4b, dtype=int)
+            # Find all asset groups that contain this individual asset
+            asset_groups_containing_this_asset = self.individual_asset_to_asset_groups[individual_asset_idx]
             
-            A_ub_4 = np.vstack([A_ub_4, A_ub_4b])
-            b_ub_4 = np.concatenate([b_ub_4, b_ub_4b])
+            if len(asset_groups_containing_this_asset) > 0:
+                # For each time period
+                for period_idx in range(self.P):
+                    
+                    # Find all valid (task, asset_group) pairs that could use this individual asset
+                    valid_task_asset_group_pairs = []
+                    
+                    for task_idx in range(self.T):
+                        for asset_group_idx in asset_groups_containing_this_asset:
+                            # Check if this task can use this asset group (valid pairing)
+                            if self.task_asset_matrix[task_idx, asset_group_idx, 1] > 0:  # valid duration > 0
+                                valid_task_asset_group_pairs.append((task_idx, asset_group_idx))
+                    
+                    # Create pairwise constraints between all combinations that could conflict
+                    for i, (task1, ag1) in enumerate(valid_task_asset_group_pairs):
+                        for j, (task2, ag2) in enumerate(valid_task_asset_group_pairs[i+1:], i+1):
+                            
+                            # Skip constraints that violate constraint 3 (same task, different asset groups)
+                            # Constraint 3 already ensures exactly one asset group per task
+                            if task1 == task2:
+                                if wordy > 2:
+                                    print(f"  Skipping redundant constraint: Task {task1} with groups {ag1} and {ag2} "
+                                          f"(already prevented by constraint 3)")
+                                continue
+                            
+                            # Create constraint to prevent task1 and task2 from using this individual asset simultaneously
+                            row = np.zeros(num_variables, dtype=int)
+                            
+                            # Add the four variables that create the conflict scenario
+                            row[self.Xta_start + task1 * self.A + ag1] = 1           # Xta[task1,ag1] 
+                            row[self.Xta_start + task2 * self.A + ag2] = 1           # Xta[task2,ag2]
+                            row[self.Xtp_start + task1 * self.P + period_idx] = 1    # Xtp[task1,period]
+                            row[self.Xtp_start + task2 * self.P + period_idx] = 1    # Xtp[task2,period]
+                            
+                            rows_4.append(row)
+                            bounds_4.append(3)  # Sum ≤ 3 prevents all 4 from being 1 simultaneously
+                            
+                            if wordy > 1:
+                                print(f"  Conflict constraint for {individual_asset_name} in period {period_idx}:")
+                                print(f"    Xta[{task1},{ag1}] + Xta[{task2},{ag2}] + Xtp[{task1},{period_idx}] + Xtp[{task2},{period_idx}] ≤ 3")
+        
+        # Create constraint matrix
+        if rows_4:
+            A_ub_4 = np.vstack(rows_4)
+            b_ub_4 = np.array(bounds_4, dtype=int)
+        else:
+            # If no individual asset conflicts possible, create empty constraint matrix
+            A_ub_4 = np.zeros((0, num_variables), dtype=int)
+            b_ub_4 = np.array([], dtype=int)
 
         if wordy > 1: 
             print("A_ub_4^T:")
@@ -1067,7 +1126,8 @@ class Scheduler:
 
             for p in range(self.P):
                 weather_condition = self.weather[p]
-                pstring = f"Period {p} (weather {weather_condition}): "
+                pstring = f"Period {p:2d} (weather {weather_condition:2d}): "
+                
                 for t in range(self.T):
                     if Xtp[t, p] > 0: 
                         # Find assigned asset for this task
@@ -1075,9 +1135,14 @@ class Scheduler:
                         cost = self.task_asset_matrix[t, a_assigned, 0]
                         duration = self.task_asset_matrix[t, a_assigned, 1]
                         asset_name = self.assets[a_assigned].get('name', f'Asset {a_assigned}')
-                        pstring += f"{asset_name} assigned to task {t} (cost: {cost}, duration: {duration}) | "
+                        
+                        # Format with fixed widths for proper alignment
+                        task_info = f"{asset_name:<15} → Task {t:2d} (cost: {cost:6.0f}, dur: {duration:2d})"
+                        pstring += f"{task_info:<50} | "
                     else:
-                        pstring += " "*60 + "| "
+                        # Empty slot with proper spacing
+                        pstring += f"{'':50} | "
+                        
                 print(pstring)
 
         if wordy > 0:
@@ -1101,6 +1166,10 @@ if __name__ == "__main__":
     assets = [
         {"name": "heavy_asset", "max_weather": 3},   # Can work in all weather conditions
         {"name": "light_asset", "max_weather": 1}    # Can only work in calm weather (1)
+    ]
+    asset_groups = [
+        {'group1': ['heavy_asset']},
+        {'group2': ['light_asset', 'heavy_asset']},
     ]
 
     # task dependencies
@@ -1129,7 +1198,7 @@ if __name__ == "__main__":
     min_duration = np.min(task_asset_matrix[:, :, 1][task_asset_matrix[:, :, 1] > 0])  # minimum non-zero duration
 
     # Sandbox for building out the scheduler
-    scheduler = Scheduler(task_asset_matrix, tasks, assets, task_dependencies, dependency_types, weather, min_duration)
+    scheduler = Scheduler(task_asset_matrix, tasks, assets, task_dependencies, dependency_types, weather, min_duration, asset_groups=asset_groups)
     scheduler.optimize()
     a = 2
     
