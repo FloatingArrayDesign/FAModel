@@ -29,7 +29,7 @@ wordy = 1  # level of verbosity for print statements
 class Scheduler:
 
     # Inputs are strictly typed, as this is an integer programming problem (ignored by python at runtime, but helpful for readability and syntax checking).
-    def __init__(self, task_asset_matrix : np.ndarray, tasks : list[str] = [], assets : list[dict] = [], task_dependencies = {}, dependency_types = {}, weather : list[int] = [], period_duration : float = 1, asset_groups : list[dict] = [], **kwargs):
+    def __init__(self, task_asset_matrix : np.ndarray, tasks : list[str] = [], assets : list[dict] = [], task_dependencies = {}, dependency_types = {}, offsets = {}, weather : list[int] = [], period_duration : float = 1, asset_groups : list[dict] = [], **kwargs):
         '''
         Initializes the Scheduler with assets, tasks, and constraints.
 
@@ -52,6 +52,12 @@ class Scheduler:
             - "start_finish": dependent task finishes when prerequisite starts
             - "offset": dependent task starts/finishes with time offset (requires offset value)
             - "same_asset": dependent task must use same asset as prerequisite
+        offsets : dict
+            A dictionary mapping each task dependency pair to its time offset (in periods).
+            Used with dependency types to specify minimum time delays. For example:
+            - With "finish_start": dependent task starts at least 'offset' periods after prerequisite finishes
+            - With "start_start": dependent task starts at least 'offset' periods after prerequisite starts
+            Example: {"task1->task2": 3} means task2 must wait 3 periods after task1 constraint is satisfied
         weather : list
             A list of weather windows. The length of this list defines the number of discrete time periods available for scheduling.
         period_duration : float
@@ -78,6 +84,7 @@ class Scheduler:
         self.weather = weather
         self.task_dependencies = task_dependencies
         self.dependency_types = dependency_types
+        self.offsets = offsets
         self.period_duration = period_duration # duration of each scheduling period. Used for converting from periods to real time.
 
         # --- Check for valid inputs ---
@@ -397,11 +404,14 @@ class Scheduler:
                     dep_key = f"{dep_task_name}->{task_name}"
                     dep_type = self.dependency_types.get(dep_key, "finish_start")
                     
+                    # Get time offset (default to 0)
+                    offset = self.offsets.get(dep_key, 0)
+                    
                     if dep_type == "finish_start":
-                        # Task t cannot start until task d finishes
+                        # Task t cannot start until task d finishes + offset periods
                         # We need to create constraints for each possible asset-duration combination
                         # If task d uses asset a_d with duration dur_d and starts at time sd,
-                        # then task t cannot start before time (sd + dur_d)
+                        # then task t cannot start before time (sd + dur_d + offset)
                         
                         for a_d in range(self.A):
                             duration_d = self.task_asset_matrix[d, a_d, 1]
@@ -409,10 +419,10 @@ class Scheduler:
                                 continue
                                 
                             for sd in range(self.S):  # For each possible start time of dependency task
-                                finish_time_d = sd + duration_d  # When task d finishes
+                                finish_time_d = sd + duration_d + offset  # When task d finishes + offset
                                 
-                                # Task t cannot start before task d finishes
-                                for s in range(min(finish_time_d, self.S)):  # All start times before finish
+                                # Task t cannot start before task d finishes + offset
+                                for s in range(min(finish_time_d, self.S)):  # All start times before finish + offset
                                     # Create constraint: if task d uses asset a_d and starts at sd,
                                     # then task t cannot start at time s
                                     # Constraint: Xta[d,a_d] + Xts[d,sd] + Xts[t,s] <= 2
@@ -425,36 +435,43 @@ class Scheduler:
                                     vec_2.append(2)  # At most 2 of these 3 can be 1 simultaneously
                     
                     elif dep_type == "start_start":
-                        # Task t starts when task d starts (same start time)
-                        for s in range(self.S):
-                            row = np.zeros(num_variables, dtype=int)
-                            row[self.Xts_start + t * self.S + s] = 1   # Xts[t,s]
-                            row[self.Xts_start + d * self.S + s] = -1  # -Xts[d,s]
-                            rows_2.append(row)
-                            vec_2.append(0)  # Xts[t,s] - Xts[d,s] <= 0, so Xts[t,s] <= Xts[d,s]
+                        # Task t starts when task d starts + offset periods
+                        # Task t cannot start before task d starts + offset
+                        for s_d in range(self.S):  # For each possible start time of dependency task
+                            earliest_start_t = s_d + offset  # Earliest start time for task t
+                            
+                            # Task t cannot start before earliest_start_t
+                            for s_t in range(min(earliest_start_t, self.S)):  # All start times before allowed
+                                # Create constraint: if task d starts at s_d, then task t cannot start at s_t
+                                # Constraint: Xts[d,s_d] + Xts[t,s_t] <= 1
+                                row = np.zeros(num_variables, dtype=int)
+                                row[self.Xts_start + d * self.S + s_d] = 1     # Xts[d,s_d]
+                                row[self.Xts_start + t * self.S + s_t] = 1     # Xts[t,s_t]
+                                rows_2.append(row)
+                                vec_2.append(1)  # At most 1 of these 2 can be 1 simultaneously
                     
                     elif dep_type == "finish_finish":
-                        # Task t finishes when task d finishes
-                        # This requires both tasks to have the same end time
+                        # Task t finishes when task d finishes + offset periods
+                        # This requires task t to finish at (task d finish time + offset)
                         for s_t in range(self.S):
                             for a_t in range(self.A):
                                 duration_t = self.task_asset_matrix[t, a_t, 1]
                                 if duration_t > 0:  # Valid pairing for task t
                                     end_time_t = s_t + duration_t
                                     
-                                    # Find start times for task d that result in same end time
+                                    # Find start times for task d that result in compatible end times
                                     for s_d in range(self.S):
                                         for a_d in range(self.A):
                                             duration_d = self.task_asset_matrix[d, a_d, 1]
                                             if duration_d > 0:  # Valid pairing for task d
                                                 end_time_d = s_d + duration_d
                                                 
-                                                if end_time_t == end_time_d:
+                                                if end_time_t == end_time_d + offset:
                                                     # If task t starts at s_t with asset a_t AND task d starts at s_d with asset a_d,
-                                                    # then they finish at the same time (constraint satisfied)
+                                                    # then they finish with correct offset (constraint satisfied)
                                                     continue
                                                 else:
-                                                    # Prevent this combination
+                                                    # Prevent this combination if it doesn't satisfy offset
                                                     row = np.zeros(num_variables, dtype=int)
                                                     row[self.Xts_start + t * self.S + s_t] = 1     # Xts[t,s_t] 
                                                     row[self.Xta_start + t * self.A + a_t] = 1     # Xta[t,a_t]
@@ -1128,14 +1145,39 @@ class Scheduler:
                         a_assigned = np.argmax(Xta[t, :])  # assumes only one asset per task
                         cost = self.task_asset_matrix[t, a_assigned, 0]
                         duration = self.task_asset_matrix[t, a_assigned, 1]
-                        asset_name = self.assets[a_assigned].get('name', f'Asset {a_assigned}')
+                        
+                        # Get asset group information
+                        asset_group = self.asset_groups[a_assigned]
+                        if isinstance(asset_group, dict):
+                            # Handle different asset group formats
+                            if 'assets' in asset_group:
+                                # Format: {'assets': ['asset1', 'asset2']}
+                                asset_list = asset_group['assets']
+                                if isinstance(asset_list, list) and len(asset_list) > 0:
+                                    asset_name = f"Group({', '.join(asset_list)})"
+                                else:
+                                    asset_name = f"Asset Group {a_assigned}"
+                            else:
+                                # Format: {'group_name': ['asset1', 'asset2']}
+                                group_names = list(asset_group.keys())
+                                if group_names:
+                                    group_name = group_names[0]  # Take first group name
+                                    asset_list = asset_group[group_name]
+                                    if isinstance(asset_list, list):
+                                        asset_name = f"{group_name}({', '.join(asset_list)})"
+                                    else:
+                                        asset_name = group_name
+                                else:
+                                    asset_name = f"Asset Group {a_assigned}"
+                        else:
+                            asset_name = f"Asset Group {a_assigned}"
                         
                         # Format with fixed widths for proper alignment
-                        task_info = f"{asset_name:<15} → Task {t:2d} (cost: {cost:6.0f}, dur: {duration:2d})"
-                        pstring += f"{task_info:<50} | "
+                        task_info = f"{asset_name:<20} → Task {t:2d} (cost: {cost:6.0f}, dur: {duration:2d})"
+                        pstring += f"{task_info:<55} | "
                     else:
                         # Empty slot with proper spacing
-                        pstring += f"{'':50} | "
+                        pstring += f"{'':55} | "
                         
                 print(pstring)
 
@@ -1162,8 +1204,8 @@ if __name__ == "__main__":
         {"name": "light_asset", "max_weather": 1}    # Can only work in calm weather (1)
     ]
     asset_groups = [
-        {'group1': ['heavy_asset']},
-        {'group2': ['light_asset', 'heavy_asset']},
+        {'assets': ['heavy_asset']},
+        {'assets': ['light_asset', 'heavy_asset']},
     ]
 
     # task dependencies
@@ -1176,6 +1218,10 @@ if __name__ == "__main__":
     dependency_types = {
         "task1->task2": "finish_start"  # task2 starts after task1 finishes
     }
+    
+    # offsets (optional - defaults to 0 if not specified)
+    # In this example, no offset is needed - task2 can start immediately after task1 finishes
+    offsets = {}
 
     # cost and duration tuples for each task-asset pair. -1 indicates asset-task paring is invalid
     task_asset_matrix = np.array([
@@ -1192,7 +1238,7 @@ if __name__ == "__main__":
     min_duration = np.min(task_asset_matrix[:, :, 1][task_asset_matrix[:, :, 1] > 0])  # minimum non-zero duration
 
     # Sandbox for building out the scheduler
-    scheduler = Scheduler(task_asset_matrix, tasks, assets, task_dependencies, dependency_types, weather, min_duration, asset_groups=asset_groups)
+    scheduler = Scheduler(task_asset_matrix, tasks, assets, task_dependencies, dependency_types, offsets, weather, min_duration, asset_groups=asset_groups)
     scheduler.optimize()
     
     a = 2

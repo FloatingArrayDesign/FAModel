@@ -63,10 +63,16 @@ dependency_types = {
     'install_anchor->install_mooring': 'finish_start'  # Anchor must finish before mooring starts
 }
 
+offsets = {
+    'install_anchor->install_mooring': 0    # Mooring installation to start 1 period after Anchor installation
+}
+
 # calculate the minimum duration
 min_duration = np.min(task_asset_matrix[:, :, 1][task_asset_matrix[:, :, 1] > 0])  # minimum non-zero duration
 
 # intialize and run the scheduler
-scheduler = Scheduler(task_asset_matrix, tasks, assets, task_dependencies, dependency_types, weather, min_duration, asset_groups=asset_groups)
+scheduler = Scheduler(task_asset_matrix, tasks, assets, task_dependencies, dependency_types, offsets, weather, min_duration, asset_groups=asset_groups)
 scheduler.optimize()
+
+a = 2
 
