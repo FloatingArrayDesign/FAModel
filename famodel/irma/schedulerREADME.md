@@ -112,24 +112,11 @@ This prevents extra periods beyond the requirement from being set.
 
 Overall, the combination of Constraints 15-14b-16 ensure tasks are active when they should be
 
-(**TODO**) Handle cases with multiple assets per task
-
-The problem with this constraint is that it assumes only 1 asset is assigned per task, and it uses that task-asset duration to set the constraint. But, what if asset 0 and asset 1 are both used for task 0? How is the duration set?
-
-
-1. Ensure that each task only involves 1 asset in its definition. Would just require an update to Constraint 3 to an equals not a inequality. Would likely involve more dependencies to define, but it seems to be the cleanest.
-   - Could set 'cases' instead of 'assets' and update Constraint 3 to equality
-2. Updating the duration of the task based on the combination of assets. Would require some changes to 14b (not bad) and just an updated duration in 16.
-   - Take the maximum duration (3 over 2)
-   - Average them in a way (2 + 3 = 1.25)
-   - Have additional duration information stored somewhere else
-   - Sum them (make them sequential) like if $d_{t,a}[0,0]=2$ and $d_{t,a}[0,1]=3$, then this task duration would require 5 periods.
-
 
 
 
 ### 12. (NOT INCLUDED ANYMORE) An asset that a task is assigned to must also occur in the same period(s) that the task occurs in
-This constraint is commented out and not used anymore because it created an adverse coupling of variables.
+This constraint is commented out and not used anymore because it created an adverse coupling of variables. But, I wanted to keep some explanation in here for why this happened.
 
 It was intended to ensure that a task and asset in a task-asset pair were both assigned to the same period (and updated the Xap variables accordingly)
 
@@ -142,8 +129,8 @@ However, this created a problem that when $X_{t,a}[0,0] = 1$, this constraint co
 Therefore, we have decided to eliminate the need for the Xap variable since they seem redundant after this investigation.
 
 
-### 4. Asset Cannot Be Assigned to Multiple Tasks in Same Period
-Ensures that if multiple tasks are assigned to the same asset, then only one can be active in any period p (not using any Xap variables)
+### 4. Asset that is part of multiple Asset Groups Cannot Be Assigned to Multiple Tasks in Same Period
+Ensures that if multiple tasks have an asset that are in different asset groups assigned to them, then only one can be active in any period p (not using any Xap variables)
 
 $$
 \sum_{t=0}^{T-1} X_{t,p}[t,p] + \sum_{t=0}^{T-1} X_{t,a}[t,a] <= 1 + T \quad \forall a,p 
