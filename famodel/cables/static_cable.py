@@ -17,11 +17,9 @@ class StaticCable(Edge):
     seabed.
     '''
     
-    def __init__(self, id, dd=None, subsystem=None, anchor=None, rA=[0,0,0], rB=[0,0,0],
-                 rad_anch=500, rad_fair=58, z_anch=-100, z_fair=-14, 
-                 rho=1025, g=9.81, L=2000,A=0,conductorSize=None, 
-                 type='static',voltage=66,powerRating=None,cable_type=None,routing=[],
-                 burial=None,zAnchor=None,**kwargs):
+    def __init__(self, id, dd=None, rA=[0,0,0], rB=[0,0,0],
+                 rho=1025, g=9.81, routing=[],
+                 burial=None, **kwargs):
         '''
         Parameters
         ----------
@@ -39,7 +37,7 @@ class StaticCable(Edge):
         self.cableType = self.makeCableType(self.dd['cable_type'])  # Process/check it into a new dict
 
         # cable length
-        self.getLength
+        self.getLength()
 
         # end point absolute coordinates, to be set later
         self.rA = rA

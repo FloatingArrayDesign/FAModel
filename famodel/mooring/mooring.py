@@ -806,7 +806,7 @@ class Mooring(Edge):
         return self.dd
     """
     
-    def addMarineGrowth(self, mgDict, project=None, idx=None):
+    def addMarineGrowth(self, mgDict):
         '''Re-creates sections part of design dictionary to account for marine 
         growth on the subystem, then calls createSubsystem() to recreate the line
 
@@ -823,17 +823,6 @@ class Mooring(Edge):
                                                 - [0.20,-40,0]
                 rho : list of densities for each thickness, or one density for all thicknesses, [kg/m^3] (optional - default is 1325 kg/m^3)
                 }
-        project : object, optional
-            A FAModel project object, with the mooringListPristine used as the basis
-            to build the marine growth model, necessary if the addMarineGrowth method
-            will be called in a loop (or even just multiple times) to improve accuracy 
-            of change depths, which may decrease significantly after solveEquilibrium() 
-            for the moorpy model. The default is None.
-        idx : tuple, optional
-            A key for the pristineMooringList in the project object that is associated
-            with this mooring object. Since the pristineMooringList is a deepcopy of the 
-            project mooringList, the mooring objects are not the same and therefore if the 
-            project object is provided in the method call, the index must also be provided.
 
         Returns
         -------

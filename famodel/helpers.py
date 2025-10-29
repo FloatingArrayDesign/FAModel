@@ -139,14 +139,14 @@ def adjustCable(cc,project,na=None,nb=None,routeAdjustLength=500,rad_fair=None):
         hA = np.radians(90) - np.arctan2((cc.subcomponents[0].rB[0]-cc.subcomponents[0].rA[0]),(cc.subcomponents[0].rB[1]-cc.subcomponents[0].rA[1]))
     else:
         hA = np.radians(na) #headingA
-        cx[0] = [cc.attached_to[0].r[0]+500*np.cos(np.radians(na))]
-        cy[0] = [cc.attached_to[0].r[1]+500*np.sin(np.radians(na))]
+        cx[0] = [cc.attached_to[0].r[0]+routeAdjustLength*np.cos(np.radians(na))]
+        cy[0] = [cc.attached_to[0].r[1]+routeAdjustLength*np.sin(np.radians(na))]
     if nb==None:
         hB = np.radians(90) - np.arctan2((cc.subcomponents[-1].rA[0]-cc.subcomponents[-1].rB[0]),(cc.subcomponents[-1].rA[1]-cc.subcomponents[-1].rB[1]))
     else:
         hB = np.radians(nb)
-        cx[-1] = [cc.attached_to[1].r[0]+500*np.cos(np.radians(nb))]
-        cy[-1] = [cc.attached_to[1].r[1]+500*np.sin(np.radians(nb))]
+        cx[-1] = [cc.attached_to[1].r[0]+routeAdjustLength*np.cos(np.radians(nb))]
+        cy[-1] = [cc.attached_to[1].r[1]+routeAdjustLength*np.sin(np.radians(nb))]
     cc.reposition(project=project,headings=[hA,hB],rad_fair=rad_fair)
     
 # find cable(s) associated with specific platform(s) xy coordinates
@@ -251,6 +251,8 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1, adj_dir=1):
     '''
     if heading<0:
         headnew = np.pi*2 + heading
+    elif heading>2*np.pi:
+        heading - 2*np.pi
     else:
         headnew = heading
     attheadings = [] # complete list of mooring headings to avoid, from all platforms

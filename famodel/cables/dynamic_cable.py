@@ -23,7 +23,7 @@ class DynamicCable(Edge):
                  rad_anch=None, rad_fair=5, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81,span=2000,length=2200,A=None, 
                  zJTube=-30,voltage=66,powerRating=None,cable_type=None,
-                 headingA=None,headingB=None,buoyancy_sections=None,shared=0,**kwargs):
+                 headingA=None,headingB=None,shared=0,**kwargs):
         '''
         Parameters
         ----------

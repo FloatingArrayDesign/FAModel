@@ -97,6 +97,7 @@ class Project():
         self.rho_water = 1025 # density of water (default to saltwater) [kg/m^3]
         self.rho_air = 1.225 # density of air [kg/m^3]
         self.mu_air = 1.81e-5 # dynamic viscosity of air [Pa*s]
+        self.marine_growth = None
 
         # Project boundary (vertical stack of x,y coordinate pairs [m])
         self.boundary = np.zeros([0,2])
@@ -110,10 +111,9 @@ class Project():
         self.depth = depth
         self.grid_depth  = np.array([[self.depth]])  # depth at each grid point [iy, ix]
         
-        self.seabed_type = 'clay'  # switch of which soil property set to use ('clay', 'sand', or 'rock')
-        
         # soil parameters at each grid point
         self.soilProps = {}
+        self.soil_names = []
         self.soil_mode  = 0                # soil/anchor model level to use (0: none; 1: simple categories; 2: quantitative)
         self.soil_class = [["none"]]       # soil classification name ('clay', 'sand', or 'rock' with optional modifiers)
         self.soil_gamma = np.zeros((1,1))  # soil effective unit weight [kPa] (all soils)
@@ -1858,18 +1858,19 @@ class Project():
         return(anchor)
     
     def addTurbine(self,id=None, typeID=None, platform=None, turbine_dd={}):
+        
         if typeID == None:
             typeID = len(self.turbineTypes)
         if id==None:
             id = 'T'+str(typeID)+'_'+str(len(self.turbineList))
         
         if turbine_dd and 'blade' in turbine_dd:
-            blade_diameter = turbine_dd['blade']['Rtip']*2        
+            rotor_diameter = turbine_dd['blade']['Rtip']*2        
             self.turbineTypes.append(turbine_dd)
         else:
             blade_diameter = 0
             
-        self.turbineList[id] = Turbine(turbine_dd,id,D=blade_diameter)
+        self.turbineList[id] = Turbine(turbine_dd,id,D=rotor_diameter)
         self.turbineList[id].dd['type'] = typeID
         if platform != None:
             platform.attach(self.turbineList[id])
@@ -2184,7 +2185,7 @@ class Project():
         depth_vmin = kwargs.get('depth_vmin', None)
         depth_vmax = kwargs.get('depth_vmax', None)
         bath_levels = kwargs.get('bath_levels', None)
-        show_legend = kwargs.get('show_legend', True)
+        plot_legend = kwargs.get('plot_legend', True)
         legend_x = kwargs.get('legend_x', 0.5)
         legend_y = kwargs.get('legend_y', -0.1)
         
@@ -2302,16 +2303,21 @@ class Project():
                                 line.type['material'][1:]+' Mooring')
                     
                 if mooring.ss:
-                    mooring.ss.drawLine2d(0, ax, color="self", endpoints=False, 
-                                          Xuvec=[1,0,0], Yuvec=[0,1,0], line_depth_settings=line_depth_settings, label=labs)  
+                    mooring.ss.drawLine2d(0, ax, color="self", 
+                                          plot_endpoints=False, 
+                                          Xuvec=[1,0,0], Yuvec=[0,1,0], 
+                                          line_depth_settings=line_depth_settings, 
+                                          label=labs)  
                 elif mooring.parallels:
                     for i,line in enumerate(lineList):
                         line.drawLine2d(0, ax, color="self",
-                                        Xuvec=[1,0,0], Yuvec=[0,1,0], label=labs[i])
+                                        Xuvec=[1,0,0], Yuvec=[0,1,0], 
+                                        label=labs[i])
 
                 else: # simple line plot
                     ax.plot([mooring.rA[0], mooring.rB[0]], 
-                            [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, label='Mooring Line')
+                            [mooring.rA[1], mooring.rB[1]], 'k', lw=0.5, 
+                            label='Mooring Line')
 
         # ---- Add colorbar for line depth ----
         if line_depth_settings is not None and not bare:
@@ -2351,23 +2357,23 @@ class Project():
                             # has routing  - first plot rA to sub.coordinate[0] connection
                             ax.plot([sub.rA[0],sub.x[0]],
                                     [sub.rA[1],sub.y[0]],':',color = Ccable,
-                                    lw=1.2,label='Static Cable '+str(cableSize)+' mm$^{2}$')
+                                    lw=1.2,label=f'Static Cable {cableSize} mm$^{2}$')
                             # now plot route
                             if len(sub.x) > 1:
                                 for i in range(1,len(sub.x)):
                                     ax.plot([sub.x[i-1],sub.x[i]],
                                             [sub.y[i-1],sub.y[i]],
                                             ':', color=Ccable, lw=1.2,
-                                            label='Static Cable '+str(cableSize)+' mm$^{2}$')
+                                            label=f'Static Cable {cableSize} mm$^{2}$')
                             # finally plot sub.coordinates[-1] to rB connection
                             ax.plot([sub.x[-1],sub.rB[0]],
                                     [sub.y[-1],sub.rB[1]],':',color=Ccable,
-                                    lw=1.2,label='Static Cable '+str(cableSize)+' mm$^{2}$')
+                                    lw=1.2,label=f'Static Cable {cableSize} mm$^{2}$')
                         else:
                             # if not routing just do simple line plot
                             ax.plot([sub.rA[0],sub.rB[0]], 
                                     [sub.rA[1], sub.rB[1]],':',color = Ccable, lw=1.2,
-                                    label='Static Cable '+str(cableSize)+' mm$^{2}$')
+                                    label=f'Static Cable {cableSize} mm$^{2}$')
                         
                         # if cable_labels:
                         #     x = np.mean([sub.rA[0],sub.rB[0]])
@@ -2380,7 +2386,7 @@ class Project():
                     elif isinstance(sub,DynamicCable):
                             ax.plot([sub.rA[0],sub.rB[0]], 
                                     [sub.rA[1], sub.rB[1]],color = Ccable, lw=1.2,
-                                    label='Dynamic Cable '+str(cableSize)+' mm$^{2}$')
+                                    label=f'Dynamic Cable {cableSize} mm$^{2}$')
                             
                             if cable_labels:
                                 x = np.mean([sub.rA[0],sub.rB[0]])
@@ -2421,10 +2427,17 @@ class Project():
             labels += [h.get_label() for h in soil_handles]
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
         
-        if show_legend:
+        if plot_legend:
             ax.legend(by_label.values(), by_label.keys(),loc='upper center',bbox_to_anchor=(legend_x, legend_y), fancybox=True, ncol=4)
         if save:
-            plt.savefig('2dfarm.png', dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
+            counter = 1
+            output_filename = f'2dfarm_{counter}.png'
+            while os.path.exists(output_filename):
+                counter += 1
+                output_filename = f'2dfarm_{counter}.png'
+            
+            # Increase the resolution when saving the plot
+            plt.savefig(output_filename, dpi=600, bbox_inches='tight')  # Adjust the dpi as needed
             
             # TODO - add ability to plot from RAFT FOWT
         if return_contour:
@@ -2483,21 +2496,8 @@ class Project():
                     args_bath = {'cmap': cmap, 'vmin':min([min(x) for x in -self.grid_depth]),
                                  'vmax': vmax}
                 
-                # >>> below code sections seem to do unnecessary interpolation and regridding... >>>
                 if boundary_only:   # if you only want to plot the bathymetry that's underneath the boundary, rather than the whole file
-                    boundary = np.vstack([self.boundary, self.boundary[0,:]])
-                    xs = np.linspace(min(boundary[:,0]),max(boundary[:,0]),len(boundary[:,0]))
-                    ys = np.linspace(min(boundary[:,1]),max(boundary[:,1]),len(boundary[:,1]))
-
-                    self.setGrid(xs, ys)
-            
-                    # plot the bathymetry in matplotlib using a plot_surface
-                    X, Y = np.meshgrid(xs, ys)  # 2D mesh of seabed grid
-
-                    plot_depths = np.zeros([len(ys), len(xs)])
-                    for i in range(len(ys)):
-                        for j in range(len(xs)):
-                            plot_depths[i,j], nvec = self.getDepthAtLocation(xs[j], ys[i])
+                    self.trimGrids()
 
                 else:
                     xs = np.linspace(min(self.grid_x),max(self.grid_x),len(self.grid_x))
@@ -2775,9 +2775,12 @@ class Project():
                     # set location of subsystem for simpler coding
                     ssloc = mooring.ss
                 else:
-                    mooring.createSubsystem(pristine=False, ms=self.ms)
+                    # if modified , assume the ss_mod is already generated
                     # set location of subsystem for simpler coding
                     ssloc = mooring.ss_mod
+                    # assign ss_mod in to ms
+                    self.ms.lineList.append(ssloc)
+                    ssloc.number = len(self.ms.lineList)
                 
                 # (ms.lineList.append is now done in Mooring.createSubsystem)
                 
@@ -2889,19 +2892,19 @@ class Project():
             if check == 1: # mooring object not in any anchor lists
                 # new shared line
                 # create subsystem for shared line
-                if hasattr(mooring, 'shared'):  # <<<
-                    mooring.createSubsystem(case=mooring.shared, 
-                        pristine=pristineLines, ms=self.ms)
-                else:
-                    mooring.createSubsystem(case=1,pristine=pristineLines, 
-                        ms=self.ms) # we doubled all symmetric lines so any shared lines should be case 1
+   
                 # set location of subsystem for simpler coding
                 if pristineLines:
+                    mooring.createSubsystem(case=mooring.shared, 
+                        pristine=pristineLines, ms=self.ms)
                     ssloc = mooring.ss
                 else:
+                    # modified line should already exist - just attach it
                     ssloc = mooring.ss_mod
+                    self.ms.lineList.append(ssloc)
+                    ssloc.number = len(self.ms.lineList)
 
-                # (ms.lineList.append is now done in Mooring.createSubsystem)
+                # (ms.lineList.append is now done in Mooring.createSubsystem unless not pristine)
                 
                 # find associated platforms/ buoys
                 att = mooring.attached_to
@@ -3432,7 +3435,7 @@ class Project():
                     for j in range(0,len(cP)):
                         cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.cableList[i[0]].subcomponents[i[1]].ss_mod.pointList[cP[j]].r[2])
                 else:
-                    cD,cP = self.mooringList[i].addMarineGrowth(mgDict,project=self,idx=i)
+                    cD,cP = self.mooringList[i].addMarineGrowth(mgDict)
                     for j in range(0,len(cP)):
                         cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.mooringList[i].ss_mod.pointList[cP[j]].r[2])
                 # adjust depth to change based on difference between actual and desired change depth
@@ -4532,6 +4535,14 @@ class Project():
             site['bathymetry'] = {'x':[float(x) for x in self.grid_x],'y':[float(y) for y in self.grid_y],'depths':[[float(y) for y in x] for x in self.grid_depth]}
         if len(self.boundary)>0:
             site['boundaries'] = {'x_y':[[float(y) for y in x] for x in self.boundary]}
+            
+        if self.marine_growth:
+            site['marine_growth'] = {
+                'keys':['thickness', 'lowerRange', 'upperRange', 'density'][:len(self.marine_growth['th'])],
+                'data':[v for v in self.marine_growth['th']]
+                }
+            if 'buoy_th' in self.marine_growth:
+                site['marine_growth']['buoys'] = [x for x in self.marine_growth['buoy_th']]
         site['general'] = {'water_depth':float(self.depth),'rho_air':float(self.rho_air),
                            'rho_water':float(self.rho_water),'mu_air':float(self.mu_air)}
         
@@ -4870,7 +4881,10 @@ class Project():
                 phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
                 for att in pf.attachments.values():
                     if isinstance(att['obj'],Turbine):
-                        D    = 240   # att['obj'].D         (assuming 15MW)
+                        if hasattr(att['obj'], 'D'):
+                            D = att['obj'].D
+                        else:
+                            D = 242
                         zhub = att['obj'].dd['hHub']
                 
                 wts[i] = {
