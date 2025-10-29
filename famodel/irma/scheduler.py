@@ -54,10 +54,17 @@ class Scheduler:
             - "same_asset": dependent task must use same asset as prerequisite
         offsets : dict
             A dictionary mapping each task dependency pair to its time offset (in periods).
-            Used with dependency types to specify minimum time delays. For example:
-            - With "finish_start": dependent task starts at least 'offset' periods after prerequisite finishes
-            - With "start_start": dependent task starts at least 'offset' periods after prerequisite starts
-            Example: {"task1->task2": 3} means task2 must wait 3 periods after task1 constraint is satisfied
+            Can specify either minimum delays or exact timing requirements:
+            
+            **Format Options:**
+            1. Simple: {"task1->task2": 3} - defaults to minimum offset
+            2. Tuple: {"task1->task2": (3, "exact")} - specify offset type
+            3. Dict: {"task1->task2": {"value": 3, "type": "minimum"}}
+            
+            **Offset Types:**
+            - "minimum": dependent task waits AT LEAST offset periods (default)
+            - "exact": dependent task waits EXACTLY offset periods
+
         weather : list
             A list of weather windows. The length of this list defines the number of discrete time periods available for scheduling.
         period_duration : float
@@ -139,6 +146,42 @@ class Scheduler:
 
         if wordy > 0:
             print(f"Scheduler initialized with {self.P} time periods, {self.T} tasks, {self.A} asset groups, and {self.S} start times.")
+
+
+    def _parse_offset(self, dep_key):
+        """
+        Parse offset value and type from the offsets dictionary.
+        
+        Returns:
+            tuple: (offset_value, offset_type) where offset_type is 'minimum' or 'exact'
+        """
+        if dep_key not in self.offsets:
+            return 0, 'minimum'  # Default: no offset, minimum type
+            
+        offset_spec = self.offsets[dep_key]
+        
+        # Handle different input formats
+        if isinstance(offset_spec, (int, float)):
+            # Simple format: {"task1->task2": 3}
+            return int(offset_spec), 'minimum'
+        elif isinstance(offset_spec, tuple) and len(offset_spec) == 2:
+            # Tuple format: {"task1->task2": (3, "exact")}
+            value, offset_type = offset_spec
+            if offset_type not in ['minimum', 'exact']:
+                raise ValueError(f"Invalid offset type '{offset_type}'. Must be 'minimum' or 'exact'")
+            return int(value), offset_type
+        elif isinstance(offset_spec, dict):
+            # Dictionary format: {"task1->task2": {"value": 3, "type": "minimum"}}
+            if 'value' not in offset_spec:
+                raise ValueError(f"Offset specification for '{dep_key}' missing 'value' key")
+            value = int(offset_spec['value'])
+            offset_type = offset_spec.get('type', 'minimum')
+            if offset_type not in ['minimum', 'exact']:
+                raise ValueError(f"Invalid offset type '{offset_type}'. Must be 'minimum' or 'exact'")
+            return value, offset_type
+        else:
+            raise ValueError(f"Invalid offset specification for '{dep_key}'. Must be int, tuple, or dict")
+
 
     def _initialize_asset_groups(self):
         '''
@@ -404,14 +447,11 @@ class Scheduler:
                     dep_key = f"{dep_task_name}->{task_name}"
                     dep_type = self.dependency_types.get(dep_key, "finish_start")
                     
-                    # Get time offset (default to 0)
-                    offset = self.offsets.get(dep_key, 0)
+                    # Parse offset value and type
+                    offset_value, offset_type = self._parse_offset(dep_key)
                     
                     if dep_type == "finish_start":
-                        # Task t cannot start until task d finishes + offset periods
-                        # We need to create constraints for each possible asset-duration combination
-                        # If task d uses asset a_d with duration dur_d and starts at time sd,
-                        # then task t cannot start before time (sd + dur_d + offset)
+                        # Handle both minimum and exact offset types for finish_start dependencies
                         
                         for a_d in range(self.A):
                             duration_d = self.task_asset_matrix[d, a_d, 1]
@@ -419,36 +459,79 @@ class Scheduler:
                                 continue
                                 
                             for sd in range(self.S):  # For each possible start time of dependency task
-                                finish_time_d = sd + duration_d + offset  # When task d finishes + offset
+                                finish_time_d = sd + duration_d  # When task d finishes
                                 
-                                # Task t cannot start before task d finishes + offset
-                                for s in range(min(finish_time_d, self.S)):  # All start times before finish + offset
-                                    # Create constraint: if task d uses asset a_d and starts at sd,
-                                    # then task t cannot start at time s
-                                    # Constraint: Xta[d,a_d] + Xts[d,sd] + Xts[t,s] <= 2
-                                    # Logical: (Xta[d,a_d]=1 AND Xts[d,sd]=1) → Xts[t,s]=0
-                                    row = np.zeros(num_variables, dtype=int)
-                                    row[self.Xta_start + d * self.A + a_d] = 1     # Xta[d,a_d]
-                                    row[self.Xts_start + d * self.S + sd] = 1      # Xts[d,sd]
-                                    row[self.Xts_start + t * self.S + s] = 1       # Xts[t,s]
-                                    rows_2.append(row)
-                                    vec_2.append(2)  # At most 2 of these 3 can be 1 simultaneously
+                                if offset_type == "minimum":
+                                    # Task t cannot start before (finish_time_d + offset_value)
+                                    earliest_start_t = finish_time_d + offset_value
+                                    for s in range(min(earliest_start_t, self.S)):  # All start times before minimum allowed
+                                        # Constraint: Xta[d,a_d] + Xts[d,sd] + Xts[t,s] <= 2
+                                        row = np.zeros(num_variables, dtype=int)
+                                        row[self.Xta_start + d * self.A + a_d] = 1     # Xta[d,a_d]
+                                        row[self.Xts_start + d * self.S + sd] = 1      # Xts[d,sd]
+                                        row[self.Xts_start + t * self.S + s] = 1       # Xts[t,s]
+                                        rows_2.append(row)
+                                        vec_2.append(2)  # At most 2 of these 3 can be 1 simultaneously
+                                        
+                                elif offset_type == "exact":
+                                    # Task t must start exactly at (finish_time_d + offset_value)
+                                    exact_start_t = finish_time_d + offset_value
+                                    if exact_start_t < self.S:  # Valid start time
+                                        # Constraint: if task d uses asset a_d and starts at sd, 
+                                        # then task t must start at exact_start_t
+                                        # Constraint: Xta[d,a_d] + Xts[d,sd] - Xts[t,exact_start_t] <= 1
+                                        row = np.zeros(num_variables, dtype=int)
+                                        row[self.Xta_start + d * self.A + a_d] = 1         # Xta[d,a_d]
+                                        row[self.Xts_start + d * self.S + sd] = 1          # Xts[d,sd]
+                                        row[self.Xts_start + t * self.S + exact_start_t] = -1  # -Xts[t,exact_start_t]
+                                        rows_2.append(row)
+                                        vec_2.append(1)  # Xta[d,a_d] + Xts[d,sd] - Xts[t,exact_start_t] <= 1
+                                        
+                                        # Also prevent task t from starting at any other time when d is active
+                                        for s_other in range(self.S):
+                                            if s_other != exact_start_t:
+                                                row = np.zeros(num_variables, dtype=int)
+                                                row[self.Xta_start + d * self.A + a_d] = 1     # Xta[d,a_d]
+                                                row[self.Xts_start + d * self.S + sd] = 1      # Xts[d,sd]
+                                                row[self.Xts_start + t * self.S + s_other] = 1 # Xts[t,s_other]
+                                                rows_2.append(row)
+                                                vec_2.append(2)  # At most 2 of these 3 can be 1 simultaneously
                     
                     elif dep_type == "start_start":
-                        # Task t starts when task d starts + offset periods
-                        # Task t cannot start before task d starts + offset
+                        # Handle both minimum and exact offset types for start_start dependencies
+                        
                         for s_d in range(self.S):  # For each possible start time of dependency task
-                            earliest_start_t = s_d + offset  # Earliest start time for task t
-                            
-                            # Task t cannot start before earliest_start_t
-                            for s_t in range(min(earliest_start_t, self.S)):  # All start times before allowed
-                                # Create constraint: if task d starts at s_d, then task t cannot start at s_t
-                                # Constraint: Xts[d,s_d] + Xts[t,s_t] <= 1
-                                row = np.zeros(num_variables, dtype=int)
-                                row[self.Xts_start + d * self.S + s_d] = 1     # Xts[d,s_d]
-                                row[self.Xts_start + t * self.S + s_t] = 1     # Xts[t,s_t]
-                                rows_2.append(row)
-                                vec_2.append(1)  # At most 1 of these 2 can be 1 simultaneously
+                            if offset_type == "minimum":
+                                # Task t cannot start before (task d start time + offset_value)
+                                earliest_start_t = s_d + offset_value
+                                for s_t in range(min(earliest_start_t, self.S)):  # All start times before minimum allowed
+                                    # Constraint: Xts[d,s_d] + Xts[t,s_t] <= 1
+                                    row = np.zeros(num_variables, dtype=int)
+                                    row[self.Xts_start + d * self.S + s_d] = 1     # Xts[d,s_d]
+                                    row[self.Xts_start + t * self.S + s_t] = 1     # Xts[t,s_t]
+                                    rows_2.append(row)
+                                    vec_2.append(1)  # At most 1 of these 2 can be 1 simultaneously
+                                    
+                            elif offset_type == "exact":
+                                # Task t must start exactly at (task d start time + offset_value)
+                                exact_start_t = s_d + offset_value
+                                if exact_start_t < self.S:  # Valid start time
+                                    # Constraint: if task d starts at s_d, then task t must start at exact_start_t
+                                    # Constraint: Xts[d,s_d] - Xts[t,exact_start_t] <= 0
+                                    row = np.zeros(num_variables, dtype=int)
+                                    row[self.Xts_start + d * self.S + s_d] = 1          # Xts[d,s_d]
+                                    row[self.Xts_start + t * self.S + exact_start_t] = -1  # -Xts[t,exact_start_t]
+                                    rows_2.append(row)
+                                    vec_2.append(0)  # Xts[d,s_d] - Xts[t,exact_start_t] <= 0
+                                    
+                                    # Also prevent task t from starting at any other time when d starts at s_d
+                                    for s_other in range(self.S):
+                                        if s_other != exact_start_t:
+                                            row = np.zeros(num_variables, dtype=int)
+                                            row[self.Xts_start + d * self.S + s_d] = 1         # Xts[d,s_d]
+                                            row[self.Xts_start + t * self.S + s_other] = 1     # Xts[t,s_other]
+                                            rows_2.append(row)
+                                            vec_2.append(1)  # At most 1 of these 2 can be 1 simultaneously
                     
                     elif dep_type == "finish_finish":
                         # Task t finishes when task d finishes + offset periods

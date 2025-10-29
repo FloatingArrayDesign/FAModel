@@ -60,11 +60,12 @@ task_dependencies = {
 
 # dependency types
 dependency_types = {
-    'install_anchor->install_mooring': 'finish_start'  # Anchor must finish before mooring starts
+    'install_anchor->install_mooring': 'start_start'  # Anchor must finish before mooring starts
 }
 
 offsets = {
-    'install_anchor->install_mooring': 0    # Mooring installation to start 1 period after Anchor installation
+    #'install_anchor->install_mooring': 1    # Mooring installation to start 1 period after Anchor installation
+    'install_anchor->install_mooring': (1, 'exact')    # Tuple format: (value, type)
 }
 
 # calculate the minimum duration
