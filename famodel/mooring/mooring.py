@@ -1120,7 +1120,24 @@ class Mooring(Edge):
                 MBL_cor = sec['type']['MBL']
             sec['type']['MBL'] = MBL_cor
 
+    def addCreep(self, creep_precent=0.02):
+        '''
+        Elongates the polyester lines (if exists) in the mooring by a certain creep percentage
 
+        Parameters
+        ----------
+        creep_precent : float, optional
+            Percentage of creep elongation to add to polyester lines. The default is 0.02 (2%).
+
+        '''
+        if self.ss:
+            for i, line in enumerate(self.ss.lineList):
+                if line.type['material']=='polyester':
+                    L_creep = line.L * (1 + creep_precent)
+                    self.setSectionLength(L_creep, i)
+        else:
+            raise ValueError('Mooring subsystem must be created before adding creep.')
+            
     def getEnvelope(self,ang_spacing=45,SFs=True):
         '''Computes the motion envelope of the Mooring based on the watch 
         circle(s) of what it's attached to. If those aren't already 

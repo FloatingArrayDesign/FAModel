@@ -3534,7 +3534,23 @@ class Project():
         for ii,i in enumerate(idx):
             self.mooringList[i].addCorrosion(corrosion_mm=corr_th)
     
-    
+    def addCreep(self, creep_precent=0.02):
+        '''
+        Function to add creep to all mooring lines in the project
+
+        Parameters
+        ----------
+        creep_precent : float, optional
+            Percentage of line length to add as creep. The default is 0.02 (2%).
+
+        Returns
+        -------
+        None.
+
+        '''
+        for moor in self.mooringList.values():
+            moor.addCreep(creep_precent=creep_precent)
+
     def updateUniformArray(self,n_rows,pf_rows,spacingXY,grid_rotang=0,grid_skew_x=0,grid_skew_y=0,grid_trans_x=0,grid_trans_y=0,phis=[0,0],center=[0,0]):
         '''
         Function to update the array spacing, angles, platform locations and headings, etc for a uniform array
