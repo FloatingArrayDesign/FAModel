@@ -1120,24 +1120,40 @@ class Mooring(Edge):
                 MBL_cor = sec['type']['MBL']
             sec['type']['MBL'] = MBL_cor
 
-    def addCreep(self, creep_precent=0.02):
+    def addCreep(self, lineProps, creep_percent=None):
         '''
         Elongates the polyester lines (if exists) in the mooring by a certain creep percentage
 
         Parameters
         ----------
-        creep_precent : float, optional
-            Percentage of creep elongation to add to polyester lines. The default is 0.02 (2%).
-
+        lineProps : dict
+            Dictionary of line properties from MoorProps yaml
+        creep_percent : float, optionals
+            Percentage of creep elongation to add to polyester lines. If not given, the creep rate from the lineProps dictionary will be used with a design life of 28.
         '''
+        design_life = 28 # years  - changeable later if needed
+
+        from moorpy.helpers import getLineProps
         if self.ss:
             for i, line in enumerate(self.ss.lineList):
-                if line.type['material']=='polyester':
-                    L_creep = line.L * (1 + creep_precent)
-                    self.setSectionLength(L_creep, i)
+                # check if the line type has a creep property in its MoorProps instead of checking for material name.
+                mat = line.type['material']
+                if mat not in lineProps:
+                    raise ValueError(f'Line material {mat} not found in lineProps dictionary.')
+                else:
+                    if lineProps[mat].get('creep_rate', False):
+                        if not creep_percent:
+                            creep_percent = lineProps[mat]['creep_rate'] * design_life  # total creep over design life
+                        L_creep = line.L * (1 + creep_percent)
+                        self.setSectionLength(L_creep, i)
+                        # Change the diameter size to account for creep thinning
+                    
+                        d_nom_creep = line.type['d_nom'] / np.sqrt(1 + creep_percent)
+                        lineType_creep = getLineProps(d_nom_creep, mat, lineProps)
+                        line.type = lineType_creep  # update line type with new diameter [not sure if that's what we need to do.]
         else:
             raise ValueError('Mooring subsystem must be created before adding creep.')
-            
+        
     def getEnvelope(self,ang_spacing=45,SFs=True):
         '''Computes the motion envelope of the Mooring based on the watch 
         circle(s) of what it's attached to. If those aren't already 
