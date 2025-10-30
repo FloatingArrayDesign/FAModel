@@ -1149,11 +1149,35 @@ class Mooring(Edge):
                         # Change the diameter size to account for creep thinning
                     
                         d_nom_creep = line.type['d_nom'] / np.sqrt(1 + creep_percent)
-                        lineType_creep = getLineProps(d_nom_creep, mat, lineProps)
+                        lineType_creep = getLineProps(d_nom_creep*1e3, mat, lineProps)  # convert to mm for getLineProps
                         line.type = lineType_creep  # update line type with new diameter [not sure if that's what we need to do.]
         else:
             raise ValueError('Mooring subsystem must be created before adding creep.')
+    
+    def switchStiffnessBounds(self, lineProps, lower=False):
+        '''
+        Switches the line stiffnesses to either the lower or upper bounds defined in the MoorProps yaml
+
+        Parameters
+        ----------
+        lineProps : dict
+            Dictionary of line properties from MoorProps yaml
         
+        lower : bool, optional
+            Whether to switch to lower bound (True) or upper bound (False). The default is False.
+        '''
+
+        suffix = '_LB' if lower else '_UB'
+
+        from moorpy.helpers import getLineProps
+        if self.ss:
+            for i, line in enumerate(self.ss.lineList):
+                mat = line.type['material']
+                mat_suffix = mat + suffix
+                if mat_suffix in lineProps:
+                    lineType = getLineProps(line.type['d_nom']*1e3, mat_suffix, lineProps) # convert to mm for getLineProps
+                    line.type = lineType  # update line type with new stiffness
+
     def getEnvelope(self,ang_spacing=45,SFs=True):
         '''Computes the motion envelope of the Mooring based on the watch 
         circle(s) of what it's attached to. If those aren't already 
