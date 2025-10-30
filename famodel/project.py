@@ -4385,7 +4385,7 @@ class Project():
         for pt in self.platformTypes:
             if 'fairleads' in pt:
                 for f,fl in enumerate(pt['fairleads']):
-                    if 'headings' in pt['fairleads']:                      
+                    if 'headings' in fl:     
                         for head in fl['headings']:
                             # get rotation matrix of heading
                             R = rotationMatrix(0,0,np.radians(90-head))
@@ -4398,7 +4398,7 @@ class Project():
                 pt['fairleads'] = []
             if 'JTubes' in pt:
                 for f,fl in enumerate(pt['JTubes']):
-                    if 'headings' in pt['JTubes']:                      
+                    if 'headings' in fl:                      
                         for head in fl['headings']:
                             # get rotation matrix of heading
                             R = rotationMatrix(0,0,np.radians(90-head))
@@ -4425,11 +4425,12 @@ class Project():
             #                 for att in pf.attachments.values() 
             #                 if isinstance(att['obj'], Fairlead)
                                   # ]  
-            pf_info = {'rFair': pf.rFair,
-                       'zFair': pf.zFair,
-                       'type': pf.entity,
+            pf_info = {'type': pf.entity,
                        'fairleads':fairleads,
                        'JTubes':jtubes}
+            if not fairleads:
+                pf_info['rFair'] = pf.rFair
+                pf_info['zFair'] = pf.zFair
             
             # update the platform type/add to platform types list if 
             # no type providd or pf_info different from any platformTypes
@@ -4719,8 +4720,8 @@ class Project():
             burial = None
             jA = None
             jB = None
-            jtubesA = [att['obj'].id for att in endA.attachments.values() if isinstance(att['obj'], Jtube)]
-            jtubesB = [att['obj'].id for att in endB.attachments.values() if isinstance(att['obj'], Jtube)]
+            jtubesA = [att['obj'] for att in endA.attachments.values() if isinstance(att['obj'], Jtube)]
+            jtubesB = [att['obj'] for att in endB.attachments.values() if isinstance(att['obj'], Jtube)]
             
             for kk,sub in enumerate(cab.subcomponents):
                 currentConfig = {}
@@ -4764,7 +4765,7 @@ class Project():
 
                         
                 elif isinstance(sub,DynamicCable):
-                    jtube = [att.id for att in sub.attached_to if isinstance(att,Jtube)]                      
+                    jtube = [att for att in sub.attached_to if isinstance(att,Jtube)]                      
                     # grab index of fairlead list from end B 
                     
                     for jj in jtube:

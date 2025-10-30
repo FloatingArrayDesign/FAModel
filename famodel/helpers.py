@@ -1417,6 +1417,8 @@ def compareDicts(d1, d2):
             if type(d1[key]) is dict:
                 compareDicts(d1[key],d2[key])
             elif isinstance(d1[key],(list, np.ndarray)):
+                if len(d1[key])!=len(d2[key]):
+                    return(False)
                 for i,ix in enumerate(d1[key]):
                     if type(d1[key][i]) is dict:
                         compareDicts(ix,d2[key][i])
