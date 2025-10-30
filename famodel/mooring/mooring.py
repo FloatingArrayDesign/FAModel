@@ -204,7 +204,7 @@ class Mooring(Edge):
         
         
     def setSectionLength(self, L, i):
-        '''Sets length of section, including in the subdsystem if there is
+        '''Sets length of section, including in the subsystem if there is
         one.'''
         sec = self.getSubcomponent(self.i_sec[i])
         sec['L'] = L  # set length in dd (which is also Section/subcomponent)
@@ -214,7 +214,7 @@ class Mooring(Edge):
     
     """
     def setSectionDiameter(self, d, i):
-        '''Adjusts diameter of section (including in the subdsystem if there is
+        '''Adjusts diameter of section (including in the subsystem if there is
         one, since it should point to the lineType dict in the Mooring.'''
         
         # just adjust the dict? ss.lineTypes should already point to it
@@ -222,7 +222,7 @@ class Mooring(Edge):
     """
     
     def setSectionType(self, lineType, i):
-        '''Sets lineType of section, including in the subdsystem 
+        '''Sets lineType of section, including in the subsystem 
         if there is one.'''
         sec = self.getSubcomponent(self.i_sec[i])
         # set type dict in dd (which is also Section/subcomponent)

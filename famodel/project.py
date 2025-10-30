@@ -2449,7 +2449,7 @@ class Project():
 
     def plot3d(self, ax=None, figsize=(10,8), plot_fowt=False, save=False,
                plot_boundary=True, plot_boundary_on_bath=True, args_bath={}, 
-               plot_axes=True, plot_bathymetry=True, plot_soil=False,
+               plot_axes=True, plot_bathymetry=True, plot_soil=False, color=None,
                colorbar=True, boundary_only=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
@@ -2457,11 +2457,52 @@ class Project():
         
         Parameters
         ----------
-        ...
+        ax : matplotlib.axes._subplots.Axes3DSubplot, optional
+            The 3D axes object to plot on. If None, a new figure and axes will be created.
+        
+        figsize : tuple, optional
+            The size of the figure in inches, specified as (width, height). Default is (10, 8).
+        
+        plot_fowt : bool, optional
+            Whether to plot the floating offshore wind turbine (FOWT) in the 3D visualization. Default is False.
+        
+        save : bool, optional
+            Whether to save the plot to a file. Default is False.
+        
+        plot_boundary : bool, optional
+            Whether to plot the project boundary in the 3D visualization. Default is True.
+        
+        plot_boundary_on_bath : bool, optional
+            Whether to overlay the project boundary on the bathymetry plot. Default is True.
+        
+        args_bath : dict, optional
+            Additional arguments to customize the bathymetry plot, such as contour levels or color maps. Default is an empty dictionary.
+        
+        plot_axes : bool, optional
+            Whether to display the 3D axes in the plot. Default is True.
+        
+        plot_bathymetry : bool, optional
+            Whether to include the bathymetry (seabed depth) in the 3D visualization. Default is True.
+        
+        plot_soil : bool, optional
+            Whether to include soil properties or layers in the 3D visualization. Default is False.
+        
+        color : str or matplotlib color, optional
+            The color to use for certain plot elements (lines and raft members - maybe cable too?). If None, default colors will be used. Default is None.
+        
+        colorbar : bool, optional
+            Whether to include a colorbar in the plot (e.g., for bathymetry). Default is True.
+        
+        boundary_only : bool, optional
+            If True, only the project boundary will be plotted, ignoring other elements. Default is False.
+        
+        **kwargs : dict, optional
+            Additional keyword arguments passed to the underlying matplotlib plotting functions.
         
         Returns
         -------
-        ax : figure axes
+        ax : matplotlib.axes._subplots.Axes3DSubplot
+            The 3D axes object containing the plot.
         '''
         
         # color map for soil plotting
@@ -2640,14 +2681,17 @@ class Project():
             #mooring.subsystem.plot(ax = ax, draw_seabed=False)
             if mooring.ss:
                 for line in mooring.ss.lineList:
-                    if 'chain' in line.type['material']:
-                        line.color = 'k'
-                    elif 'polyester' in line.type['material']:
-                        line.color = [.3,.5,.5]
+                    if color:  # overwrite if color is given.
+                        line.color = color
                     else:
-                        line.color = [0.5,0.5,0.5]
+                        if 'chain' in line.type['material']:
+                            line.color = 'k'
+                        elif 'polyester' in line.type['material']:
+                            line.color = [.3,.5,.5]
+                        else:
+                            line.color = [0.5,0.5,0.5]
                     line.lw = lw
-                mooring.ss.drawLine(0, ax, color='self')
+                mooring.ss.drawLine(0, ax, color=color)
             elif mooring.parallels:
                 for i in mooring.i_sec:
                     sec = mooring.getSubcomponent(i)
@@ -2665,7 +2709,7 @@ class Project():
         # plot the FOWTs using a RAFT FOWT if one is passed in (TEMPORARY)
         if plot_fowt:
             for pf in self.array.fowtList:
-                pf.plot(ax,zorder=6,plot_ms=False, axes_around_fowt=False)
+                pf.plot(ax, color=color, zorder=6,plot_ms=False, axes_around_fowt=False)
             # for i in range(self.nt):
             #     xy = self.turb_coords[i,:]
             #     fowt.setPosition([xy[0], xy[1], 0,0,0,0])
