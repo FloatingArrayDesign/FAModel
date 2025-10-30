@@ -1098,27 +1098,42 @@ class Mooring(Edge):
         return(changeDepths,changePoints)
 
 
-    def addCorrosion(self,corrosion_mm=10):
+    def addCorrosion(self, lineProps, corrosion_mm=None):
         '''
         Calculates MBL of chain line with corrosion included
 
         Parameters
         ----------
-        corrosion_mm : TYPE, optional
-            DESCRIPTION. The default is 10.
-
-        Returns
-        -------
-        None.
+        corrosion_mm : float, optional
+            amount of corrosion in mm. If the value is not given, the corrosion rate from the lineProps dictionary will be used with a design life of 28 years.
 
         '''
-        for i in self.i_sec:
-            sec = self.getSubcomponent(i)
-            if sec['type']['material']=='chain':
-                MBL_cor = sec['type']['MBL']*( (sec['type']['d_nom']-(corrosion_mm/1000))/sec['type']['d_nom'] )**2  # corroded MBL
-            else:
-                MBL_cor = sec['type']['MBL']
-            sec['type']['MBL'] = MBL_cor
+        design_life = 28 # years  - changeable later if needed
+        from moorpy.helpers import getLineProps
+
+        if self.ss:
+            for i, line in enumerate(self.ss.lineList):
+                # check if the line type has a corrosion property in its MoorProps instead of checking for material name.
+                mat = line.type['material']
+                if mat not in lineProps:
+                    raise ValueError(f'Line material {mat} not found in lineProps dictionary.')
+                else:
+                    if lineProps[mat].get('corrosion_rate', False):
+                        if not corrosion_mm:
+                            corrosion_mm = lineProps[mat]['corrosion_rate'] * design_life  # total corrosion over design life
+                        corrosion_m = corrosion_mm / 1000  # convert to m
+                        factor = ((line.type['d_nom'] - corrosion_m) / line.type['d_nom'])**2
+                        line.type['MBL'] *= factor  # update MBL with corrosion factored in
+                        # TODO: should we not also update d_nom to reflect corrosion?
+                        
+        # Old method
+        # for i in self.i_sec:
+        #     sec = self.getSubcomponent(i)
+        #     if sec['type']['material']=='chain':
+        #         MBL_cor = sec['type']['MBL']*( (sec['type']['d_nom']-(corrosion_mm/1000))/sec['type']['d_nom'] )**2  # corroded MBL
+        #     else:
+        #         MBL_cor = sec['type']['MBL']
+        #     sec['type']['MBL'] = MBL_cor
 
     def addCreep(self, lineProps, creep_percent=None):
         '''
