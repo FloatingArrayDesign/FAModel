@@ -1193,13 +1193,15 @@ class Mooring(Edge):
     
     def switchStiffnessBounds(self, lineProps, lower=False):
         '''
-        Switches the line stiffnesses to either the lower or upper bounds defined in the MoorProps yaml
+        Switches the line stiffnesses to either the lower or upper bounds defined in the MoorProps yaml.
 
         Parameters
         ----------
         lineProps : dict
-            Dictionary of line properties from MoorProps yaml
-        
+            Dictionary of line properties from MoorProps yaml. The keys in this dictionary must include
+            material names with suffixes `_LB` (lower bound) or `_UB` (upper bound) to define the stiffness bounds.
+            These suffixes are used to distinguish between the two sets of stiffness properties.
+
         lower : bool, optional
             Whether to switch to lower bound (True) or upper bound (False). The default is False.
         '''
@@ -1210,9 +1212,14 @@ class Mooring(Edge):
         if self.ss:
             for i, line in enumerate(self.ss.lineList):
                 mat = line.type['material']
+                
+                # Remove existing suffix if present
+                if mat.endswith('_LB') or mat.endswith('_UB'):
+                    mat = mat[:-3]  # Remove the last 3 characters (_LB or _UB)
+                
                 mat_suffix = mat + suffix
                 if mat_suffix in lineProps:
-                    lineType = getLineProps(line.type['d_nom']*1e3, mat_suffix, lineProps) # convert to mm for getLineProps
+                    lineType = getLineProps(line.type['d_nom']*1e3, mat_suffix, lineProps)  # convert to mm for getLineProps
                     line.type = lineType  # update line type with new stiffness
 
     def getEnvelope(self,ang_spacing=45,SFs=True):
