@@ -1098,17 +1098,25 @@ class Mooring(Edge):
         return(changeDepths,changePoints)
 
 
-    def addCorrosion(self, lineProps, corrosion_mm=None):
+    def addCorrosion(self, lineProps, design_life=28.0, corrosion_mm=None, z_lower_cutoff=None, z_upper_cutoff=None):
         '''
         Calculates MBL of chain line with corrosion included
 
         Parameters
         ----------
+        lineProps: dict
+            Dictionary of line properties from MoorProps yaml
+        design_life: float, optional
+            design life in years to use with corrosion rate (default is 28 years)
         corrosion_mm : float, optional
-            amount of corrosion in mm. If the value is not given, the corrosion rate from the lineProps dictionary will be used with a design life of 28 years.
-
+            amount of corrosion in mm at splash zone/seabed (harsher environment). 
+            If the value is not given, the corrosion rate from the lineProps dictionary will be used with a given design life.
+        z_lower_cutoff : float, optional
+            lower depth cutoff for lesser corrosion to be applied (default is None, meaning no cutoff)
+        z_upper_cutoff : float, optional
+            upper depth cutoff for lesser corrosion to be applied (default is None, meaning no cutoff)
         '''
-        design_life = 28 # years  - changeable later if needed
+
         from moorpy.helpers import getLineProps
 
         if self.ss:
@@ -1122,9 +1130,22 @@ class Mooring(Edge):
                         if not corrosion_mm:
                             corrosion_mm = lineProps[mat]['corrosion_rate'] * design_life  # total corrosion over design life
                         corrosion_m = corrosion_mm / 1000  # convert to m
+
+                        if z_lower_cutoff and z_upper_cutoff:
+                            # check where the chain lies in the water column to see if lesser corrosion should be applied
+                            z_avg = line.Zs.mean()  # average depth of the line
+                            if z_avg >= z_lower_cutoff and z_avg <= z_upper_cutoff:
+                                corrosion_m /= 2  # half the corrosion in the middle of the water column
+
                         factor = ((line.type['d_nom'] - corrosion_m) / line.type['d_nom'])**2
-                        line.type['MBL'] *= factor  # update MBL with corrosion factored in
                         # TODO: should we not also update d_nom to reflect corrosion?
+                        # d_nom_cor = line.type['d_nom'] - corrosion_m
+                        # lineType_cor = getLineProps(d_nom_cor*1e3, mat, lineProps)  # convert to mm for getLineProps
+                        # line.type = lineType_cor  # update line type with new diameter
+
+                        # OR just update MBL directly ?
+                        line.type['MBL'] *= factor  # update MBL with corrosion factored in
+                        
                         
         # Old method
         # for i in self.i_sec:
@@ -1135,7 +1156,7 @@ class Mooring(Edge):
         #         MBL_cor = sec['type']['MBL']
         #     sec['type']['MBL'] = MBL_cor
 
-    def addCreep(self, lineProps, creep_percent=None):
+    def addCreep(self, lineProps, design_life=28, creep_percent=None):
         '''
         Elongates the polyester lines (if exists) in the mooring by a certain creep percentage
 
@@ -1143,11 +1164,12 @@ class Mooring(Edge):
         ----------
         lineProps : dict
             Dictionary of line properties from MoorProps yaml
+        design_life: float, optional
+            design life in years to use with creep rate (default is 28 years)
         creep_percent : float, optionals
-            Percentage of creep elongation to add to polyester lines. If not given, the creep rate from the lineProps dictionary will be used with a design life of 28.
+            Percentage of creep elongation to add to polyester lines. 
+            If not given, the creep rate from the lineProps dictionary will be used with a given design life.
         '''
-        design_life = 28 # years  - changeable later if needed
-
         from moorpy.helpers import getLineProps
         if self.ss:
             for i, line in enumerate(self.ss.lineList):

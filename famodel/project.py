@@ -3508,12 +3508,14 @@ class Project():
                     self.ms.lineList[ii] = self.mooringList[i].ss_mod
                 
     
-    def getCorrosion(self,corr_th=10,lines='all'):
+    def getCorrosion(self, lineProps=None, corr_th=10, lines='all'):
         '''
         Function to reduce MBL of specified lines based on corrosion thickness
 
         Parameters
         ----------
+        lineProps: dict, optional
+            Dictionary of line properties to use for corrosion calculation. If not given, the lineProps from the moorpy mooring system will be used.
         corr_th : float, optional
             Thickness of corrosion in mm. The default is 10.
         lines : list or string, optional
@@ -3524,6 +3526,8 @@ class Project():
         None.
 
         '''
+        if lineProps is None:
+            lineProps = self.ms.lineProps
         if lines == 'all':
             idx = []
             for i in self.mooringList:
@@ -3532,7 +3536,7 @@ class Project():
             idx = lines
         
         for ii,i in enumerate(idx):
-            self.mooringList[i].addCorrosion(corrosion_mm=corr_th)
+            self.mooringList[i].addCorrosion(lineProps, corrosion_mm=corr_th)
     
     def addCreep(self, lineProps=None, creep_percent=None):
         '''
@@ -3540,6 +3544,8 @@ class Project():
 
         Parameters
         ----------
+        lineProps: dict, optional
+            Dictionary of line properties to use for creep calculation. If not given, the lineProps from the moorpy mooring system will be used.
         creep_percent : float, optional
             Percentage of line length to add as creep. If not given, the creep rate from the lineProps dictionary will be used with a design life of 28.
 
