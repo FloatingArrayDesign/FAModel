@@ -4,6 +4,7 @@ import numpy as np
 from copy import deepcopy
 from moorpy.subsystem import Subsystem
 from moorpy import helpers
+from moorpy.helpers import loadLineProps, getLineProps, getFromDict 
 from famodel.mooring.connector import Connector, Section
 from famodel.famodel_base import Edge, Node
 from famodel.helpers import calc_midpoint
@@ -18,7 +19,7 @@ class Mooring(Edge):
     '''
     
     def __init__(self, dd=None, subsystem=None, anchor=None,
-                 rho=1025, g=9.81,id=None,shared=0):
+                 rho=1025, g=9.81, id=None, shared=0, lineProps=None):
         '''
         Parameters
         ----------
@@ -54,6 +55,9 @@ class Mooring(Edge):
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this Mooring
         self.dd = dd
+        
+        # Load or save the mooring line property sizing function coefficients
+        self.lineProps = loadLineProps(lineProps)
         
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem
@@ -228,10 +232,35 @@ class Mooring(Edge):
         # set type dict in dd (which is also Section/subcomponent)
         sec['type'] = lineType  
         
-        if self.ss:  # is Subsystem exists, adjust length there too
-            self.ss.lineTypes[i] = lineType
+        if self.ss:  # is Subsystem exists, ensure lineType is set there too
+            self.ss.lineTypes[i] = sec['type']
     
     
+    def adjustSectionType(self, i, d_nom=None, material=None):
+        '''Adjusts the section line Type relative by specifying a new diameter
+        and/or material, and looking up the resulting lineType from lineProps.
+        
+        Parameters
+        ----------
+        d_nom : float, optional
+            The nominal diameter to set the lineType to [mm], if provided.
+        d_nom : string, optional
+            The material type to set the lineType (must match a LineProps key),
+            if provided.
+        '''
+        sec = self.getSubcomponent(self.i_sec[i])  # get the right section
+        
+        if not d_nom:  # if diameter not specified
+            d_nom = 1000*sec['type']['d_nom'] # use existing value
+        if not material:  # if material not specified
+            material = sec['type']['material'] # use existing value
+        
+        # Apply adjusted lineType to the section
+        sec['type'] = getLineProps(d_nom, material=material, 
+                                   name=i, lineProps=self.lineProps)
+        
+        if self.ss:  # is Subsystem exists, ensure lineType is set there too
+            self.ss.lineTypes[i] = sec['type']
     
     
     def reposition(self, r_center=None, heading=None, project=None, 
@@ -1098,7 +1127,7 @@ class Mooring(Edge):
         return(changeDepths,changePoints)
 
 
-    def addCorrosion(self, lineProps, design_life=28.0, corrosion_mm=None, z_lower_cutoff=None, z_upper_cutoff=None):
+    def addCorrosion(self, lineProps, years=25, corrosion_mm=None, z_lower_cutoff=None, z_upper_cutoff=None):
         '''
         Calculates MBL of chain line with corrosion included
 
@@ -1106,8 +1135,8 @@ class Mooring(Edge):
         ----------
         lineProps: dict
             Dictionary of line properties from MoorProps yaml
-        design_life: float, optional
-            design life in years to use with corrosion rate (default is 28 years)
+        years: float, optional
+            number of years to use with corrosion rate (default is 25 years)
         corrosion_mm : float, optional
             amount of corrosion in mm at splash zone/seabed (harsher environment). 
             If the value is not given, the corrosion rate from the lineProps dictionary will be used with a given design life.
@@ -1117,18 +1146,16 @@ class Mooring(Edge):
             upper depth cutoff for lesser corrosion to be applied (default is None, meaning no cutoff)
         '''
 
-        from moorpy.helpers import getLineProps
-
         if self.ss:
             for i, line in enumerate(self.ss.lineList):
                 # check if the line type has a corrosion property in its MoorProps instead of checking for material name.
                 mat = line.type['material']
-                if mat not in lineProps:
+                if mat not in self.lineProps:
                     raise ValueError(f'Line material {mat} not found in lineProps dictionary.')
                 else:
-                    if lineProps[mat].get('corrosion_rate', False):
+                    if self.lineProps[mat].get('corrosion_rate', False):
                         if not corrosion_mm:
-                            corrosion_mm = lineProps[mat]['corrosion_rate'] * design_life  # total corrosion over design life
+                            corrosion_mm = self.lineProps[mat]['corrosion_rate'] * years  # total corrosion over design life
                         corrosion_m = corrosion_mm / 1000  # convert to m
 
                         if z_lower_cutoff and z_upper_cutoff:
@@ -1155,73 +1182,69 @@ class Mooring(Edge):
         #     else:
         #         MBL_cor = sec['type']['MBL']
         #     sec['type']['MBL'] = MBL_cor
-
-    def addCreep(self, lineProps, design_life=28, creep_percent=None):
+    
+    
+    def addCreep(self, years=25, creep_percent=None):
         '''
         Elongates the polyester lines (if exists) in the mooring by a certain creep percentage
 
         Parameters
         ----------
-        lineProps : dict
-            Dictionary of line properties from MoorProps yaml
-        design_life: float, optional
-            design life in years to use with creep rate (default is 28 years)
-        creep_percent : float, optionals
+        years: float, optional
+            How many years worth of creep to add (default is 25 years).
+        creep_percent : float, optional
             Percentage of creep elongation to add to polyester lines. 
             If not given, the creep rate from the lineProps dictionary will be used with a given design life.
         '''
-        from moorpy.helpers import getLineProps
         if self.ss:
             for i, line in enumerate(self.ss.lineList):
                 # check if the line type has a creep property in its MoorProps instead of checking for material name.
                 mat = line.type['material']
-                if mat not in lineProps:
+                if mat not in self.lineProps:
                     raise ValueError(f'Line material {mat} not found in lineProps dictionary.')
                 else:
-                    if lineProps[mat].get('creep_rate', False):
+                    if self.lineProps[mat].get('creep_rate', False):
                         if not creep_percent:
-                            creep_percent = lineProps[mat]['creep_rate'] * design_life  # total creep over design life
-                        L_creep = line.L * (1 + creep_percent)
-                        self.setSectionLength(L_creep, i)
+                            creep_percent = lineProps[mat]['creep_rate'] * years  # total creep to this point in time
+                        L_creep = line.L * (1 + 0.01*creep_percent)
+                        #self.setSectionLength(L_creep, i)
+                        line.setL(L)
+                        '''
                         # Change the diameter size to account for creep thinning
-                    
                         d_nom_creep = line.type['d_nom'] / np.sqrt(1 + creep_percent)
                         lineType_creep = getLineProps(d_nom_creep*1e3, mat, lineProps)  # convert to mm for getLineProps
                         line.type = lineType_creep  # update line type with new diameter [not sure if that's what we need to do.]
+                        '''
         else:
             raise ValueError('Mooring subsystem must be created before adding creep.')
     
-    def switchStiffnessBounds(self, lineProps, lower=False):
+    
+    def adjustPropertySets(self, suffix):
         '''
-        Switches the line stiffnesses to either the lower or upper bounds defined in the MoorProps yaml.
+        Switches the line type propertes to another set as defined in the MoorProps yaml.
 
         Parameters
         ----------
-        lineProps : dict
-            Dictionary of line properties from MoorProps yaml. The keys in this dictionary must include
-            material names with suffixes `_LB` (lower bound) or `_UB` (upper bound) to define the stiffness bounds.
-            These suffixes are used to distinguish between the two sets of stiffness properties.
-
-        lower : bool, optional
-            Whether to switch to lower bound (True) or upper bound (False). The default is False.
+        suffix : string
+            The suffix to look for in the lineProps database for every existing material type.
+            For example, if the suffix is "_UB", then a "polyester" line will switch to 
+            properties defined for "polyester_UB". If that entry does not exist, the properties
+            are not changed. Specify "" to reset to the original properties.
         '''
 
-        suffix = '_LB' if lower else '_UB'
-
-        from moorpy.helpers import getLineProps
         if self.ss:
             for i, line in enumerate(self.ss.lineList):
-                mat = line.type['material']
+                # Get the original material as stored in the design dict
+                sec = self.getSubcomponent(self.i_sec[i])
+                mat = sec.type['material']  
                 
-                # Remove existing suffix if present
-                if mat.endswith('_LB') or mat.endswith('_UB'):
-                    mat = mat[:-3]  # Remove the last 3 characters (_LB or _UB)
-                
-                mat_suffix = mat + suffix
+                # Get and apply the modified properties
+                mat_suffix = mat + suffix  # New material key to look for
                 if mat_suffix in lineProps:
-                    lineType = getLineProps(line.type['d_nom']*1e3, mat_suffix, lineProps)  # convert to mm for getLineProps
-                    line.type = lineType  # update line type with new stiffness
-
+                    # Update the lineType properties in the Line in the MoorPy subsystem
+                    line.type.update(getLineProps(sec.type['d_nom']*1e3, mat_suffix, self.lineProps)) 
+    
+    
     def getEnvelope(self,ang_spacing=45,SFs=True):
         '''Computes the motion envelope of the Mooring based on the watch 
         circle(s) of what it's attached to. If those aren't already 
