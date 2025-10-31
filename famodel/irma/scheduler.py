@@ -24,7 +24,7 @@ from scipy.optimize import milp
 import numpy as np
 import os
 
-wordy = 1  # level of verbosity for print statements
+wordy = 2  # level of verbosity for print statements
 
 class Scheduler:
 
@@ -387,6 +387,7 @@ class Scheduler:
             self.b_eq_1 = np.zeros(self.A_eq_1.shape[0], dtype=int)
             
             if wordy > 1:
+                '''
                 print("A_eq_1^T:")
                 for i in range(self.Xta_start,self.Xta_end):
                     pstring = str(self.X_indices[i])
@@ -394,6 +395,13 @@ class Scheduler:
                         pstring += f"{ column:5}"
                     print(pstring)
                 print("b_eq_1: ", self.b_eq_1)
+                '''
+                print("Constraint 1 details:")
+                for i, row in enumerate(self.A_eq_1):
+                    xta_idx = np.where(row == 1)[0][0] - self.Xta_start
+                    t = xta_idx // self.A
+                    a = xta_idx % self.A
+                    print(f"  Invalid pairing: Xta[{t},{a}] = 0")
 
             A_eq_list.append(self.A_eq_1)
             b_eq_list.append(self.b_eq_1)
@@ -582,6 +590,52 @@ class Scheduler:
                 A_ub_list.append(self.A_ub_2)
                 b_ub_list.append(self.b_ub_2)
 
+            if wordy > 1:
+                print("Constraint 2 details:")
+                if hasattr(self, 'A_ub_2'):
+                    for i, row in enumerate(self.A_ub_2):
+                        # Find the variables that are non-zero in this constraint
+                        xta_indices = np.where(row[self.Xta_start:self.Xta_start + self.T * self.A] != 0)[0]
+                        xts_indices = np.where(row[self.Xts_start:self.Xts_start + self.T * self.S] != 0)[0]
+                        
+                        if len(xta_indices) > 0 or len(xts_indices) > 0:
+                            constraint_parts = []
+                            
+                            # Add Xta terms
+                            for xta_idx in xta_indices:
+                                coeff = row[self.Xta_start + xta_idx]
+                                t = xta_idx // self.A
+                                a = xta_idx % self.A
+                                if coeff == 1:
+                                    constraint_parts.append(f"Xta[{t},{a}]")
+                                elif coeff == -1:
+                                    constraint_parts.append(f"-Xta[{t},{a}]")
+                                else:
+                                    constraint_parts.append(f"{coeff}*Xta[{t},{a}]")
+                            
+                            # Add Xts terms
+                            for xts_idx in xts_indices:
+                                coeff = row[self.Xts_start + xts_idx]
+                                t = xts_idx // self.S
+                                s = xts_idx % self.S
+                                if coeff == 1:
+                                    constraint_parts.append(f"Xts[{t},{s}]")
+                                elif coeff == -1:
+                                    constraint_parts.append(f"-Xts[{t},{s}]")
+                                else:
+                                    constraint_parts.append(f"{coeff}*Xts[{t},{s}]")
+                            
+                            if constraint_parts:
+                                constraint_eq = " + ".join(constraint_parts).replace("+ -", "- ")
+                                bound = self.b_ub_2[i]
+                                print(f"    Dependency constraint: {constraint_eq} ≤ {bound}")
+                        
+                        if i >= 4:  # Limit output to avoid too much detail
+                            remaining = len(self.A_ub_2) - i - 1
+                            if remaining > 0:
+                                print(f"    ... and {remaining} more dependency constraints")
+                            break
+
             if wordy > 0:
                 print("Constraint 2 built.")
 
@@ -605,6 +659,7 @@ class Scheduler:
             self.A_eq_3[t, (self.Xta_start + t * self.A):(self.Xta_start + t * self.A + self.A)] = 1  # Set the coefficients for the Xta variables to 1 for each task t
 
         if wordy > 1:
+            '''
             print("A_eq_3^T:")
             print("             T1   T2") # Header for 2 tasks
             for i in range(self.Xta_start,self.Xta_end):
@@ -613,6 +668,11 @@ class Scheduler:
                     pstring += f"{ column:5}"
                 print(pstring)
             print("b_eq_3: ", self.b_eq_3)
+            '''
+            print("Constraint 3 details:")
+            for t in range(self.T):
+                asset_vars = [f"Xta[{t},{a}]" for a in range(self.A)]
+                print(f"  Task {t} assignment: {' + '.join(asset_vars)} = 1")
 
         A_eq_list.append(self.A_eq_3)
         b_eq_list.append(self.b_eq_3)
@@ -643,6 +703,9 @@ class Scheduler:
         
         rows_4 = []
         bounds_4 = []
+
+        if wordy > 1:
+            print('Constraint 4 details:')
         
         # For each individual asset, create constraints to prevent conflicts
         for individual_asset_idx in range(len(self.assets)):
@@ -689,7 +752,7 @@ class Scheduler:
                             bounds_4.append(3)  # Sum ≤ 3 prevents all 4 from being 1 simultaneously
                             
                             if wordy > 1:
-                                print(f"  Conflict constraint for {individual_asset_name} in period {period_idx}:")
+                                #print(f"  Conflict constraint for {individual_asset_name} in period {period_idx}:")
                                 print(f"    Xta[{task1},{ag1}] + Xta[{task2},{ag2}] + Xtp[{task1},{period_idx}] + Xtp[{task2},{period_idx}] ≤ 3")
         
         # Create constraint matrix
@@ -701,6 +764,7 @@ class Scheduler:
             self.A_ub_4 = np.zeros((0, num_variables), dtype=int)
             self.b_ub_4 = np.array([], dtype=int)
 
+        '''
         if wordy > 1: 
             print("A_ub_4^T:")
             print("             P1   P2   P3   P4   P5") # Header for 5 periods
@@ -710,6 +774,7 @@ class Scheduler:
                     pstring += f"{ column:5}"
                 print(pstring)
             print("b_ub_4: ", self.b_ub_4)
+        '''
         
         A_ub_list.append(self.A_ub_4)
         b_ub_list.append(self.b_ub_4)
@@ -740,6 +805,7 @@ class Scheduler:
         self.b_ub_10 = np.ones(self.A_ub_10.shape[0], dtype=int)  # Each infeasible combination: Xta + Xts <= 1
 
         if wordy > 1:
+            '''
             print("A_ub_10^T:")
             print("             T1A1 T1A2 T2A1") # Header for 3 task-asset pairs example with T2A2 invalid
             for i in range(self.Xta_start,self.Xta_end):
@@ -753,6 +819,22 @@ class Scheduler:
                     pstring += f"{ column:5}"
                 print(pstring)
             print("b_ub_10: ", self.b_ub_10)
+            '''
+            print("Constraint 10 details:")
+            for i, row in enumerate(self.A_ub_10):
+                # Find the Xta and Xts variables that are 1 in this row
+                xta_indices = np.where(row[self.Xta_start:self.Xta_start + self.T * self.A] == 1)[0]
+                xts_indices = np.where(row[self.Xts_start:self.Xts_start + self.T * self.S] == 1)[0]
+                
+                if len(xta_indices) > 0 and len(xts_indices) > 0:
+                    xta_idx = xta_indices[0]
+                    xts_idx = xts_indices[0]
+                    t_ta = xta_idx // self.A
+                    a = xta_idx % self.A
+                    t_ts = xts_idx // self.S
+                    s = xts_idx % self.S
+                    duration = self.task_asset_matrix[t_ta, a, 1]
+                    print(f"    Task {t_ta} exceeds period limit: Xta[{t_ta},{a}] + Xts[{t_ts},{s}] ≤ 1 (start {s} + duration {duration} > {self.P})")
 
         A_ub_list.append(self.A_ub_10)
         b_ub_list.append(self.b_ub_10)
@@ -938,6 +1020,7 @@ class Scheduler:
             b_ub_list.append(self.b_ub_14b)
 
         if wordy > 1:
+            '''
             print("A_lb_14^T:")
             print("           T1A1S1                   T1A2S1 ...") # Header for 3 task-asset pairs example with T2A2 invalid
             for i in range(self.Xta_start,self.Xta_end):
@@ -956,6 +1039,39 @@ class Scheduler:
                     pstring += f"{ column:5}"
                 print(pstring)
             print("b_lb_14: ", self.b_ub_14)
+            '''
+            print("Constraint 14a details:")
+            if hasattr(self, 'A_ub_14a'):
+                for i, row in enumerate(self.A_ub_14a):
+                    xts_indices = np.where(row[self.Xts_start:self.Xts_start + self.T * self.S] == 1)[0]
+                    xtp_indices = np.where(row[self.Xtp_start:self.Xtp_start + self.T * self.P] == -1)[0]
+                    if len(xts_indices) > 0 and len(xtp_indices) > 0:
+                        xts_idx = xts_indices[0]
+                        xtp_idx = xtp_indices[0]
+                        t_ts = xts_idx // self.S
+                        s = xts_idx % self.S
+                        t_tp = xtp_idx // self.P
+                        p = xtp_idx % self.P
+                        print(f"    Start-period mapping: Xts[{t_ts},{s}] - Xtp[{t_tp},{p}] ≤ 0")
+            
+            print("Constraint 14b details:")
+            if hasattr(self, 'A_ub_14b'):
+                for i, row in enumerate(self.A_ub_14b):
+                    xta_indices = np.where(row[self.Xta_start:self.Xta_start + self.T * self.A] == 1)[0]
+                    xts_indices = np.where(row[self.Xts_start:self.Xts_start + self.T * self.S] == 1)[0]
+                    xtp_indices = np.where(row[self.Xtp_start:self.Xtp_start + self.T * self.P] == -1)[0]
+                    
+                    if len(xta_indices) > 0 and len(xts_indices) > 0 and len(xtp_indices) > 0:
+                        xta_idx = xta_indices[0]
+                        xts_idx = xts_indices[0]
+                        xtp_idx = xtp_indices[0]
+                        t_ta = xta_idx // self.A
+                        a = xta_idx % self.A
+                        t_ts = xts_idx // self.S
+                        s = xts_idx % self.S
+                        t_tp = xtp_idx // self.P
+                        p = xtp_idx % self.P
+                        print(f"    Duration enforcement: Xta[{t_ta},{a}] + Xts[{t_ts},{s}] - Xtp[{t_tp},{p}] ≤ 1")
 
         if wordy > 0:
             print("Constraint 14 built.")
@@ -979,6 +1095,7 @@ class Scheduler:
             self.A_eq_15[t, (self.Xts_start + t * self.S):(self.Xts_start + t * self.S + self.S)] = 1
         
         if wordy > 1:
+            '''
             print("A_eq_15^T:")
             for i in range(self.Xts_start,self.Xts_end):
                 pstring = str(self.X_indices[i])
@@ -986,6 +1103,11 @@ class Scheduler:
                     pstring += f"{ column:5}"
                 print(pstring)
             print("b_eq_15: ", self.b_eq_15)
+            '''
+            print("Constraint 15 details:")
+            for t in range(self.T):
+                start_vars = [f"Xts[{t},{s}]" for s in range(self.S)]
+                print(f"    Task {t} start assignment: {' + '.join(start_vars)} = 1")
         
         A_eq_list.append(self.A_eq_15)
         b_eq_list.append(self.b_eq_15)
@@ -1024,6 +1146,18 @@ class Scheduler:
             self.b_eq_16 = np.array(vec_16, dtype=int)
             A_eq_list.append(self.A_eq_16)
             b_eq_list.append(self.b_eq_16)
+        
+        if wordy > 1:
+            print("Constraint 16 details:")
+            for t in range(self.T):
+                period_vars = [f"Xtp[{t},{p}]" for p in range(self.P)]
+                asset_terms = []
+                for a in range(self.A):
+                    duration = self.task_asset_matrix[t, a, 1]
+                    if duration > 0:
+                        asset_terms.append(f"{duration}*Xta[{t},{a}]")
+                if asset_terms:
+                    print(f"    Task {t} duration: {' + '.join(period_vars)} = {' + '.join(asset_terms)}")
         
         if wordy > 0:
             print("Constraint 16 built.")
@@ -1079,6 +1213,32 @@ class Scheduler:
             self.b_ub_17 = np.array(vec_17, dtype=int)
             A_ub_list.append(self.A_ub_17)
             b_ub_list.append(self.b_ub_17)
+            
+            if wordy > 1:
+                print("Constraint 17 details:")
+                for i, row in enumerate(self.A_ub_17):
+                    xta_indices = np.where(row[self.Xta_start:self.Xta_start + self.T * self.A] == 1)[0]
+                    xtp_indices = np.where(row[self.Xtp_start:self.Xtp_start + self.T * self.P] == 1)[0]
+                    
+                    if len(xta_indices) > 0 and len(xtp_indices) > 0:
+                        xta_idx = xta_indices[0]
+                        xtp_idx = xtp_indices[0]
+                        t_ta = xta_idx // self.A
+                        a = xta_idx % self.A
+                        t_tp = xtp_idx // self.P
+                        p = xtp_idx % self.P
+                        
+                        # Get weather info
+                        period_weather = self.weather[p] if p < len(self.weather) else 0
+                        asset_max_weather = self.asset_groups[a].get('max_weather', float('inf'))
+                        
+                        print(f"    Weather constraint: Xta[{t_ta},{a}] + Xtp[{t_tp},{p}] ≤ 1 (weather {period_weather} > max {asset_max_weather})")
+                        
+                        if i >= 4:  # Limit output to avoid too much detail
+                            remaining = len(rows_17) - i - 1
+                            if remaining > 0:
+                                print(f"    ... and {remaining} more weather constraints")
+                            break
             
             if wordy > 0:
                 print(f"Constraint 17 built with {len(rows_17)} weather restrictions.")
