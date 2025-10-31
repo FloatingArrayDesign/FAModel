@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 
 #### INPUTS ####
 dir = os.path.dirname(os.path.realpath(__file__))
-filename = dir+'\OntologySample200m.yaml' # yaml file to make initial platform(s)
-rep_pf_name = 'FOWT1' # platform to replicate (look at yaml file array data table to get platform names)
-new_pf_loc = [0,0]
+filename = os.path.join(dir,'OntologySample200m_1turb.yaml') # yaml file to make initial platform(s)
+rep_pf_name = 'fowt0' # platform to replicate (look at yaml file array data table to get platform names)
+new_pf_loc = [0,-1600,0]
 
 
 # first load in single platform from yaml
@@ -31,5 +31,5 @@ project.duplicate(rep_pf,r=new_pf_loc)
 project.getMoorPyArray()
 
 # plot the new system
-project.plot3d()
+project.plot3d(plot_fowt=True)
 plt.show()

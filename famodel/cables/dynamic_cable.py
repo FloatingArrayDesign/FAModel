@@ -23,7 +23,7 @@ class DynamicCable(Edge):
                  rad_anch=None, rad_fair=5, z_anch=-100, z_fair=-14, 
                  rho=1025, g=9.81,span=2000,length=2200,A=None, 
                  zJTube=-30,voltage=66,powerRating=None,cable_type=None,
-                 headingA=None,headingB=None,buoyancy_sections=None,shared=0,**kwargs):
+                 headingA=None,headingB=None,shared=0,**kwargs):
         '''
         Parameters
         ----------
@@ -80,7 +80,7 @@ class DynamicCable(Edge):
         elif 'headingB' in self.dd:
             self.headingB = self.dd['headingB'] # <<< ??
             # if there's no headingA, likely a suspended cable - headingA = headingB+180 degrees
-            self.headingA = self.headingB + np.pi
+            self.headingA = 0
 
         else:
             self.headingA = 0
@@ -109,6 +109,9 @@ class DynamicCable(Edge):
         # relevant site info
         self.rho = rho
         self.g = g
+        
+        # alternate designs to interpolate between when depth changes
+        self.alternate_designs = None
         
         # Dictionaries for addition information
         self.loads = {}

@@ -9,9 +9,11 @@ of the turbine locations and moorings (no cables, platform design, turbines,
 
 from famodel import Project
 import matplotlib.pyplot as plt
+import os
 
 # define name of ontology input file
-input_file = '02_visual_moorings.yaml'
+dir = os.path.dirname(os.path.realpath(__file__))
+input_file = os.path.join(dir,'02_visual_moorings.yaml')
 
 # initialize Project class with input file, we don't need RAFT for this so mark False
 project = Project(file=input_file,raft=False)

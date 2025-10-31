@@ -10,6 +10,7 @@ from famodel.cables.dynamic_cable import DynamicCable
 from famodel.cables.static_cable import StaticCable
 from famodel.cables.components import Joint, Jtube
 from famodel.famodel_base import Edge
+from famodel.helpers import cableDesignInterpolation
 
 
 class Cable(Edge):
@@ -109,8 +110,7 @@ class Cable(Edge):
         self.r = []
         
         # get cable length
-        self.getL()
-            
+        self.getL()           
         
         # failure probability
         self.failure_probability = {}
@@ -122,7 +122,7 @@ class Cable(Edge):
         Parameters
         ----------
         headings : list, optional
-            List of headings associated with the platform/substation attached
+            List of absolute compass headings associated with the platform/substation attached
             to each end of the cable. The default is None.
         project : FAModel project object, optional
             FAModel project object associated with this cable, only used if 
@@ -139,11 +139,15 @@ class Cable(Edge):
         '''
         # reposition cable and set end points for the first and last cable sections (or the dynamic cable for a suspended cable)
         if not headings:
-            headingA = self.subcomponents[0].headingA - self.attached_to[0].phi
-            headingB = self.subcomponents[-1].headingB - self.attached_to[1].phi
+            # convert headings to unit circle
+            headingA = np.pi/2 - self.subcomponents[0].headingA
+            headingB = np.pi/2 - self.subcomponents[-1].headingB
         else:
-            headingA = headings[0]
-            headingB = headings[1]
+            # convert headings to unit circle
+            headingA = np.pi/2 - headings[0]
+            self.subcomponents[0].headingA = headings[0]
+            headingB = np.pi/2 - headings[1]
+            self.subcomponents[-1].headingB = headings[1]
             
         if not isinstance(self.subcomponents[0].attached_to[0], Jtube):
             if not rad_fair:
@@ -153,7 +157,6 @@ class Cable(Edge):
                     rf = self.attached_to[0].rFair if self.attached_to[0] else 0
                 else:
                     rf = rad_fair[0]
-
 
             # calculate fairlead locations
             Aloc = [self.attached_to[0].r[0]+np.cos(headingA)*rf, 
@@ -182,14 +185,25 @@ class Cable(Edge):
             if lensub > 1:
                 for i,sub in enumerate(self.subcomponents):                 
                     if i == 0:
+                        oldz = project.getDepthAtLocation(sub.rB[0],
+                                                          sub.rB[1])
                         # get depth at location of rB
                         xy = [sub.rA[0]+np.cos(headingA)*sub.span,
                               sub.rA[1]+np.sin(headingA)*sub.span]
                         z = project.getDepthAtLocation(xy[0],xy[1])
+                        # adjust design if applicable
+                        if sub.alternate_designs is not None and oldz!=z:
+                            sub.dd = cableDesignInterpolation(
+                                sub.dd, 
+                                sub.alternate_designs,
+                                z)
+                            self.reposition() # recursively call reposition
                         # set the end B of the first subsection
                         sub.rB = [xy[0],xy[1],-z]
                         sub.z_anch = -z
                         sub.depth = z
+                        
+
                         # set joint
                         self.subcomponents[i+1]['r'] = sub.rB
                         # set rA of next cable section
@@ -198,6 +212,13 @@ class Cable(Edge):
                         xy = [sub.rB[0]+np.cos(headingB)*sub.span,
                               sub.rB[1]+np.sin(headingB)*sub.span]
                         z = project.getDepthAtLocation(xy[0],xy[1])
+                        # adjust design if applicable
+                        if sub.alternate_designs is not None and oldz!=z:
+                            sub.dd = cableDesignInterpolation(
+                                sub.dd, 
+                                sub.alternate_designs,
+                                z)
+                            self.reposition() # re-call reposition
                         # set the end A of the last subsection
                         sub.rA = [xy[0],xy[1],-z]
                         # update z_anch and depth of the subsection
@@ -268,6 +289,67 @@ class Cable(Edge):
         line = sh.LineString(coords)
 
         return(line)
+    
+    def dynamicCables(self):
+        """ Return list of dynamic cables in this cable object """
+        return [a for a in self.subcomponents if isinstance(a, DynamicCable)]
+    
+    def updateTensions(self, DAF=1):
+        """
+        Update the tensions stored in dynamic cable load dictionaries
+
+        Returns
+        -------
+        None.
+
+        """
+        for dc in self.dynamicCables():
+            if not 'Tmax' in dc.loads:
+                dc.loads['Tmax'] = 0
+            if dc.ss:
+                for line in dc.ss.lineList:
+                    Tmax = max([abs(line.TA), abs(line.TB)])
+                    if Tmax*DAF > dc.loads['Tmax']:
+                        dc.loads['Tmax'] = deepcopy(Tmax)*DAF
+        return(dc.loads['Tmax'])
+    
+    # def updateCurvature(self):
+    #     for dc in self.dyamicCables():
+    #         if not dc.curvature:
+    #             dc.curvature = np.inf
+    #         if dc.ss:
+    #             curv = dc.ss.calcCurvature()
+    #             if curv > dc.curvature:
+    #                 dc.curvature = curv
+    #             mCSF = dc.ss.getMinCurvSF()
+    
+    def updateSafetyFactors(self, key='tension', load='Tmax', prop='MBL',
+                            info={}):
+        """
+        Update the safety factor dictionaries stored in dynamic cable objects
+
+        Parameters
+        ----------
+        key : str/int, optional
+            key in safety factor dictionary of dynamic cables. 
+            The default is 'tension'.
+        load : str, optional
+            Key in load dictionary of dynamic cables. The default is 'Tmax'.
+        prop : str, optional
+            Key in dynamic cable properties dictionary to compare to load. 
+            The default is 'MBL'.
+        info : dict, optional
+            Information dictionary to add in the safety_factors dict for context
+
+        Returns
+        -------
+        None.
+
+        """
+        for dc in self.dynamicCables():
+            dc.safety_factors[key] = dc.dd['cable_type'][prop]/dc.loads[load]
+            dc.safety_factors['info'] = info
+        
     
     def updateSpan(self,newSpan):
         '''

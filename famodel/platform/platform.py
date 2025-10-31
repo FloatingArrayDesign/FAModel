@@ -10,6 +10,7 @@ from famodel.cables.cable import Cable
 from famodel.anchors.anchor import Anchor
 from famodel.cables.cable import DynamicCable
 from famodel.famodel_base import Node, Edge
+from famodel.helpers import calc_midpoint
 
 class Platform(Node):
     '''
@@ -63,7 +64,7 @@ class Platform(Node):
         self.raftResults = {}
     
     
-    def setPosition(self, r, heading=None, degrees=False,project=None):
+    def setPosition(self, r, heading=None, degrees=False,project=None, update_moorings=True):
         '''
         Set the position/orientation of the platform as well as the associated
         anchor points. 
@@ -93,27 +94,28 @@ class Platform(Node):
         
         # Update the position of any Moorings
         count = 0 # mooring counter (there are some attachments that aren't moorings)
-        for i, att in enumerate(self.attachments):
-            if isinstance(self.attachments[att]['obj'], Mooring): 
-        
-                # Heading of the mooring line
-                heading_i = self.mooring_headings[count] + self.phi
-                # Reposition the whole Mooring if it is an anchored line
-                if not self.attachments[att]['obj'].shared:
-                    self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
-                
-                count += 1
-                
-            if isinstance(self.attachments[att]['obj'], Cable):
-                
-                cab = self.attachments[att]['obj']
-                
-                # update heading stored in subcomponent for attached end
-                pf_phis = [cab.attached_to[0].phi, cab.attached_to[1].phi]
-                headings = [cab.subcomponents[0].headingA + pf_phis[0], cab.subcomponents[-1].headingB + pf_phis[1]]
-                
-                # reposition the cable
-                cab.reposition(headings=headings,project=project)
+        if update_moorings:
+            for i, att in enumerate(self.attachments):
+                if isinstance(self.attachments[att]['obj'], Mooring): 
+                    self.updateMooringPoints()
+                    # Heading of the mooring line
+                    heading_i = self.mooring_headings[count] + self.phi
+                    # Reposition the whole Mooring if it is an anchored line
+                    if not self.attachments[att]['obj'].shared:
+                        self.attachments[att]['obj'].reposition(r_center=self.r, heading=heading_i,project=project)
+                    
+                    count += 1
+                    
+                if isinstance(self.attachments[att]['obj'], Cable):
+                    
+                    cab = self.attachments[att]['obj']
+                    
+                    # update heading stored in subcomponent for attached end
+                    # pf_phis = [cab.attached_to[0].phi, cab.attached_to[1].phi]
+                    # headings = [cab.subcomponents[0].headingA + pf_phis[0], cab.subcomponents[-1].headingB + pf_phis[1]]
+                    
+                    # reposition the cable
+                    cab.reposition(project=project)
     
     
     def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None, project=None):
@@ -201,19 +203,34 @@ class Platform(Node):
                                 print('This case not implemented yet')
                                 breakpoint()
                             elif isinstance(subcom, Node):
-                                # TODO: get rel dist from connector to anchor
-                                # for now, just assume 0 rel dist until anchor lug objects introduced
-                                r_rel = [0,0,0]
-                                # attach anchor body to subcom connector point
-                                subcom.mpConn.type = 1
-                                att.mpAnchor.attachPoint(subcom.mpConn.number,r_rel)
+                                # # TODO: get rel dist from connector to anchor
+                                # # for now, just assume 0 rel dist until anchor lug objects introduced
+                                # r_rel = [0,0,0]
+                                # # attach anchor body to subcom connector point
+                                # subcom.mpConn.type = 1
+                                # att.mpAnchor.attachPoint(subcom.mpConn.number,r_rel)
+                                if subcom.mpConn:
+                                    # TODO: get rel dist from connector to anchor
+                                    # for now, just assume 0 rel dist until anchor lug objects introduced
+                                    r_rel = [0,0,0]
+                                    subcom.mpConn.type = 1
+                                    # attach anchor body to subcom connector point
+                                    # anchor.mpAnchor.attachPoint(subcom.mpConn.number,r_rel) # COMMENT OUT FOR NOW, may return to this in the future
+                                    print('This case should not occur, kept in for future work')
+                                    breakpoint()
+                                else:
+                                    # attach next section line to anchor
+                                    line = mooring.subcomponents[-att['end']+1]
+                                    att.mpAnchor.attachLine(line.mpLine.number, 
+                                                               att['end'])
                         else:                            
-                            # need to create "dummy" point to connect to anchor body
-                            point = self.ms.addPoint(1,att.r)
-                            # attach dummy point to anchor body
-                            att.mpAnchor.attachPoint(point.number,[0,0,0])
-                            # now attach dummy point to line
-                            point.attachLine(ssloc.number, j)
+                            # # need to create "dummy" point to connect to anchor body
+                            # point = self.ms.addPoint(1,att.r)
+                            # # attach dummy point to anchor body
+                            # att.mpAnchor.attachPoint(point.number,[0,0,0])
+                            # # now attach dummy point to line
+                            # point.attachLine(ssloc.number, j)
+                            att.mpAnchor.attachLine(ssloc.number, j)
                             
                     elif isinstance(att,Platform):
                         # attach rB point to platform 
@@ -281,7 +298,8 @@ class Platform(Node):
         
         
     def getWatchCircle(self, plot=0, ang_spacing=45, RNAheight=150,
-                       shapes=True,Fth=None,SFs=True,ms=None):
+                       shapes=True,Fth=None,SFs=True,ms=None, DAF=1,
+                       moor_seabed_disturbance=False):
         '''
         Compute watch circle of platform, as well as mooring and cable tension safety factors and 
         cable sag safety factors based on rated thrust.
@@ -324,6 +342,7 @@ class Platform(Node):
         moorings = [] # list of mooring lines attached
         cables = [] # list of cables attached
         dcs = []
+        lBots = [0]*len(self.mooring_headings)
         
         # find turbines, cables, and mooorings attached to platform
         moorings = self.getMoorings().values()
@@ -375,27 +394,36 @@ class Platform(Node):
             ms.solveEquilibrium3(DOFtype='both')                        # equilibrate (specify 'both' to enable both free and coupled DOFs)
             
             if SFs:
+                # get loads on anchors (may be shared)
+                for j,anch in enumerate(anchors):
+                    F2 = anch.mpAnchor.getForces()*DAF # add up all forces on anchor body
+                    H = np.hypot(F2[0],F2[1]) # horizontal force
+                    T = np.sqrt(F2[0]**2+F2[1]**2+F2[2]**2) # total tension force
+                    if F[j] is None or T>np.sqrt(F[j][0]**2+F[j][1]**2+F[j][2]**2):
+                        F[j] = F2 # max load on anchor                         
+                        # save anchor load information
+                        anch.loads['Hm'] = H
+                        anch.loads['Vm'] = F[j][2]
+                        anch.loads['thetam'] = np.degrees(np.arctan(anch.loads['Vm']/anch.loads['Hm'])) #[deg]
+                        anch.loads['mudline_load_type'] = 'max'
+                        anch.loads['info'] = f'determined from arrayWatchCircle() with DAF of {DAF}'
                 # get tensions on mooring line
                 for j,moor in enumerate(moorings): 
-                    MBLA = float(moor.ss.lineList[0].type['MBL'])
-                    MBLB = float(moor.ss.lineList[-1].type['MBL'])
-                    # print(MBLA,MBLB,moor.ss.TA,moor.ss.TB,MBLA/moor.ss.TA,MBLB/moor.ss.TB,abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB))
-                    MTSF = min([abs(MBLA/moor.ss.TA),abs(MBLB/moor.ss.TB)])
-                    # atenMax[j], btenMax[j] = moor.updateTensions()
-                    if not minTenSF[j] or minTenSF[j]>MTSF:
-                        minTenSF[j] = deepcopy(MTSF)
-                        if not moor.shared:
-                            if self.attachments[moor.id]['end'] == 'a':
-                                # anchor attached to end B
-                                F[j] = moor.ss.fB
-                            else:
-                                F[j] = moor.ss.fA
+                    lBot = 0
+                    moor.updateTensions(DAF=DAF)
+                    info = {'analysisType': 'quasi-static (MoorPy)',
+                            'info': f'determined from platform.getWatchCircle() with DAF of {DAF}'}
+                    moor.updateSafetyFactors(info=info)
+                    if moor_seabed_disturbance:
+                        for sec in moor.sections():
+                            lBot += sec.mpLine.LBot
+                        lBots[j] = max(lBots[j], lBot)
                 
                 # get tensions, sag, and curvature on cable
                 for j,cab in enumerate(dcs):
                     MBLA = cab.ss.lineList[0].type['MBL']
                     MBLB = cab.ss.lineList[-1].type['MBL']
-                    CMTSF = min([abs(MBLA/cab.ss.TA),abs(MBLB/cab.ss.TB)])
+                    CMTSF = min([abs(MBLA/(cab.ss.TA*DAF)),abs(MBLB/(cab.ss.TB*DAF))])
                     if not CminTenSF[j] or CminTenSF[j]>CMTSF:
                         CminTenSF[j] = deepcopy(CMTSF)
                     # CatenMax[j], CbtenMax[j] = cab.updateTensions()
@@ -435,16 +463,7 @@ class Platform(Node):
         ms.solveEquilibrium3(DOFtype='both')
         
                 
-        if SFs:
-            # save anchor loads
-            for j,moor in enumerate(moorings):
-                for att3 in moor.attached_to:
-                    if isinstance(att3,Anchor):
-                        att3.loads['Hm'] = np.sqrt(F[j][0]**2+F[j][1]**2)
-                        att3.loads['Vm'] = F[j][2]
-                        att3.loads['thetam'] = np.degrees(np.arctan(att3.loads['Vm']/att3.loads['Hm'])) #[deg]
-                        att3.loads['mudline_load_type'] = 'max'
-                    
+        if SFs:                   
             maxVals = {'minTenSF':minTenSF,'minTenSF_cable':CminTenSF,'minCurvSF':minCurvSF,'minSag':minSag,'maxF':F}# np.vstack((minTenSF,CminTenSF,minCurvSF,minSag))    
             return(x,y,maxVals)
         else:
@@ -568,4 +587,25 @@ class Platform(Node):
         self.envelopes['buffer_zones']['y'] = y
 
         return  self.envelopes['buffer_zones']
+    
+    def updateMooringPoints(self):
+        '''
+        update mooring end point based on midpoint of connected fairlead points
+
+        Returns
+        -------
+        None.
+
+        '''
+        moors=self.getMoorings() # get list of connected moorings
+        for mid, moor in moors.items():
+            # get fairleads
+            fairs = moor.fairleads(self.attachments[mid]['end'])
+            if len(fairs)>0:
+                # calc midpoint 
+                midpoint = calc_midpoint([f.r for f in fairs])
+                # update end position from midpoint of fairleads
+                moor.setEndPosition(
+                    midpoint,
+                    self.attachments[mid]['end'])
 

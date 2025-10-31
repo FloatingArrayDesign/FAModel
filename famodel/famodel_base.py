@@ -98,7 +98,7 @@ class Node():
         self.part_of = None  # whether this object is part of an Edge group
     
         # position/orientation variables
-        self.r = np.zeros(2)  # position [m]
+        self.r = np.zeros(2)  # position [m]  <<< Rudy: Can we consider 3D here??
         self.theta = 0  # heading [rad] CCW+
         self.R = np.eye(2)  # rotation matrix
     
@@ -220,7 +220,7 @@ class Node():
         # Register the separation in higher level objects if applicable
         if isinstance(self.part_of, Edge) and isinstance(object.attached_to, Node):
             end = self.part_of.findEnd(self)
-            object.attached_to.dettach(self.part_of, end=end)
+            object.attached_to.detach(self.part_of, end=end)
             
         elif isinstance(self.attached_to, Node) and isinstance(object.part_of, Edge):
             end = object.part_of.findEnd(object)

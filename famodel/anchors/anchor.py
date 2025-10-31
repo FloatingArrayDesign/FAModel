@@ -124,8 +124,9 @@ class Anchor(Node):
 
         '''
         # create anchor as a fixed body in MoorPy system and assign to mpAnchor property
-        r6 = [self.r[0],self.r[1],self.r[2],0,0,0]
-        self.mpAnchor = ms.addBody(1,r6)
+        # r6 = [self.r[0],self.r[1],self.r[2],0,0,0]
+        # self.mpAnchor = ms.addBody(1,r6)
+        self.mpAnchor = ms.addPoint(1,self.r)
 
         # add mass if available
         if 'm' in self.dd['design'] and self.dd['design']['m']:
@@ -710,7 +711,7 @@ class Anchor(Node):
         keyFail = True
         # check if mass info is available
         if not self.mass:
-            if 'soil_properties' in self.dd:               
+            if self.soilProps:               
                 # need mass - call capacity functions
                 self.getAnchorCapacity(plot=False)
             else:

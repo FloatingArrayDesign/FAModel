@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 #### INPUTS ####
 dir = os.path.dirname(os.path.realpath(__file__))
-filename = dir+'\MoorDyn_semitaut200m.dat' # moordyn file to create a moorpy system
+filename = os.path.join(dir,'MoorDyn_semitaut200m.dat') # moordyn file to create a moorpy system
 rep_pf_name = 'FOWT1' # platform to replicate (look at yaml file array data table to get platform names)
 new_pf_loc = [-100,-1500,0]
 

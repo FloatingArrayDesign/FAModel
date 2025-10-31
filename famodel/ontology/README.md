@@ -168,7 +168,6 @@ csv filename.
                 TI:    [     ,     ,     ]
                 Shear: [     ,     ,     ]
                 CS:    [     ,     ,     ]
-                8.5	9.8, 10.4, 11.8, 12.4, 13.7, 16.8, 18.1, 18.6, 19.8, 20.3, 21.4
 
                 
             WS_2_4 :  # conditional values from wind speed range of 2 - 4 m/s
@@ -308,7 +307,9 @@ If there is an anchor connected to this line, it must be listed
 in end A, not end B. All anchors listed in line_data end A must have a matching ID in the anchor_data table, and all FOWTs listed in line_data end A or end B 
 must have a matching ID in the array_data table. The anchor and fowt IDs must all be unique. The mooring lines each have a mooring configuration ID which links to the [Mooring Line Configs](#mooring-line-configurations) section. 
 
-The fairlead connection point for end A and end B is represented with an integer value in fairleadA and fairlead respectively. This integer value maps to an index in the list of fairleads within the platform definition of the associated platform type in [Platforms](#platforms). For lines with shared anchors, the fairleadA is listed as None. The fairleadA and fairleadB keys are optional; if not provided, the moorings will attach to the platform at the platform's fairlead radius and depth based on the angle of the mooring line.
+The fairleadA and fairleadB keys are optional; if not provided, the moorings will attach to the platform at the platform's fairlead radius and depth based on the angle of the mooring line. If none is provided, the fairlead radius and depth of the platform(s) connected to the mooring line is used to determine the fairlead point. If you choose to specify fairlead points, they are represented with an integer value or list of integers in fairleadA and fairleadB respectively. This integer value maps to an index (starting at 1) in the list of fairleads within the platform definition of the associated platform type in [Platforms](#platforms). For lines with shared anchors, the fairleadA is listed as None. 
+
+If a mooring line has multiple connection points to a platform, such as in the case of a bridle, a list of integers (starting at 1) is used to specify the fairlead connection points of each section. The order that the fairlead points are listed here corresponds to the order of parallel sections provided in the mooring configuration from the [Mooring Line Configs](#mooring-line-configurations) section.
 
 ```yaml
 array_mooring:
@@ -323,7 +324,7 @@ array_mooring:
     line_data :
         - [ semitaut-poly_1 ,  anch1,    fowt1,   None,        1]
         - [ semitaut-poly_1 ,  anch2,    fowt3,   None,        2]
-        - [ semitaut-poly_2 ,  fowt1,    f2,      2,           3]
+        - [ semitaut-poly_bridle ,  fowt1,    f2,      2,           [3,4]]
 ```
 
 ### Array Cables
@@ -331,7 +332,7 @@ There are two locations to list cables, either or both may be used. Cables liste
 
 This section provides a straightforward and compact way to define the power
 cables in the array. The CableID refers to an entry in the [Top Level Cables](#top-level-cables) section. For each end (A and B) of the cable, it specifies the
-platform (matching an ID in the [array table](#array-layout)) it is attached to, the dynamic cable attached at either end (matching an ID in the [Dynamic Cable Configurations](#dynamic-cable-configurations) section), the heading of the dynamic cable at the attachment of each end, using headings relative to the heading of the platform or substation it is connected to, running clockwise, and the index in the platform J-tube list each end is attached to. The JtubeA and JtubeB keys in the table are optional to implement; if not provided it is assumed that the cable attaches to the platform at the center of the platform.
+platform (matching an ID in the [array table](#array-layout)) it is attached to, the dynamic cable attached at either end (matching an ID in the [Dynamic Cable Configurations](#dynamic-cable-configurations) section), the heading of the dynamic cable at the attachment of each end, using headings relative to the heading of the platform or substation it is connected to, running clockwise, and the index in the platform J-tube list (starting at 1) each end is attached to. The JtubeA and JtubeB keys in the table are optional to implement; if not provided it is assumed that the cable attaches to the platform at a j-tube radius specified in the dynamic cable configuration (if provided) or at the fairlead radius of the platform.
 
 The static cable type is listed under 'cableType', referencing either an entry in the [Cable Cross Sectional Properties](#cable-cross-sectional-properties) section or a cable type name in the FAModel CableProps yaml. Length adjustment information is also included.
 
@@ -394,8 +395,11 @@ By default, the format here follows that used by
 dictionary for each platform in the first level of each platform listed. In this case, type describes the kind of platform (i.e. FOWT for a floating wind turbine, Substation, WEC).
 
 Optional entries include:
- - fairleads : a list of dictionaries providing information on the relative fairlead locations of the platform. The relative positions can be listed for each fairlead, or the fairlead radius, depth, and headings (relative to 0 platform heading) can be provided. If a list of fairlead headings is provided in one fairlead entry, the heading list indices are added to the list of fairlead indices referenced in mooring_systems or array_mooring.
-rFair is the fairlead radius, zFair is the fairlead depth with respect to the platform depth. An optional input is z_location, which describes the nominal depth of the platform. If the z_location is not provided here or as a column in the array table, it is assumed to be 0.
+ - *fairleads* : a list of dictionaries providing information on the relative fairlead locations of the platform. The exact relative positions can be listed for each fairlead, or a relative position and headings (relative to 0 platform heading) can be provided. If a list of fairlead headings is provided in one fairlead entry, the heading list indices are added to the list of fairlead indices referenced in mooring_systems or array_mooring. For the case below, the 30 degree heading would be index 1, 150 degree heading would be index 2, 270 degree heading would be index 3, and the 'fairleads2' entry (with relative position [-57.779,-5.055, -14]) would be index 4)
+ - *Jtubes*: a list of dictionaries providing information on the relative J-tube locations on the platform. Like fairleads, the exact relative position can be provided or a relative position and list of headings (relative to 0 platform heading) can also be provided. If a list of j-tube headings is provided in one j-tube entry, the heading list indices are added to the list of j-tube indices referenced in cables or array_cables (just like fairleads).
+- *rFair*: fairlead radius. MUST be provided if fairleads and Jtubes not provided.
+- *zFair*: fairlead depth with respect to the platform depth. MUST be provided if fairleads and Jtubes not provided.
+- *z_location*: nominal depth of the platform. If the z_location is not provided here or as a column in the array table, it is assumed to be 0.
 
 However, support will be added for also linking to platform descriptions that follow
 the [WindIO](https://windio.readthedocs.io) ontology format, which is also used 
@@ -406,6 +410,17 @@ platform:
 
     potModMaster :   1      # [int] master switch for potMod variables; 0=keeps all member potMod vars the same, 1=turns all potMod vars to False (no HAMS), 2=turns all potMod vars to True (no strip)
     dlsMax       :  5.0     # maximum node splitting section amount for platform members; can't be 0
+    fairleads    : 
+                  # list of fairlead coordinates for the platform relative to platform coordinate and 0-degree heading
+                  - name: fairlead1
+                    r_rel: [58, 0, -14] # relative coordinates of fairlead to platform center
+                    headings: [30, 150, 270] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)  
+                  - name: fairleads2
+                    r_rel: [-57.779,-5.055, -14]
+    Jtubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
+                   - name: Jtube1
+                     r_rel: [5, 0, -20]
+                     headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
     rFair        :  58 
     zFair        :  -15
     type         :  FOWT # floating wind turbine platform
@@ -446,29 +461,30 @@ anchor characteristics.
 ### Mooring Systems
 
 This section describes the mooring systems that could be used for individual turbines and repeated throughout the array. Each mooring system contains a 
-list of mooring lines, which contains the mooring configuration ID, the heading, the anchor type, and a possible length adjustment. The 
+list of mooring lines, which contains the mooring configuration ID, the heading, the anchor type, and optionally, fairlead connection index for end B. The 
 mooring configuration ID links to the details about the segments lengths and types in the [mooring line configurations](#mooring-line-configurations) section. The heading refers to the angle of the mooring line and it rotates 
 clockwise from North, relative to the heading of the platform. The anchor type links to details about the anchor 
-size and dimensions in the [anchor types section](#anchor-types). The length adjustment
-is an optional parameter that can adjust the mooring line length for a shallower or deeper depth, for example. 
+size and dimensions in the [anchor types section](#anchor-types). The fairlead index
+is an optional parameter that can specify the relative fairlead position point on a platform. 
+This index (which starts at 1) refers to the list of fairlead relative positions specified in the [Platforms](#platforms) section. If a list of indices is provided for a mooring line entry, this mooring line has a bridle and each entry in the list refers to a fairlead index in the platform definition.
 
 ```yaml
 mooring_systems:
     ms1:
-        name: 3-line taut polyester mooring system
+        name: 3-line taut polyester mooring system with 3rd line bridle
         
-        keys: [MooringConfigID,  heading, anchorType, lengthAdjust] 
+        keys: [MooringConfigID,  heading, anchorType, fairlead] 
         data:
-          - [  semitaut-poly_1,   30 ,    suction 1,   0 ]
-          - [  semitaut-poly_1,  150 ,    suction 1,   0 ]
-          - [  semitaut-poly_1,  270 ,    suction 1,   0 ]
+          - [  semitaut-poly_1,   30 ,    suction 1,   1 ]
+          - [  semitaut-poly_1,  150 ,    suction 1,   2 ]
+          - [  semitaut-poly_1,  270 ,    suction 1,   [4,5] ]
 ```
 
 ### Mooring Line Configurations
 
 The mooring line configurations lists the segment lengths and line types that make up each mooring line. Each line has a name that can then be specified 
 as the MooringConfigID in the [mooring systems](#mooring-systems) section. The span is specified for each configuration, which represents the distance in the x-y plane between 
-the two connection points of the line - i.e. between fairlead and anchor, or for shared lines, fairlead and fairlead. 
+the two connection points of the line - i.e. between fairlead and anchor, or for shared lines, fairlead and fairlead. If there is a bridle, the fairlead position used to calculate span is the midpoint of the bridle fairlead locations.
 
 Fairlead radius and fairlead depth are specified in the [Platform](#platforms) section.
  Each line contains a list of sections that details the line section type and length. The line type name
@@ -486,6 +502,9 @@ the middle line (last line given in the list) is doubled in length in the mirror
 
 For example, the 'rope_shared' config in the yaml below would produce a symmetric shared line with sections in the following order
 a 150 m section of rope, a clump weight, a 1172 m section of rope (note the doubled length), a clump weight, and finally a 150 m section of rope.
+
+A section of line that has multiple parallel sections, such as a bridle or double chain section bounded by triplates, is specified with the 'subsections' key. Each list within the subsections key describes the sections of line connected in series for that individual line within the parallel. The following image visualizes the mooring configuration described in 'taut_bridle_double_chain':
+![Mooring configuration with a bridle and double chain section](../images/parallel_sections.png)
 
 
 
@@ -517,9 +536,40 @@ a 150 m section of rope, a clump weight, a 1172 m section of rope (note the doub
           - type: polyester_182mm        # ID of a mooring line section type
             length: 199.8           # [m] length (unstretched)
 
+    taut_bridle_double_chain:  # mooring line configuration identifier
+    
+        name: rope configuration 1 with a bridle  # descriptive name
+        
+        span: 1131.37
+
+        
+        sections:                 #in order from anchor to fairlead
+          - type: chain_155mm
+            length: 20
+          - type: rope       # ID of a mooring line section type
+            length: 500            # [m] usntretched length of line section
+          - connectorType: triplate
+          - subsections: # double chain section
+            - - mooringFamily: chain
+                d_nom: 0.1      
+                length: 120            
+            - - mooringFamily: chain  
+                d_nom: 0.1    
+                length: 120  
+          - connectorType: triplate          
+          - type: rope       # ID of a mooring line section type
+            length: 500            # [m] usntretched length of line section
+          - subsections:  # bridle sections for end B
+              - - type: rope
+                  length: 50
+                - connectorType: shackle
+              - - type: rope
+                  length: 50
+                - connectorType: shackle
+
 
     rope_shared:
-        name: shared rope 
+        name: shared rope line shown symmetrically
         symmetric: True
 
         span: 1484
@@ -668,6 +718,8 @@ section, including joints, buoyancy module layout and other appendages.
 A top-level cable is defined as the full assembly of electrical connection equipment between
 two turbines or a turbine and a substation. 'type' links to the static cable property description, either in the [Cable Cross-Sectional Properties](#cable-cross-sectional-properties) section or in the cableProps_default yaml. Each cable end (A and B) is defined by the attached FOWT/substation/junction ID linking to the associated ID in the array table (attachID), the heading of the cable, and the dynamic cable configuration ID linking to a key in the [Dynamic Cable Configurations](#cable-configurations) section (dynamicID).
 
+Jtube is an optional parameter defined for both endA and endB. If used, it refers to an index (starting at 1) in the Jtube list of the platform definition, which defines relative Jtube positions on a platform. If not provided, either the rJtube (optional) listed in the dynamic cable configuration, or the fairlead radius will be used to determine the platform connection point.
+
 Routing can be added as an option, described in a list of coordinates for x,y, and radius values. Burial can also be included, with the station describing the normalized length along the cable, and depth describing the cable burial depth below the mudline.
 
 ```yaml
@@ -679,11 +731,13 @@ Routing can be added as an option, described in a list of coordinates for x,y, a
         attachID: fowt1            # FOWT/substation/junction ID
         heading:  270                  # [deg] heading of attachment at end A
         dynamicID: lazy_wave1  # ID of dynamic cable configuration at this end
+        Jtube: 1
     
     endB:
         attachID: f2            # FOWT/substation/junction ID
         heading:  270                   # [deg] heading of attachment at end B
         dynamicID: lazy_wave1  # ID of dynamic cable configuration at this end
+        Jtube: 2
     
     routing_x_y_r:  # optional vertex points along the cable route. Nonzero radius wraps around a point at that radius.
       - [-900, -1450, 20] 
@@ -705,6 +759,8 @@ and the volume of a single buoyancy module. The volume is only needed if the buo
 from the cableProps_defaul yaml. As with the cable properties, the 'type' in the sections list must refer to 
 an entry in either the [Cable Appendages](#cable-appendages) section or in the FAModel cableProps_default.yaml.
 
+rJtube is an optional parameter; if provided, and a Jtube relative position is not provided, it defines the radial distance of the connection point for the cable to the platform.
+
 Similar to mooring lines, the span refers to the end to end distance of the line in the x-y plane.
 
 ```yaml
@@ -718,6 +774,7 @@ dynamic_cable_configs:
         A: 300
         cable_type: dynamic_cable_66_1        # ID of a cable section type
         length: 353.505                   # [m] length (unstretched) 
+        rJtube: 5 #[m] radial distance from platform center of J-tube
        
         sections: 
           - type: buoyancy_module_1 

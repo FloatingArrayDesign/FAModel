@@ -7,9 +7,11 @@ For more information on using RAFT, please see RAFT documentation at https://git
 
 from famodel import Project
 import matplotlib.pyplot as plt
+import os
 
 # define name of ontology input file
-input_file = '01_platform.yaml'
+dir = os.path.dirname(os.path.realpath(__file__))
+input_file = os.path.join(dir,'02_FOWT.yaml')
 
 # initialize Project class with input file, we don't need RAFT for this so mark False
 project = Project(file=input_file,raft=True)
