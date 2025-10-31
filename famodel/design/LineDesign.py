@@ -608,7 +608,7 @@ class LineDesign(Mooring):
                     self.dd['subcomponents'][2*i+1]['type'].update(lineType)
             
             # apply corrosion to the mooring's MBL dictionary (which gets references in the getTenSF constraint in subsystem)
-            self.addCorrosion(self.lineProps, corrosion_mm=self.corrosion_mm)
+            self.addCorrosion(corrosion_mm=self.corrosion_mm)
             
             # update the intermediate points if they have any weight or buoyancy
             for i in range(self.nLines-1):

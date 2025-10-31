@@ -21,10 +21,12 @@ class Mooring(Edge):
     def __init__(self, dd=None, subsystem=None, anchor=None,
                  rho=1025, g=9.81, id=None, shared=0, lineProps=None):
         '''
+            Initializes a Mooring object.
+
         Parameters
         ----------
-        dd: dictionary
-            Design dictionary that contains all information on a mooring line needed to create a MoorPy subsystem
+            dd: dict, optional
+                Design dictionary that contains all information on a mooring line needed to create a MoorPy subsystem.
             Layout: {
                      subcomponents: # always starts and ends with connectors even if connector dict is blank
                          {
@@ -50,6 +52,27 @@ class Mooring(Edge):
                      z_fair
                      rad_fair
                     }
+        
+            subsystem: MoorPy subsystem, optional
+                The subsystem that corresponds to the mooring line.
+
+            anchor: object, optional
+                The anchor object associated with the mooring line.
+
+            rho: float, optional
+                The density of the fluid (default is 1025 kg/m^3 for seawater).
+
+            g: float, optional
+                The acceleration due to gravity (default is 9.81 m/s^2).
+
+            id: any, optional
+                An identifier for the mooring object.
+
+            shared: int, optional
+                An integer indicating if the mooring line is an anchored line (0) or a shared line (1) (default is 0).
+
+            lineProps: any, optional
+                Properties related to the mooring line sizing function coefficients.
         
         '''    
         Edge.__init__(self, id)  # initialize Edge base class
@@ -165,7 +188,7 @@ class Mooring(Edge):
         
         self.adjuster = None  # custom function that can adjust the mooring
         
-        self.shared = shared # int for if the mooring line is a shared line (1) or part of a shared line (2)
+        self.shared = shared # int for if the mooring line is an anchored line (0) or a shared line (1)
         self.symmetric = False # boolean for if the mooring line is a symmetric shared line
         
         # relevant site info
@@ -244,7 +267,7 @@ class Mooring(Edge):
         ----------
         d_nom : float, optional
             The nominal diameter to set the lineType to [mm], if provided.
-        d_nom : string, optional
+        material : string, optional
             The material type to set the lineType (must match a LineProps key),
             if provided.
         '''
@@ -834,7 +857,45 @@ class Mooring(Edge):
         
         return self.dd
     """
-    
+
+    def updateState(self, stateDict):
+        '''
+        Updates the state of the mooring system based on the provided state dictionary.
+
+        Parameters
+        ----------
+        stateDict : dict
+            Dictionary containing the state configuration. The expected keys are:
+            - 'years': Global number of years for creep and corrosion (integer).
+            - 'stiffnessBounds': Dictionary with 'lower' (boolean) for stiffness bounds.
+            - 'creep': Boolean indicating whether to apply creep.
+            - 'corrosion': Boolean indicating whether to apply corrosion.
+            - 'marineGrowth': Dictionary for marine growth configuration (same as addMarineGrowth).
+        '''
+
+        # Extract global number of years
+        years = stateDict.get('years', 0)
+
+        # 1. Update stiffness bounds
+        if 'stiffnessBounds' in stateDict:
+            stiffness = stateDict['stiffnessBounds']
+            suffix = stiffness.get('suffix', "")
+            self.adjustPropertySets(suffix=suffix)
+
+        # 2. Apply creep if specified
+        if stateDict.get('creep', False):
+            self.addCreep(years)
+
+        # 3. Apply corrosion if specified
+        if stateDict.get('corrosion', False):
+            self.addCorrosion(years)        
+
+        # 4. Apply marine growth if specified
+        if 'marineGrowth' in stateDict:
+            mgDict = stateDict['marineGrowth']
+            self.addMarineGrowth(mgDict)
+
+
     def addMarineGrowth(self, mgDict):
         '''Re-creates sections part of design dictionary to account for marine 
         growth on the subystem, then calls createSubsystem() to recreate the line
@@ -1127,23 +1188,19 @@ class Mooring(Edge):
         return(changeDepths,changePoints)
 
 
-    def addCorrosion(self, lineProps, years=25, corrosion_mm=None, z_lower_cutoff=None, z_upper_cutoff=None):
+    def addCorrosion(self, years=25, corrosion_rate=None, corrosion_mm=None):
         '''
         Calculates MBL of chain line with corrosion included
 
         Parameters
         ----------
-        lineProps: dict
-            Dictionary of line properties from MoorProps yaml
         years: float, optional
             number of years to use with corrosion rate (default is 25 years)
+        corrosion_rate : float, optional
+            Corrosion rate in mm/yr. 
         corrosion_mm : float, optional
-            amount of corrosion in mm at splash zone/seabed (harsher environment). 
-            If the value is not given, the corrosion rate from the lineProps dictionary will be used with a given design life.
-        z_lower_cutoff : float, optional
-            lower depth cutoff for lesser corrosion to be applied (default is None, meaning no cutoff)
-        z_upper_cutoff : float, optional
-            upper depth cutoff for lesser corrosion to be applied (default is None, meaning no cutoff)
+            Total corrosion in mm to apply directly.
+        If a corrosion_rate or a corrosion_mm are not given, the corrosion rate from the lineProps dictionary will be used.
         '''
 
         if self.ss:
@@ -1154,37 +1211,16 @@ class Mooring(Edge):
                     raise ValueError(f'Line material {mat} not found in lineProps dictionary.')
                 else:
                     if self.lineProps[mat].get('corrosion_rate', False):
+                        if not corrosion_rate and not corrosion_mm:
+                            corrosion_rate = self.lineProps[mat]['corrosion_rate']  # corrosion rate from the LineProps
                         if not corrosion_mm:
-                            corrosion_mm = self.lineProps[mat]['corrosion_rate'] * years  # total corrosion over design life
+                            corrosion_mm = corrosion_rate * years  # total corrosion over design life in mm
+
                         corrosion_m = corrosion_mm / 1000  # convert to m
-
-                        if z_lower_cutoff and z_upper_cutoff:
-                            # check where the chain lies in the water column to see if lesser corrosion should be applied
-                            z_avg = line.Zs.mean()  # average depth of the line
-                            if z_avg >= z_lower_cutoff and z_avg <= z_upper_cutoff:
-                                corrosion_m /= 2  # half the corrosion in the middle of the water column
-
                         factor = ((line.type['d_nom'] - corrosion_m) / line.type['d_nom'])**2
-                        # TODO: should we not also update d_nom to reflect corrosion?
-                        # d_nom_cor = line.type['d_nom'] - corrosion_m
-                        # lineType_cor = getLineProps(d_nom_cor*1e3, mat, lineProps)  # convert to mm for getLineProps
-                        # line.type = lineType_cor  # update line type with new diameter
-
-                        # OR just update MBL directly ?
                         line.type['MBL'] *= factor  # update MBL with corrosion factored in
-                        
-                        
-        # Old method
-        # for i in self.i_sec:
-        #     sec = self.getSubcomponent(i)
-        #     if sec['type']['material']=='chain':
-        #         MBL_cor = sec['type']['MBL']*( (sec['type']['d_nom']-(corrosion_mm/1000))/sec['type']['d_nom'] )**2  # corroded MBL
-        #     else:
-        #         MBL_cor = sec['type']['MBL']
-        #     sec['type']['MBL'] = MBL_cor
     
-    
-    def addCreep(self, years=25, creep_percent=None):
+    def addCreep(self, years=25, creep_rate=None, creep=None):
         '''
         Elongates the polyester lines (if exists) in the mooring by a certain creep percentage
 
@@ -1192,9 +1228,11 @@ class Mooring(Edge):
         ----------
         years: float, optional
             How many years worth of creep to add (default is 25 years).
-        creep_percent : float, optional
-            Percentage of creep elongation to add to polyester lines. 
-            If not given, the creep rate from the lineProps dictionary will be used with a given design life.
+        creep_rate : float, optional
+            creep elongation rate [%]/yr to add to polyester lines. 
+        creep : float, optional
+            Total creep elongation percent [%] to apply directly.
+        If a creep_rate and a creep are not given, the creep rate from the lineProps dictionary will be used with a given design life.
         '''
         if self.ss:
             for i, line in enumerate(self.ss.lineList):
@@ -1204,11 +1242,15 @@ class Mooring(Edge):
                     raise ValueError(f'Line material {mat} not found in lineProps dictionary.')
                 else:
                     if self.lineProps[mat].get('creep_rate', False):
-                        if not creep_percent:
-                            creep_percent = lineProps[mat]['creep_rate'] * years  # total creep to this point in time
-                        L_creep = line.L * (1 + 0.01*creep_percent)
+                        if not creep_rate:
+                            creep_rate = self.lineProps[mat]['creep_rate']
+                        
+                        if not creep:
+                            creep = creep_rate * years  # total creep percent over design life
+                            
+                        L_creep = line.L * (1 + 0.01*creep)
                         #self.setSectionLength(L_creep, i)
-                        line.setL(L)
+                        line.setL(L_creep)
                         '''
                         # Change the diameter size to account for creep thinning
                         d_nom_creep = line.type['d_nom'] / np.sqrt(1 + creep_percent)
@@ -1236,13 +1278,13 @@ class Mooring(Edge):
             for i, line in enumerate(self.ss.lineList):
                 # Get the original material as stored in the design dict
                 sec = self.getSubcomponent(self.i_sec[i])
-                mat = sec.type['material']  
+                mat = sec['type']['material']  
                 
                 # Get and apply the modified properties
                 mat_suffix = mat + suffix  # New material key to look for
-                if mat_suffix in lineProps:
+                if mat_suffix in self.lineProps:
                     # Update the lineType properties in the Line in the MoorPy subsystem
-                    line.type.update(getLineProps(sec.type['d_nom']*1e3, mat_suffix, self.lineProps)) 
+                    line.type.update(getLineProps(sec['type']['d_nom']*1e3, mat_suffix, self.lineProps)) 
     
     
     def getEnvelope(self,ang_spacing=45,SFs=True):
