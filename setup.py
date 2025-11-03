@@ -20,8 +20,7 @@ setuptools.setup(
               'famodel.cables',
               'famodel.turbine',
               'famodel.substation',
-              'famodel.failure',
-              'famodel.seabed'],
+              'famodel.failure'],
     package_data={'famodel.cables':['cableProps_default.yaml']},
     classifiers=[
         "Programming Language :: Python :: 3",
