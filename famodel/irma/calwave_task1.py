@@ -3,7 +3,7 @@
 # 1) addAction → structure only (type, name, objects, deps)
 # 2) evaluateAssets → assign vessels/roles (+ durations/costs)
 # 3) (schedule/plot handled by your existing tooling)
-
+import matplotlib.pyplot as plt
 from famodel.project import Project
 from calwave_irma import Scenario
 import calwave_chart as chart
@@ -195,7 +195,8 @@ if __name__ == '__main__':
 
     # 5) Build Task
     task1 = Task(name='calwave_task1', actions=sc.actions)
-
+    task1.getSequenceGraph()
+    plt.show()
     # task1.updateTaskTime(newStart=10)
 
     # 6) build the chart input directly from the Task and plot  #TODO: Rudy / Improve this later (maybe include it in Task.py/Scenario and let it plot the absolute time instead of relative time)

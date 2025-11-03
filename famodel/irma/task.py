@@ -81,7 +81,156 @@ class Task():
         print(f"---------------------- Initializing Task '{self.name} ----------------------")        
         print(f"Task '{self.name}' initialized with duration = {self.duration:.2f} h.")
         print(f"Task '{self.name}' initialized with cost     = ${self.cost:.2f} ")
-    
+
+    def getSequenceGraph(self, action_sequence=None, plot=True):
+        '''Generate a multi-directed graph that visalizes action sequencing within the task.
+                Build a MultiDiGraph with nodes:
+                Start -> CP1 -> CP2 -> ... -> End
+        
+        Checkpoints are computed from action "levels":
+          level(a) = 1 if no prerequisites.
+          level(a) = 1 + max(level(p) for p in prerequisites)      1 + the largest level among a’s prerequisites.
+          Number of checkpoints = max(level) - 1.           
+        '''
+        if action_sequence is None:
+            action_sequence = self.action_sequence
+        # Compute levels
+        levels: dict[str, int] = {}
+        def level_of(a: str, b: set[str]) -> int:
+            '''Return the level of action a. b is the set of actions currently being explored'''
+                    
+            # If we have already computed the level, return it
+            if a in levels:
+                return levels[a]
+
+            if a in b:
+                raise ValueError(f"Cycle detected in action sequence at '{a}' in task '{self.name}'. The action cannot be its own prerequisite.")
+
+            b.add(a)
+
+            # Look up prerequisites for action a.
+            pres = action_sequence.get(a, [])
+            if not pres:
+                lv = 1  # No prerequisites, level 1
+            else:
+                # If a prerequisites name is not in the dict, treat it as a root (level 1)
+                lv = 1 + max(level_of(p, b) if p in action_sequence else 1 for p in pres)
+            # b.remove(a)  # if you want to unmark a from the explored dictionary, b, uncomment this line. 
+            levels[a] = lv
+            return lv
+
+        for a in action_sequence:
+            level_of(a, set())
+        
+        max_level = max(levels.values(), default=1)
+        num_cps = max(0, max_level - 1)
+
+        H = nx.MultiDiGraph()
+
+        # Add the Start -> [checkpoints] -> End nodes
+        H.add_node("Start")
+        for i in range(1, num_cps + 1):
+            H.add_node(f"CP{i}")
+        H.add_node("End")
+
+        shells = [["Start"]]
+        if num_cps > 0:
+            # Middle shells
+            cps = [f"CP{i}" for i in range(1, num_cps + 1)]
+            shells.append(cps)
+        shells.append(["End"])
+
+        pos = nx.shell_layout(H, nlist=shells)
+
+        xmin, xmax = -2.0, 2.0  # maybe would need to change those later on.
+        pos["Start"] = (xmin, 0)
+        pos["End"]   = (xmax, 0)
+
+        # Add action edges
+        # Convention:
+        #   level 1 actions: Start -> CP1 (or Start -> End if no CPs)
+        #   level L actions (2 <= L < max_level): CP{L-1} -> CP{L}
+        #   level == max_level actions: CP{num_cps} -> End
+        for action, lv in levels.items():
+            action = self.actions[action]
+            if num_cps == 0:
+                # No checkpoints: all actions from Start to End
+                H.add_edge("Start", "End", key=action, duration=action.duration, cost=action.cost)
+            else:
+                if lv == 1:
+                    H.add_edge("Start", "CP1", key=action, duration=action.duration, cost=action.cost)
+                elif lv < max_level:
+                    H.add_edge(f"CP{lv-1}", f"CP{lv}", key=action, duration=action.duration, cost=action.cost)
+                else:  # lv == max_level
+                    H.add_edge(f"CP{num_cps}", "End", key=action, duration=action.duration, cost=action.cost)                                                    
+        # 3. Compute cumulative start time for each level
+        level_groups = {}
+        for action, lv in levels.items():
+            level_groups.setdefault(lv, []).append(action)
+        
+        level_durations = {lv: max(self.actions[a].duration for a in acts)
+                        for lv, acts in level_groups.items()}   
+
+        
+        task_duration = sum(level_durations.values())
+        level_start_time = {}
+        elapsed = 0.0
+        cp_string = []
+        for lv in range(1, max_level + 1):
+            level_start_time[lv] = elapsed
+            elapsed += level_durations.get(lv, 0.0)
+            # also collect all actions at this level for title
+            acts = [a for a, l in levels.items() if l == lv]
+            if acts and lv <= num_cps:
+                cp_string.append(f"CP{lv}: {', '.join(acts)}")
+            elif acts and lv > num_cps:
+                cp_string.append(f"End: {', '.join(acts)}")        
+        # Assign to self:
+        self.sequence_graph = H
+        title_str = f"Task {self.name}. Duration {self.duration:.2f} : " + " | ".join(cp_string)
+        if plot:
+            fig, ax = plt.subplots()
+            # pos = nx.shell_layout(G)
+            nx.draw(H, pos, with_labels=True, node_size=500, node_color="lightblue", edge_color='white')
+
+            label_positions = {}  # to store label positions for each edge
+            # Group edges by unique (u, v) pairs
+            for (u, v) in set((u, v) for u, v, _ in H.edges(keys=True)):
+                # get all edges between u and v (dict keyed by edge key)
+                edge_dict = H.get_edge_data(u, v)  # {key: {attrdict}, ...}
+                n = len(edge_dict)
+
+                # curvature values spread between -0.3 and +0.3 [helpful to visualize multiple edges]
+                if n==1:
+                    rads = [0]
+                    offsets = [0.5]
+                else:
+                    rads = np.linspace(-0.3, 0.3, n)
+                    offsets = np.linspace(0.2, 0.8, n)
+                
+                # draw each edge
+                durations = [d.get("duration", 0.0) for d in edge_dict.values()]
+                scale = max(max(durations), 0.0001)  # avoid div by zero
+                width_scale = 4.0 / scale  # normalize largest to ~4px
+
+                for rad, offset, (k, d) in zip(rads, offsets, edge_dict.items()):
+                    nx.draw_networkx_edges(
+                        H, pos, edgelist=[(u, v)], ax=ax,
+                        connectionstyle=f"arc3,rad={rad}",
+                        arrows=True, arrowstyle="-|>",
+                        edge_color="gray",
+                        width=max(0.5, d.get("duration", []) * width_scale),
+                    )
+                    label_positions[(u, v, k)] = offset  # store position for edge label
+
+            ax.set_title(title_str, fontsize=12, fontweight="bold")
+            ax.axis("off")
+            plt.tight_layout()
+
+        return H
+                
+                    
+
     def stageActions(self, from_deps=True):
         '''
         This method stages the action_sequence for a proper execution order.
