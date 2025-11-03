@@ -105,8 +105,8 @@ def processBoundary(filename, lat, lon,meters=True):
     if meters:
         Xs = longs
         Ys = lats
-    else:
-        Xs, Ys = convertLatLong2Meters(zerozero, lats, longs)
+    #else:
+        #Xs, Ys = convertLatLong2Meters(zerozero, lats, longs)
     
     return Xs, Ys
 

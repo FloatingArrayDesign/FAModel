@@ -12,19 +12,16 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, LineString
 
-
-
-
-import famodel.seabed.seabed_tools as sbt
-
-
-
+import famodel.seabed_tools as sbt
 
 from pyproj import CRS
 from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
 
 
+# =============================================================================
+# COORDINATE REFERENCE SYSTEMS & TRANSFORMATIONS
+# =============================================================================
 
 def getLatLongCRS(epsg_code=4326):
     '''Returns a coordinate reference system (CRS) object from the pyproj package of a 'wordly' CRS with units of latitude and longitude
@@ -250,8 +247,9 @@ def convertMeters2LatLong(xs, ys, centroid, latlong_crs, target_crs, mesh=False)
     
     return longs, lats
 
-
-
+# =============================================================================
+# BATHYMETRY & GEOSPATIAL DATA PROCESSING
+# =============================================================================
 
 def getMapBathymetry(gebcofilename):
 
@@ -417,8 +415,9 @@ def getLeaseAndBathymetryInfo(lease_name, bathymetry_file, bath_ncols=100, bath_
 
 
 
-
-
+# =============================================================================
+# FILE I/O & DATA FORMAT CONVERSION
+# =============================================================================
 
 def processGeotiff(filename, lat, lon, outfilename="processGeotiff.txt", **kwargs):
     '''Process a geotiff file containing bathymetry (or other info)
@@ -501,9 +500,6 @@ def processGeotiff(filename, lat, lon, outfilename="processGeotiff.txt", **kwarg
     writeBathymetryFile(outfilename, bath_xs, bath_ys, bath_depths)
 
     return bath_xs, bath_ys, bath_depths
-
-
-
 
 
 

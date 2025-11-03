@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from famodel.seabed.seabed_tools import interpFromGrid
+from famodel.seabed_tools import interpFromGrid
 from famodel.famodel_base import Node
 from copy import deepcopy
 
