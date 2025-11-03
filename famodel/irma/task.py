@@ -318,7 +318,7 @@ class Task():
 
         # Update action start times
         for action in self.actions_ti:
-            self.actions_ti[action] += time_shift
+            self.actions_ti[action] += self.ti
     
 
 
@@ -358,3 +358,137 @@ class Task():
 
         return np.zeros((len(assets), 2)) # placeholder, replace with actual matrix
 
+
+    def GanttChart(self, start_at_zero=True, color_by=None):
+        '''Generate a Gantt chart for the task showing the schedule of actions.
+        
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure object containing the Gantt chart.
+        ax : matplotlib.axes.Axes
+            The axes object containing the Gantt chart.
+        '''
+
+        # --- color palette ---
+        colors = [
+            "lime", "orange", "magenta", "blue",
+            "red", "yellow", "cyan", "purple"
+        ]        
+
+        fig, ax = plt.subplots(figsize=(10, 10))
+
+        # Prepare data for Gantt chart
+        action_names = list(self.actions.keys())
+        start_times = [self.actions_ti[name] for name in action_names]
+        durations = [self.actions[name].duration for name in action_names]
+        
+        # Get asset information from action.assets
+        all_assets = set()
+        all_roles  = set()
+        for action in self.actions.values():
+            for role, asset in action.assets.items():
+                all_assets.add(asset['name'])
+                all_roles.add(role)
+
+        # Assign colors
+        if color_by == 'asset':
+            asset_list = list(all_assets)
+            color_dict = {asset: colors[i] for i, asset in enumerate(asset_list)}
+        elif color_by == 'role':
+            # Flip the colors
+            colors = colors[::-1]
+            role_list = list(all_roles)
+            color_dict = {role: colors[i] for i, role in enumerate(role_list)}
+        
+        # Generate vertical lines to indicate the start and finish of the whole task
+        ax.axvline(x=self.ti, ymin=0, ymax=len(action_names), color='black', linestyle='-', linewidth=2.0)
+        ax.axvline(x=self.tf, ymin=0, ymax=len(action_names), color='black', linestyle='-', linewidth=2.0)
+
+        # Create bars for each action
+        ht = 0.4
+        for i, (name, start, duration) in enumerate(zip(action_names, start_times, durations)):
+            opp_i = len(action_names) - i - 1  # to have first action on top
+            action = self.actions[name]
+            assets = list({asset['name'] for asset in action.assets.values()})
+            roles  = list({role for role in action.assets.keys()})
+            
+            assets = list(set(assets))  # Remove duplicates from assets
+
+            n_assets = len(assets)
+            n_roles  = len(roles)
+   
+            if color_by is None:
+                ax.barh(opp_i, duration, color='cyan', left=start, height=ht, align='center')
+            elif color_by == 'asset':
+                # Compute vertical offsets if multiple assets
+                if n_assets == 0:
+                    # No assets info
+                    ax.barh(i, duration, left=start, height=ht, color='cyan', align='center')
+                else:
+                    sub_ht = ht / n_assets
+                    for j, asset in enumerate(assets):
+                        bottom = opp_i - ht/2 + j * sub_ht
+                        color = color_dict.get(asset, 'gray')
+                        ax.barh(bottom + sub_ht/2, duration, left=start, height=sub_ht * 0.9, 
+                                color=color, edgecolor='k', linewidth=0.3, align='center')                             
+            elif color_by == 'role':
+                # Compute vertical offsets if multiple roles
+                if n_roles == 0:
+                    # No roles info
+                    ax.barh(opp_i, duration, left=start, height=ht, color='cyan', align='center')
+                else:
+                    sub_ht = ht / n_roles
+                    for j, role in enumerate(roles):
+                        bottom = opp_i - ht/2 + j * sub_ht
+                        color = color_dict.get(role, 'gray')
+                        ax.barh(bottom + sub_ht/2, duration, left=start, height=sub_ht * 0.9, 
+                                color=color, edgecolor='k', linewidth=0.3, align='center')       
+            else:
+                color_by = None
+                raise Warning(f"color_by option '{color_by}' not recognized. Use 'asset', 'role'. None will be used")
+
+            ax.text(self.ti, opp_i, f'  {name}', va='center', ha='left', color='black')
+            ax.axhline(y=opp_i - ht/2, xmin=0, xmax=self.tf, color='gray', linestyle='--', linewidth=0.5)
+            ax.axhline(y=opp_i + ht/2, xmin=0, xmax=self.tf, color='gray', linestyle='--', linewidth=0.5)
+            ax.axvline(x=start, ymin=0, ymax=len(action_names), color='gray', linestyle='--', linewidth=0.5)
+        
+        # Set y-ticks and labels
+        ax.set_yticks(range(len(action_names)))
+        ax.set_yticklabels([])
+
+        # Set labels and title
+        ax.set_xlabel('time (hrs.)')
+        ax.set_title(f'Gantt Chart for Task: {self.name}')
+
+        if color_by == 'asset':
+            handles = [plt.Rectangle((0, 0), 1, 1, color=color_dict[a]) for a in all_assets]
+            ax.legend(handles, all_assets, title='Assets', bbox_to_anchor=(1.02, 1), loc='upper right')
+        elif color_by == 'role':
+            handles = [plt.Rectangle((0, 0), 1, 1, color=color_dict[a]) for a in all_roles]
+            ax.legend(handles, all_roles, title='Roles', bbox_to_anchor=(1.02, 1), loc='upper right')            
+
+        if start_at_zero:
+            ax.set_xlim(0, self.tf + 1)
+        # Create a grid and adjust layout
+        # ax.grid(True)
+        plt.tight_layout()
+        return fig, ax
+
+    def chart(self, start_at_zero=True):
+        '''Generate a chart grouped by asset showing when each asset is active across all actions.
+
+        Parameters
+        ----------
+        start_at_zero : bool, optional
+            If True, the x-axis starts at zero. Defaults to True.
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure object containing the Gantt chart.
+        ax : matplotlib.axes.Axes
+            The axes object containing the Gantt chart.
+        '''
+        pass
+        

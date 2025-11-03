@@ -2,6 +2,7 @@
 
 San_Diego:
   # Crane barge for anchor handling
+  name: San_Diego
   type: crane_barge
   transport:
       homeport: national_city
@@ -40,6 +41,7 @@ San_Diego:
 
 Jag:
   # Pacific Maritime Group tugboat assisting DB San Diego
+  name: Jag
   type: tug
   transport:
       homeport: national_city
@@ -67,6 +69,7 @@ Jag:
 
 Beyster:
   # Primary support vessel
+  name: Beyster
   type: research_vessel
   transport:
       homeport: point_loma

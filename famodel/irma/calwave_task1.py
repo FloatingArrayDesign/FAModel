@@ -8,7 +8,9 @@ from famodel.project import Project
 from calwave_irma import Scenario
 import calwave_chart as chart
 # from calwave_task import Task  # calwave_task module (Felipe)
-from task import Task as Task    # generic Task module ( Rudy )
+from task import Task            # generic Task module ( Rudy )
+
+import matplotlib.pyplot as plt
 
 sc = Scenario()  # now sc exists in *this* session
 
@@ -195,11 +197,15 @@ if __name__ == '__main__':
 
     # 5) Build Task
     task1 = Task(name='calwave_task1', actions=sc.actions)
-    task1.getSequenceGraph()
-    plt.show()
-    # task1.updateTaskTime(newStart=10)
 
-    # 6) build the chart input directly from the Task and plot  #TODO: Rudy / Improve this later (maybe include it in Task.py/Scenario and let it plot the absolute time instead of relative time)
+    task1.updateTaskTime(newStart=10)
+
+    # 6) Build the Gantt chart
+    task1.GanttChart(color_by='asset')
+    plt.show()
+
+    # Old chart building code:
+    # 7) build the chart input directly from the Task and plot  #TODO: Rudy / Improve this later (maybe include it in Task.py/Scenario and let it plot the absolute time instead of relative time)
     chart_view = chart.view_from_task(task1, sc, title='CalWave Task 1 - Anchor installation plan')
     chart.plot_task(chart_view, outpath='calwave_task1_chart.png')
 

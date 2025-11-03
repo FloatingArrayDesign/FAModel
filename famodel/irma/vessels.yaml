@@ -3,7 +3,8 @@
 # --- Anchor Handling Tug / Supply Vessel (AHTS / AHV) ---
 
 AHTS_alpha:
-# Offshore Tug/Anchor Handling Tug Supply (AHTS) – Towing floating structures, handling and laying anchors/mooring lines, tensioning and positioning support.
+    # Offshore Tug/Anchor Handling Tug Supply (AHTS) – Towing floating structures, handling and laying anchors/mooring lines, tensioning and positioning support.
+    name: AHTS_alpha
     type: AHTS
     transport:
         transit_speed_mps: 4.7       
@@ -53,7 +54,8 @@ AHTS_alpha:
 # --- Multipurpose Support Vessel ---
 
 MPSV_01:
-# Multi-Purpose Support Vessel (MSV) – Flexible vessel used for maintenance, diving, construction, or ROV tasks. Combines features of CSV, DSV and ROVSV.
+    # Multi-Purpose Support Vessel (MSV) – Flexible vessel used for maintenance, diving, construction, or ROV tasks. Combines features of CSV, DSV and ROVSV.
+    name: MPSV_01
     type: MSV
     transport:
         transit_speed_mps: 4.7       
@@ -99,7 +101,8 @@ MPSV_01:
 # --- Construction Support Vessel ---
 
 CSV_A:
-# Construction Support Vessel (CSV) – General-purpose vessel supporting subsea construction, cable lay and light installation. Equipped with cranes, moonpools and ROVs.
+    # Construction Support Vessel (CSV) – General-purpose vessel supporting subsea construction, cable lay and light installation. Equipped with cranes, moonpools and ROVs.
+    name: CSV_A
     type: CSV
     transport:
         transit_speed_mps: 4.7       
@@ -151,7 +154,8 @@ CSV_A:
 # --- ROV Support Vessel ---
 
 ROVSV_X:
-# ROV Support Vessel (ROVSV) – Dedicated to operating and supporting Remotely Operated Vehicles (ROVs) for inspection, survey or intervention.
+    # ROV Support Vessel (ROVSV) – Dedicated to operating and supporting Remotely Operated Vehicles (ROVs) for inspection, survey or intervention.
+    name: ROVSV_X
     type: ROVSV
     transport:
         transit_speed_mps: 6.7       
@@ -186,7 +190,8 @@ ROVSV_X:
 # --- Diving Support Vessel ---
 
 DSV_Moon:
-# Diving Support Vessel (DSV) – Specifically equipped to support saturation diving operations. Includes diving bells, decompression chambers and dynamic positioning.
+    # Diving Support Vessel (DSV) – Specifically equipped to support saturation diving operations. Includes diving bells, decompression chambers and dynamic positioning.
+    name: DSV_Moon
     type: DSV
     transport:
         transit_speed_mps: 4.7       
@@ -213,7 +218,8 @@ DSV_Moon:
 # --- Heavy Lift Vessel ---
 
 HL_Giant:
-# Heavy Lift Vessel (HL) – Used for transporting and installing very large components, like jackets, substations, or monopiles. Equipped with high-capacity cranes (>3000 t).
+    # Heavy Lift Vessel (HL) – Used for transporting and installing very large components, like jackets, substations, or monopiles. Equipped with high-capacity cranes (>3000 t).
+    name: HL_Giant
     type: HL
     transport:
         transit_speed_mps: 4.7       
@@ -268,7 +274,8 @@ SURV_Swath:
 # --- Barge ---
         
 Barge_squid:
-# Barge – non-propelled flat-top vessel used for transporting heavy equipment, components and materials. Requires towing or positioning support from tugs or AHTS vessels. 
+    # Barge – non-propelled flat-top vessel used for transporting heavy equipment, components and materials. Requires towing or positioning support from tugs or AHTS vessels. 
+    name: Barge_squid
     type: BARGE
     transport:
         transit_speed_mps: 2           # No self-propulsion
