@@ -80,7 +80,7 @@ class Mooring(Edge):
         self.dd = dd
         
         # Load or save the mooring line property sizing function coefficients
-        self.lineProps = loadLineProps(lineProps)
+        self.lineProps = lineProps # loadLineProps(lineProps)
         
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem

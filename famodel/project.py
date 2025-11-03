@@ -1761,7 +1761,7 @@ class Project():
                   'rad_fair':self.platformList[id_part[0]].rFair if id_part else 0,
                   'z_fair':self.platformList[id_part[0]].zFair if id_part else 0}
         
-        mooring = Mooring(dd=dd, id=id, subsystem=subsystem) # create mooring object
+        mooring = Mooring(dd=dd, id=id, subsystem=subsystem, lineProps=self.lineProps) # create mooring object
 
         # update shared prop if needed
         if len(id_part)==2 and shared<1:

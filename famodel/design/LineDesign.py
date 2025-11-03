@@ -201,7 +201,7 @@ class LineDesign(Mooring):
         
         # the sizing function coefficients to use in the design
         self.lineProps = loadLineProps(lineProps)
-        
+
         # Build alternating subcomponents list
         for i in range(self.nLines):
             # Connector at position 2*i (even indices: 0, 2, 4, ...)
@@ -210,7 +210,6 @@ class LineDesign(Mooring):
             
             # Initialize connector properties (will be populated below)
             dd['subcomponents'][connector_idx] = {'m': 0, 'v': 0, 'CdA': 0}
-            
             # Assign section properties
             dd['subcomponents'][section_idx]['type'] = getLineProps(Ds[i], 
                 material=lineTypeNames[i], name=i, lineProps=self.lineProps)
@@ -246,7 +245,7 @@ class LineDesign(Mooring):
         # Call Mooring init function (parent class)
 
         
-        Mooring.__init__(self, dd=dd, rho=rho, g=g, shared=shared)        
+        Mooring.__init__(self, dd=dd, rho=rho, g=g, shared=shared, lineProps=self.lineProps)        
         # The above will also create Mooring self parameters like self.rad_anch
         
         # Save a copy of the original anchoring radius to use with the 
