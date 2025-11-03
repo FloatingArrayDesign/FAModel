@@ -7,7 +7,8 @@
 from famodel.project import Project
 from calwave_irma import Scenario
 import calwave_chart as chart
-from calwave_task import Task
+# from calwave_task import Task  # calwave_task module (Felipe)
+from task import Task as Task    # generic Task module ( Rudy )
 
 sc = Scenario()  # now sc exists in *this* session
 
@@ -183,21 +184,22 @@ if __name__ == '__main__':
     # 4) Assign (assign vessels/roles)
     assign_actions(sc, actions)
     
-    # 5) schedule once, in the Task
-    calwave_task1 = Task.from_scenario(
-        sc,
-        name='calwave_task1',
-        strategy='earliest',               # 'earliest' or 'levels'
-        enforce_resources=False,         # keep single-resource blocking if you want it
-        resource_roles=('vessel', 'carrier', 'operator'))
-    
-    # 6) Extract Task1 sequencing info
-    # calwave_task1.extractSeqYaml()
+    # # 5) schedule once, in the Task
+    # calwave_task1 = Task.from_scenario(
+    #     sc,
+    #     name='calwave_task1',
+    #     strategy='earliest',               # 'earliest' or 'levels'
+    #     enforce_resources=False,         # keep single-resource blocking if you want it
+    #     resource_roles=('vessel', 'carrier', 'operator'))
 
-    # 7) update Task1 if needed
-    calwave_task1.update_from_SeqYaml()  # uncomment to re-apply sequencing from YAML
-    # 8) build the chart input directly from the Task and plot
-    chart_view = chart.view_from_task(calwave_task1, sc, title='CalWave Task 1 - Anchor installation plan')
+
+    # 5) Build Task
+    task1 = Task(name='calwave_task1', actions=sc.actions)
+
+    # task1.updateTaskTime(newStart=10)
+
+    # 6) build the chart input directly from the Task and plot  #TODO: Rudy / Improve this later (maybe include it in Task.py/Scenario and let it plot the absolute time instead of relative time)
+    chart_view = chart.view_from_task(task1, sc, title='CalWave Task 1 - Anchor installation plan')
     chart.plot_task(chart_view, outpath='calwave_task1_chart.png')
 
 
