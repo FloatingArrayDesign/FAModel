@@ -209,6 +209,14 @@ class Mooring(Edge):
 
         self.raftResults = {}
     
+    def init_mod(self):
+        '''
+        Initialize the modified subsystem (ss_mod) as a deep copy of the pristine subsystem (ss).
+        '''
+        if self.ss_mod is None and self.ss is not None:
+            self.ss_mod = deepcopy(self.ss)
+            self.dd_mod = deepcopy(self.dd)
+
     def update(self, dd=None):
         '''Update the Mooring object based on the current state of the design
         dictionary (self.dd) or, if passed in, a new design dictionary (dd).
@@ -927,7 +935,12 @@ class Mooring(Edge):
         # create a reference subsystem if it doesn't already exist
         if not self.ss:
             self.createSubsystem()     
-        oldLine = self.ss
+        
+        if not self.ss_mod:
+            oldLine = self.ss
+        else:
+            oldLine = self.ss_mod
+
         # set up variables
         LTypes = [] # list of line types for new lines (types listed are from reference object)
         Lengths = [] # lengths of each section for new line
@@ -1091,8 +1104,9 @@ class Mooring(Edge):
             ndt = nd[j]['type']
             
             # load in line props from MoorProps
-            opt = helpers.loadLineProps(None)
-            
+            # opt = helpers.loadLineProps(None)
+            opt = self.lineProps
+
             if 'd_nom' in st[ltyp]:
                 d_nom_old[j] = st[ltyp]['d_nom']
                 # get ratio between ve and nom diameter normally
@@ -1158,6 +1172,8 @@ class Mooring(Edge):
                 ndt['EA'] = EA[j]
                 if 'EAd' in oldLine.lineTypes[ltyp]:
                     ndt['EAd'] = oldLine.lineTypes[ltyp]['EAd']
+                if 'EAd_Lm' in oldLine.lineTypes[ltyp]:
+                    ndt['EAd_Lm'] = oldLine.lineTypes[ltyp]['EAd_Lm']
             # add lengths                 
             nd[j]['L'] = Lengths[j]
         
@@ -1167,7 +1183,11 @@ class Mooring(Edge):
         # self.connectorList = connList
         
         # fill out rest of new design dictionary
-        nd1 = deepcopy(self.dd)
+        if self.ss_mod:
+            nd1 = deepcopy(self.dd_mod)
+        else:
+            nd1 = deepcopy(self.dd)
+            
         nd1['subcomponents'] = [None]*(len(nd)*2+1)
         for i in range(len(nd)):
             nd1['subcomponents'][2*i] = Connector('C'+str(i),**connList[i])
@@ -1185,8 +1205,9 @@ class Mooring(Edge):
 
     def addCorrosion(self, years=25, corrosion_rate=None, corrosion_mm=None):
         '''
-        Calculates MBL of chain line with corrosion included
-
+        Reduces MBL of lines that have the 'corrosion_rate' feature in their MoorProps description (e.g. chain).
+        These changes take effect in the ss_mod subsystem.
+        
         Parameters
         ----------
         years: float, optional
@@ -1195,11 +1216,16 @@ class Mooring(Edge):
             Corrosion rate in mm/yr. 
         corrosion_mm : float, optional
             Total corrosion in mm to apply directly.
-        If a corrosion_rate or a corrosion_mm are not given, the corrosion rate from the lineProps dictionary will be used.
+        Eirther corrosion_rate or corrosion_mm should be given. IF both are given, corrosion_rate is ignored and corrosion_mm will be used.
+        
+        If neither corrosion_rate nor corrosion_mm are given, the corrosion rate from the lineProps dictionary will be used multiplied by the given years.
         '''
 
-        if self.ss:
-            for i, line in enumerate(self.ss.lineList):
+        # initialize ss_mod if necessary
+        self.init_mod()
+
+        if self.ss_mod:
+            for i, line in enumerate(self.ss_mod.lineList):
                 # check if the line type has a corrosion property in its MoorProps instead of checking for material name.
                 mat = line.type['material']
                 if mat not in self.lineProps:
@@ -1214,10 +1240,14 @@ class Mooring(Edge):
                         corrosion_m = corrosion_mm / 1000  # convert to m
                         factor = ((line.type['d_nom'] - corrosion_m) / line.type['d_nom'])**2
                         line.type['MBL'] *= factor  # update MBL with corrosion factored in
+                        
+                        # Update dd_mod:
+                        self.dd_mod['subcomponents'][self.i_sec[i][0]]['type']['MBL'] *= factor  # assuming self.i_sec has not changed between pristine and modified designs.                        
     
     def addCreep(self, years=25, creep_rate=None, creep=None):
         '''
-        Elongates the polyester lines (if exists) in the mooring by a certain creep percentage
+        Elongates the lines that have the `creep_rate` feature in their MoorProps description (e.g. polyester).
+        These changes take effect in the ss_mod subsystem.
 
         Parameters
         ----------
@@ -1227,10 +1257,20 @@ class Mooring(Edge):
             creep elongation rate [%]/yr to add to polyester lines. 
         creep : float, optional
             Total creep elongation percent [%] to apply directly.
-        If a creep_rate and a creep are not given, the creep rate from the lineProps dictionary will be used with a given design life.
+        Either creep_rate or creep should be given. IF both are given, creep_rate is ignored and creep is used. 
+        
+        If neither creep_rate nor creep are given, the creep rate from the lineProps dictionary will be used multiplied by the given years.
         '''
-        if self.ss:
-            for i, line in enumerate(self.ss.lineList):
+        # initialize ss_mod if necessary
+        self.init_mod()
+        
+        # Make sure creep_rate or creep is given
+        if creep_rate and creep:
+            creep_rate = None
+            raise Warning('Both creep_rate and creep were given. Creep_rate will be ignored and creep will be used directly.')
+            
+        if self.ss_mod:
+            for i, line in enumerate(self.ss_mod.lineList):
                 # check if the line type has a creep property in its MoorProps instead of checking for material name.
                 mat = line.type['material']
                 if mat not in self.lineProps:
@@ -1246,6 +1286,10 @@ class Mooring(Edge):
                         L_creep = line.L * (1 + 0.01*creep)
                         #self.setSectionLength(L_creep, i)
                         line.setL(L_creep)
+
+                        # Update dd_mod:
+                        self.dd_mod['subcomponents'][self.i_sec[i][0]]['L'] = L_creep  # assuming self.i_sec has not changed between pristine and modified designs.
+
                         '''
                         # Change the diameter size to account for creep thinning
                         d_nom_creep = line.type['d_nom'] / np.sqrt(1 + creep_percent)
@@ -1278,8 +1322,14 @@ class Mooring(Edge):
                 # Get and apply the modified properties
                 mat_suffix = mat + suffix  # New material key to look for
                 if mat_suffix in self.lineProps:
+                    # Get the new line properties
+                    newType = getLineProps(sec['type']['d_nom']*1e3, mat_suffix, self.lineProps)  # convert to mm for getLineProps
                     # Update the lineType properties in the Line in the MoorPy subsystem
-                    line.type.update(getLineProps(sec['type']['d_nom']*1e3, mat_suffix, self.lineProps)) 
+                    line.type.update(newType) 
+                    # Update the design dictionary
+                    sec['type'].update(newType)
+        else:
+            raise ValueError('Mooring subsystem must be created before adjusting property sets.')
     
     
     def getEnvelope(self,ang_spacing=45,SFs=True):

@@ -3404,7 +3404,12 @@ class Project():
                     row.insert(IDindex, IDdata[i])  # Reinsert 'ID' data into each row            
         else:
             raise Exception('Platform(s) must be specified in YAML file')
-            
+
+    def updateState(self):
+        for moor in self.mooringList.values():
+            moor.addCorrosion()
+            moor.addCreep()
+            self.getMarineGrowth(lines={})  
     def getMarineGrowth(self,mgDict_list=None,buoy_mg=None, lines='all',tol=2,display=False):
         '''Calls the addMarineGrowth mooring object method for the chosen mooring objects
            and applies the specified marine growth thicknesses at the specified depth ranges
@@ -3538,7 +3543,7 @@ class Project():
             idx = lines
         
         for ii,i in enumerate(idx):
-            self.mooringList[i].addCorrosion(lineProps, corrosion_mm=corr_th)
+            self.mooringList[i].addCorrosion(corrosion_mm=corr_th)
     
     def addCreep(self, lineProps=None, creep_percent=None):
         '''
