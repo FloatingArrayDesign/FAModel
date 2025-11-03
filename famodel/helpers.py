@@ -767,7 +767,7 @@ def CableProps(cabType, cable_types, rho_water, g, checkType=1, A=None):
 
     return(deepcopy(dd))
 
-def MooringProps(mCon, lineTypes, rho_water, g, checkType=1):
+def MooringProps(mCon, lineTypes, rho_water, g, lineProps, checkType=1):
     '''
     Parameters
     ----------
@@ -805,8 +805,8 @@ def MooringProps(mCon, lineTypes, rho_water, g, checkType=1):
         from moorpy.helpers import loadLineProps, getLineProps
         if not 'd_nom' in mCon:
             raise Exception('To use MoorProps yaml, you must specify a nominal diameter in mm for the mooring line family')
-        lineprops = loadLineProps(None)
-        mProps = getLineProps(mCon['d_nom']*1000,mCon['mooringFamily'],lineProps=lineprops)
+
+        mProps = getLineProps(mCon['d_nom']*1000,mCon['mooringFamily'],lineProps=lineProps)
         dd = mProps
         dd['name'] = mCon['mooringFamily']
         dd['d_nom'] = mCon['d_nom']
@@ -816,7 +816,7 @@ def MooringProps(mCon, lineTypes, rho_water, g, checkType=1):
 
     return(deepcopy(dd))
 
-def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
+def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj, lineProps):
     '''
 
     Parameters
@@ -858,7 +858,8 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                 config.append({})
                 c_config.append({})                        
             # set line information
-            lt = MooringProps(lc, proj.lineTypes, proj.rho_water, proj.g)                                             
+            lt = MooringProps(lc, proj.lineTypes, proj.rho_water, proj.g, 
+                              lineProps)                                             
             # lt = self.lineTypes[lc['type']] # set location for code clarity and brevity later
             # set up sub-dictionaries that will contain info on the line type
             config.append({'type':lt})# {'name':str(ct)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA'])}})
@@ -929,7 +930,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                         if sublineLast[ii]:
                             # add empty connector
                             config[-1][-1].append({})
-                        lt = MooringProps(subsub,proj.lineTypes, proj.rho_water, proj.g)
+                        lt = MooringProps(subsub,proj.lineTypes, proj.rho_water, proj.g, lineProps)
                         config[-1][-1].append({'type':lt,
                                                'L': subsub['length']})
                         # make EA a float not a string
@@ -1415,13 +1416,17 @@ def compareDicts(d1, d2):
     for key in d1:
         if key in d2:
             if type(d1[key]) is dict:
-                compareDicts(d1[key],d2[key])
+                x = compareDicts(d1[key],d2[key])
+                if x==False:
+                    return(False)
             elif isinstance(d1[key],(list, np.ndarray)):
                 if len(d1[key])!=len(d2[key]):
                     return(False)
                 for i,ix in enumerate(d1[key]):
                     if type(d1[key][i]) is dict:
-                        compareDicts(ix,d2[key][i])
+                        x = compareDicts(ix,d2[key][i])
+                        if x==False:
+                            return(False)
                     elif isinstance(ix,(list, np.ndarray)):
                         for j,jx in ix:
                             if jx != d2[key][i][j]:

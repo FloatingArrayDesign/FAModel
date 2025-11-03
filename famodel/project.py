@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import moorpy as mp
-from moorpy.helpers import set_axes_equal
+from moorpy.helpers import set_axes_equal, loadLineProps
 from moorpy import helpers
 import yaml
 from copy import deepcopy
@@ -98,6 +98,8 @@ class Project():
         self.rho_air = 1.225 # density of air [kg/m^3]
         self.mu_air = 1.81e-5 # dynamic viscosity of air [Pa*s]
         self.marine_growth = None
+        self.marine_growth_buoys = None
+        self.lineProps = loadLineProps('default') # moorprops file dictionary
 
         # Project boundary (vertical stack of x,y coordinate pairs [m])
         self.boundary = np.zeros([0,2])
@@ -296,6 +298,11 @@ class Project():
         self.lineTypes = {}
         
         if 'mooring_line_types' in d and d['mooring_line_types']:
+            if 'mooring_line_properties_file' in d['mooring_line_types']:
+                mp_file = d['mooring_line_types']['mooring_line_properties_file']
+                self.lineProps= loadLineProps(mp_file)
+                # remove this entry to keep everything below working properly
+                d['mooring_line_types'].pop('mooring_line_properties_file')
             # check if table format was used at all
             if 'keys' and 'data' in d['mooring_line_types']: # table-based
                 dt = d['mooring_line_types'] # save location for code clarity
@@ -532,7 +539,9 @@ class Project():
                         lineconfig = mySys[j]['MooringConfigID']
                    
                         # create mooring and connector dictionary
-                        mdd = getMoorings(lineconfig, lineConfigs, connectorTypes, arrayInfo[i]['ID'], self)
+                        mdd = getMoorings(lineconfig, lineConfigs, 
+                                          connectorTypes, arrayInfo[i]['ID'], 
+                                          self, lineProps=self.lineProps)
                         
                         # create mooring object, attach ends, reposition
                         moor = self.addMooring(id=name,
@@ -608,7 +617,8 @@ class Project():
                     lineconfig = arrayMooring[j]['MooringConfigID']       
                     
                     # create mooring and connector dictionary for that line
-                    mdd = getMoorings(lineconfig, lineConfigs, connectorTypes, PF[0].id, self)
+                    mdd = getMoorings(lineconfig, lineConfigs, connectorTypes, 
+                                      PF[0].id, self, lineProps=self.lineProps)
                     
                     # create mooring class instance
                     moor = self.addMooring(id=str(PF[1].id)+'-'+str(PF[0].id), 
@@ -646,7 +656,8 @@ class Project():
                     # get configuration for that line 
                     lineconfig = arrayMooring[j]['MooringConfigID']                       
                     # create mooring and connector dictionary for that line
-                    mdd = getMoorings(lineconfig, lineConfigs, connectorTypes, PF[0].id, self)
+                    mdd = getMoorings(lineconfig, lineConfigs, connectorTypes,
+                                      PF[0].id, self, lineProps=self.lineProps)
                     # get letter number for mooring line
                     ind = len(PF[0].getMoorings())
                     
@@ -1043,22 +1054,10 @@ class Project():
         
         # load marine growth info
         if 'marine_growth' in site and site['marine_growth']['data']:
-            mg = site['marine_growth']['data']
-            mgDict = {'th':[]}
-            # adjust to match dictionary requirements for project.getMarineGrowth
-            for i in range(0,len(mg)):
-                if len(mg[i])>3:
-                    # pull out density
-                    if not 'density' in mgDict:
-                        mgDict['density'] = [mg[i][3]]
-                    else:
-                        mgDict['density'].append(mg[i][3])
-                mgDict['th'].append(mg[i][:3])
+            self.marine_growth = [dict(zip(site['marine_growth']['keys'], row))
+                                  for row in site['marine_growth']['data']]
             if 'buoys' in site['marine_growth']:
-                mgDict['buoy_th'] = site['marine_growth']['buoys']
-                
-            self.marine_growth = mgDict
-                    
+                self.marine_growth_buoys = site['marine_growth']['buoys']      
 
 
     def setGrid(self, xs, ys):
@@ -3406,26 +3405,25 @@ class Project():
         else:
             raise Exception('Platform(s) must be specified in YAML file')
             
-    def getMarineGrowth(self,mgDict_start=None,lines='all',tol=2,display=False):
+    def getMarineGrowth(self,mgDict_list=None,buoy_mg=None, lines='all',tol=2,display=False):
         '''Calls the addMarineGrowth mooring object method for the chosen mooring objects
            and applies the specified marine growth thicknesses at the specified depth ranges
            for the specified marine growth densities.
 
         Parameters
         ----------
-        mgDict_start : dictionary, optional
+        mgDict_list : list, optional
             Provides marine growth thicknesses and the associated depth ranges
             Default is None, which triggers the use of the marine growth dictionary saved in the project class
-            'rho' entry is optional. If no 'rho' entry is created in the dictionary, addMarineGrowth defaults to 1325 kg/m^3
-            {
-                th : list with 3 values in each entry - thickness, range lower z-cutoff, range higher z-cutoff [m]
+            'density' entry is optional. If no 'density' entry is created in the dictionary, addMarineGrowth defaults to 1325 kg/m^3
                     *In order from sea floor to surface*
-                    example, if depth is 200 m: - [0.00,-200,-100]
-                                                - [0.05,-100,-80]
-                                                - [0.10,-80,-40]
-                                                - [0.20,-40,0]
-                rho : list of densities for each thickness, or one density for all thicknesses, [kg/m^3] (optional - default is 1325 kg/m^3)
-                }
+                    example, if depth is 200 m: - {'thickness':0.00,'lowerRange':-200,'upperRange':-100, 'density':1320}
+                                                - {'thickness':0.05,'lowerRange':-100,'upperRange':-80, 'density':1325}
+                                                - {'thickness':0.1,'lowerRange':-80,'upperRange':0, 'density':1325}
+
+        buoy_mg: list, optional
+            Provides marine growth thicknesses for buoyancy sections of cables, irrespective of depth.
+            Default is None, which triggers the use of the marine_growth_buoys list saved in the project class
         lines : list, optional
             List of keys from self.mooringList or self.cableList to add marine growth to. For cables, each entry must be a list
             of length 2 with the cable id in the first position and the subcomponent number of the dynamic cable in the 2nd position.
@@ -3451,8 +3449,10 @@ class Project():
             else:
                 self.getMoorPyArray()
         # get marine growth dictionary
-        if not mgDict_start:
-            mgDict_start = self.marine_growth
+        if not mgDict_list:
+            mgDict_list = self.marine_growth
+        if not buoy_mg:
+            buoy_mg= self.marine_growth_buoys
         
         # get indices of lines to add marine growth
         if lines == 'all':
@@ -3468,31 +3468,33 @@ class Project():
         
         for ii,i in enumerate(idx):
             ct = 0 # counter variable
-            cEq = [10,10] # make cEq mean large enough to enter the while loop for the first time.
+            cEq = [tol+2,tol+2] # make cEq mean large enough to enter the while loop for the first time.
             # get a deepcopy of the mgDict_start (may need to change the depths)
-            mgDict = deepcopy(mgDict_start)
+            mgDict = deepcopy(mgDict_list)
             while np.absolute(sum(cEq)/len(cEq)) > tol and ct<10: # while mean difference between actual and desired change depth is larger than tolerance and count is less than 10
                 cEq = [] # reset cEq
                 if isinstance(i,list):
                     # this is a cable
-                    cD,cP = self.cableList[i[0]].subcomponents[i[1]].addMarineGrowth(mgDict)
+                    cD,cP = self.cableList[i[0]].subcomponents[i[1]].addMarineGrowth(mgDict, buoy_mg)
                     for j in range(0,len(cP)):
-                        cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.cableList[i[0]].subcomponents[i[1]].ss_mod.pointList[cP[j]].r[2])
+                        cEq.append(mgDict_list[cD[j][0]][cD[j][1]] - 
+                                   self.cableList[i[0]].subcomponents[i[1]].ss_mod.pointList[cP[j]].r[2])
                 else:
                     cD,cP = self.mooringList[i].addMarineGrowth(mgDict)
                     for j in range(0,len(cP)):
-                        cEq.append(mgDict_start['th'][cD[j][0]][cD[j][1]] - self.mooringList[i].ss_mod.pointList[cP[j]].r[2])
+                        cEq.append(mgDict_list[cD[j][0]][cD[j][1]] - 
+                                   self.mooringList[i].ss_mod.pointList[cP[j]].r[2])
                 # adjust depth to change based on difference between actual and desired change depth
                 if cEq:
                     mcEq = sum(cEq)/len(cEq)
-                    mgDict['th'][0][2] = mgDict['th'][0][2] + mcEq
-                    for j in range(1,len(mgDict['th'])):
-                        for k in range(1,3):
+                    mgDict[0]['upperRange'] = mgDict[0]['upperRange'] + mcEq
+                    for j in range(1,len(mgDict)):
+                        for k in ['lowerRange','upperRange']:
                             if ct < 4 and abs(mcEq)<12:
-                                mgDict['th'][j][k] = mgDict['th'][j][k] + mcEq
+                                mgDict[j][k] = mgDict[j][k] + mcEq
                             elif (ct >= 4 and ct < 9) or abs(mcEq)>=12:
                                 # could be ping-ponging between two different things, try adding half
-                                mgDict['th'][j][k] = mgDict['th'][j][k] + 0.5*mcEq
+                                mgDict[j][k] = mgDict[j][k] + 0.5*mcEq
                     if display:
                         print('average difference between expected and actual change depth is: ',mcEq)
                 else: # there were no change depths in the line (could be the case for a shared line)
@@ -4453,8 +4455,10 @@ class Project():
             if update_type:
                 if not self.platformTypes:
                     self.platformTypes = []
+                old_type = self.platformTypes[pf.dd['type']] if 'type' in pf.dd else {}
                 pf.dd['type'] = len(self.platformTypes)
-                self.platformTypes.append(pf_info)
+                pf_info_full = old_type | pf_info
+                self.platformTypes.append(pf_info_full)
 
             # determine any connected topsides
             for att in pf.attachments.values():
@@ -4575,17 +4579,29 @@ class Project():
             arrayData.append([pf.id, ts_loc, int(pf.dd['type']+1), mname, float(pf.r[0]), 
                               float(pf.r[1]), float(pf.r[2]), float(np.degrees(pf.phi))])
             pf_type.append(pf.dd['type'])
-            
+        
         # get set of just platform types used in this project
-        pf_type = set(pf_type)
+        pf_type = list(set(pf_type))
+        pf_type.sort()
 
         # figure out keys
         if len(pf_type) > 1:
             pfkey = 'platforms'
-            pfTypes = [self.platformTypes[x] for x,val in enumerate(pf_type)]
+            pfTypes = [self.platformTypes[val] for x,val in enumerate(pf_type)]
         else:
             pfkey = 'platform'
             pfTypes = self.platformTypes[int(list(pf_type)[0])]
+  
+        # adjust indexes to remove unused pf_types
+        old_types = deepcopy(pf_type)
+        pf_type = [pf-pf_type[0] for pf in pf_type]
+        for iii,t in enumerate(pf_type[:-1]):
+            if pf_type[iii+1] - t>1:
+                new_diff = pf_type[iii+1]-t-1
+                pf_type[iii:] -= new_diff
+
+        for a in arrayData:
+            a[2] = pf_type[old_types.index(a[2]-1)]+1
            
         # build out site info
         site = {}
@@ -4611,8 +4627,8 @@ class Project():
                 'keys':['thickness', 'lowerRange', 'upperRange', 'density'][:len(self.marine_growth['th'])],
                 'data':[v for v in self.marine_growth['th']]
                 }
-            if 'buoy_th' in self.marine_growth:
-                site['marine_growth']['buoys'] = [x for x in self.marine_growth['buoy_th']]
+            if self.marine_growth_buoys:
+                site['marine_growth']['buoys'] = [x for x in self.marine_growth_buoys]
         site['general'] = {'water_depth':float(self.depth),'rho_air':float(self.rho_air),
                            'rho_water':float(self.rho_water),'mu_air':float(self.mu_air)}
         

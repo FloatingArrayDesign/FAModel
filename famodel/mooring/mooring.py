@@ -904,15 +904,10 @@ class Mooring(Edge):
         ----------
         mgDict : dictionary
             Provides marine growth thicknesses and the associated depth ranges
-            {
-                th : list with 3 values in each entry - thickness, range lower z-cutoff, range higher z-cutoff [m]
-                    *In order from sea floor to surface*
-                    example, if depth is 200 m: - [0.00,-200,-100]
-                                                - [0.05,-100,-80]
-                                                - [0.10,-80,-40]
-                                                - [0.20,-40,0]
-                rho : list of densities for each thickness, or one density for all thicknesses, [kg/m^3] (optional - default is 1325 kg/m^3)
-                }
+            *In order from sea floor to surface*
+            example, if depth is 200 m: - {'thickness':0.00,'lowerRange':-200,'upperRange':-100, 'density':1320}
+                                        - {'thickness':0.05,'lowerRange':-100,'upperRange':-80, 'density':1325}
+                                        - {'thickness':0.1,'lowerRange':-80,'upperRange':0, 'density':1325}
 
         Returns
         -------
@@ -967,31 +962,31 @@ class Mooring(Edge):
                 high = ssLine.rB
                 flip = 0
 
-            th = mgDict['th'] # set location for ease of coding
+            th = mgDict # set location for ease of coding
             # look up what thickness this line section starts at (if lowest point is not on the sea floor, first segment will have a thickness other than the sea floor thickness)
             rAth = 0 # exit while loop when we find thickness at low
             count1 = 0 # counter
             while rAth==0 and count1 <= len(th):
                 if flip:
-                    if high[2] <= th[count1][2]:
-                        LThick.append(th[count1][0])
+                    if high[2] <= th[count1]['upperRange']:
+                        LThick.append(th[count1]['thickness'])
                         rAth = 1 # exit while loop
                 else:
-                    if low[2] <= th[count1][2]:
-                        LThick.append(th[count1][0])
+                    if low[2] <= th[count1]['upperRange']:
+                        LThick.append(th[count1]['thickness'])
                         rAth = 1 # exit while loop
                 count1 = count1 + 1 # iterate counter
                 
             # determine if this line section will be split
             for j in range(0,len(th)): # go through all changeDepths
                 if flip:
-                    rs = 2
+                    rs = 'upperRange'
                 else:
-                    rs = 1
+                    rs = 'lowerRange'
                 if th[j][rs]>low[2] and th[j][rs]<high[2]:
                     # line section will be split - add line type, mg thickness, and material to list
                     LTypes.append(ssLine.type['name'])
-                    slthick.append(th[j][0])
+                    slthick.append(th[j]['thickness'])
                     Mats.append(ssLine.type['material'])
                     # add an empty connector object to list for split location
                     connList.append(Connector(str(len(connList))+'_empty'))
@@ -1075,7 +1070,7 @@ class Mooring(Edge):
                     # look up what thickness number this rho is related to
                     for j in range(0,len(th)):
                         # compare thickness to th list
-                        if LThick == th[j][0]:
+                        if LThick == th[j]['thickness']:
                             # assign rho_mg based on the rho_mg of the thickness
                             rho_mg[i] = mgDict['rho'][j]                   
                 
