@@ -58,7 +58,12 @@ class Task():
         
 
         self.name = name
-        self.actions = {a.name: a for a in actions.values()}
+
+        if isinstance(actions, dict):
+            self.actions = actions
+        elif isinstance(actions, list):
+            self.actions = {a.name: a for a in actions}
+
 
         if action_sequence is None:
             self.stageActions(from_deps=True)
@@ -186,6 +191,8 @@ class Task():
             elif acts and lv > num_cps:
                 cp_string.append(f"End: {', '.join(acts)}")        
         # Assign to self:
+        self.duration = task_duration
+        self.actions_ti = {a: level_start_time[lv] for a, lv in levels.items()}        
         self.sequence_graph = H
         title_str = f"Task {self.name}. Duration {self.duration:.2f} : " + " | ".join(cp_string)
         if plot:

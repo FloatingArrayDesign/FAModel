@@ -350,11 +350,11 @@ class Scenario():
         self.tasks[task.name] = task
         
         
-    def addTask(self, actions, action_sequence, task_name, **kwargs):
+    def addTask(self, task_name, actions, action_sequence, **kwargs):
         '''Creates a task and adds it to the register'''
         
         # Create the action
-        task = Task(actions, action_sequence, task_name, **kwargs)        
+        task = Task(task_name, actions, action_sequence, **kwargs)        
         
         # Register the action
         self.registerTask(task)
@@ -454,7 +454,7 @@ def implementStrategy_staged(sc):
             act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
     
     # create the task, passing in the sequence of actions
-    sc.addTask(acts, act_sequence, 'install_all_anchors')
+    sc.addTask('install_all_anchors', acts, act_sequence)
     
     # ----- Create a Task for all the mooring installs -----
     
@@ -478,7 +478,7 @@ def implementStrategy_staged(sc):
             act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
     
     # create the task, passing in the sequence of actions
-    sc.addTask(acts, act_sequence, 'install_all_moorings')
+    sc.addTask('install_all_moorings', acts, act_sequence)
     
     
     # ----- Create a Task for the platform tow-out and hookup -----
@@ -501,7 +501,7 @@ def implementStrategy_staged(sc):
             act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
     
     # create the task, passing in the sequence of actions
-    sc.addTask(acts, act_sequence, 'tow_and_hookup')
+    sc.addTask('tow_and_hookup', acts, act_sequence)
     
 
 
