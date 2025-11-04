@@ -605,9 +605,11 @@ class LineDesign(Mooring):
                                   name=i, lineProps=self.lineProps)
                     # use the update method to preserve refs to the original dict - this 'points'/connects to the subsystem object too!
                     self.dd['subcomponents'][2*i+1]['type'].update(lineType)
-            
+                    # update the ss as well
+                    self.ss.lineList[i].type.update(lineType)
+                    
             # apply corrosion to the mooring's MBL dictionary (which gets references in the getTenSF constraint in subsystem)
-            self.addCorrosion(corrosion_mm=self.corrosion_mm)
+            self.setCorrosion(corrosion_mm=self.corrosion_mm)
             
             # update the intermediate points if they have any weight or buoyancy
             for i in range(self.nLines-1):

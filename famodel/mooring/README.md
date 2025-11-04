@@ -110,8 +110,11 @@ Re-creates sections part of design dictionary to account for marine growth on th
 
 
 
-### addCorrosion
-Calculates MBL of chain line with corrosion included
+### setCorrosion
+Calculates MBL of chain line with corrosion included for those lines that have a corrosion_rate feature in their MoorProps dictionary.
+
+### setCreep
+Elongates the length of a line that has a creep_rate feature in its MoorProps dictionary.
 
 ### getEnvelope
 Computes the motion envelope of the Mooring based on the watch 
