@@ -55,10 +55,10 @@ jobs:
                   cd tests
                   pytest .
 
-            # - name: Example run
-              # run: |
-                  # cd examples
-                  # python example_driver.py false
+            - name: Example run
+              run: |
+                  cd examples
+                  python example_driver.py false
 
 
 
