@@ -519,6 +519,9 @@ class LineDesign(Mooring):
         '''
         start_time = time.time()
         
+        # reset modifiers to mooring design (corrosion/creep/marine_growth)
+        self.reset()
+
         # Design vector error checks
         if len(X)==0:                   # if any empty design vector is passed (useful for checking constraints quickly)
             return

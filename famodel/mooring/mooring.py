@@ -78,6 +78,7 @@ class Mooring(Edge):
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this Mooring
         self.dd = dd
+        self.dd_mod = None
         
         # Load or save the mooring line property sizing function coefficients
         self.lineProps = lineProps # loadLineProps(lineProps)
@@ -206,8 +207,24 @@ class Mooring(Edge):
         self.env_impact = {
             "disturbedSeabedArea": 0
         }
+        self.applied_states = {'marine_growth':None,
+                               'creep': None,
+                               'corrosion': None,
+                               'stiffness': None}
 
         self.raftResults = {}
+
+    
+    def reset(self):
+        '''
+        reset the subsystem and the applied_states dictionary.
+        '''
+        # create pristine subsystem
+        self.createSubsystem()
+        # reset applied_states dictionary values
+        for state in self.applied_states:
+            self.applied_states[state] = None
+
 
     def update(self, dd=None):
         '''Update the Mooring object based on the current state of the design
@@ -558,13 +575,11 @@ class Mooring(Edge):
             
     
     
-    def createSubsystem(self, case=0, pristine=True, dd=None, ms=None):
+    def createSubsystem(self, case=0, dd=None, ms=None):
         ''' Create a subsystem for a line configuration from the design dictionary
         
         Parameters
         ----------
-        pristine : bool, optional
-            0/False: modified line (marine growth, corrosion, etc) 1/True: pristine line (default)
         case : int, optional
             Selector shared/suspended cases:
                 - 0 (default): end A is on the seabed
@@ -649,15 +664,9 @@ class Mooring(Edge):
                 ms.lineList.append(ss)
                 ss.number = len(ms.lineList)
             
-            # save ss to the correct Mooring variable
-            if pristine:
-                # save to ss
-                self.ss = ss
-                return(self.ss)
-            else:
-                # save to modified ss (may have marine growth, corrosion, etc)
-                self.ss_mod = ss
-                return(self.ss_mod)
+            # save to ss
+            self.ss = ss
+            return(self.ss)
     
     
     def positionSubcomponents(self):
@@ -893,10 +902,13 @@ class Mooring(Edge):
         # 4. Apply marine growth if specified
         if 'marineGrowth' in stateDict:
             mgDict = stateDict['marineGrowth']
-            self.addMarineGrowth(mgDict)
+            self.addMarineGrowth(mgDict, 
+                                 starting_ss=self.ss_mod, 
+                                 updateDepths=True)
 
 
-    def addMarineGrowth(self, mgDict):
+    def addMarineGrowth(self, mgDict, starting_ss=None, 
+                        updateDepths=False, tol=2, display=False):
         '''Re-creates sections part of design dictionary to account for marine 
         growth on the subystem, then calls createSubsystem() to recreate the line
 
@@ -917,275 +929,314 @@ class Mooring(Edge):
             List of cutoff depths the changePoints should be located at
 
         '''
-        # set location of reference mooring object
-        # if project: # use pristine line
-        #     oldLine = project.mooringListPristine[idx]
-        # else: # use current mooring object
-        #     oldLine = self
-        if self.parallels:
-            raise Exception('addMarineGrowth not set up to work with parallels at this time')
-        # create a reference subsystem if it doesn't already exist
-        if not self.ss:
-            self.createSubsystem()     
         
-        oldLine = self.ss
-
-        # set up variables
-        LTypes = [] # list of line types for new lines (types listed are from reference object)
-        Lengths = [] # lengths of each section for new line
-        Mats = [] # materials list for new line        
-        connList = [] # new list of connectors (need to add empty connector objects in between changeDepths)
-        LThick = [] # list of mg thicknesses for new lines
-        ln_raw = [] # list of line lengths from rA to current split in line (needed to determine length of new sections when there are multiple splits in one line section)
-        # set up variables needed to check before/after of changeDepths
-        changePoints = []
-        changeDepths = [] # index of list that has the corresponding changeDepth
-        
-        # set first connector
-        connList.append(self.connectors()[0])
-        # go through each line section
-        for i in range(0,len(oldLine.lineList)):
-            slthick = [] # mg thicknesses for the section (if rA is above rB, needs to be flipped before being added to full subsystem list LThick)
-            slength = [] # line lengths for the section (if rA is above rB, needs to be flipped before being added to full subsystem list)
-            schangeDepth = [] # changeDepths for the section (if rA is above rB, needs to be flipped before being added to full subsystem list)
-            # set reference subsystem line section location
-            ssLine = oldLine.lineList[i]
-            # add line material, type to list
-            Mats.append(ssLine.type['material'])
-            LTypes.append(ssLine.type['name'])
-                       
-            # check whether rA is above rB (can happen for sections of shared lines)
-            if ssLine.rA[2]>ssLine.rB[2]: # set low and high point locations accordingly
-                low = ssLine.rB
-                high = ssLine.rA
-                flip = 1
-            else:
-                low = ssLine.rA
-                high = ssLine.rB
-                flip = 0
-
-            th = mgDict # set location for ease of coding
-            # look up what thickness this line section starts at (if lowest point is not on the sea floor, first segment will have a thickness other than the sea floor thickness)
-            rAth = 0 # exit while loop when we find thickness at low
-            count1 = 0 # counter
-            while rAth==0 and count1 <= len(th):
-                if flip:
-                    if high[2] <= th[count1]['upperRange']:
-                        LThick.append(th[count1]['thickness'])
-                        rAth = 1 # exit while loop
-                else:
-                    if low[2] <= th[count1]['upperRange']:
-                        LThick.append(th[count1]['thickness'])
-                        rAth = 1 # exit while loop
-                count1 = count1 + 1 # iterate counter
-                
-            # determine if this line section will be split
-            for j in range(0,len(th)): # go through all changeDepths
-                if flip:
-                    rs = 'upperRange'
-                else:
-                    rs = 'lowerRange'
-                if th[j][rs]>low[2] and th[j][rs]<high[2]:
-                    # line section will be split - add line type, mg thickness, and material to list
-                    LTypes.append(ssLine.type['name'])
-                    slthick.append(th[j]['thickness'])
-                    Mats.append(ssLine.type['material'])
-                    # add an empty connector object to list for split location
-                    connList.append(Connector(str(len(connList))+'_empty'))
-                    changePoints.append(len(connList)-1)
-                    schangeDepth.append([j,rs])
-                    
-                    # get length of line between each node
-                    lenseg = ssLine.L/ssLine.nNodes
-                    
-                    old_line = ssLine.getLineCoords(Time=0) # get the coordinates of the line
-                    #find length of each new section by finding node at changeDepth
-                    for k in range(0, ssLine.nNodes-1): # go through each node in the line
-                        if flip: # need to check the node ahead is <= the changeDepth to see which node is split
-                            if old_line[2][k+1]<=th[j][rs] and old_line[2][k]>th[j][rs]:
-                                nodeD = k+1 # nodeD is closest node below changeDepth
-                                xp = old_line[2][::-1] # flip because np.interp doesn't take
-                                yp = old_line[1][::-1]
-                                fp = old_line[0][::-1]
-                        else:
-                            if old_line[2][k]<=th[j][rs] and old_line[2][k+1]>th[j][rs]:
-                                nodeD = k # the node right below changeDepth depth
-                                xp = old_line[2][:]
-                                yp = old_line[1][:]
-                                fp = old_line[0][:]
-                    
-                    # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
-                    xChange = float(np.interp(th[j][rs], xp, fp))
-                    yChange = float(np.interp(th[j][rs], xp, yp))
-                    
-                    # get the "raw length" of the new lower line (from lower end of section to split point) - if there is multiple splits in one line section this raw length may not be the actual length of the new line
-                    if flip: # node numbers start at end A (top) so need to subtract from total line length
-                        # raw length = total line length - nodeD*(segment length) + 3d pythagorean theorem (to find length from nodeD to actual cutoff location)
-                        ln_raw.append(ssLine.L - lenseg*nodeD + np.sqrt((xChange-old_line[0][nodeD])**2 + (yChange-old_line[1][nodeD])**2 + (th[j][rs]-old_line[2][nodeD])**2))
-                    else:
-                        # raw length = nodeD*(segment length) + 3d pythagorean theorem 
-                        ln_raw.append(lenseg*nodeD + np.sqrt((xChange-old_line[0][nodeD])**2 + (yChange-old_line[1][nodeD])**2 + (th[j][rs]-old_line[2][nodeD])**2))
-                    
-                    
-                    if len(slthick)>1: # line has multiple cuts (upper cut sections have to count the length only from previous nodeD)
-                        slength.append(float(ln_raw[-1]-ln_raw[-2]))
-                        
-                    else: # first split (raw length is actual length)
-                        slength.append(float(ln_raw[-1]))
-                
-            if slthick: # add the length of the top line (from last split to upper end of section) if there was a split in the line
-                slength.append(float(ssLine.L-ln_raw[-1]))
-                # if rA above rB, reverse the order of the section-level lists (we gathered info from lowest depths up, but this line segment travels from top to bottom)
-                if flip:
-                    slength.reverse()
-                    slthick.reverse()
-                    schangeDepth.reverse()
-                # Append section-level lists to the subsystem-level lists
-                Lengths.extend(slength)
-                LThick.extend(slthick)
-                changeDepths.extend(schangeDepth)
-            else: # line section was not split, add full line length
-                Lengths.append(ssLine.L)
-                
-            # add connector at end of section to list
-            connList.append(self.connectors()[i+1])
-                
-        # Set up list variables for pristine line info
-        EA = []
-        m = []
-        d_ve_old = []
-        cd = []
-        cdAx = []
-                                            
-        # create arrays
-        d_nom_old = np.zeros((len(LTypes)))        
-        ve_nom_adjust = np.zeros((len(LTypes)))
-        mu_mg = np.zeros((len(LTypes)))
-        rho_mg = np.ones((len(LTypes)))*1325
-        # adjust rho value if alternative provided
-        if 'rho' in mgDict:
-            if not type(mgDict['rho']) is list:
-                # just one density given for all marine growth on the line
-                rho_mg = rho_mg*mgDict['rho']/1325
-            else: # density given for each thickness of marine growth
-                for i in range(0,len(rho_mg)):
-                    # look up what thickness number this rho is related to
-                    for j in range(0,len(th)):
-                        # compare thickness to th list
-                        if LThick == th[j]['thickness']:
-                            # assign rho_mg based on the rho_mg of the thickness
-                            rho_mg[i] = mgDict['rho'][j]                   
-                
+        def getMG(mgDict, oldLine=None):
+            # set location of reference mooring object
+            # if project: # use pristine line
+            #     oldLine = project.mooringListPristine[idx]
+            # else: # use current mooring object
+            #     oldLine = self
+            if self.parallels:
+                raise Exception('addMarineGrowth not set up to work with parallels at this time')
+            # create a reference subsystem if it doesn't already exist
+            if not oldLine:
+                oldLine = self.createSubsystem()     
     
-        nd = [] # list of dictionaries for new design dictionary sections part
-        
-        for j,ltyp in enumerate(LTypes):
-            st =  deepcopy(oldLine.lineTypes)
-            for k in st:
-                if st[k]['name'] == ltyp:
-                    ltyp = k
-            # add in information for each line type without marine growth
-            EA.append(st[ltyp]['EA'])
-            m.append(st[ltyp]['m'])
-            d_ve_old.append(st[ltyp]['d_vol'])
-            # new dictionary for this line type
-            nd.append({'type':{}, 'L':{}}) # new design dictionary
-            ndt = nd[j]['type']
+            # set up variables
+            LTypes = [] # list of line types for new lines (types listed are from reference object)
+            Lengths = [] # lengths of each section for new line
+            Mats = [] # materials list for new line        
+            connList = [] # new list of connectors (need to add empty connector objects in between changeDepths)
+            LThick = [] # list of mg thicknesses for new lines
+            ln_raw = [] # list of line lengths from rA to current split in line (needed to determine length of new sections when there are multiple splits in one line section)
+            # set up variables needed to check before/after of changeDepths
+            changePoints = []
+            changeDepths = [] # index of list that has the corresponding changeDepth
             
-            # load in line props from MoorProps
-            # opt = helpers.loadLineProps(None)
-            opt = self.lineProps
-
-            if 'd_nom' in st[ltyp]:
-                d_nom_old[j] = st[ltyp]['d_nom']
-                # get ratio between ve and nom diameter normally
-                ve_nom_adjust[j] = d_ve_old[j]/d_nom_old[j]
-            elif Mats[j] in opt:
-                # get ratio between ve and nom diameter from MoorProps yaml                
-                ve_nom_adjust[j] = opt[Mats[j]]['dvol_dnom']
-            # get cd and cdAx if given, or assign to default value
-            if Mats[j] in opt and not 'Cd' in st[ltyp]:
-                cd.append(opt[Mats[j]]['Cd'])
-            elif 'Cd' in st[ltyp]:
-                cd.append(st[ltyp]['Cd'])
-            else:
-                #print('No Cd given in line type and material not found in MoorProps yaml. Default Cd of 1 will be used.')
-                cd.append(2)
-            if Mats[j] in opt and 'CdAx' in opt[Mats[j]] and not 'CdAx' in st[ltyp]:
-                cdAx.append(opt[Mats[j]]['CdAx'])
-            elif 'CdAx' in st[ltyp]:
-                cdAx.append(st[ltyp]['CdAx'])
-            else:
-                #print('No CdAx given in line type and material not found in MoorProps yaml. Default CdAx of 0.5 will be used.')
-                cdAx.append(0.5)
-            
-            if LThick[j] == 0:
-                nd[j]['type'] = deepcopy(st[ltyp])
-                nd[j]['type']['name'] = j
-            else:
-                # get mu for material
-                if Mats[j] == 'chain' or Mats[j] == 'chain_studlink':
-                    mu_mg[j] = 2
+            # set first connector
+            connList.append(self.connectors()[0])
+            # go through each line section
+            for i in range(0,len(oldLine.lineList)):
+                slthick = [] # mg thicknesses for the section (if rA is above rB, needs to be flipped before being added to full subsystem list LThick)
+                slength = [] # line lengths for the section (if rA is above rB, needs to be flipped before being added to full subsystem list)
+                schangeDepth = [] # changeDepths for the section (if rA is above rB, needs to be flipped before being added to full subsystem list)
+                # set reference subsystem line section location
+                ssLine = oldLine.lineList[i]
+                # add line material, type to list
+                Mats.append(ssLine.type['material'])
+                LTypes.append(ssLine.type['name'])
+                           
+                # check whether rA is above rB (can happen for sections of shared lines)
+                if ssLine.rA[2]>ssLine.rB[2]: # set low and high point locations accordingly
+                    low = ssLine.rB
+                    high = ssLine.rA
+                    flip = 1
                 else:
-                    mu_mg[j] = 1
-                
-                # re-form dictionaries with marine growth values            
-                # calculate nominal diameter
-                d_nom_old[j] = d_ve_old[j]/ve_nom_adjust[j] # m
-                
-                # calculate new line diameter that includes marine growth
-                ndt['d_nom'] = float(d_nom_old[j]+2*LThick[j]) #m
-                
-                # calculate the new mass per meter including marine growth
-                growthMass = np.pi/4*(ndt['d_nom']**2-d_nom_old[j]**2)*rho_mg[j]*mu_mg[j] # marine growth mass
-                ndt['m'] =  float(growthMass + m[j]) # kg/m (total mass)
-                
-                # calculate the submerged weight per meter including marine growth
-                ndt['w'] = float(growthMass*(1-self.rho/rho_mg[j])*self.g + (m[j]-np.pi/4*d_ve_old[j]**2*self.rho)*self.g) # N/m
-                
-                # calculate new volume-equivalent diameter (cannot use regular chain/polyester conversion because of added marine growth)
-                ndt['d_vol'] = np.sqrt(4*((ndt['m']*self.g-ndt['w'])/self.rho/self.g)/np.pi)
-                
-                # calculate new increased drag coefficient from marine growth
-                # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
-                ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
-                ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
-                
-                # add line details to dictionary
-                ndt['material'] = Mats[j]
-                ndt['name'] = str(j)
-                if 'MBL' in oldLine.lineTypes[ltyp]:
-                    ndt['MBL'] = oldLine.lineTypes[ltyp]['MBL']
-                if 'cost' in oldLine.lineTypes[ltyp]:
-                    ndt['cost'] = oldLine.lineTypes[ltyp]['cost']
-                ndt['EA'] = EA[j]
-                if 'EAd' in oldLine.lineTypes[ltyp]:
-                    ndt['EAd'] = oldLine.lineTypes[ltyp]['EAd']
-                if 'EAd_Lm' in oldLine.lineTypes[ltyp]:
-                    ndt['EAd_Lm'] = oldLine.lineTypes[ltyp]['EAd_Lm']
-            # add lengths                 
-            nd[j]['L'] = Lengths[j]
+                    low = ssLine.rA
+                    high = ssLine.rB
+                    flip = 0
+    
+                th = mgDict # set location for ease of coding
+                # look up what thickness this line section starts at (if lowest point is not on the sea floor, first segment will have a thickness other than the sea floor thickness)
+                rAth = 0 # exit while loop when we find thickness at low
+                count1 = 0 # counter
+                while rAth==0 and count1 <= len(th):
+                    if flip:
+                        if high[2] <= th[count1]['upperRange']:
+                            LThick.append(th[count1]['thickness'])
+                            rAth = 1 # exit while loop
+                    else:
+                        if low[2] <= th[count1]['upperRange']:
+                            LThick.append(th[count1]['thickness'])
+                            rAth = 1 # exit while loop
+                    count1 = count1 + 1 # iterate counter
+                    
+                # determine if this line section will be split
+                for j in range(0,len(th)): # go through all changeDepths
+                    if flip:
+                        rs = 'upperRange'
+                    else:
+                        rs = 'lowerRange'
+                    if th[j][rs]>low[2] and th[j][rs]<high[2]:
+                        # line section will be split - add line type, mg thickness, and material to list
+                        LTypes.append(ssLine.type['name'])
+                        slthick.append(th[j]['thickness'])
+                        Mats.append(ssLine.type['material'])
+                        # add an empty connector object to list for split location
+                        connList.append(Connector(str(len(connList))+'_empty'))
+                        changePoints.append(len(connList)-1)
+                        schangeDepth.append([j,rs])
+                        
+                        # get length of line between each node
+                        lenseg = ssLine.L/ssLine.nNodes
+                        
+                        old_line = ssLine.getLineCoords(Time=0) # get the coordinates of the line
+                        #find length of each new section by finding node at changeDepth
+                        for k in range(0, ssLine.nNodes-1): # go through each node in the line
+                            if flip: # need to check the node ahead is <= the changeDepth to see which node is split
+                                if old_line[2][k+1]<=th[j][rs] and old_line[2][k]>th[j][rs]:
+                                    nodeD = k+1 # nodeD is closest node below changeDepth
+                                    xp = old_line[2][::-1] # flip because np.interp doesn't take
+                                    yp = old_line[1][::-1]
+                                    fp = old_line[0][::-1]
+                            else:
+                                if old_line[2][k]<=th[j][rs] and old_line[2][k+1]>th[j][rs]:
+                                    nodeD = k # the node right below changeDepth depth
+                                    xp = old_line[2][:]
+                                    yp = old_line[1][:]
+                                    fp = old_line[0][:]
+                        
+                        # interpolate to find x & y coordinates at chosen depth (since node might not be exactly at the right depth)
+                        xChange = float(np.interp(th[j][rs], xp, fp))
+                        yChange = float(np.interp(th[j][rs], xp, yp))
+                        
+                        # get the "raw length" of the new lower line (from lower end of section to split point) - if there is multiple splits in one line section this raw length may not be the actual length of the new line
+                        if flip: # node numbers start at end A (top) so need to subtract from total line length
+                            # raw length = total line length - nodeD*(segment length) + 3d pythagorean theorem (to find length from nodeD to actual cutoff location)
+                            ln_raw.append(ssLine.L - lenseg*nodeD + np.sqrt((xChange-old_line[0][nodeD])**2 + (yChange-old_line[1][nodeD])**2 + (th[j][rs]-old_line[2][nodeD])**2))
+                        else:
+                            # raw length = nodeD*(segment length) + 3d pythagorean theorem 
+                            ln_raw.append(lenseg*nodeD + np.sqrt((xChange-old_line[0][nodeD])**2 + (yChange-old_line[1][nodeD])**2 + (th[j][rs]-old_line[2][nodeD])**2))
+                        
+                        
+                        if len(slthick)>1: # line has multiple cuts (upper cut sections have to count the length only from previous nodeD)
+                            slength.append(float(ln_raw[-1]-ln_raw[-2]))
+                            
+                        else: # first split (raw length is actual length)
+                            slength.append(float(ln_raw[-1]))
+                    
+                if slthick: # add the length of the top line (from last split to upper end of section) if there was a split in the line
+                    slength.append(float(ssLine.L-ln_raw[-1]))
+                    # if rA above rB, reverse the order of the section-level lists (we gathered info from lowest depths up, but this line segment travels from top to bottom)
+                    if flip:
+                        slength.reverse()
+                        slthick.reverse()
+                        schangeDepth.reverse()
+                    # Append section-level lists to the subsystem-level lists
+                    Lengths.extend(slength)
+                    LThick.extend(slthick)
+                    changeDepths.extend(schangeDepth)
+                else: # line section was not split, add full line length
+                    Lengths.append(ssLine.L)
+                    
+                # add connector at end of section to list
+                connList.append(self.connectors()[i+1])
+                    
+            # Set up list variables for pristine line info
+            EA = []
+            m = []
+            d_ve_old = []
+            cd = []
+            cdAx = []
+                                                
+            # create arrays
+            d_nom_old = np.zeros((len(LTypes)))        
+            ve_nom_adjust = np.zeros((len(LTypes)))
+            mu_mg = np.zeros((len(LTypes)))
+            rho_mg = np.ones((len(LTypes)))*1325
+            # adjust rho value if alternative provided
+            if 'rho' in mgDict:
+                if not type(mgDict['rho']) is list:
+                    # just one density given for all marine growth on the line
+                    rho_mg = rho_mg*mgDict['rho']/1325
+                else: # density given for each thickness of marine growth
+                    for i in range(0,len(rho_mg)):
+                        # look up what thickness number this rho is related to
+                        for j in range(0,len(th)):
+                            # compare thickness to th list
+                            if LThick == th[j]['thickness']:
+                                # assign rho_mg based on the rho_mg of the thickness
+                                rho_mg[i] = mgDict['rho'][j]                   
+                    
         
-        # # overwrite design dictionary with new dictionary
-        # self.dd['sections'] = nd
-        # # overwrite connectorList with new connectorList
-        # self.connectorList = connList
-        
-        # fill out rest of new design dictionary
-        nd1 = deepcopy(self.dd)
+            nd = [] # list of dictionaries for new design dictionary sections part
             
-        nd1['subcomponents'] = [None]*(len(nd)*2+1)
-        for i in range(len(nd)):
-            nd1['subcomponents'][2*i] = Connector('C'+str(i),**connList[i])
-            nd1['subcomponents'][2*i+1] = Section('S'+str(i),**nd[i])
-        nd1['subcomponents'][2*i+2] = Connector('C'+str(i),**connList[i+1])
-        
-        # call createSubsystem() to make moorpy subsystem with marine growth
-        if self.shared:
-            self.createSubsystem(case=1,dd=nd1,pristine=0)
+            for j,ltyp in enumerate(LTypes):
+                st =  deepcopy(oldLine.lineTypes)
+                for k in st:
+                    if st[k]['name'] == ltyp:
+                        ltyp = k
+                # add in information for each line type without marine growth
+                EA.append(st[ltyp]['EA'])
+                m.append(st[ltyp]['m'])
+                d_ve_old.append(st[ltyp]['d_vol'])
+                # new dictionary for this line type
+                nd.append({'type':{}, 'L':{}}) # new design dictionary
+                ndt = nd[j]['type']
+                
+                # load in line props from MoorProps
+                # opt = helpers.loadLineProps(None)
+                opt = self.lineProps
+    
+                if 'd_nom' in st[ltyp]:
+                    d_nom_old[j] = st[ltyp]['d_nom']
+                    # get ratio between ve and nom diameter normally
+                    ve_nom_adjust[j] = d_ve_old[j]/d_nom_old[j]
+                elif Mats[j] in opt:
+                    # get ratio between ve and nom diameter from MoorProps yaml                
+                    ve_nom_adjust[j] = opt[Mats[j]]['dvol_dnom']
+                # get cd and cdAx if given, or assign to default value
+                if Mats[j] in opt and not 'Cd' in st[ltyp]:
+                    cd.append(opt[Mats[j]]['Cd'])
+                elif 'Cd' in st[ltyp]:
+                    cd.append(st[ltyp]['Cd'])
+                else:
+                    #print('No Cd given in line type and material not found in MoorProps yaml. Default Cd of 1 will be used.')
+                    cd.append(2)
+                if Mats[j] in opt and 'CdAx' in opt[Mats[j]] and not 'CdAx' in st[ltyp]:
+                    cdAx.append(opt[Mats[j]]['CdAx'])
+                elif 'CdAx' in st[ltyp]:
+                    cdAx.append(st[ltyp]['CdAx'])
+                else:
+                    #print('No CdAx given in line type and material not found in MoorProps yaml. Default CdAx of 0.5 will be used.')
+                    cdAx.append(0.5)
+                
+                if LThick[j] == 0:
+                    nd[j]['type'] = deepcopy(st[ltyp])
+                    nd[j]['type']['name'] = j
+                else:
+                    # get mu for material
+                    if Mats[j] == 'chain' or Mats[j] == 'chain_studlink':
+                        mu_mg[j] = 2
+                    else:
+                        mu_mg[j] = 1
+                    
+                    # re-form dictionaries with marine growth values            
+                    # calculate nominal diameter
+                    d_nom_old[j] = d_ve_old[j]/ve_nom_adjust[j] # m
+                    
+                    # calculate new line diameter that includes marine growth
+                    ndt['d_nom'] = float(d_nom_old[j]+2*LThick[j]) #m
+                    
+                    # calculate the new mass per meter including marine growth
+                    growthMass = np.pi/4*(ndt['d_nom']**2-d_nom_old[j]**2)*rho_mg[j]*mu_mg[j] # marine growth mass
+                    ndt['m'] =  float(growthMass + m[j]) # kg/m (total mass)
+                    
+                    # calculate the submerged weight per meter including marine growth
+                    ndt['w'] = float(growthMass*(1-self.rho/rho_mg[j])*self.g + (m[j]-np.pi/4*d_ve_old[j]**2*self.rho)*self.g) # N/m
+                    
+                    # calculate new volume-equivalent diameter (cannot use regular chain/polyester conversion because of added marine growth)
+                    ndt['d_vol'] = np.sqrt(4*((ndt['m']*self.g-ndt['w'])/self.rho/self.g)/np.pi)
+                    
+                    # calculate new increased drag coefficient from marine growth
+                    # convert cd to cd for nominal diameter, then multiply by inverse of new ve_nom_adjust (ratio of d_nom with mg to d_ve with mg) to return to cd for volume equivalent diameter
+                    ndt['Cd'] = float(cd[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
+                    ndt['CdAx'] = float(cdAx[j]*ve_nom_adjust[j]*(ndt['d_nom']/ndt['d_vol']))
+                    
+                    # add line details to dictionary
+                    ndt['material'] = Mats[j]
+                    ndt['name'] = str(j)
+                    if 'MBL' in oldLine.lineTypes[ltyp]:
+                        ndt['MBL'] = oldLine.lineTypes[ltyp]['MBL']
+                    if 'cost' in oldLine.lineTypes[ltyp]:
+                        ndt['cost'] = oldLine.lineTypes[ltyp]['cost']
+                    ndt['EA'] = EA[j]
+                    if 'EAd' in oldLine.lineTypes[ltyp]:
+                        ndt['EAd'] = oldLine.lineTypes[ltyp]['EAd']
+                    if 'EAd_Lm' in oldLine.lineTypes[ltyp]:
+                        ndt['EAd_Lm'] = oldLine.lineTypes[ltyp]['EAd_Lm']
+                # add lengths                 
+                nd[j]['L'] = Lengths[j]
+            
+            # # overwrite design dictionary with new dictionary
+            # self.dd['sections'] = nd
+            # # overwrite connectorList with new connectorList
+            # self.connectorList = connList
+            
+            # fill out rest of new design dictionary
+            nd1 = deepcopy(self.dd)
+                
+            nd1['subcomponents'] = [None]*(len(nd)*2+1)
+            for i in range(len(nd)):
+                nd1['subcomponents'][2*i] = Connector('C'+str(i),**connList[i])
+                nd1['subcomponents'][2*i+1] = Section('S'+str(i),**nd[i])
+            nd1['subcomponents'][2*i+2] = Connector('C'+str(i),**connList[i+1])
+            
+            # call createSubsystem() to make moorpy subsystem with marine growth
+            if self.shared:
+                self.createSubsystem(case=1,dd=nd1)
+            else:
+                self.createSubsystem(dd=nd1)
+                
+            return(changeDepths,changePoints)
+        #####################################################################
+
+        if starting_ss:
+            ss = deepcopy(starting_ss)
         else:
-            self.createSubsystem(dd=nd1,pristine=0)
+            ss = deepcopy(self.ss)
             
+        if updateDepths:
+            mgDict1 = deepcopy(mgDict)
+            cEq = tol + 1 
+            ct = 0
+            while(cEq>tol):
+                changeDepths,changePoints = getMG(mgDict1, oldLine=ss)
+                D = []
+                for d in range(0,len(changeDepths)):
+                    diff = mgDict[changeDepths[d][0]][changeDepths[d][1]] - self.ss.pointList[changePoints[d]].r[2]
+                    D.append(diff)
+                cEq = np.mean(D)
+                # adjust depth to change based on difference between actual and desired change depth
+                if cEq>tol:
+                    mgDict1[0]['upperRange'] = mgDict1[0]['upperRange'] + cEq
+                    for j in range(1,len(mgDict)):
+                        for k in ['lowerRange','upperRange']:
+                            if ct < 4 and abs(cEq)<12:
+                                mgDict1[j][k] = mgDict1[j][k] + cEq
+                            elif (ct >= 4 and ct < 9) or abs(cEq)>=12:
+                                # could be ping-ponging between two different things, try adding half
+                                mgDict1[j][k] = mgDict1[j][k] + 0.5*cEq
+                if display == True:
+                    print('average difference between expected and actual change depth is: ',cEq)
+                if ct > 10:
+                    print('Could not meet tolerance in 10 attempts. Exiting loop')
+                    break
+                ct += 1
+        else:
+            changeDepths,changePoints = getMG(mgDict, oldLine=ss)
+          
+        self.applied_states['marine_growth'] = mgDict
         return(changeDepths,changePoints)
 
 
@@ -1208,6 +1259,7 @@ class Mooring(Edge):
         '''
 
         if self.ss:
+
             for i, line in enumerate(self.ss.lineList):
                 # check if the line type has a corrosion property in its MoorProps instead of checking for material name.
                 sec = self.getSubcomponent(self.i_sec[i])
@@ -1226,8 +1278,12 @@ class Mooring(Edge):
                         corrosion_m = corrosion_mm / 1000  # convert to m
                         factor = ((d_nom - corrosion_m) / d_nom)**2
                         new_mbl = mbl * factor
-                        line.type['MBL'] = new_mbl  # update MBL with corrosion factored in
-                                               
+                        line.type['MBL'] = new_mbl  # update MBL with corrosion factored in                                               
+                        
+            self.applied_states['corrosion'] = {'years':years,
+                                                'corrosion_rate':corrosion_rate,
+                                                'corrosion_mm':corrosion_mm}
+
     
     def setCreep(self, years=25, creep_rate=None, creep=None):
         '''
@@ -1256,6 +1312,7 @@ class Mooring(Edge):
                 sec = self.getSubcomponent(self.i_sec[i])
                 mat = sec['type']['material']  
                 lgt = sec['L']              
+                
                 # check if the line type has a creep property in its MoorProps instead of checking for material name.
                 if mat not in self.lineProps:
                     raise ValueError(f'Line material {mat} not found in lineProps dictionary.')
@@ -1271,6 +1328,7 @@ class Mooring(Edge):
                         #self.setSectionLength(L_creep, i)
                         line.setL(L_creep)
 
+
                         '''
                         # Change the diameter size to account for creep thinning
                         d_nom_creep = line.type['d_nom'] / np.sqrt(1 + creep_percent)
@@ -1279,7 +1337,10 @@ class Mooring(Edge):
                         '''
         else:
             raise ValueError('Mooring subsystem must be created before adding creep.')
-    
+            
+        self.applied_states['creep'] = {'years':years,
+                                        'creep_rate':creep_rate,
+                                        'creep': creep}
     
     def adjustPropertySets(self, suffix):
         '''

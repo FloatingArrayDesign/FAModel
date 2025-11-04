@@ -973,7 +973,7 @@ class Project():
             # create RAFT model if necessary components exist
             if 'platforms' in RAFTDict or 'platform' in RAFTDict:
 
-                    self.getRAFT(RAFTDict,pristine=1)
+                    self.getRAFT(RAFTDict)
                 
             
 
@@ -2746,7 +2746,7 @@ class Project():
         return(ax)
         
        
-    def getMoorPyArray(self, plt=0, pristineLines=True, cables=True):
+    def getMoorPyArray(self, plt=0, cables=True):
         '''Creates an array in moorpy from the mooring, anchor, connector, and platform objects in the array.
 
         Parameters
@@ -2754,9 +2754,6 @@ class Project():
         plt : number
             Controls whether to create a plot of the MoorPy array. 2=create plot with labels, 1=create plot, 0=no plot The default is 0.
 
-        pristineLines : boolean, optional
-            A boolean describing if the mooringList objects have been altered (0/False) or not (1/True) from their pristine, initial condition.
-    
         cables : boolean, optional
             Controls whether to include cables in the moorpy array
         
@@ -2812,18 +2809,11 @@ class Project():
                 mooring = att['obj']
                 
                 # create subsystem
-                if pristineLines:
-                    mooring.createSubsystem(pristine=True, ms=self.ms)
 
-                    # set location of subsystem for simpler coding
-                    ssloc = mooring.ss
-                else:
-                    # if modified , assume the ss_mod is already generated
-                    # set location of subsystem for simpler coding
-                    ssloc = mooring.ss_mod
-                    # assign ss_mod in to ms
-                    self.ms.lineList.append(ssloc)
-                    ssloc.number = len(self.ms.lineList)
+                mooring.createSubsystem(ms=self.ms)
+
+                # set location of subsystem for simpler coding
+                ssloc = mooring.ss
                 
                 # (ms.lineList.append is now done in Mooring.createSubsystem)
                 
@@ -2937,17 +2927,11 @@ class Project():
                 # create subsystem for shared line
    
                 # set location of subsystem for simpler coding
-                if pristineLines:
-                    mooring.createSubsystem(case=mooring.shared, 
-                        pristine=pristineLines, ms=self.ms)
-                    ssloc = mooring.ss
-                else:
-                    # modified line should already exist - just attach it
-                    ssloc = mooring.ss_mod
-                    self.ms.lineList.append(ssloc)
-                    ssloc.number = len(self.ms.lineList)
-
-                # (ms.lineList.append is now done in Mooring.createSubsystem unless not pristine)
+                mooring.createSubsystem(case=mooring.shared, 
+                    ms=self.ms)
+                ssloc = mooring.ss
+                
+                # (ms.lineList.append is now done in Mooring.createSubsystem)
                 
                 # find associated platforms/ buoys
                 att = mooring.attached_to
@@ -3024,12 +3008,9 @@ class Project():
                         pass
                     elif isinstance(comp,DynamicCable):
                         # create subsystem for dynamic cable
-                        comp.createSubsystem(pristine=pristineLines) 
-
-                        if pristineLines:                           
-                            ssloc = comp.ss
-                        else:
-                            ssloc = comp.ss_mod
+                        comp.createSubsystem() 
+                         
+                        ssloc = comp.ss
                         ssloc.number = len(self.ms.lineList)+1 
                         # add subsystem to line list
                         self.ms.lineList.append(ssloc)
@@ -3323,7 +3304,7 @@ class Project():
         return(aeps)
 
     
-    def getRAFT(self,RAFTDict,pristine=1):
+    def getRAFT(self,RAFTDict):
         '''Create a RAFT object and store in the project class
         
         Parameters
@@ -3387,7 +3368,7 @@ class Project():
                     self.platformList[RAFTable[i]['ID']].dd['hydrostatics'] = {'m':body.m,'rCG':body.rCG,'v':body.V,'rM':body.rM,'AWP':body.AWP}
             # create moorpy array if it doesn't exist
             if not self.ms:
-                self.getMoorPyArray(pristineLines=pristine)
+                self.getMoorPyArray()
             # assign moorpy array to RAFT object
             if len(self.ms.lineList)>0:
                 self.array.ms = self.ms
@@ -3404,6 +3385,7 @@ class Project():
                     row.insert(IDindex, IDdata[i])  # Reinsert 'ID' data into each row            
         else:
             raise Exception('Platform(s) must be specified in YAML file')
+
 
     def getMarineGrowth(self,mgDict_list=None,buoy_mg=None, lines='all',tol=2,display=False):
         '''Calls the addMarineGrowth mooring object method for the chosen mooring objects
@@ -3467,47 +3449,23 @@ class Project():
             idx = lines
         
         for ii,i in enumerate(idx):
-            ct = 0 # counter variable
-            cEq = [tol+2,tol+2] # make cEq mean large enough to enter the while loop for the first time.
-            # get a deepcopy of the mgDict_start (may need to change the depths)
-            mgDict = deepcopy(mgDict_list)
-            while np.absolute(sum(cEq)/len(cEq)) > tol and ct<10: # while mean difference between actual and desired change depth is larger than tolerance and count is less than 10
-                cEq = [] # reset cEq
-                if isinstance(i,list):
-                    # this is a cable
-                    cD,cP = self.cableList[i[0]].subcomponents[i[1]].addMarineGrowth(mgDict, buoy_mg)
-                    for j in range(0,len(cP)):
-                        cEq.append(mgDict_list[cD[j][0]][cD[j][1]] - 
-                                   self.cableList[i[0]].subcomponents[i[1]].ss_mod.pointList[cP[j]].r[2])
-                else:
-                    cD,cP = self.mooringList[i].addMarineGrowth(mgDict)
-                    for j in range(0,len(cP)):
-                        cEq.append(mgDict_list[cD[j][0]][cD[j][1]] - 
-                                   self.mooringList[i].ss_mod.pointList[cP[j]].r[2])
-                # adjust depth to change based on difference between actual and desired change depth
-                if cEq:
-                    mcEq = sum(cEq)/len(cEq)
-                    mgDict[0]['upperRange'] = mgDict[0]['upperRange'] + mcEq
-                    for j in range(1,len(mgDict)):
-                        for k in ['lowerRange','upperRange']:
-                            if ct < 4 and abs(mcEq)<12:
-                                mgDict[j][k] = mgDict[j][k] + mcEq
-                            elif (ct >= 4 and ct < 9) or abs(mcEq)>=12:
-                                # could be ping-ponging between two different things, try adding half
-                                mgDict[j][k] = mgDict[j][k] + 0.5*mcEq
-                    if display:
-                        print('average difference between expected and actual change depth is: ',mcEq)
-                else: # there were no change depths in the line (could be the case for a shared line)
-                    cEq = [0,0] # kick out of the while loop
-                ct = ct + 1 # add to counter
-                    
-                if ct == 10:
-                    raise Exception(f"Unable to produce marine growth at the indicated change depths within the depth tolerance provided for mooring line index {i}. Please check for errors or increase tolerance.")
-                # assign the newly created subsystem into the right place in the line list
-                if isinstance(i,list):
-                    self.ms.lineList[ii] = self.cableList[i[0]].subcomponents[i[1]].ss_mod
-                else:
-                    self.ms.lineList[ii] = self.mooringList[i].ss_mod
+
+            if isinstance(i,list):
+                # this is a cable
+                self.cableList[i[0]].subcomponents[i[1]].addMarineGrowth(mgDict_list, buoy_mg, updateDepths=True, tol=tol)
+                
+            else:
+                self.mooringList[i].addMarineGrowth(mgDict_list, updateDepths=True, tol=tol)
+
+               
+            # assign the newly created subsystem into the right place in the line list
+            if isinstance(i,list):
+                self.ms.lineList[ii] = self.cableList[i[0]].subcomponents[i[1]].ss
+                
+            else:
+                self.ms.lineList[ii] = self.mooringList[i].ss
+                
+            self.ms.lineList[ii].number = ii+1
                 
     
     def getCorrosion(self, lineProps=None, corr_th=10, lines='all'):
@@ -5158,7 +5116,7 @@ class Project():
                 self.RAFTDict['array']['data'][i][y_idx] -= delta[1]
 
             if 'platforms' in self.RAFTDict or 'platform' in self.RAFTDict:
-                    self.getRAFT(self.RAFTDict,pristine=1)
+                    self.getRAFT(self.RAFTDict)
         self.getMoorPyArray()
         
     def reorientArray(self, windHeading=None, degrees=False):
@@ -5252,7 +5210,7 @@ class Project():
                 self.RAFTDict['array']['data'][i][p_idx] = np.degrees(pf.phi)
 
             if 'platforms' in self.RAFTDict or 'platform' in self.RAFTDict:
-                    self.getRAFT(self.RAFTDict,pristine=1)        
+                    self.getRAFT(self.RAFTDict)        
         
         self.getMoorPyArray()
         

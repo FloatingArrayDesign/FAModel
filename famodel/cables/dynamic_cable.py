@@ -113,6 +113,9 @@ class DynamicCable(Edge):
         # alternate designs to interpolate between when depth changes
         self.alternate_designs = None
         
+        # dict of states applied to this Cable object subsystem
+        self.applied_states = {'marine_growth':None}
+        
         # Dictionaries for addition information
         self.loads = {}
         self.safety_factors = {} # calculated safety factor
@@ -120,6 +123,7 @@ class DynamicCable(Edge):
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
+        
         
     
     def makeCableType(self,cabDict):
@@ -437,7 +441,7 @@ class DynamicCable(Edge):
             
         return(self.loads['TAmax'],self.loads['TBmax'])
     
-    def createSubsystem(self, case=0,pristine=True,dd=None):
+    def createSubsystem(self, case=0, dd=None):
         ''' Creates a subsystem for cable and buoyancy section(s) configuration from the design dictionary
         
         Parameters
@@ -472,12 +476,12 @@ class DynamicCable(Edge):
         # If no buoyancy sections, it's just one section of the bare cable
         if not 'buoyancy_sections' in dd or not dd['buoyancy_sections']:
             #self.dd['sections'].append({'type':self.cableType,'length':self.L})
-            types.append(cableType)
+            types.append(deepcopy(cableType))
             lengths.append(self.L) 
         
         if 'sections' in dd and dd['sections']: # this will be the case for marine growth or possibly other cases
             for i, sec in enumerate(dd['sections']):
-                types.append(sec['type'])
+                types.append(deepcopy(sec['type']))
                 lengths.append(sec['length'])
         elif 'buoyancy_sections' in dd:       
             # Parse buoyancy sections to compute their properties and all lengths
@@ -609,14 +613,12 @@ class DynamicCable(Edge):
 
         
         # save it in the object
-        if pristine:
-            self.ss = ss
-            return(self.ss)
-        else:
-            self.ss_mod = ss
-            return(self.ss_mod)
+        self.ss = ss
+        return(self.ss)
                   
-    def addMarineGrowth(self, mgDict, buoy_mg, updateDepths=False,tol=2):
+    def addMarineGrowth(self, mgDict, buoy_mg, 
+                        updateDepths=False, tol=2, 
+                        starting_ss=None, display=False):
         '''Creates a new design dictionary (does not overwrite old one) to account for marine 
         growth on the subystem, then calls createSubsystem() to recreate the cable
 
@@ -647,12 +649,11 @@ class DynamicCable(Edge):
             List of cutoff depths the changePoints should be located at
 
         '''
-        def getMG(mgDict, buoy_mg):
+        def getMG(mgDict, buoy_mg, oldLine=None):
             # create a reference subsystem if it doesn't already exist
-            if not self.ss:
-                self.createSubsystem(pristine=1)
-            # set location of reference subsystem
-            oldLine = self.ss
+            if not oldLine:
+                oldLine = self.createSubsystem(pristine=1)
+
             # set up variables
             LTypes = [] # list of line types for new lines (types listed are from reference object)
             Lengths = [] # lengths of each section for new line
@@ -940,22 +941,27 @@ class DynamicCable(Edge):
             
             # call createSubsystem() to make moorpy subsystem with marine growth
             if self.shared>0:
-                self.createSubsystem(case=int(self.shared),dd=nd1,pristine=0)
+                self.createSubsystem(case=int(self.shared),dd=nd1)
             else:
-                self.createSubsystem(dd=nd1,pristine=0)
+                self.createSubsystem(dd=nd1)
                 
             return(changeDepths,changePoints)
          
         ############################################################################################################################
+        if starting_ss:
+            ss = deepcopy(starting_ss)
+        else:
+            ss = deepcopy(self.ss)
+            
         if updateDepths:
             mgDict1 = deepcopy(mgDict)
             cEq = tol + 1 
             ct = 0
             while(cEq>tol):
-                changeDepths,changePoints = getMG(mgDict1, buoy_mg)
+                changeDepths,changePoints = getMG(mgDict1, buoy_mg, oldLine=ss)
                 D = []
                 for d in range(0,len(changeDepths)):
-                    diff = mgDict[changeDepths[d][0]][changeDepths[d][1]] - self.ss_mod.pointList[changePoints[d]].r[2]
+                    diff = mgDict[changeDepths[d][0]][changeDepths[d][1]] - self.ss.pointList[changePoints[d]].r[2]
                     D.append(diff)
                 cEq = np.mean(D)
                 # adjust depth to change based on difference between actual and desired change depth
@@ -968,14 +974,17 @@ class DynamicCable(Edge):
                             elif (ct >= 4 and ct < 9) or abs(cEq)>=12:
                                 # could be ping-ponging between two different things, try adding half
                                 mgDict1[j][k] = mgDict1[j][k] + 0.5*cEq
-                print('average difference between expected and actual change depth is: ',cEq)
+                if display == True:
+                    print('average difference between expected and actual change depth is: ',cEq)
                 if ct > 10:
                     print('Could not meet tolerance in 10 attempts. Exiting loop')
                     break
                 ct += 1
         else:
-            changeDepths,changePoints = getMG(mgDict, buoy_mg)
-            return(changeDepths,changePoints)
+            changeDepths,changePoints = getMG(mgDict, buoy_mg, oldLine=ss)
+            
+        self.applied_states['marine_growth'] = mgDict
+        return(changeDepths,changePoints)
             
             
         
