@@ -32,7 +32,7 @@ class Task():
     
     '''
     
-    def __init__(self, name, actions, action_sequence=None, **kwargs):
+    def __init__(self, name, actions, action_sequence='series', **kwargs):
         '''Create an action object...
         It must be given a name and a list of actions.
         The action list should be by default coherent with actionTypes dictionary.
@@ -44,33 +44,60 @@ class Task():
             are duplicate names.
         actions : list
             A list of all actions that are part of this task.
-        action_sequence : dict, optional
-            A dictionary where each key is the name of each action, and the values are
+        action_sequence : string or dict, optional
+            If a dictionary, each key is the name of each action, and the values are
             each a list of which actions (by name) must be completed before the current
-            one. If None, the action_sequence will be built by calling self.stageActions(from_deps=True)
-            [building from the dependencies of each action].
+            one. 
+            If a string, indicates which approach is used for automatically
+            setting the sequence of actions:
+            'series': one after the other based on the order in actions (default),
+            'dependencies': based on the dependencies of each action.
         kwargs 
             Additional arguments may depend on the task type.
         
         '''
     
-        
-        
 
         self.name = name
 
+        # Save the task's dictionary of actions
         if isinstance(actions, dict):
             self.actions = actions
-        elif isinstance(actions, list):
+        elif isinstance(actions, list):  # turn list into a dict based on name
             self.actions = {a.name: a for a in actions}
 
-
-        if action_sequence is None:
-            self.stageActions(from_deps=True)
-        else:
+        # --- Set up the sequence of actions ---
+        # key is action name, value is a list of what action names are to be completed before it
+        
+        if isinstance(action_sequence, dict):  # Full dict provided (use directly)
             self.action_sequence = {k: list(v) for k, v in action_sequence.items()}
-
-
+        
+        elif isinstance(action_sequence, str):
+            self.action_sequence = {}
+            
+            if action_sequence == 'series':  # Puts the actions in linear sequence
+                for i in range(len(actions)):
+                    if i==0:  # first action has no dependencies
+                        self.action_sequence[actions[i].name] = []
+                    else:  # previous action must be done first
+                        self.action_sequence[actions[i].name] = [ actions[i-1].name ] 
+                
+            elif action_sequence == 'dependencies':  # Sequences based on the dependencies of each action
+            
+                def getDeps(action):
+                    deps = []
+                    for dep in action.dependencies:
+                        deps.append(dep)
+                    return deps
+            
+                self.action_sequence = {self.actions[name].name: getDeps(self.actions[name]) for name in self.actions}
+            else:
+                raise Exception("Action_sequence must be either 'series' or 'dependencies', or a dict.")
+        else:
+            raise Exception("Action_sequence must be either a string or dict.")
+        
+        
+        # Initialize some task variables
         self.status = 0  # 0, waiting;  1=running;  2=finished
         self.actions_ti = {}  # relative start time of each action [h]
         
@@ -86,6 +113,7 @@ class Task():
         print(f"---------------------- Initializing Task '{self.name} ----------------------")        
         print(f"Task '{self.name}' initialized with duration = {self.duration:.2f} h.")
         print(f"Task '{self.name}' initialized with cost     = ${self.cost:.2f} ")
+    
 
     def getSequenceGraph(self, action_sequence=None, plot=True):
         '''Generate a multi-directed graph that visalizes action sequencing within the task.
@@ -272,6 +300,7 @@ class Task():
         # Iterate through actions in the sequence
         for action, dep_actions in self.action_sequence.items():
             # Calculate start time as the max finish time of dependencies
+            # (set as zero if the action does not depend on other actions in the task)
             starts[action] = max((finishes[dep] for dep in dep_actions), default=0)
 
             # get duration from actions
@@ -283,12 +312,9 @@ class Task():
         # Update self.actions_ti with relative start times
         self.actions_ti = starts
 
-        # Set task start time and finish time
-        self.ti = min(starts.values(), default=0)
-        self.tf = max(finishes.values(), default=0)
-
         # Task duration
-        self.duration = self.tf - self.ti
+        self.duration = max(finishes.values())
+
 
     def calcCost(self):
         '''Calculates the total cost of the task based on the costs of individual actions.
@@ -301,20 +327,21 @@ class Task():
         self.cost = total_cost
         return self.cost
 
-    def updateTaskTime(self, newStart=0.0):
+
+    def updateStartTime(self, newStart=0.0):
         '''Update the start time of all actions based on a new task start time.
+        This requires that the task's duration and relative action start times are
+        already calculated.
 
         Parameters
         ----------
         newStart : float
             The new start time for the task. All action start times will be adjusted accordingly.
         '''
-        # Calculate the time shift
-        time_shift = newStart - self.ti
 
         # Update task start and finish times
         self.ti = newStart
-        self.tf += time_shift
+        self.tf = newStart + self.duration
 
         # Update action start times
         for action in self.actions_ti:
@@ -474,6 +501,7 @@ class Task():
         # ax.grid(True)
         plt.tight_layout()
         return fig, ax
+
 
     def chart(self, start_at_zero=True):
         '''Generate a chart grouped by asset showing when each asset is active across all actions.

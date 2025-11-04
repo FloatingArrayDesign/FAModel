@@ -444,17 +444,10 @@ def implementStrategy_staged(sc):
     for action in sc.actions.values():
         if action.type == 'install_anchor':
             acts.append(action)
-    
-    # create a dictionary of dependencies indicating that these actions are all in series
-    act_sequence = {}  # key is action name, value is a list of what action names are to be completed before it
-    for i in range(len(acts)):
-        if i==0:  # first action has no dependencies
-            act_sequence[acts[i].name] = []
-        else:  # remaining actions are just a linear sequence
-            act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
-    
+
     # create the task, passing in the sequence of actions
-    sc.addTask('install_all_anchors', acts, act_sequence)
+    sc.addTask('install_all_anchors', acts, action_sequence='series')
+    
     
     # ----- Create a Task for all the mooring installs -----
     
@@ -468,17 +461,9 @@ def implementStrategy_staged(sc):
     for action in sc.actions.values():
         if action.type == 'lay_mooring':
             acts.append(action)
-    
-    # create a dictionary of dependencies indicating that these actions are all in series
-    act_sequence = {}  # key is action name, value is a list of what action names are to be completed before it
-    for i in range(len(acts)):
-        if i==0:  # first action has no dependencies
-            act_sequence[acts[i].name] = []
-        else:  # remaining actions are just a linear sequence
-            act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
-    
+
     # create the task, passing in the sequence of actions
-    sc.addTask('install_all_moorings', acts, act_sequence)
+    sc.addTask('install_all_moorings', acts, action_sequence='series')
     
     
     # ----- Create a Task for the platform tow-out and hookup -----
@@ -491,17 +476,9 @@ def implementStrategy_staged(sc):
     for action in sc.actions.values():
         if action.type == 'mooring_hookup':
             acts.append(action)
-    
-    # create a dictionary of dependencies indicating that these actions are all in series
-    act_sequence = {}  # key is action name, value is a list of what action names are to be completed before it
-    for i in range(len(acts)):
-        if i==0:  # first action has no dependencies
-            act_sequence[acts[i].name] = []
-        else:  # remaining actions are just a linear sequence
-            act_sequence[acts[i].name] = [ acts[i-1].name ]  # (previous action must be done first)
-    
+
     # create the task, passing in the sequence of actions
-    sc.addTask('tow_and_hookup', acts, act_sequence)
+    sc.addTask('tow_and_hookup', acts, action_sequence='series')
     
 
 
