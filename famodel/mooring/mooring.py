@@ -78,7 +78,6 @@ class Mooring(Edge):
         Edge.__init__(self, id)  # initialize Edge base class
         # Design description dictionary for this Mooring
         self.dd = dd
-        self.dd_mod = None
         
         # Load or save the mooring line property sizing function coefficients
         self.lineProps = lineProps # loadLineProps(lineProps)
@@ -902,13 +901,11 @@ class Mooring(Edge):
         # 4. Apply marine growth if specified
         if 'marineGrowth' in stateDict:
             mgDict = stateDict['marineGrowth']
-            self.addMarineGrowth(mgDict, 
-                                 starting_ss=self.ss_mod, 
-                                 updateDepths=True)
+            self.addMarineGrowth(mgDict)
 
 
     def addMarineGrowth(self, mgDict, starting_ss=None, 
-                        updateDepths=False, tol=2, display=False):
+                        updateDepths=True, tol=2, display=False):
         '''Re-creates sections part of design dictionary to account for marine 
         growth on the subystem, then calls createSubsystem() to recreate the line
 
