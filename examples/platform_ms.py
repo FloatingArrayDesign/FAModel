@@ -10,10 +10,10 @@ from moorpy.helpers import subsystem2Line
 
 # get locations of files
 dir = os.path.dirname(os.path.realpath(__file__))
-yaml_file = '\OntologySample200m_uniformArray.yaml'
+yaml_file = os.path.join(dir,'OntologySample200m_uniformArray.yaml')
 
 # create project
-project = Project(file=dir+yaml_file)
+project = Project(file=yaml_file)
 
 # create a moorpy system for a single platform
 project.platformList['fowt0'].mooringSystem(project=project)

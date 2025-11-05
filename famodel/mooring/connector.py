@@ -197,3 +197,8 @@ class Section(Edge, dict):
         # Create a Line for the section in MoorPy system
         self.mpLine = ms.addLine(self['L'], self['type'], pointA=pointA, pointB=pointB)
         
+        # Check if type is in ms.lineTypes
+        if not self['type']['name'] in ms.lineTypes:
+            # add type to lineTypes list
+            ms.lineTypes[self['type']['name']] = self['type']
+        

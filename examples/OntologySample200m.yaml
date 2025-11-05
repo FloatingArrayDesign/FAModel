@@ -355,22 +355,22 @@ anchor_types:
         L      :     2
         zlug   :    10 # embedded depth of padeye [m]
     suction_pile1:
-        type   :  suction_pile
+        type   :  suction
         L      :     16.4  # length of pile [m]
         D      :     5.45  # diameter of pile [m]
         zlug   :     9.32  # embedded depth of padeye [m]
     dandg_pile1:
-        type   :  dandg_pile
+        type   :  dandg
         L      :     50 # length of pile [m]
         D      :     3 # diameter of pile [m]
         zlug   :     0 # embedded depth [m]
     driven_pile1:
-        type   :  driven_pile
+        type   :  driven
         L      :     20 # pile length [m]
         D      :     1.5 # pile diameter [m]
         zlug   :     3 # embedded depth [m]
     driven_pile2:
-        type   :  driven_pile
+        type   :  driven
         L      :     20 # pile length [m]
         D      :     1.5 # pile diameter [m]
         zlug   :     -3 # embedded depth [m]
@@ -380,14 +380,14 @@ anchor_types:
         zlug : 10
         #beta: 30
     torpedo_pile1:
-        type: torpedo_pile 
+        type: torpedo 
         D1 : 3
         D2: 1.1
         L1: 10
         L2: 4
         zlug: 16
     helical_pile1:
-        type: helical_pile
+        type: helical
         L : 25.1
         d : 1
         D : 5.01

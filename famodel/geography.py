@@ -9,10 +9,14 @@ import yaml
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, LineString
-import famodel.seabed.seabed_tools as sbt
+import famodel.seabed_tools as sbt
 from pyproj import CRS
 from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
+
+# =============================================================================
+# COORDINATE REFERENCE SYSTEMS & TRANSFORMATIONS
+# =============================================================================
 
 def getLatLongCRS(epsg_code=4326):
     '''Returns a coordinate reference system (CRS) object from the pyproj package of a 'wordly' CRS with units of latitude and longitude
@@ -234,6 +238,10 @@ def convertMeters2LatLong(xs, ys, centroid, latlong_crs, target_crs, mesh=False)
     
     return longs, lats
 
+# =============================================================================
+# BATHYMETRY & GEOSPATIAL DATA PROCESSING
+# =============================================================================
+
 def getMapBathymetry(gebcofilename):
 
     # load the GEBCO bathymetry file
@@ -315,14 +323,21 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths,
     '''Write a MoorDyn/MoorPy-style bathymetry text file based on provided
     x and y grid line values and a 2D array of depth values.'''
 
+    # open the file
     f = open(os.path.join(os.getcwd(), moorpy_bathymetry_filename), 'w')
+
     f.write('--- MoorPy Bathymetry Input File ---\n')
     f.write(f'nGridX {len(bathXs)}\n')
     f.write(f'nGridY {len(bathYs)}\n')
     f.write(f'      ')
+
+    # x-coordinates
     for ix in range(len(bathXs)):
         f.write(f'{bathXs[ix]:.2f} ')
     f.write('\n')
+    #f.write(" ".join(map(str, grid_x)) + "\n")  # old version from seabed_tools
+
+    # y-coordintes
     for iy in range(len(bathYs)):
         f.write(f'{bathYs[iy]:.2f} ')
         for id in range(len(bath_depths[iy])):
@@ -331,6 +346,11 @@ def writeBathymetryFile(moorpy_bathymetry_filename, bathXs, bathYs, bath_depths,
             else:
                 f.write(f'{bath_depths[iy,id]:8.3f} ')
         f.write('\n')
+    #for i, y in enumerate(grid_y):         # alternative writing version
+        #row = [y] + list(grid_depth[i, :])
+        #f.write(" ".join(map(str, row)) + "\n")
+    
+    # close the file
     f.close()
 
 
@@ -380,6 +400,96 @@ def getLeaseAndBathymetryInfo(lease_name, bathymetry_file, bath_ncols=100, bath_
 
 
     return info
+
+
+
+# =============================================================================
+# FILE I/O & DATA FORMAT CONVERSION
+# =============================================================================
+
+def processGeotiff(filename, lat, lon, outfilename="processGeotiff.txt", **kwargs):
+    '''Process a geotiff file containing bathymetry (or other info)
+    and convert into a rectangular bathymetry grid in units of m relative to 
+    the project reference point.
+    
+    Parameters
+    ----------
+    filename : string
+        Path and name of geotiff file to load.
+    lat : float
+        lattitude of reference point to use for array y grid
+    long : float
+        lattitude of reference point to use for array x grid
+    outfilename : string, optional
+        If provided, writes a MoorDyn/MoorPy style bathymetry file
+    kwargs : dict
+        Optional extra arguments that will be relayed to convertBathymetry2Meters,
+        can be used to specify desired x and y grid coordinates.
+
+    Returns
+    -------
+    Xs : array
+        x values of grid points [m]
+    Ys : array
+        y values of grid points [m]
+    depths  : 2D array
+        water depth grid (positive down) [m]
+    '''
+
+    import rasterio
+    import rasterio.plot
+
+    tiff = rasterio.open(filename)  # load the geotiff file
+    
+    #rasterio.plot.show(tiff)  # plot it to see that it works
+    
+    # note: a CRS is stored with the geotiff, accessible with tiff.crs
+    
+    # Get lattitude and longitude grid values
+    #_, longs = rasterio.transform.xy(tiff.transform, range(tiff.height),0)
+    #lats, _  = rasterio.transform.xy(tiff.transform, 0, range(tiff.width-1,-1,-1))
+    height, width = tiff.shape
+    cols, rows = np.meshgrid(np.arange(width), np.arange(height))
+    longs_mesh, lats_mesh = rasterio.transform.xy(tiff.transform, rows, cols)
+    longs = np.array(longs_mesh)[0,:]
+    lats = np.flip(np.array(lats_mesh)[:,0])
+    # lats data provided from top left corner, i.e., latitudes are descending. It seems that the following interpolation functions (getDepthFromBathymetry)
+    # can only work if latitudes start small and increase, meaning that the first latitude entry has to be the bottom left corner
+    
+    # Depth values in numpy array form
+    depths = -tiff.read(1)
+    depths = np.flipud(depths)
+    # because the interpolation functions require the latitude array to go from small to big (i.e., the bottom left corner), we need to flip the depth matrix to align
+    # it will all get sorted out later to what it should be geographically when plotting in MoorPy
+    
+    
+    # extract the coordinate reference systems needed (pyproj CRS objects)
+    latlong_crs = tiff.crs
+    #target_crs = getTargetCRS(lon, lat)     # should be UTM 10N for Humboldt/California coast
+    target_crs = getCustomCRS(lon, lat)     # get custom CRS centered around the lat/long point you want
+    
+    # get the centroid/reference location in lat/long coordinates
+    centroid = (lon, lat)
+
+    # get the centroid/reference location in target_crs coordinates
+    #centroid_utm = (lon, lat)
+    _, _, centroid_utm = convertLatLong2Meters([centroid[0]], [centroid[1]], centroid, latlong_crs, target_crs, return_centroid=True)
+    
+    # set the number of rows and columns to use in the MoorPy bathymetry file
+    ncols = 100
+    nrows = 100
+    
+    # convert bathymetry to meters
+    bath_xs, bath_ys, bath_depths = convertBathymetry2Meters(longs, lats, depths, 
+                                                             centroid, centroid_utm, 
+                                                             latlong_crs, target_crs, 
+                                                             ncols, nrows, **kwargs)
+    # export to MoorPy-readable file
+    writeBathymetryFile(outfilename, bath_xs, bath_ys, bath_depths)
+
+    return bath_xs, bath_ys, bath_depths
+
+
 
 def getSoilType(x, y, centroid, latlong_crs, custom_crs, soil_file):
     """Function to return the name of the soil below a specific x/y coordinate by creating shapely polygons based on the shapefile data.
@@ -491,9 +601,8 @@ def getSoilGrid(centroid, latlong_crs, custom_crs, soil_file, nrows=100, ncols=1
 
     return xs, ys, soil_grid
         
-def plot3d(lease_xs, lease_ys, bathymetryfilename, area_on_bath=False, args_bath={}, xbounds=None, ybounds=None, zbounds=None):
-    '''Plot aspects of the Project object in matplotlib in 3D'''
 
+<<<<<<< HEAD
     # organize the bathymetry arguments
     if len(args_bath)==0:
         args_bath = {'zlim':[-3200,500], 'cmap':'gist_earth'}
@@ -860,6 +969,8 @@ def projectAlongSeabed(x, y, bathXs, bathYs, bath_depths):
     
 
 """
+=======
+>>>>>>> dev
 
 
 

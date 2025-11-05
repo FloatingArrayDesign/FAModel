@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="FAModel",
+    name="famodel",
     version="0.1.0",
     author="National Renewable Energy Laboratory",
     author_email="matthew.hall@nrel.gov",
@@ -20,8 +20,7 @@ setuptools.setup(
               'famodel.cables',
               'famodel.turbine',
               'famodel.substation',
-              'famodel.failure',
-              'famodel.seabed'],
+              'famodel.failure'],
     package_data={'famodel.cables':['cableProps_default.yaml']},
     classifiers=[
         "Programming Language :: Python :: 3",

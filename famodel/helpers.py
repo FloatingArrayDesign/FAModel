@@ -139,14 +139,14 @@ def adjustCable(cc,project,na=None,nb=None,routeAdjustLength=500,rad_fair=None):
         hA = np.radians(90) - np.arctan2((cc.subcomponents[0].rB[0]-cc.subcomponents[0].rA[0]),(cc.subcomponents[0].rB[1]-cc.subcomponents[0].rA[1]))
     else:
         hA = np.radians(na) #headingA
-        cx[0] = [cc.attached_to[0].r[0]+500*np.cos(np.radians(na))]
-        cy[0] = [cc.attached_to[0].r[1]+500*np.sin(np.radians(na))]
+        cx[0] = [cc.attached_to[0].r[0]+routeAdjustLength*np.cos(np.radians(na))]
+        cy[0] = [cc.attached_to[0].r[1]+routeAdjustLength*np.sin(np.radians(na))]
     if nb==None:
         hB = np.radians(90) - np.arctan2((cc.subcomponents[-1].rA[0]-cc.subcomponents[-1].rB[0]),(cc.subcomponents[-1].rA[1]-cc.subcomponents[-1].rB[1]))
     else:
         hB = np.radians(nb)
-        cx[-1] = [cc.attached_to[1].r[0]+500*np.cos(np.radians(nb))]
-        cy[-1] = [cc.attached_to[1].r[1]+500*np.sin(np.radians(nb))]
+        cx[-1] = [cc.attached_to[1].r[0]+routeAdjustLength*np.cos(np.radians(nb))]
+        cy[-1] = [cc.attached_to[1].r[1]+routeAdjustLength*np.sin(np.radians(nb))]
     cc.reposition(project=project,headings=[hA,hB],rad_fair=rad_fair)
     
 # find cable(s) associated with specific platform(s) xy coordinates
@@ -251,6 +251,8 @@ def head_adjust(att,heading,rad_buff=np.radians(30),endA_dir=1, adj_dir=1):
     '''
     if heading<0:
         headnew = np.pi*2 + heading
+    elif heading>2*np.pi:
+        heading - 2*np.pi
     else:
         headnew = heading
     attheadings = [] # complete list of mooring headings to avoid, from all platforms
@@ -328,14 +330,14 @@ def cableDesignInterpolation(dd, cables, depth):
 
     # sort and interp all lists by increasing depths
     sorted_indices = np.argsort(depths)
-    depths_sorted = [depths[i] for i in sorted_indices]
+    depths_sorted = [float(depths[i]) for i in sorted_indices]
     newdd = deepcopy(dd)
-    if depth > depths_sorted[-1]:
+    if float(depth) > depths_sorted[-1]:
         # depth outside range, can't interpolate - just adjust length
         newdd['L'] = cabdesign['L'][sorted_indices[-1]] + depth-depths_sorted[-1]
-    elif depth < depths_sorted[0]:
+    elif float(depth) < depths_sorted[0]:
         # depth outside range, can't interpolate - just adjust length
-        newdd['L'] = cabdesign['L'][sorted_indices[0]] - depth-depths_sorted[0]
+        newdd['L'] = cabdesign['L'][sorted_indices[0]] - (depth-depths_sorted[0])
     else:
         # interpolate designs
         newdd['span'] = np.interp(depth,depths_sorted,
@@ -765,7 +767,7 @@ def CableProps(cabType, cable_types, rho_water, g, checkType=1, A=None):
 
     return(deepcopy(dd))
 
-def MooringProps(mCon, lineTypes, rho_water, g, checkType=1):
+def MooringProps(mCon, lineTypes, rho_water, g, lineProps, checkType=1):
     '''
     Parameters
     ----------
@@ -795,15 +797,16 @@ def MooringProps(mCon, lineTypes, rho_water, g, checkType=1):
         # else:
         #     d_vol = dd['d']
         dd['w'] = (dd['m']-np.pi/4*d_vol**2*rho_water)*g
-        dd['MBL'] = float(dd['MBL'])
+        if 'MBL' in dd:
+            dd['MBL'] = float(dd['MBL'])
         if 'mooringFamily' in mCon:
             raise Exception('type and moorFamily listed in yaml - use type to reference a mooring type in the mooring_line_types section of the yaml and mooringFamily to obtain mooring properties from MoorProps_default.yaml')
     elif 'mooringFamily' in mCon:
         from moorpy.helpers import loadLineProps, getLineProps
         if not 'd_nom' in mCon:
             raise Exception('To use MoorProps yaml, you must specify a nominal diameter in mm for the mooring line family')
-        lineprops = loadLineProps(None)
-        mProps = getLineProps(mCon['d_nom']*1000,mCon['mooringFamily'],lineProps=lineprops)
+
+        mProps = getLineProps(mCon['d_nom']*1000,mCon['mooringFamily'],lineProps=lineProps)
         dd = mProps
         dd['name'] = mCon['mooringFamily']
         dd['d_nom'] = mCon['d_nom']
@@ -813,7 +816,7 @@ def MooringProps(mCon, lineTypes, rho_water, g, checkType=1):
 
     return(deepcopy(dd))
 
-def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
+def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj, lineProps):
     '''
 
     Parameters
@@ -855,14 +858,16 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                 config.append({})
                 c_config.append({})                        
             # set line information
-            lt = MooringProps(lc, proj.lineTypes, proj.rho_water, proj.g)                                             
+            lt = MooringProps(lc, proj.lineTypes, proj.rho_water, proj.g, 
+                              lineProps)                                             
             # lt = self.lineTypes[lc['type']] # set location for code clarity and brevity later
             # set up sub-dictionaries that will contain info on the line type
             config.append({'type':lt})# {'name':str(ct)+'_'+lc['type'],'d_nom':lt['d_nom'],'material':lt['material'],'d_vol':lt['d_vol'],'m':lt['m'],'EA':float(lt['EA'])}})
             config[-1]['type']['name'] = str(ct)+'_'+str(lt['name'])
             # make EA a float not a string
             config[-1]['type']['EA'] = float(lt['EA'])  
-            config[-1]['type']['MBL'] = float(lt['MBL'])
+            if 'MBL' in lt:
+                config[-1]['type']['MBL'] = float(lt['MBL'])
             # set line length
             config[-1]['L'] = lc['length']
 
@@ -925,7 +930,7 @@ def getMoorings(lcID, lineConfigs, connectorTypes, pfID, proj):
                         if sublineLast[ii]:
                             # add empty connector
                             config[-1][-1].append({})
-                        lt = MooringProps(subsub,proj.lineTypes, proj.rho_water, proj.g)
+                        lt = MooringProps(subsub,proj.lineTypes, proj.rho_water, proj.g, lineProps)
                         config[-1][-1].append({'type':lt,
                                                'L': subsub['length']})
                         # make EA a float not a string
@@ -1056,9 +1061,11 @@ def attachFairleads(moor, end, platform, fair_ID_start=None, fair_ID=None, fair_
     platform : Platform class instance
         Platform that is associated with the fairlead
     fair_ID_start : str, optional
-        start of fairlead ID, the index will be appended to this. Not needed if fair_ID provided
+        start of fairlead ID, the indexes in fair_inds will be appended to this. Not needed if fair_ID provided
     fair_ID : list, optional
         fairlead ID list for each fairlead. If fair_ID_start is not provided, fair_ID must be provided
+    fair_inds : list, optional
+        indices of fairleads to attach, only needed if fair_ID_start used instead of fair_ID
 
 
     Returns
@@ -1080,7 +1087,7 @@ def attachFairleads(moor, end, platform, fair_ID_start=None, fair_ID=None, fair_
         if not len(moor.subcons_B)==len(fair_ID):
             raise Exception(f'Number of fairleads must equal number of parallel sections at end {end}')
     else:
-        raise Exception('Either fairlead indices or fairlead IDs must be provided')
+        raise Exception('Either fairlead indices (fair_inds) or fairlead IDs (fair_ID) must be provided')
     # grab correct end
     end_subcons = moor.subcons_B if end in [1,'b','B'] else moor.subcons_A
     
@@ -1323,14 +1330,14 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
                     att.r = iend
                 if att.mpAnchor:
                     att.mpAnchor.r = att.r
-                    
+        
         # Estimate the correct line length to start with based on % of total length
         L_tot = sum([line.L for line in ss.lineList])
         initial_L_ratio = ss.lineList[i_line].L/L_tot
         ss.lineList[i_line].setL(np.linalg.norm(mooring.rB - mooring.rA)*initial_L_ratio)
-            
+
         # Next we could adjust the line length/tension (if there's a subsystem)
-           
+        
         def eval_func(X, args):
             '''Tension evaluation function for different line lengths'''
             ss.lineList[i_line].L = X[0]  # set the first line section's length
@@ -1358,7 +1365,6 @@ def adjustMooring(mooring, method = 'horizontal', r=[0,0,0], project=None, targe
             '''Apply specified section L, return the horizontal pretension error.'''
             ss.lineList[i_line].setL(X[0])
             ss.staticSolve()
-            
             #Fx is the horizontal pretension
             Fx = np.linalg.norm([ss.fB_L[0], ss.fB_L[1]])
             
@@ -1399,6 +1405,41 @@ def yamlList(in_list):
     yaml_list = ruamel.yaml.comments.CommentedSeq(in_list)
     yaml_list.fa.set_flow_style()
     return(yaml_list)
+
+def compareDicts(d1, d2):
+    '''Function to determine if keys and values of d1 are in d2, works for 
+    nested dictionaries.
+    Returns True if d1 keys and vals are in d2
+    d2 can have more keys than d1, but all d1 must be in d2
+    for a True return
+    '''
+    for key in d1:
+        if key in d2:
+            if type(d1[key]) is dict:
+                x = compareDicts(d1[key],d2[key])
+                if x==False:
+                    return(False)
+            elif isinstance(d1[key],(list, np.ndarray)):
+                if len(d1[key])!=len(d2[key]):
+                    return(False)
+                for i,ix in enumerate(d1[key]):
+                    if type(d1[key][i]) is dict:
+                        x = compareDicts(ix,d2[key][i])
+                        if x==False:
+                            return(False)
+                    elif isinstance(ix,(list, np.ndarray)):
+                        for j,jx in ix:
+                            if jx != d2[key][i][j]:
+                                return(False)
+                    else:
+                        if ix != d2[key][i]:
+                            return(False)
+            else:
+                if d1[key] != d2[key]:
+                    return(False)
+        else:
+            return(False)
+    return(True)
 
 def cleanDataTypes(info, convert_lists=True):
     '''

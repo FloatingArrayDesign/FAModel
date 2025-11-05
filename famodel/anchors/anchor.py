@@ -61,8 +61,8 @@ class Anchor(Node):
         
         # raise errors/warnings if the anchor type is not what it needs to be
         anchor_type_options = ['suction', 'sepla', 'dea', 'depla', 'vla', 'plate', 'torpedo', 'helical', 'driven', 'drilled']
-        if self.anchType not in anchor_type_options:
-            raise ValueError(f"The anchor 'type' needs to explicitly be one of {anchor_type_options} (Case not sensitive)")
+        if self.anchType.lower() not in anchor_type_options:
+            raise ValueError(f"The anchor 'type' {self.anchType} needs to explicitly be one of {anchor_type_options} (Case not sensitive)")
         # if self.anchType not in ['drag-embedment', 'gravity', 'suction', 'SEPLA', 'VLA', 'driven']:
         #     print('Warning: The anchor type provided does not have any cost coefficients. This will default to a suction pile')
 
@@ -240,8 +240,9 @@ class Anchor(Node):
         '''
 
         # create anchor as a fixed body in MoorPy system and assign to mpAnchor property
-        r6 = [self.r[0],self.r[1],self.r[2],0,0,0]
-        self.mpAnchor = ms.addBody(1,r6)
+        # r6 = [self.r[0],self.r[1],self.r[2],0,0,0]
+        # self.mpAnchor = ms.addBody(1,r6)
+        self.mpAnchor = ms.addPoint(1,self.r)
 
         # Set mass if available
         if 'mass' in self.dd.get('design', {}):

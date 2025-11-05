@@ -13,21 +13,18 @@ import matplotlib.pyplot as plt
 
 # point to location of yaml file with uniform array info
 dir = os.path.dirname(os.path.realpath(__file__))
-filename = '\OntologySample200m_uniformArray.yaml' # yaml file to make initial platform(s)
+filename = os.path.join(dir,'OntologySample200m_uniformArray.yaml') # yaml file to make initial platform(s)
 # This yaml file does not contain explicit locations of each platform in the array table,
 # but rather has a 'uniform_array' section that describes # of rows, cols, spacing, etc.
 # This info is then used to automatically make a uniform array when the yaml file is loaded
 
 
 # load in yaml
-project = Project(file=dir+filename,raft=True)
+project = Project(file=filename,raft=True)
 project.plot2d()
 # plot the system
-project.plot3d(fowt=True)
+project.plot3d(plot_fowt=True)
 project.trimGrids()
-project.unload('checkyaml.yaml')
-
-proj2 = Project(file='checkyaml.yaml')
 
 #%% Update uniform array - edits in progress
 print('\nUpdating uniform array shape\n')
@@ -50,14 +47,16 @@ project.updateUniformArray(nrows, ncols, [spacing_x,spacing_y], rotation_angle, 
                             skew_y, offset_x, offset_y, heading_pattern, center=center)
 
 model = project.array # this is the RAFT model!!
+
 # update platform locations and headings in RAFT
 for i,body in enumerate(model.fowtList):
     # set position
     pf_heading = project.platformList['fowt'+str(i)].phi
     body.setPosition([project.platformList['fowt'+str(i)].r[0],project.platformList['fowt'+str(i)].r[1],0,0,0,pf_heading])
     body.heading_adjust = np.degrees(project.platformList['fowt'+str(i)].phi)
+
 # plot again
-project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False)
+project.plot3d(plot_fowt=True,plot_boundary=False,plot_boundary_on_bath=False)
 
 #%% Run FLORIS
 print('\nRunning FLORIS\n')
