@@ -2690,7 +2690,7 @@ class Project():
                         else:
                             line.color = [0.5,0.5,0.5]
                     line.lw = lw
-                mooring.ss.drawLine(0, ax, color=color)
+                mooring.ss.drawLine(0, ax, color='self')
             elif mooring.parallels:
                 for i in mooring.i_sec:
                     sec = mooring.getSubcomponent(i)
