@@ -161,7 +161,7 @@ array_mooring:
 
 # Array cables (compact table format, without routing info)
 array_cables:   
-    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB,  JtubeA, JtubeB, headingA, headingB, cableType, lengthAdjust]
+    keys:  [ AttachA,  AttachB,  DynCableA,  DynCableB,  JTubeA, JTubeB, headingA, headingB, cableType, lengthAdjust]
     data: 
       - [ FOWT1, FOWT3, suspended_1, NONE, 2, 3, 180,  0,   NONE, 0]
       - [ FOWT3, FOWT4,  lazy_wave1, lazy_wave1, 3, 1, 285,   80, static_cable_36, 0] 
@@ -1205,7 +1205,7 @@ topsides:
           dlsMax       :  5.0     # maximum node splitting section amount; can't be 0
       
           name      :  tower                     # [-]    an identifier (no longer has to be number)       
-          type      :  1                         # [-]    
+          type      :  rigid                         # [-]    
           rA        :  [ 0, 0,  15]              # [m]    end A coordinates
           rB        :  [ 0, 0, 144.582]          # [m]    and B coordinates
           shape     :  circ                      # [-]    circular or rectangular
@@ -1233,7 +1233,7 @@ platforms:
                    - name: fairlead1
                      r_rel: [40.5,0,-20]
                      headings: [270, 30, 150] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
-    Jtubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
+    JTubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: Jtube1
                      r_rel: [5, 0, -20]
                      headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
@@ -1241,12 +1241,12 @@ platforms:
     members:   # list all members here
         
       - name      :  center_column             # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [ 0, 0, -20]              # [m]    end A coordinates
         rB        :  [ 0, 0,  15]              # [m]    and B coordinates
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-        potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
         # --- outer shell including hydro---
         stations  :  [0, 1]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  10.0                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1263,13 +1263,13 @@ platforms:
 
         
       - name      :  outer_column              # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [51.75, 0, -20]           # [m]    end A coordinates
         rB        :  [51.75, 0,  15]           # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-        potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
         # --- outer shell including hydro---
         stations  :  [0, 35]                   # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  12.5                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1289,7 +1289,7 @@ platforms:
 
         
       - name      :  pontoon                   # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [  5  , 0, -16.5]         # [m]    end A coordinates
         rB        :  [ 45.5, 0, -16.5]         # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
@@ -1310,7 +1310,7 @@ platforms:
         
         
       - name      :  upper_support             # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [  5  , 0, 14.545]        # [m]    end A coordinates
         rB        :  [ 45.5, 0, 14.545]        # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
@@ -1558,12 +1558,12 @@ cables:
           attachID: FOWT1            # FOWT/substation/junction ID
           heading:  270                  # [deg] heading of attachment at end A
           dynamicID: lazy_wave1  # ID of dynamic cable configuration at this end
-          Jtube: 2
+          JTube: 2
       endB:
           attachID: FOWT2
           heading: 270
           dynamicID: lazy_wave1
-          Jtube: 2
+          JTube: 2
       routing_x_y_r:
           - [700,150,20] # [x (m), y (m), radius (m)]
           - [900,150,20]

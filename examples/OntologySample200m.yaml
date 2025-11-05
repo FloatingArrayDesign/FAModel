@@ -420,18 +420,18 @@ dynamic_cable_configs:
         span: 1590    
         cable_type: dynamic_cable_66        # ID of a cable section type1
         A: 300
-        length: 1610                   # [m] length (unstretched)
+        length: 1660                   # [m] length (unstretched)
             
         sections:            
           - type: Buoyancy_750m #_w_buoy # (section properties including averaged effect of buoyancy modules)
             L_mid: 510 # [m] from end A
-            N_modules: 6
+            N_modules: 6.5
             spacing: 18 # [m]
             V: 2
             
           - type: Buoyancy_750m #_w_buoy # (section properties including averaged effect of buoyancy modules)
             L_mid: 1040 # [m] from end A
-            N_modules: 6
+            N_modules: 6.5
             spacing: 18 # [m]
             V: 2
         
@@ -534,8 +534,8 @@ topsides:
     nBlades     : 3          # number of blades
     Zhub        : 150.0      # hub height [m]
     Rhub        : 3.97       # hub radius [m]
-    precone     : 4.0        # [deg]
-    shaft_tilt  : 6.0        # [deg]
+    precone     : -4.0        # [deg]
+    shaft_tilt  : -6.0        # [deg]
     overhang    : -12.0313    # [m]
     aeroMod     : 1          # 0 aerodynamics off; 1 aerodynamics on
 
@@ -1557,7 +1557,7 @@ topsides:
         dlsMax       :  5.0     # maximum node splitting section amount; can't be 0
     
         name      :  tower                     # [-]    an identifier (no longer has to be number)       
-        type      :  1                         # [-]    
+        type      :  rigid                        # [-]    
         rA        :  [ 0, 0,  15]              # [m]    end A coordinates
         rB        :  [ 0, 0, 144.582]          # [m]    and B coordinates
         shape     :  circ                      # [-]    circular or rectangular
@@ -1587,7 +1587,7 @@ platforms:
                    - name: fairlead1
                      r_rel: [58, 0, -14]
                      headings: [30, 150, 270, 35] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
-    Jtubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
+    JTubes       :  # list of Jtube coordinates for the platform relative to platform coordinate and 0-degree heading
                    - name: Jtube1
                      r_rel: [5, 0, -20]
                      headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
@@ -1597,12 +1597,12 @@ platforms:
     members:   # list all members here
         
       - name      :  center_column             # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [ 0, 0, -20]              # [m]    end A coordinates
         rB        :  [ 0, 0,  15]              # [m]    and B coordinates
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-        potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
         # --- outer shell including hydro---
         stations  :  [0, 1]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  10.0                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1619,13 +1619,13 @@ platforms:
 
         
       - name      :  outer_column              # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [51.75, 0, -20]           # [m]    end A coordinates
         rB        :  [51.75, 0,  15]           # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-        potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
         # --- outer shell including hydro---
         stations  :  [0, 35]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  12.5                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1645,7 +1645,7 @@ platforms:
 
         
       - name      :  pontoon                   # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [  5  , 0, -16.5]         # [m]    end A coordinates
         rB        :  [ 45.5, 0, -16.5]         # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
@@ -1666,7 +1666,7 @@ platforms:
         
         
       - name      :  upper_support             # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [  5  , 0, 14.545]        # [m]    end A coordinates
         rB        :  [ 45.5, 0, 14.545]        # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
@@ -1692,7 +1692,7 @@ platforms:
                    - name: fairlead1
                      r_rel: [58, 0, -14]
                      headings: [30, 150, 270, 35] # headings in degrees for the fairlead (if multiple headings, the fairlead will be repeated for each heading)
-    Jtubes:
+    JTubes:
                    - name: Jtube1
                      r_rel: [5, 0, -20]
                      headings: [90, 210, 330] # headings in degrees for the Jtube (if multiple headings, the Jtube will be repeated for each heading)
@@ -1701,12 +1701,12 @@ platforms:
     members:   # list all members here
         
       - name      :  center_column             # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [ 0, 0, -20]              # [m]    end A coordinates
         rB        :  [ 0, 0,  15]              # [m]    and B coordinates
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-        potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
         # --- outer shell including hydro---
         stations  :  [0, 1]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  10.0                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1723,13 +1723,13 @@ platforms:
   
         
       - name      :  outer_column              # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [51.75, 0, -20]           # [m]    end A coordinates
         rB        :  [51.75, 0,  15]           # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
         shape     :  circ                      # [-]    circular or rectangular
         gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-        potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+        potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
         # --- outer shell including hydro---
         stations  :  [0, 35]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
         d         :  12.5                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1749,7 +1749,7 @@ platforms:
   
         
       - name      :  pontoon                   # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [  5  , 0, -16.5]         # [m]    end A coordinates
         rB        :  [ 45.5, 0, -16.5]         # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
@@ -1770,7 +1770,7 @@ platforms:
         
         
       - name      :  upper_support             # [-]    an identifier (no longer has to be number)       
-        type      :  2                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [  5  , 0, 14.545]        # [m]    end A coordinates
         rB        :  [ 45.5, 0, 14.545]        # [m]    and B coordinates
         heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)

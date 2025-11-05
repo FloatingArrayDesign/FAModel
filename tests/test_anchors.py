@@ -9,8 +9,8 @@ import pytest
 def assign_soil(anchor, soil_label, project):
     soil_def = project.soilProps[soil_label]
     layers = soil_def['layers']
-    print('[DEBUG] assign_soil: soil_label =', soil_label)
-    print('[DEBUG] assign_soil: soil_def =', soil_def)
+    # print('[DEBUG] assign_soil: soil_label =', soil_label)
+    # print('[DEBUG] assign_soil: soil_def =', soil_def)
     profile_map = [{
         'name': 'CPT_Assigned',
         'x': 0, 'y': 0,

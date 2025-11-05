@@ -40,6 +40,7 @@ jobs:
             - name: Extras
               run: |
                   conda install -y pytest meson ninja nlopt
+                  pip install scipy==1.11.2   # specific SciPy version needed for current LineDesign test results
                   conda info
 
             - name: Conda Install famodel
@@ -48,17 +49,16 @@ jobs:
 
             - name: Overwrite MoorPy
               run: |
+                  pip uninstall -y moorpy  # need to uninstall the old version to install the current dev branch
                   pip install git+https://github.com/NREL/MoorPy@dev
-                  
-            - name: Test run
-              run: |
-                  cd tests
-                  pytest .
 
             - name: Example run
               run: |
                   cd examples
                   python example_driver.py false
 
-
+            - name: Test run
+              run: |
+                  cd tests
+                  pytest .
 

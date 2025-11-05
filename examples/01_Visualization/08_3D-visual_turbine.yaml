@@ -36,8 +36,8 @@ topsides:
     nBlades     : 3          # number of blades
     Zhub        : 150.0      # hub height [m]
     Rhub        : 3.97       # hub radius [m]
-    precone     : 4.0        # [deg]
-    shaft_tilt  : 6.0        # [deg]
+    precone     : -4.0        # [deg]
+    shaft_tilt  : -6.0        # [deg]
     overhang    : -12.0313    # [m]
     aeroMod     : 1          # 0 aerodynamics off; 1 aerodynamics on
 
@@ -1059,7 +1059,7 @@ topsides:
         dlsMax       :  5.0     # maximum node splitting section amount; can't be 0
     
         name      :  tower                     # [-]    an identifier (no longer has to be number)       
-        type      :  1                         # [-]    
+        type      :  rigid                         # [-]    
         rA        :  [ 0, 0,  15]              # [m]    end A coordinates
         rB        :  [ 0, 0, 144.582]          # [m]    and B coordinates
         shape     :  circ                      # [-]    circular or rectangular
@@ -1085,12 +1085,12 @@ platform:
   members:   # list all members here
       
     - name      :  center_column             # [-]    an identifier (no longer has to be number)       
-      type      :  2                         # [-]    
+      type      :  rigid                         # [-]    
       rA        :  [ 0, 0, -20]              # [m]    end A coordinates
       rB        :  [ 0, 0,  15]              # [m]    and B coordinates
       shape     :  circ                      # [-]    circular or rectangular
       gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-      potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+      potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
       # --- outer shell including hydro---
       stations  :  [0, 1]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
       d         :  10.0                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1107,13 +1107,13 @@ platform:
 
       
     - name      :  outer_column              # [-]    an identifier (no longer has to be number)       
-      type      :  2                         # [-]    
+      type      :  rigid                         # [-]    
       rA        :  [51.75, 0, -20]           # [m]    end A coordinates
       rB        :  [51.75, 0,  15]           # [m]    and B coordinates
       heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
       shape     :  circ                      # [-]    circular or rectangular
       gamma     :  0.0                       # [deg]  twist angle about the member's z-axis
-      potMod    :  False                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
+      potMod    :  True                      # [bool] Whether to model the member with potential flow (BEM model) plus viscous drag or purely strip theory
       # --- outer shell including hydro---
       stations  :  [0, 35]                    # [-]    location of stations along axis. Will be normalized such that start value maps to rA and end value to rB
       d         :  12.5                      # [m]    diameters if circular or side lengths if rectangular (can be pairs)
@@ -1133,7 +1133,7 @@ platform:
 
       
     - name      :  pontoon                   # [-]    an identifier (no longer has to be number)       
-      type      :  2                         # [-]    
+      type      :  rigid                         # [-]    
       rA        :  [  5  , 0, -16.5]         # [m]    end A coordinates
       rB        :  [ 45.5, 0, -16.5]         # [m]    and B coordinates
       heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)
@@ -1154,7 +1154,7 @@ platform:
       
       
     - name      :  upper_support             # [-]    an identifier (no longer has to be number)       
-      type      :  2                         # [-]    
+      type      :  rigid                         # [-]    
       rA        :  [  5  , 0, 14.545]        # [m]    end A coordinates
       rB        :  [ 45.5, 0, 14.545]        # [m]    and B coordinates
       heading   :  [ 60, 180, 300]           # [deg]  heading rotation of column about z axis (for repeated members)

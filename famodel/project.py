@@ -1,9 +1,6 @@
 """Project class for FAModel, containing information and key methods for
 the site information and design information that make up a project."""
 
-import sys
-sys.path.append(r'C:\Code\FAModel')
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt

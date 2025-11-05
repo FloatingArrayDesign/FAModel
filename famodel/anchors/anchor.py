@@ -38,13 +38,18 @@ class Anchor(Node):
             Full soil profile map for selecting local soil layers.
         '''
 
-        from famodel.famodel_base import Node
+        # Initialize as a node
         Node.__init__(self, id)
 
+        # Design description dictionary for this Anchor
         self.dd = dd
+        # MoorPy system this anchor is in
         self.ms = ms
+        # x,y,z location of anchor
         self.r = r
+        # anchor index in array mooring list 
         self.aNum = aNum
+        
         self.g = g
         self.rho = rho
 

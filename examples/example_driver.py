@@ -21,9 +21,11 @@ Section 4 shows various modeling capabilities of FAModel
 from famodel.project import Project
 import os
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 # set yaml file location and name
-ontology_file = "OntologySample200m.yaml"
+dir = os.path.dirname(os.path.realpath(__file__))
+ontology_file = os.path.join(dir,"OntologySample200m.yaml")
 
 #%% Section 1: Project without RAFT
 print('Creating project without RAFT\n')
@@ -31,7 +33,7 @@ print('Creating project without RAFT\n')
 # create project object
 project = Project(file=ontology_file, raft=False)
 # create moorpy system of the array, include cables in the system
-project.getMoorPyArray(cables=True)
+project.getMoorPyArray()
 # plot in 3d, using moorpy system for the mooring and cable plots
 project.plot2d()
 project.plot3d()
@@ -41,12 +43,11 @@ print('\nCreating project with RAFT \n')
 #create project object, automatically create RAFT object (and automatically create moorpy system in the process!)
 project = Project(file=ontology_file,raft=True)
 # plot in 3d, use moorpy system for mooring and cables, use RAFT for platform, tower, and turbine visuals
-project.plot3d(fowt=True,draw_boundary=False,boundary_on_bath=False,save=True)
+project.plot3d(plot_fowt=True,plot_boundary=False,plot_boundary_on_bath=False,save=True)
 
 # get location of RAFT model (stored as array property in project class)
 model = project.array
-model.mooring_currentMod = 0 # temp requirement to work with changes in RAFT
-model.ms.moorMod = 0 # temp requirement to work with changes in RAFT
+
 print('Running RAFT case')
 # run cases
 model.analyzeCases()
@@ -110,11 +111,12 @@ print('\nAnchor safety factors: ',sfs) # NOTE that Va will show as 'inf' because
 #### add marine growth to the mooring lines and cables ####
 print('\nAdding marine growth\n')
 # marine growth dictionary is read in from YAML, see Ontology ReadMe for description
+reg_line_d = deepcopy(project.mooringList['FOWT1a'].ss.lineList[1].type['d_nom'])
 project.getMarineGrowth(display=False)
 # moorpy system lines with marine growth are stored in the respective objects under ss_mod (pristine lines are stored under ss)
 # check the difference in nominal diameter for a given line:
-reg_line_d = project.mooringList['FOWT1a'].ss.lineList[1].type['d_nom']
-mg_line_d = project.mooringList['FOWT1a'].ss_mod.lineList[-1].type['d_nom']
+mg_line_d = project.mooringList['FOWT1a'].ss.lineList[-1].type['d_nom']
+
 print('\nPristine line polyester nominal diameter just below surface: ',reg_line_d)
 print('Marine growth line polyester nominal diameter just below surface: ',mg_line_d)
 

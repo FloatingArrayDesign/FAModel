@@ -1,6 +1,12 @@
-# FAModel
+# Floating Array Design Toolset
 
-The FAModel (or Floating Array Model) package serves as a high-level library for
+The Floating Array Design (FAD) Toolset is a collection of tools for
+modeling and designing arrays of floating offshore structures. It was
+originally designed for floating wind systems but has applicability
+for many offshore applications.
+
+A core part of the FAD Toolset is the Floating Array Model (FAModel),
+which serves as a high-level library for efficiently
 modeling a floating wind array. It combines site condition information and a 
 description of the floating array design, and contains functions for evaluating
 the array's behavior considering the site conditions. For example, it combines
