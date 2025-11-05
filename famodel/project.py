@@ -3467,58 +3467,7 @@ class Project():
                 
             self.ms.lineList[ii].number = ii+1
                 
-    
-    def getCorrosion(self, lineProps=None, corr_th=10, lines='all'):
-        '''
-        Function to reduce MBL of specified lines based on corrosion thickness
 
-        Parameters
-        ----------
-        lineProps: dict, optional
-            Dictionary of line properties to use for corrosion calculation. If not given, the lineProps from the moorpy mooring system will be used.
-        corr_th : float, optional
-            Thickness of corrosion in mm. The default is 10.
-        lines : list or string, optional
-            List of line ids to add corrosion to. The default is 'all', which adds to every line.
-
-        Returns
-        -------
-        None.
-
-        '''
-        if lineProps is None:
-            lineProps = self.ms.lineProps
-        if lines == 'all':
-            idx = []
-            for i in self.mooringList:
-                idx.append(i)
-        elif isinstance(lines,list):
-            idx = lines
-        
-        for ii,i in enumerate(idx):
-            self.mooringList[i].setCorrosion(corrosion_mm=corr_th)
-    
-    def addCreep(self, lineProps=None, creep_percent=None):
-        '''
-        Function to add creep to all mooring lines in the project
-
-        Parameters
-        ----------
-        lineProps: dict, optional
-            Dictionary of line properties to use for creep calculation. If not given, the lineProps from the moorpy mooring system will be used.
-        creep_percent : float, optional
-            Percentage of line length to add as creep. If not given, the creep rate from the lineProps dictionary will be used with a design life of 28.
-
-        Returns
-        -------
-        None.
-
-        '''
-        if lineProps is None:
-            lineProps = self.ms.lineProps
-        for moor in self.mooringList.values():
-            moor.addCreep(lineProps=lineProps, creep_percent=creep_percent)
-                
 
     def updateUniformArray(self,n_rows,pf_rows,spacingXY,grid_rotang=0,grid_skew_x=0,grid_skew_y=0,grid_trans_x=0,grid_trans_y=0,phis=[0,0],center=[0,0]):
         '''
