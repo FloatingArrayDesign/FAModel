@@ -4531,8 +4531,8 @@ class Project():
             
         if self.marine_growth:
             site['marine_growth'] = {
-                'keys':['thickness', 'lowerRange', 'upperRange', 'density'][:len(self.marine_growth['th'])],
-                'data':[v for v in self.marine_growth['th']]
+                'keys':[key for key in self.marine_growth[0].keys()],
+                'data':[list(row.values()) for row in self.marine_growth]
                 }
             if self.marine_growth_buoys:
                 site['marine_growth']['buoys'] = [x for x in self.marine_growth_buoys]
