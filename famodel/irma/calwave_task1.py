@@ -196,9 +196,9 @@ if __name__ == '__main__':
 
 
     # 5) Build Task
-    task1 = Task(name='calwave_task1', actions=sc.actions)
+    task1 = Task(name='calwave_task1', actions=sc.actions, action_sequence='dependencies')
 
-    task1.updateTaskTime(newStart=10)
+    task1.updateStartTime(newStart=10)
 
     # 6) Build the Gantt chart
     task1.GanttChart(color_by='asset')
