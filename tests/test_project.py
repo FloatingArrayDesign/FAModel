@@ -123,18 +123,22 @@ def test_headings_repositioning():
                     np.hstack(([600+x_off,0+y_off,-600],[0+x_off,1656+y_off,-20])),rtol=0,atol=0.5)
     
 def test_marine_growth():
+    
     dir = os.path.dirname(os.path.realpath(__file__))
     project = Project(file=os.path.join(dir,'testOntology.yaml'), raft=False)
+    project.getMoorPyArray()
     # check correct mg gets added to specified mooring lines and cables for ss_mod
-    project.getMarineGrowth(lines=['FOWT1a',['cable0',0]])
-    # pull out a mooring line and a cable to check
-    Moor = project.mooringList['FOWT1a'].ss.lineList[1].type['d_nom']
-    mgMoor = project.mooringList['FOWT1a'].ss_mod.lineList[2].type['d_nom']
-    
     Cab = project.cableList['cable0'].subcomponents[0].ss.lineList[0].type['d_vol']
-    mgCab = project.cableList['cable0'].subcomponents[0].ss_mod.lineList[0].type['d_vol']
+    Moor = project.mooringList['FOWT1a'].ss.lineList[1].type['d_nom']
     
-    assert_allclose(np.hstack((mgMoor,mgCab)),np.hstack((Moor+0.1,Cab+0.4)),rtol=0,atol=0.05)
+    # add Marine Growth to these mooring and cable
+    project.getMarineGrowth(lines=['FOWT1a',['cable0',0]])
+
+    # pull out the mooring line and a cable to check   
+    mgCab = project.cableList['cable0'].subcomponents[0].ss.lineList[0].type['d_vol']
+    mgMoor = project.mooringList['FOWT1a'].ss.lineList[2].type['d_nom'] 
+    
+    assert_allclose(np.hstack((mgMoor,mgCab)),np.hstack((Moor+0.1,Cab+0.4)),rtol=0,atol=0.005)
     
 def test_seabed():
     '''test seabed properties are properly loaded from a file'''

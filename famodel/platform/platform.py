@@ -97,7 +97,6 @@ class Platform(Node):
         if update_moorings:
             for i, att in enumerate(self.attachments):
                 if isinstance(self.attachments[att]['obj'], Mooring): 
-                    self.updateMooringPoints()
                     # Heading of the mooring line
                     heading_i = self.mooring_headings[count] + self.phi
                     # Reposition the whole Mooring if it is an anchored line
@@ -116,7 +115,8 @@ class Platform(Node):
                     
                     # reposition the cable
                     cab.reposition(project=project)
-    
+            
+        self.updateMooringPoints()
     
     def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None, project=None):
         '''

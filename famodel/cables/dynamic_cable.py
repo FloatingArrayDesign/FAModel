@@ -113,6 +113,9 @@ class DynamicCable(Edge):
         # alternate designs to interpolate between when depth changes
         self.alternate_designs = None
         
+        # dict of states applied to this Cable object subsystem
+        self.applied_states = {'marine_growth':None}
+        
         # Dictionaries for addition information
         self.loads = {}
         self.safety_factors = {} # calculated safety factor
@@ -120,6 +123,7 @@ class DynamicCable(Edge):
         self.reliability = {}
         self.cost = {}
         self.failure_probability = {}
+        
         
     
     def makeCableType(self,cabDict):
@@ -437,7 +441,7 @@ class DynamicCable(Edge):
             
         return(self.loads['TAmax'],self.loads['TBmax'])
     
-    def createSubsystem(self, case=0,pristine=True,dd=None):
+    def createSubsystem(self, case=0, dd=None):
         ''' Creates a subsystem for cable and buoyancy section(s) configuration from the design dictionary
         
         Parameters
@@ -472,12 +476,12 @@ class DynamicCable(Edge):
         # If no buoyancy sections, it's just one section of the bare cable
         if not 'buoyancy_sections' in dd or not dd['buoyancy_sections']:
             #self.dd['sections'].append({'type':self.cableType,'length':self.L})
-            types.append(cableType)
+            types.append(deepcopy(cableType))
             lengths.append(self.L) 
         
         if 'sections' in dd and dd['sections']: # this will be the case for marine growth or possibly other cases
             for i, sec in enumerate(dd['sections']):
-                types.append(sec['type'])
+                types.append(deepcopy(sec['type']))
                 lengths.append(sec['length'])
         elif 'buoyancy_sections' in dd:       
             # Parse buoyancy sections to compute their properties and all lengths
@@ -609,35 +613,34 @@ class DynamicCable(Edge):
 
         
         # save it in the object
-        if pristine:
-            self.ss = ss
-            return(self.ss)
-        else:
-            self.ss_mod = ss
-            return(self.ss_mod)
+        self.ss = ss
+        return(self.ss)
                   
-    def addMarineGrowth(self, mgDict,updateDepths=False,tol=2):
+    def addMarineGrowth(self, mgDict, buoy_mg, 
+                        updateDepths=False, tol=2, 
+                        starting_ss=None, display=False):
         '''Creates a new design dictionary (does not overwrite old one) to account for marine 
         growth on the subystem, then calls createSubsystem() to recreate the cable
 
         Parameters
         ----------
-        mgDict : dictionary
+        mgDict : list, optional
             Provides marine growth thicknesses and the associated depth ranges
-            {
-                th : list with 3 values in each entry - thickness, range lower z-cutoff, range higher z-cutoff [m]
-                    *In order from sea floor to surface*
-                    example, if depth is 200 m: - [0.00,-200,-100]
-                                                - [0.05,-100,-80]
-                                                - [0.10,-80,-40]
-                                                - [0.20,-40,0]
-                buoy_th : list of thicknesses associated with buoyancy sections. This is used to simplify the marine growth modeling on buoys.
-                        * In order of sections from end A to end B (also the order of sections listed in buoyancy_sections list in the dd)
-                        example, if 3 buoyancy sections: - 0.1
-                                                         - 0.05
-                                                         - 0.1
-                rho : list of densities for each thickness, or one density for all thicknesses, [kg/m^3] (optional - default is 1325 kg/m^3)
-                }
+            Default is None, which triggers the use of the marine growth dictionary saved in the project class
+            'density' entry is optional. If no 'density' entry is created in the dictionary, addMarineGrowth defaults to 1325 kg/m^3
+            *In order from sea floor to surface*
+            example, if depth is 200 m: - {'thickness':0.00,'lowerRange':-200,'upperRange':-100, 'density':1320}
+                                        - {'thickness':0.05,'lowerRange':-100,'upperRange':-80, 'density':1325}
+                                        - {'thickness':0.1,'lowerRange':-80,'upperRange':0, 'density':1325}
+
+        buoy_mg: list, optional
+            Provides marine growth thicknesses for buoyancy sections of cables, irrespective of depth.
+                This is used to simplify the marine growth modeling on buoys.
+                * In order of sections from end A to end B (also the order of sections listed in buoyancy_sections list in the dd)
+                example, if 3 buoyancy sections: - 0.1
+                                                 - 0.05
+                                                 - 0.1
+
         Returns
         -------
         changePoints : list
@@ -646,12 +649,11 @@ class DynamicCable(Edge):
             List of cutoff depths the changePoints should be located at
 
         '''
-        def getMG(mgDict):
+        def getMG(mgDict, buoy_mg, oldLine=None):
             # create a reference subsystem if it doesn't already exist
-            if not self.ss:
-                self.createSubsystem(pristine=1)
-            # set location of reference subsystem
-            oldLine = self.ss
+            if not oldLine:
+                oldLine = self.createSubsystem(pristine=1)
+
             # set up variables
             LTypes = [] # list of line types for new lines (types listed are from reference object)
             Lengths = [] # lengths of each section for new line
@@ -699,31 +701,31 @@ class DynamicCable(Edge):
                         high = ssLine.rB
                         flip = 0
         
-                    th = mgDict['th'] # set location for ease of coding
+                    th = mgDict # set location for ease of coding
                     # look up what thickness this line section starts at (if lowest point is not on the sea floor, first segment will have a thickness other than the sea floor thickness)
                     rAth = 0 # exit while loop when we find thickness at low
                     count1 = 0 # counter
                     while rAth==0: # and count1 < len(th):
                         if flip:
-                            if high[2] <= th[count1][2]:
-                                LThick.append(th[count1][0])
+                            if high[2] <= th[count1]['upperRange']:
+                                LThick.append(th[count1]['thickness'])
                                 rAth = 1 # exit while loop
                         else:
-                            if low[2] <= th[count1][2]:
-                                LThick.append(th[count1][0])
+                            if low[2] <= th[count1]['upperRange']:
+                                LThick.append(th[count1]['thickness'])
                                 rAth = 1 # exit while loop
                         count1 = count1 + 1 # iterate counter
                         
                     # determine if this line section will be split
                     for j in range(0,len(th)): # go through all changeDepths
                         if flip:
-                            rs = 2
+                            rs = 'upperRange'
                         else:
-                            rs = 1
+                            rs = 'lowerRange'
                         if th[j][rs]>low[2] and th[j][rs]<high[2]:
                             # line section will be split - add line type, mg thickness, and material to list
                             LTypes.append(ssLine.type['name'])
-                            slthick.append(th[j][0])
+                            slthick.append(th[j]['thickness'])
                             # Mats.append(ssLine.type['material'])
                             # add an empty connector object to list for split location
                             sCount += 1
@@ -771,12 +773,12 @@ class DynamicCable(Edge):
                                 
                 else:
                     # this is a buoy section, add the prescribed buoy marine growth thickness
-                    if isinstance(mgDict['buoy_th'],list):
+                    if isinstance(buoy_mg,list):
                         # add the buoy thickness for this specific buoyancy section
-                        LThick.append(mgDict['buoy_th'][buoyCount])
+                        LThick.append(buoy_mg[buoyCount])
                     else:
                         # add the single buoy thickness
-                        LThick.append(mgDict['buoy_th'])
+                        LThick.append(buoy_mg)
                     
                 if slthick: # add the length of the top line (from last split to upper end of section) if there was a split in the line
                     slength.append(float(ssLine.L-ln_raw[-1]))
@@ -811,17 +813,13 @@ class DynamicCable(Edge):
             mu_mg = np.zeros((len(LTypes)))
             rho_mg = np.ones((len(LTypes)))*1325
             # adjust rho value if alternative provided
-            if 'rho' in mgDict:
-                if not type(mgDict['rho']) is list:
-                    # just one density given for all marine growth on the line
-                    rho_mg = rho_mg*mgDict['rho']/1325
-                else: # density given for each thickness of marine growth
-                    for i in range(0,len(rho_mg)):
-                        # look up what thickness number this rho is related to
-                        for j in range(0,len(LThick)):
-                            thind = np.where(th[:][0]==LThick[j])
-                            # assign rho_mg based on the rho_mg of the thickness
-                            rho_mg[i] = mgDict['rho'][thind]             
+            if 'density' in mgDict[0]:
+                for i in range(0,len(mgDict)):
+                    # look up what thickness number this rho is related to
+                    for j in range(0,len(LThick)):
+                        thind = np.where([th[ii]['thickness']==LThick[j] for ii in range(len(th))])
+                        # assign rho_mg based on the rho_mg of the thickness
+                        rho_mg[i] = mgDict[thind[0][0]]['density']             
                     
         
             nd = [] # list of dictionaries for new design dictionary sections part
@@ -943,42 +941,50 @@ class DynamicCable(Edge):
             
             # call createSubsystem() to make moorpy subsystem with marine growth
             if self.shared>0:
-                self.createSubsystem(case=int(self.shared),dd=nd1,pristine=0)
+                self.createSubsystem(case=int(self.shared),dd=nd1)
             else:
-                self.createSubsystem(dd=nd1,pristine=0)
+                self.createSubsystem(dd=nd1)
                 
             return(changeDepths,changePoints)
          
         ############################################################################################################################
+        if starting_ss:
+            ss = deepcopy(starting_ss)
+        else:
+            ss = deepcopy(self.ss)
+            
         if updateDepths:
             mgDict1 = deepcopy(mgDict)
             cEq = tol + 1 
             ct = 0
             while(cEq>tol):
-                changeDepths,changePoints = getMG(mgDict1)
+                changeDepths,changePoints = getMG(mgDict1, buoy_mg, oldLine=ss)
                 D = []
                 for d in range(0,len(changeDepths)):
-                    diff = mgDict['th'][changeDepths[d][0]][changeDepths[d][1]] - self.ss_mod.pointList[changePoints[d]].r[2]
+                    diff = mgDict[changeDepths[d][0]][changeDepths[d][1]] - self.ss.pointList[changePoints[d]].r[2]
                     D.append(diff)
                 cEq = np.mean(D)
                 # adjust depth to change based on difference between actual and desired change depth
                 if cEq>tol:
-                    mgDict1['th'][0][2] = mgDict1['th'][0][2] + cEq
-                    for j in range(1,len(mgDict['th'])):
-                        for k in range(1,3):
+                    mgDict1[0]['upperRange'] = mgDict1[0]['upperRange'] + cEq
+                    for j in range(1,len(mgDict)):
+                        for k in ['lowerRange','upperRange']:
                             if ct < 4 and abs(cEq)<12:
-                                mgDict1['th'][j][k] = mgDict1['th'][j][k] + cEq
+                                mgDict1[j][k] = mgDict1[j][k] + cEq
                             elif (ct >= 4 and ct < 9) or abs(cEq)>=12:
                                 # could be ping-ponging between two different things, try adding half
-                                mgDict1['th'][j][k] = mgDict1['th'][j][k] + 0.5*cEq
-                print('average difference between expected and actual change depth is: ',cEq)
+                                mgDict1[j][k] = mgDict1[j][k] + 0.5*cEq
+                if display == True:
+                    print('average difference between expected and actual change depth is: ',cEq)
                 if ct > 10:
                     print('Could not meet tolerance in 10 attempts. Exiting loop')
                     break
                 ct += 1
         else:
-            changeDepths,changePoints = getMG(mgDict)
-            return(changeDepths,changePoints)
+            changeDepths,changePoints = getMG(mgDict, buoy_mg, oldLine=ss)
+            
+        self.applied_states['marine_growth'] = mgDict
+        return(changeDepths,changePoints)
             
             
         

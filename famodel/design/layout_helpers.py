@@ -9,7 +9,7 @@ import time
 
 
 from famodel.mooring.mooring import Mooring
-from famodel.seabed.seabed_tools import getDepthFromBathymetry
+from famodel.seabed_tools import getDepthFromBathymetry
 from famodel.project import Project
 from famodel.design.fadsolvers import dsolve2
 
