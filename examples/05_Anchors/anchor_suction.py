@@ -106,7 +106,7 @@ for key, value in anchor.anchorCapacity.items():
     print(f'{key}: {value:.2f}')
     
 # --- Step 4: Compute Costs ---     
-anchor.getCostAnchor()  
+anchor.getCost()  
 
 print(f"Mass: {anchor.anchorCapacity['Weight pile']/9.81:.2f} kg")
 print(f"Material unit cost: {anchor.cost['unit_cost']:.2f} USD/kg")
@@ -129,7 +129,7 @@ print('Design:', anchor.dd['design'])
 print('Capacity Results:', anchor.anchorCapacity)
 
 # # --- Step 6: Compute Costs ---     
-anchor.getCostAnchor()  
+anchor.getCost()  
 
 print(f"Mass: {anchor.anchorCapacity['Weight pile']/9.81:.2f} kg")
 print(f"Material unit cost: {anchor.cost['unit_cost']:.2f} USD/kg")

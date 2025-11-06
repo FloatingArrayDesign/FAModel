@@ -1,6 +1,6 @@
 
-from project import Project
-from anchors.anchor import Anchor
+from famodel import Project
+from famodel.anchors.anchor import Anchor
 
 # Step 1: Initialize and load soil
 proj = Project()
@@ -47,7 +47,7 @@ anchor.getCapacityAnchor(
     line_type=anchor.line_type, d=anchor.d, w=anchor.w,   
     mass_update=True,
     plot=True)
-anchor.getCostAnchor()
+anchor.getCost()
 print(f'Material cost: {anchor.cost["Material cost"]:.2f} USD [2024]')
 
 results = anchor.getSizeAnchor(
@@ -63,7 +63,7 @@ results = anchor.getSizeAnchor(
 print('\nFinal Optimized Anchor:')
 print('Design:', anchor.dd['design'])
 print('Capacity Results:', anchor.anchorCapacity)
-anchor.getCostAnchor()
+anchor.getCost()
 print(f'Material cost: {anchor.cost["Material cost"]:.2f} USD [2024]')
 
 
