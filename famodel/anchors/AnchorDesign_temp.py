@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-temp storage of different anchor sizing functions that use different optimization methods. Eventually can be converted into a full AnchorDesign class...
+temp storage of different anchor sizing functions that use different 
+optimization methods. These were built-in methods to Anchor class.
+
+Eventually can be converted into a full AnchorDesign class...
 """
 
 def getSizeAnchor(self, geom, geomKeys, geomBounds=None, loads=None, lambdap_con=[4, 8],

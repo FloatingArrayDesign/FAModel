@@ -1072,8 +1072,9 @@ class Anchor(Node):
         # Store results
         self.cost = {
             'Material cost': cost,
-            'MBL': MBL,
-            'unit_cost': cost/self.mpAnchor.m }
+            #'MBL': MBL,
+            #'unit_cost': cost/self.mpAnchor.m 
+            }
 
         return self.cost
 
