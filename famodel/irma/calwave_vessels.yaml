@@ -1,0 +1,132 @@
+# This file defines vessels for the WEC CalWave as defined in doc Task 5.4 Comprehensive IO&M and Testing Plan 
+
+San_Diego:
+  # Crane barge for anchor handling
+  name: San_Diego
+  type: crane_barge
+  transport:
+      homeport: national_city
+      route_length_m: 41114       # distance to site
+      cruise_speed_mps: 2.5       # ~5 kts, from doc
+      Hs_m: 3
+  station_keeping:
+      type: tug_assist             # not self-propelled
+  capabilities:
+      bollard_pull:
+          max_force_t: 30
+          site_speed_mps: 0.5
+      deck_space:
+          area_m2: 800
+          max_load_t: 1500
+      crane:
+          capacity_t: 150
+          hook_height_m: 40       
+      winch:
+          max_line_pull_t: 150
+          brake_load_t: 300
+          speed_mpm: 20
+      monitoring_system:
+          metrics: [load, angle]
+          sampling_rate_hz: 1
+  actions:
+      mobilize: {}
+      demobilize: {}
+      load_cargo: {}
+      transit_linehaul_tug: {}
+      transit_onsite_tug: {}
+      install_anchor: {}
+      retrieve_anchor: {}
+      install_mooring: {}
+  day_rate: 60000    # USD/day estimate
+
+Jag:
+  # Pacific Maritime Group tugboat assisting DB San Diego
+  name: Jag
+  type: tug
+  transport:
+      homeport: national_city
+      route_length_m: 41114      # distance to site
+      cruise_speed_mps: 3.1       # 
+      Hs_m: 3.5
+  station_keeping:
+      type: conventional
+  capabilities:
+      engine:
+          power_hp: 300
+          site_speed_mps: 1.0
+      # bollard_pull:
+          # max_force_t: 30
+      winch:
+          max_line_pull_t: 50
+          brake_load_t: 100
+          speed_mpm: 20
+  actions:
+      tow: {}
+      transit_linehaul_tug: {}
+      transit_onsite_tug: {}
+      at_site_support: {}
+  day_rate: 25000
+
+Beyster:
+  # Primary support vessel
+  name: Beyster
+  type: research_vessel
+  transport:
+      homeport: point_loma
+      route_length_m: 30558       # distance to site
+      cruise_speed_mps: 12.9       # 25 kts cruise, from doc
+      Hs_m: 2.5
+  station_keeping:
+      type: DP1                    # Volvo DPS system
+  capabilities:
+      engine:
+          power_hp: 300
+          site_speed_mps: 0.5
+      deck_space:
+          area_m2: 17.8            # from doc (192 ft²)
+          max_load_t: 5           
+      crane:
+          capacity_t: 0.30         # starboard knuckle crane, from doc
+          hook_height_m: 5.2
+    #  a_frame:
+    #     capacity_t: 2.5          # stern A-frame, from doc
+    #     hook_height_m: 5         # check doc 
+      positioning_system:
+          accuracy_m: 1.0
+          methods: [DPS, GPS]
+      monitoring_system:
+          metrics: [pressure, video, comms]
+          sampling_rate_hz: 5
+  actions:
+      tow: {}
+      transit_linehaul_self: {}
+      transit_onsite_self: {}
+      lay_cable: {}
+      mooring_hookup: {}
+      install_wec: {}
+      monitor_installation: {}
+  day_rate: 15000
+
+# Boston_Whaler:
+  # # 19 ft Boston Whaler, support vessel
+  # type: research_vessel
+  # transport:
+      # homeport: sio_pier
+      # route_length_m: 555         # distance to site
+      # transit_speed_mps: 10.3      # ~20 kts cruise
+      # Hs_m: 1.5
+  # station_keeping:
+      # type: manual
+  # capabilities:
+      # deck_space:
+          # area_m2: 4
+          # max_load_t: 1.1          # ~1134 kg payload, from doc
+    # #  propulsion:
+    # #     outboard_hp: 150         # from doc
+      # monitoring_system:
+          # metrics: [visual, diver_support]
+          # sampling_rate_hz: 1
+  # actions:
+      # diver_support: {}
+      # tow: {}
+  # day_rate: 5000

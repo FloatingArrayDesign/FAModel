@@ -1,0 +1,402 @@
+# This file defines standardized marine operations actions.
+# Each entry needs numeric values per specific asset in vessels.yaml.
+# Vessel actions will be checked against capabilities/actions for validation.
+#
+#  Old format: requirements and capabilities 
+#  New format: roles, which lists asset roles, each with associated required capabilities
+
+# The code that models and checks these actions is action.calcDurationAndCost(). Structural changes here will not be reflected in the code unless changes are made there as well
+
+### Example action ###
+
+# example_action:
+#   objects: [] or {} "The FAModel object types that are supported in this action"
+#   requirements: [] "Asset types" **Unused**
+#   roles: "the roles that assets need to fill. A way a grouping capabilities so multiple assets can be assigned to an action"
+#     role1:
+#     - capability 1
+#     - capability 2
+#     role2:
+#     - capability 3
+#   duration_h: 0.0 "Duration in hours"
+#   Hs_m: 0.0 "Wave height constraints in meters"
+#   description: <text> "A description"
+
+
+# --- Mobilization ---
+
+mobilize:
+  objects: []
+  roles:
+    operator:
+    - deck_space
+  duration_h:
+  Hs_m:
+  description: "Mobilization of vessel in homeport"
+  
+demobilize:
+  objects: []
+  roles:
+    operator:
+    - deck_space
+  capabilities: []
+  duration_h: 1.0
+  description: "Demobilization of vessel in homeport"
+  
+load_cargo:
+  objects: [anchor, mooring, cable, platform, component]
+  roles:  # The asset roles involved and the capabilities required of each role
+    #carrier1: [] # the port or vessel where the moorings begin
+      # (no requirements)
+    #carrier2:  # the vessel things will be loaded onto
+    #- deck_space
+    #- winch
+    #- positioning_system
+    operator:  # the entity with the crane (like the port or the new vessel)
+    - crane
+    - deck_space
+  duration_h:
+  Hs_m:
+  description: "Load-out of mooring systems and components from port or vessel onto vessel." 
+
+
+# --- Towing & Transport ---
+
+
+transit_linehaul_self:
+  objects: [anchor]
+  roles:
+    vessel:
+    - engine
+  duration_h:
+  description: "Self-propelled line-haul between port and site"
+
+transit_linehaul_tug:
+  objects: [anchor]
+  roles:
+    carrier:
+    - engine
+    operator:
+    - bollard_pull
+  duration_h: 
+  description: "Tugged line-haul convoy (tug + barge) between port and site"
+  
+transit_onsite_self:
+  objects: [anchor]
+  roles:
+    vessel:
+    - engine
+  duration_h:
+  description: "Self-propelled in-field move between site locations"
+
+transit_onsite_tug:
+  objects: [anchor]
+  roles:
+    carrier:
+    - engine
+    operator:
+    - bollard_pull
+  duration_h: 
+  description: "Tug + barge in-field move between site locations"
+  
+
+tow:
+  objects: [platform]
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:
+    - engine
+    operator:
+    - bollard_pull
+    - winch
+    - positioning_system
+  duration_h:
+  Hs_m:
+  description: "Towing floating structures (e.g., floaters, barges) to site; includes station-keeping."
+
+transport_components:
+  objects: [component]
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:  # vessel carrying things
+    - engine
+    - bollard_pull           
+    - deck_space
+    - crane
+    - positioning_system
+  duration_h:
+  Hs_m:
+  description: "Transport of large components such as towers, nacelles, blades, or jackets."
+
+at_site_support:
+  objects: []
+  roles:  # The asset roles involved and the capabilities required of each role
+    # tug:  # vessel carrying things
+    # - bollard_pull
+    # - deck_space
+    # - winch
+    # - positioning_system
+    # - monitoring_system
+    operator:
+    - engine
+  duration_h:
+  Hs_m:
+  description: "Transport of vessel around the site to provide support."
+  
+# --- Mooring & Anchors ---
+
+install_anchor:
+  objects: [anchor, component]
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:  # vessel that provides propulsion
+    - engine
+    operator:  # vessel that carries, lowers and installs the anchor
+    - bollard_pull        
+    - deck_space
+    operator:  # vessel that lowers and installs the anchor
+    - winch
+    - bollard_pull
+    - crane
+    - pump_subsea             # pump_surface, drilling_machine, torque_machine
+    - positioning_system
+    - monitoring_system
+  duration_h:
+  Hs_m:
+  description: "Anchor installation (suction, driven, helical, DEA, SEPLA) with tensioning and verification."
+
+retrieve_anchor:
+  objects: [anchor, component]
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:
+    - engine
+    operator:
+    - bollard_pull
+    - deck_space      
+    - winch
+    - bollard_pull
+    - crane
+    - pump_subsea
+    - positioning_system
+  duration_h:
+  Hs_m:
+  description: "Anchor retrieval, including break-out and recovery to deck."
+
+
+load_mooring:
+  objects: [mooring, component]
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier1: [] # the port or vessel where the moorings begin
+      # (no requirements)
+    carrier2:  # the vessel things will be loaded onto
+    - deck_space
+    - winch
+    - positioning_system
+    operator:  # the entity with the crane (like the port or the new vessel)
+    - crane  
+  duration_h:
+  Hs_m:
+  description: "Load-out of mooring lines and components from port or vessel onto vessel." 
+
+
+lay_mooring:
+  objects: [mooring, component]
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:  # vessel carrying the mooring
+    - engine
+    operator:  # vessel laying the mooring
+    - bollard_pull
+    - deck_space 
+    - winch
+    - bollard_pull
+    - mooring_work
+    - positioning_system
+  duration_h:
+  Hs_m:
+  description: "Laying mooring lines, tensioning and connection to anchors and floaters."
+
+
+mooring_hookup:
+  objects: [mooring, component, platform]
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:
+    - deck_space
+    operator:
+    - winch
+    - bollard_pull
+    - mooring_work
+    - positioning_system
+    - monitoring_system
+  duration_h:
+  Hs_m:
+  description: "Hook-up of mooring lines to floating platforms, including pretensioning."
+
+# --- Heavy Lift & Installation ---
+
+install_wec:
+  objects: [platform]
+  capabilities:
+    - deck_space
+    - crane
+    - positioning_system
+    - monitoring_system
+    - rov
+  duration_h:
+  Hs_m:
+  description: "Lifting, placement and securement of wave energy converters (WECs) onto moorings, including alignment, connection of power/data umbilicals and verification via ROV."
+
+install_semisub:
+  objects: [platform]
+  capabilities:
+    - deck_space
+    - bollard_pull
+    - winch
+    - crane
+    - positioning_system
+    - monitoring_system
+    - rov
+    - sonar_survey
+    - pump_surface
+    - mooring_work
+  duration_h:
+  Hs_m:
+  description: "Wet tow arrival, station-keeping, ballasting/trim, mooring hookup and pretensioning, ROV verification and umbilical connections as needed."
+
+install_spar:
+  objects: [platform]
+  capabilities:
+    - deck_space
+    - bollard_pull
+    - winch
+    - positioning_system
+    - monitoring_system
+    - rov
+    - sonar_survey
+    - pump_surface
+    - mooring_work
+  duration_h:
+  Hs_m:
+  description: "Arrival and upending via controlled ballasting, station-keeping, fairlead/messenger handling, mooring hookup and pretensioning with ROV confirmation. Heavy-lift support may be used during port integration."
+
+install_tlp:
+  objects: [platform]
+  capabilities:
+    - deck_space
+    - bollard_pull
+    - winch
+    - crane
+    - positioning_system
+    - monitoring_system
+    - rov
+    - sonar_survey
+    - mooring_work
+  duration_h:
+  Hs_m:
+  description: "Tendon porch alignment, tendon hookup, sequential tensioning to target pretension, verification of offsets/RAOs and ROV checks."
+
+install_wtg:
+  objects: [turbine]
+  capabilities:
+    - deck_space
+    - crane
+    - positioning_system
+    - monitoring_system
+  duration_h:
+  Hs_m:
+  description: "Installation of wind turbine generator including tower, nacelle and blades."
+
+# --- Cable Operations ---
+
+lay_cable:
+  objects: [cable]
+  capabilities:
+    - deck_space
+    - positioning_system
+    - monitoring_system
+    - cable_reel
+    - sonar_survey
+  duration_h:
+  Hs_m:
+  description: "Laying static/dynamic power cables, including burial where required."
+
+cable_hookup:
+  objects: [cable, component, platform]
+  roles:  # The asset roles involved and the capabilities required of each role
+    carrier:
+    - deck_space
+    operator:
+    - winch
+    - bollard_pull
+    - mooring_work
+    - positioning_system
+    - monitoring_system
+  duration_h:
+  Hs_m:
+  description: "Hook-up of cable to floating platforms, including pretensioning."
+retrieve_cable:
+  objects: [cable]
+  capabilities:
+    - deck_space
+    - positioning_system
+    - monitoring_system
+    - cable_reel
+  duration_h:
+  Hs_m:
+  description: "Cable recovery operations, including cutting, grappling and retrieval."
+  
+ # Lay and bury in a single pass using a plough 
+lay_and_bury_cable:
+  objects: [cable]
+  capabilities:
+    - deck_space
+    - positioning_system
+    - monitoring_system
+    - cable_reel
+    - cable_plough
+    - sonar_survey  
+  duration_h:
+  Hs_m:
+  description: "Simultaneous lay and plough burial; continuous QA via positioning + MBES/SSS, with post-pass verification."
+  
+# Backfill trench or stabilize cable route using rock placement
+backfill_rockdump:
+  objects: [cable]
+  capabilities:
+    - deck_space
+    - positioning_system
+    - monitoring_system
+    - sonar_survey
+    - rock_placement
+  duration_h:
+  Hs_m:
+  description: "Localized rock placement to stabilize exposed cables, infill trenches or provide scour protection. Includes real-time positioning and sonar verification of rock placement."
+
+# --- Survey & Monitoring ---
+
+site_survey:
+  objects: []
+  capabilities:
+    - positioning_system
+    - sonar_survey
+    - monitoring_system
+  duration_h:
+  Hs_m:
+  description: "Pre-installation site survey including bathymetry, sub-bottom profiling and positioning."
+
+monitor_installation:
+  objects: [anchor, mooring, component, platform, cable]
+  roles:
+    support:
+    - positioning_system
+    - monitoring_system
+    - rov
+  duration_h:
+  Hs_m:
+  description: "Real-time monitoring of installation operations using ROV and sensor packages."
+
+diver_support:
+  objects: []
+  capabilities:
+    - positioning_system
+    - sonar_survey
+    - monitoring_system
+  duration_h:
+  Hs_m:
+  description: "Divers site survey including monitoring and positioning."                                                                 
