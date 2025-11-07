@@ -208,8 +208,7 @@ class Mooring(Edge):
         }
         self.applied_states = {'marine_growth':None,
                                'creep': None,
-                               'corrosion': None,
-                               'stiffness': None}
+                               'corrosion': None}
 
         self.raftResults = {}
 
