@@ -1157,7 +1157,6 @@ class Project():
         
         return r_i
 
-
     def projectAlongSeabed(self, x, y):
         '''Project a set of x-y coordinates along a seabed surface (grid),
         returning the corresponding z coordinates.'''
@@ -1177,206 +1176,207 @@ class Project():
             
         return z
 
-
-
     # METHODS TO USE WITH ANCHOR TOOLS
-
-    def loadSoil(self, filename=None, yaml=None):
+    def loadSoil(self, filename=None, yaml=None, soil_mode='uniform', profile_source=None):
         '''
-        Load geoetechnical information from an input file (format TBD), convert to
-        a rectangular grid, and save the grid to the floating array object (TBD).
-        
-        The input file should provide rows with the following entries:
-        - x coordinate
-        - y coordinate
-        - class  - soil classification name ('clay', 'sand', or 'rock' with optional modifiers)
-        - gamma* - soil effective unit weight [kPa] (all soils)
-        - Su0*   - undrained shear strength at mudline [kPa] (clay 
-        - K*     - undrained shear strength gradient [kPa/m] (clay 
-        - alpha* - soil skin friction coefficient [-] (clay soils)
-        - phi*   - angle of internal friction [deg] (sand soils)
-        
-        Some (*) parameters are optional depending on the soil class and mode.   
+        Load geotechnical information from input file or YAML.
+        Supports two soil modes: 'uniform' and 'layered'.
 
-        Irregular sampling points will be supported and interpolated to a 
-        rectangular grid.
-        
-        Paramaters
+        Parameters
         ----------
-        filename : path
-            path/name of file containing soil data
+        filename : str, optional
+            Path to .txt/.dat file with soil labels/profile IDs and coordinates
+        yaml : dict, optional
+            Dictionary containing soil data and properties (used when filename is None)
+        soil_mode : str
+            Either 'uniform' or 'layered'
+        profile_source : str, optional
+            Path to YAML file with layered profile definitions (only used if soil_mode='layered')
         '''
         xs = None
         ys = None
         soil_names = None
-        if filename is not None:    # if the filename option was selected, then that means there is at least a grid in the file, and maybe soil type information
-            if filename[-3:]=='shp':
-                raise ValueError("Geography-related operations not directly supported in Project class")
-            
-            elif filename[-3:]=='txt' or filename[-3:]=='dat':
+        soilProps = None
 
-                # load in the grid portion of the soil input file
-                xs, ys, soil_names = sbt.readBathymetryFile(filename, dtype=str)  # read MoorDyn-style file
+        # Case 1: File input (grid + properties)
+        if filename is not None:
+            if filename.endswith('.shp'):
+                raise ValueError("Shapefiles not supported in Project class")
 
-                soilProps = sbt.getSoilTypes(filename)     # load in the soil property information (if there is any)
-            
-            # regardless of whether there is soil type information in the file, if there is soil information in the yaml, read that in
+            elif filename.endswith('.txt') or filename.endswith('.dat'):
+                # Load label/profile_id grid
+                xs, ys, soil_names = sbt.readBathymetryFile(filename, dtype=str)
+
+                # Load soil properties
+                soilProps = sbt.getSoilTypes(filename, soil_mode=soil_mode, profile_source=profile_source)
+
             if yaml:
-                soilProps = yaml['soil_types']     # if there is a yaml file as input, load in the soil props that way (overwrites the other one)
+                soilProps = yaml.get('soil_types', soilProps)  # allow overwriting via YAML
 
-
-        elif filename is None:  # if the filename option was not selected
-            if yaml:            # and if there was a yaml option selected, simply read in that yaml information
+        # Case 2: YAML only (no filename)
+        elif filename is None:
+            if yaml:
                 xs = yaml['x']
                 ys = yaml['y']
                 soil_names = yaml['type_array']
-                soilProps = yaml['soil_types']
-            else:               # but if there was no yaml option selected (and no file option selected) -> set default values
-                print('Warning: No soil grid nor soil properties were selected, but this function ran -> use preprogrammed default values')
+                raw_soil_types = yaml['soil_types']
+        
+                # Ensure all soil types have a 'layers' field
+                soilProps = {}
+                for key, entry in raw_soil_types.items():
+                    if 'layers' in entry:
+                        soilProps[key] = entry 
+                    else:
+                        # Wrap old flat format into single-layer profile (optional fallback)
+                        layer = dict(entry)
+                        layer.setdefault('top', 0)
+                        layer.setdefault('bottom', 50)
+                        layer.setdefault('soil_type', key)
+                        soilProps[key] = {'layers': [layer]}
+            else:
+                print('[Warning] No soil input provided — using default values')
                 xs = [0]
                 ys = [0]
-                soil_names = ['mud']
-                soilProps = dict(mud={'Su0':[2.39], 'k':[1.41], 'gamma':[10], 'depth':[0]},
-                                rock={'UCS':[5], 'Em':[7], 'depth':[0]})
-        
+                soil_names = [['mud']]  # note: should be 2D to match grid structure
+                soilProps = {
+                    'mud': {'layers': [{
+                        'soil_type': 'clay',
+                        'top': 0, 'bottom': 50,
+                        'gamma_top': 10, 'gamma_bot': 10,
+                        'Su_top': 2.39, 'Su_bot': 59.39
+                    }]},
+                    'rock': {'layers': [{
+                        'soil_type': 'rock',
+                        'top': 0, 'bottom': 50,
+                        'UCS_top': 5, 'UCS_bot': 5,
+                        'Em_top': 7, 'Em_bot': 7
+                    }]}
+                }
+
+
         else:
-            raise ValueError("Something is wrong")
-        
-        '''
-        # check that correct soil properties are being provided for the different soil types
-        for soil in soilProps:
-            if 'rock' in soil or 'hard' in soil:
-                if not 'UCS' in soilProps[soil] or not 'Em' in soilProps[soil]:
-                    raise ValueError('Rock soil type requires UCS and Em values')
-            elif 'sand' in soil:
-                if not 'phi' in soilProps[soil] or not 'gamma' in soilProps[soil]:
-                    raise ValueError('Sand soil type requires phi and gamma values')
-            elif 'clay' in soil:
-                if not 'Su0' in soilProps[soil] or not 'k' in soilProps[soil]:
-                    raise ValueError('Clay soil type requires Su0 and k values')
-            elif 'mud' in soil or 'mud_soft':
-                if not 'Su0' in soilProps[soil] or not 'k' in soilProps[soil]:
-                    raise ValueError('Mud soil type requires Su0 and k values')
-            else:
-                raise ValueError(f'Soil type {soil} not recognized. Soil type key must contain one of the following keywords: rock, sand, clay, mud')
-        '''
-        
-        # make sure the soilProps dictionary has all the required information (should be updated later with exact properties based on anchor capacity functions)
-        # setting each soil type dictionary with all the values, just in case they need them for whatever reason - here are the default values
-        # the default types (and values) are set if there is no other information provided
-        for key,props in soilProps.items():
-            props['Su0']   = getFromDict(props, 'Su0'  , shape=-1, dtype=list, default=[2.39], index=None)
-            props['k']     = getFromDict(props, 'k'    , shape=-1, dtype=list, default=[1.41], index=None)
-            props['alpha'] = getFromDict(props, 'alpha', shape=-1, dtype=list, default=[0.7] , index=None)
-            props['gamma'] = getFromDict(props, 'gamma', shape=-1, dtype=list, default=[4.7] , index=None)
-            props['phi']   = getFromDict(props, 'phi'  , shape=-1, dtype=list, default=[0.0] , index=None)
-            props['UCS']   = getFromDict(props, 'UCS'  , shape=-1, dtype=list, default=[7.0] , index=None)
-            props['Em']    = getFromDict(props, 'Em'   , shape=-1, dtype=list, default=[50.0], index=None)
-            
-            for k,prop in props.items():
-                if 'array' in type(prop).__name__:
-                    # clean up property type
-                    props[k] = np.array(prop)
-        
-        
+            raise ValueError("Invalid combination of filename/yaml inputs")
+
+        # --- Set defaults only for uniform mode ---
+        if soil_mode == 'uniform':
+            for key, props in soilProps.items():
+                props['Su0']   = getFromDict(props, 'Su0',   shape=-1, dtype=list, default=[2.39])
+                props['k']     = getFromDict(props, 'k',     shape=-1, dtype=list, default=[1.41])
+                props['alpha'] = getFromDict(props, 'alpha', shape=-1, dtype=list, default=[0.7])
+                props['gamma'] = getFromDict(props, 'gamma', shape=-1, dtype=list, default=[8.7])
+                props['phi']   = getFromDict(props, 'phi',   shape=-1, dtype=list, default=[0.0])
+                props['UCS']   = getFromDict(props, 'UCS',   shape=-1, dtype=list, default=[7.0])
+                props['Em']    = getFromDict(props, 'Em',    shape=-1, dtype=list, default=[50.0])
+
+                # ensure no array-like leftovers
+                for k, prop in props.items():
+                    if hasattr(prop, '__array__'):
+                        props[k] = np.array(prop)
+
+        # --- Store to project ---
         self.soilProps = soilProps
 
-
-        
-        
         if xs is not None:
             self.soil_x = np.array(xs)
             self.soil_y = np.array(ys)
             self.soil_names = np.array(soil_names)
-        
-        
-        # update soil info for anchor if needed
+
+        self.soil_mode = soil_mode
+        print(f"Loaded soilProps keys: {list(soilProps.keys())}")
+
+        # --- Update anchor objects if available ---
         if self.anchorList:
-            for anch in self.anchorList.values():
-                name, props = self.getSoilAtLocation(anch.r[0],anch.r[1])
-                anch.soilProps = {name:props}
-        
-        # load data from file
-        
-        # interpolate onto grid defined by grid_x, grid_y
-        
-        # save
-        '''
-        self.soil_class
-        self.soil_gamma
-        self.soil_Su0  
-        self.soil_K    
-        self.soil_alpha
-        self.soil_phi  
-        '''
-        pass
-        
+            for anchor in self.anchorList.values():
+                name, props = self.getSoilAtLocation(anchor.r[0], anchor.r[1])
+                anchor.soilProps = {name: props}
 
     def getSoilAtLocation(self, x, y):
         '''
-        Interpolate soil properties at specified location from the soil
-        properties grid and return a dictionary of soil properties that
-        can be used in anchor capacity calculations.
-        
-        Parameters
-        ----------        
-        x : float
-            x coordinate in array reference frame [m].        
-        y : float
-            y coordinate in array reference frame [m].
+        Retrieve the soil information at a specific location, supporting both uniform and layered modes.
 
         Returns
-        -------            
-        soilProps : dictionary
-            Dictionary of standard MoorPy soil properties.
+        -------
+        (str, dict or list): soil name or profile ID, and associated soil properties or layered profile
         '''
-        
-        # NEW: finds the specific soil grid point that the xy point is closest to and assigns it that soil type
         if self.soil_x is not None:
-            ix = np.argmin([abs(x-soil_x) for soil_x in self.soil_x])
-            iy = np.argmin([abs(y-soil_y) for soil_y in self.soil_y])
-    
-            soil_name = self.soil_names[iy, ix]
-    
-            soil_info = self.soilProps[soil_name]
-    
-            return soil_name, soil_info
-        else:
-            pass
-        
-        '''
-        # SIMPLE HACK FOR NOW        
-        rocky, _,_,_,_ = sbt.interpFromGrid(x, y, self.soil_x, self.soil_y, self.soil_rocky)
-        
-        return rocky
-        '''
-        '''
-        soilProps = {}
-        
+            ix = np.argmin([abs(x - sx) for sx in self.soil_x])
+            iy = np.argmin([abs(y - sy) for sy in self.soil_y])
+            soil_id = self.soil_names[iy, ix]  # could be label or profile_id
 
-        if self.seabed_type == 'clay':
-            
-            soilProps['class'] = 'clay'
-            soilProps['gamma'] = interp2d(x, y, self.seabed_x, self.seabed_y, self.soil_gamma)
-            soilProps['Su0'  ] = interp2d(x, y, self.seabed_x, self.seabed_y, self.soil_Su0  )
-            soilProps['k'    ] = interp2d(x, y, self.seabed_x, self.seabed_y, self.soil_k    )
-            soilProps['alpha'] = interp2d(x, y, self.seabed_x, self.seabed_y, self.soil_alpha)
-            soilProps['phi'  ] = None
-        
-        elif self.seabed_type == 'sand':
-            soilProps['class'] = 'sand'
-            soilProps['gamma'] = interp2d(x, y, self.seabed_x, self.seabed_y, self.soil_gamma)
-            soilProps['Su0'  ] = None
-            soilProps['k'    ] = None
-            soilProps['alpha'] = None
-            soilProps['phi'  ] = interp2d(x, y, self.seabed_x, self.seabed_y, self.soil_phi  )
-            
-            # note: for sand, can assume homogeneous angle of internal fricton
+            if self.soil_mode == 'uniform':
+                soil_info = self.soilProps[soil_id]
+                return soil_id, soil_info
+
+            elif self.soil_mode == 'layered':
+                profile_layers = self.soilProps[soil_id]  # list of layer dicts
+                return soil_id, profile_layers
+
+            else:
+                raise ValueError(f"Unknown soil_mode: {self.soil_mode}")
+
+            print(f"[DEBUG] soil_id at location ({x}, {y}) is: {soil_id}")
+            print(f"[DEBUG] Available soilProps keys: {list(self.soilProps.keys())}")
         else:
-            raise ValueError(f"Unsupported seabed type '{self.seabed_type}'.")
+            raise ValueError("No soil grid defined")
             
-        return soilProps
+    def convertUniformToLayered(self, default_layer=50.0):
         '''
+        Converts self.soilProps (uniform format) into profile_map (layered format)
+        using a default thickness and assuming uniform clay profile.
+        Matches the structure of layered CPT-based soil profiles.
+        '''
+        self.profile_map = {}
+
+        for name, props in self.soilProps.items():
+            name = str(name)
+            gamma = float(props['gamma'][0])
+            Su0 = float(props['Su0'][0])
+            k = float(props['k'][0])
+
+            layer = {
+                'soil_type': 'clay',
+                'top': 0.0,
+                'bottom': default_layer,
+                'gamma_top': gamma,
+                'gamma_bot': gamma,
+                'Su_top': Su0,
+                'Su_bot': Su0 + k * default_layer}
+
+            self.profile_map[name] = [layer]  # just layers!
+            
+    def convertLayeredToUniform(self):
+        '''
+        Converts self.profile_map (layered format) into soilProps (uniform format)
+        assuming a single clay layer with linear Su(z) = Su0 + k*z.
+        Matches the structure expected by uniform soil models.
+        '''
+        self.soilProps = {}
+
+        for name, layers in self.profile_map.items():
+            if not layers or len(layers) != 1:
+                raise ValueError('convertLayeredToUniform only supports a single-layer profile')
+
+            layer = layers[0]
+            if str(layer.get('soil_type', '')).lower() != 'clay':
+                raise ValueError('convertLayeredToUniform only supports clay')
+
+            top = float(layer['top'])
+            bot = float(layer['bottom'])
+            Su_top = float(layer['Su_top'])
+            Su_bot = float(layer['Su_bot'])
+            gamma = float(layer['gamma_top'])  # gamma_top == gamma_bot in your format
+
+            if bot <= top:
+                raise ValueError('Invalid layer thickness (bottom <= top)')
+
+            thickness = bot - top
+            k = (Su_bot - Su_top)/thickness
+            Su0 = Su_top - k*top
+
+            self.soilProps[name] = {
+                'gamma': [gamma],
+                'Su0': [Su0],
+                'k': [k]}
 
     # # ----- Anchor 
     def updateAnchor(self,anch='all',update_loc=True):
@@ -1407,39 +1407,20 @@ class Project():
                 name, props = self.getSoilAtLocation(x,y) # update soil
                 anchor.soilProps = {name:props}
             
-
-
-    # def calcAnchorCapacity(self, anchor):
-    #     '''Compute holding capacity of a given anchor based on the soil
-    #     info at its position. The anchor object's anchor properties and
-    #     location will be used to determine the holding capacity, which
-    #     will be saved to the anchor object.
-        
-    #     Parameters
-    #     ----------
-    #     anchor : MoorPy Anchor object (derived from Point)
-    #         The anchor object in question.
-    #     '''
-
-    #     # interpolate soil properties/class based on anchor position
-    #     anchor.soilProps = self.getSoilAtLocation(anchor.r[0], anchor.r[1])
-        
-    #     # fill in generic anchor properties if anchor info not provided
-    #     if not type(anchor.anchorProps) == dict:
-    #         anchor.anchorProps = dict(type='suction', diameter=6, length=12)
-        
-    #     # apply anchor capacity model
-    #     capacity, info = anchorCapacity(anchorProps, soilProps)
-        
-    #     # save all information to the anchor (attributes of the Point)
-    #     anchor.soilProps = soilProps
-    #     anchor.anchorCapacity = capacity
-    #     anchor.anchorInfo = info
-        
-    #     # also return it
-    #     return capacity
-
+    def setSoilAtLocation(self, anchor):
+        name, props = self.getSoilAtLocation(anchor.r[0], anchor.r[1])
     
+        # Add required metadata
+        layer = dict(props)  # shallow copy of props
+        layer['soil_type'] = name  # or force to 'clay'/'rock' if needed
+        layer['top'] = props.get('top', 0)
+        layer['bottom'] = props.get('bottom', 50)  
+    
+        # Wrap in expected profile_map format
+        profile_map = [{'name': name, 'layers': [layer]}]
+        anchor.setSoilProfile(profile_map)
+
+   
     def setCableLayout(self):
 
         # 2-D

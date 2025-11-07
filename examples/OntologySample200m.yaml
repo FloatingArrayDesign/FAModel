@@ -43,23 +43,42 @@ site:
       
       soil_types:  
         mud_soft:
-          Su0 : [2.39]  # [kPa]
-          k : [1.41]    # [kPa/m]
-          gamma : [10]  # [kN/m^3]
-          depth: [0]    # [m]
+            layers: 
+            - soil_type: clay
+              top: 0
+              bottom: 50
+              gamma_top: 10.0
+              gamma_bot: 10.0
+              Su_top: 2.39
+              Su_bot: 59.39
         mud_firm:
-          Su0 : [23.94] # [kPa]
-          k : [2.67]    # [kPa/m]
-          gamma: [15]
-          depth: [0]    # [m]
-        mud_hard:
-          Su0: [50]
-          k: [1.0]
-          gamma: [9.5]
-          depth: [0]  
+            layers:
+            - soil_type: clay            
+              top: 0
+              bottom: 50
+              gamma_top: 10.0
+              gamma_bot: 50.0
+              Su_top: 23.4
+              Su_bot: 157.44
+        mud_hard: 
+            layers:
+            - soil_type: clay            
+              top: 0
+              bottom: 50
+              gamma_top: 8.5
+              gamma_bot: 8.5
+              Su_top: 50.0
+              Su_bot: 100.00  
         rock:
-          UCS: [5] # [MPa]
-          Em: [7] # [MPa]
+            layers:
+            - soil_type: rock
+              top: 0
+              bottom: 50
+              UCS_top: 5.0
+              UCS_bot: 5.0
+              Em_top: 7.0
+              Em_bot: 7.0
+
     
     metocean:
         extremes:  # extreme values for specified return periods (in years)
@@ -331,26 +350,27 @@ mooring_connector_types:
 anchor_types:
 
     drag-embedment1:
-        type   :  DEA   # type of anchor
-        A      :    10 # net area of anchor's fluke [m^2]
-        zlug   :    20 # embedded depth of padeye [m]
+        type   :  DEA  # type of anchor
+        B      :     5 # net area of anchor's fluke [m^2]
+        L      :     2
+        zlug   :    10 # embedded depth of padeye [m]
     suction_pile1:
-        type   :  suction_pile
+        type   :  suction
         L      :     16.4  # length of pile [m]
         D      :     5.45  # diameter of pile [m]
         zlug   :     9.32  # embedded depth of padeye [m]
     dandg_pile1:
-        type   :  dandg_pile
+        type   :  dandg
         L      :     50 # length of pile [m]
         D      :     3 # diameter of pile [m]
         zlug   :     0 # embedded depth [m]
     driven_pile1:
-        type   :  driven_pile
+        type   :  driven
         L      :     20 # pile length [m]
         D      :     1.5 # pile diameter [m]
         zlug   :     3 # embedded depth [m]
     driven_pile2:
-        type   :  driven_pile
+        type   :  driven
         L      :     20 # pile length [m]
         D      :     1.5 # pile diameter [m]
         zlug   :     -3 # embedded depth [m]
@@ -360,14 +380,14 @@ anchor_types:
         zlug : 10
         #beta: 30
     torpedo_pile1:
-        type: torpedo_pile 
+        type: torpedo 
         D1 : 3
         D2: 1.1
         L1: 10
         L2: 4
         zlug: 16
     helical_pile1:
-        type: helical_pile
+        type: helical
         L : 25.1
         d : 1
         D : 5.01
