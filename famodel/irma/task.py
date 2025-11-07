@@ -76,6 +76,7 @@ class Task():
             self.action_sequence = {}
             
             if action_sequence == 'series':  # Puts the actions in linear sequence
+                actions = list(self.actions.values())
                 for i in range(len(actions)):
                     if i==0:  # first action has no dependencies
                         self.action_sequence[actions[i].name] = []
@@ -264,28 +265,6 @@ class Task():
 
         return H
                 
-                    
-
-    def stageActions(self, from_deps=True):
-        '''
-        This method stages the action_sequence for a proper execution order.
-
-        Parameters
-        ----------
-        from_deps : bool
-            If True, builds the action_sequence from the dependencies of each action.
-            More options will be added in the future.
-        '''
-        if from_deps:
-            # build from dependencies
-            def getDeps(action):
-                deps = []
-                for dep in action.dependencies:
-                    deps.append(dep)
-                return deps
-            
-            self.action_sequence = {self.actions[name].name: getDeps(self.actions[name]) for name in self.actions}
-            
 
     def calcDuration(self):
         '''Organizes the actions to be done by this task into the proper order
@@ -315,6 +294,8 @@ class Task():
         # Task duration
         self.duration = max(finishes.values())
 
+        # Update task finish time
+        self.tf = self.ti + self.duration
 
     def calcCost(self):
         '''Calculates the total cost of the task based on the costs of individual actions.
@@ -348,7 +329,17 @@ class Task():
             self.actions_ti[action] += self.ti
     
 
-
+    def clearAssets(self):
+        '''
+        Clear all assigned assets from all actions in the task.
+        This resets the asset assignments and re-evaluates the actions.
+        '''
+        for action in self.actions.values():
+            action.clearAssets()
+        
+        # Reinitialize duration and cost after clearing assets.
+        self.duration = 0
+        self.cost     = 0
 
     
     def get_row(self, assets):

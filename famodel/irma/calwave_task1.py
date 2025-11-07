@@ -198,7 +198,10 @@ if __name__ == '__main__':
     # 5) Build Task
     task1 = Task(name='calwave_task1', actions=sc.actions, action_sequence='dependencies')
 
-    task1.updateStartTime(newStart=10)
+    # Check assets
+    # task1.checkAssets(sc.vessels)
+
+    # task1.updateStartTime(newStart=0)
 
     # 6) Build the Gantt chart
     task1.GanttChart(color_by='asset')

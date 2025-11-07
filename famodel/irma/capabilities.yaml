@@ -1,3 +1,6 @@
+# ======================================================================
+# capabilities.yaml
+# ----------------------------------------------------------------------
 # This file defines standardized capabilities for vessels and equipment.
 # Each entry needs numeric values per specific asset in vessels.yaml.
 # Vessel actions will be checked against capabilities/actions for validation.
@@ -62,18 +65,33 @@
    capacity_t:              # SWL at specified radius [t]
    hook_height_m:           # max hook height [m]
 
- - name: station_keeping
-  # description: Vessel station keeping capability (dynamic positioning or anchor-based)
+ - name: station_keeping_by_dynamic_positioning
+  # description: DP vessel capability for station keeping
   # fields:
-   type:                   # e.g., DP0, DP1, DP2, DP3, anchor_based
+   type:                   
+  #  TODO: maybe information about thrusters here?
 
- - name: mooring_work
-  # description: Suitability for anchor/mooring operations
+ - name: station_keeping_by_anchor
+  # description: Anchor-based station keeping capability
   # fields:
-   line_types:           # e.g., [chain, ropes...]
-   stern_roller:            # presence of stern roller (optional)
-   shark_jaws:              # presence of chain stoppers/jaws (optional)
-   towing_pin_rating_t:     # rating of towing pins [t] (optional)
+   max_hold_force_t:        # maximum holding force [t]
+ 
+ - name: station_keeping_by_bowt
+  # description: Station keeping by bowt
+  # fields:
+   max_hold_force_t:        # maximum holding force [t]
+
+ - name: stern_roller
+  # description: Stern roller for overboarding/lowering lines/cables over stern
+  # fields:
+   diameter_m:              # roller diameter [m]
+   width_m:                 # roller width [m]
+ 
+ - name: shark_jaws
+  # description: Chain stoppers/jaws for holding chain under tension
+  # fields:
+   max_load_t:              # maximum holding load [t]
+
 
 # --- Equipment (portable) ---
 

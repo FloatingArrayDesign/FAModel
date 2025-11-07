@@ -10,7 +10,7 @@ import yaml
 from copy import deepcopy
 
 #from shapely.geometry import Point, Polygon, LineString
-from famodel.seabed import seabed_tools as sbt
+import famodel.seabed_tools as sbt
 from famodel.mooring.mooring import Mooring
 from famodel.platform.platform import Platform
 from famodel.anchors.anchor import Anchor
@@ -117,6 +117,7 @@ class Action():
         # list of things that will be controlled during this action
         self.assets = {}        # dict of named roles for the vessel(s) or port required to perform the action
         self.requirements = {}  # capabilities required of each role (same keys as self.assets)
+        self.requirements2 = {} # capabilities required for the action
         self.objectList   = []  # all objects that could be acted on
         self.dependencies = {}  # list of other actions this one depends on
         
@@ -154,6 +155,8 @@ class Action():
         if 'roles' in actionType:
             for role, caplist in actionType['roles'].items():
                 self.requirements[role] = {key: {} for key in caplist}  # each role requirment holds a dict of capabilities with each capability containing a dict of metrics and values, metrics dict set to empty for now. 
+                for key in caplist:
+                    self.requirements2[key] = {} # all requirements diction needed for the action. 
                 self.assets[role] = None  # placeholder for the asset assigned to this role
 
         # Process objects to be acted upon. NOTE: must occur after requirements and assets placeholders have been assigned. 
@@ -1430,7 +1433,21 @@ class Action():
                 raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
 
         self.calcDurationAndCost()
-    
+
+    def clearAssets(self):
+        '''
+        Clears all assigned assets from the action.
+
+        Inputs
+        ------
+        `None`
+
+        Returns
+        -------
+        `None`
+        '''
+        for role_name in self.assets.keys():
+            self.assets[role_name] = None    
     
     # ----- Below are drafts of methods for use by the engine -----
     """

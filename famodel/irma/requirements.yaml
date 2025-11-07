@@ -1,0 +1,187 @@
+# ======================================================================
+# requirements.yaml
+# ----------------------------------------------------------------------
+# This file maps requirements and optional capabilities to marine operations actions.
+# Each entry lists optional capabilities that an asset can have to fulfil the requirement.
+
+# Example Entry:
+# - name: chain_storage
+#   description: "Storage capacity for equipment or materials"
+#   objects: [chain]
+#   capabilities:
+#     - chain_locker
+#     - deck_space
+
+
+# --- Propulsion & Towage ------------------------------------------------
+
+- name: propulsion
+  description: "Ability to provide self-propelled motion or maneuvering thrust."
+  capabilities:
+    - engine
+
+- name: bollard_pull
+  description: "Ability to exert or resist towline force during towing or station-keeping."
+  capabilities:
+    - bollard_pull
+
+- name: station_keeping
+  description: "Ability to maintain position and heading against wind, wave, and current forces."
+  capabilities:
+    - station_keeping_by_dynamic_positioning
+    - station_keeping_by_anchor
+    - station_keeping_by_bowt
+
+
+# --- Storage & Transport ------------------------------------------------
+
+- name: storage
+  description: "General onboard deck or cargo storage capacity for components or equipment."
+  objects: [anchor, mooring, cable, platform, component]
+  capabilities:
+    - deck_space
+
+- name: chain_storage
+  description: "Dedicated storage capacity for chain sections in the mooring line."
+  objects: [mooring]
+  materials: [chain]
+  capabilities:
+    - chain_locker
+    - deck_space
+
+- name: rope_storage
+  description: "Dedicated storage capacity for rope sections in the mooring line."
+  objects: [mooring]
+  materials: [rope]
+  capabilities:
+    - line_reel
+    - deck_space
+
+- name: cable_storage
+  description: "Dedicated storage capacity for electrical cables or umbilicals on reels."
+  objects: [cable]
+  capabilities:
+    - cable_reel
+    - deck_space
+
+- name: line_handling
+  description: "Ability to deploy, recover, or tension mooring lines."
+  objects: [mooring]
+  capabilities:
+    - winch
+    - crane
+    - shark_jaws
+    - stern_roller
+
+- name: cable_handling
+  description: "Ability to deploy, recover, and control subsea cables under tension."
+  objects: [cable]
+  capabilities:
+    - winch
+    - crane
+    - cable_reel
+    - stern_roller
+
+- name: lifting
+  description: "Ability to lift and move heavy components vertically and horizontally."
+  objects: [anchor, mooring, cable, platform, component]
+  capabilities:
+    - crane
+
+- name: anchor_handling
+  description: "Capability to overboard, lower, orient, deploy, or recover anchors."
+  objects: [anchor]
+  capabilities:
+    - winch
+    - crane
+    - stern_roller
+
+- name: anchor_embedding
+  description: "Capability to embed anchors into seabed using mechanical, hydraulic, or suction means."
+  objects: [anchor]
+  capabilities:
+    - bullard_pull
+    - propulsion
+    - pump_subsea
+    - pump_surface
+    - hydraulic_hammer
+    - vibro_hammer
+    - torque_machine
+    - drilling_machine
+
+- name: anchor_removal
+  description: "Capability to extract anchors from seabed via reverse suction or pulling."
+  objects: [anchor]
+  capabilities:
+    - winch
+    - crane
+    - pump_subsea
+    - pump_surface
+
+
+# --- Mooring Systems ---------------------------------------------------
+
+- name: mooring_work
+  description: "Specialized capability for mooring hookup, tensioning, and verification."
+  objects: [mooring, component]
+  capabilities:
+    - winch
+    - shark_jaws
+    - stern_roller
+
+
+# --- Platform Handling & Heavy Lift ------------------------------------
+
+- name: platform_handling
+  description: "Capability to position, ballast, and secure floating structures."
+  objects: [platform]
+  capabilities:
+    - crane
+    - pumping
+
+- name: pumping
+  description: "Capability to perform controlled ballasting, de-ballasting, or fluid transfer."
+  capabilities:
+    - pump_surface
+    - pump_subsea
+    - pump_grout
+
+
+# --- Cable & Subsea Work ------------------------------------------------
+
+- name: cable_laying
+  description: "Capability to lay subsea cables."
+  objects: [cable]
+  capabilities:
+    - winch
+    - cable_plough
+    - stern_roller
+
+- name: rock_placement
+  description: "Capability to place rock or gravel for cable protection, scour prevention, or trench backfill."
+  capabilities:
+    - rock_placement
+    - crane
+
+
+# --- Monitoring & Survey ------------------------------------------------
+
+- name: monitoring_system
+  description: "Capability to monitor parameters during installation (pressure, torque, position, etc.)."
+  capabilities:
+    - monitoring_system
+    - rov
+    - container
+
+- name: positioning_system
+  description: "Capability to provide high-accuracy seabed positioning or navigation."
+  capabilities:
+    - positioning_system
+    - sonar_survey
+
+- name: survey
+  description: "Capability for site or installation survey using sonar, ROV, or acoustic tools."
+  capabilities:
+    - sonar_survey
+    - rov
+    - monitoring_system

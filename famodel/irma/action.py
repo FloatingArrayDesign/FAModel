@@ -91,7 +91,7 @@ class Action():
     subclasses.
     '''
     
-    def __init__(self, actionType, name, **kwargs):
+    def __init__(self, actionType, name, allReq, **kwargs):
         '''Create an action object...
         It must be given a name.
         The remaining parameters should correspond to items in the actionType dict...
@@ -103,6 +103,9 @@ class Action():
         `name` : `string`
             A name for the action. It may be appended with numbers if there
             are duplicate names.
+        `allReq` : `dict`
+            A dicitonary of all possible requirements (capabilities) that is needed 
+            for mapping/assigning requirements to assets.
         `kwargs`
             Additional arguments may depend on the action type and typically
             include a list of FAModel objects that are acted upon, or
@@ -114,13 +117,15 @@ class Action():
         '''
         
         # list of things that will be controlled during this action
-        self.assets = {}        # dict of named roles for the vessel(s) or port required to perform the action
-        self.requirements = {}  # capabilities required of each role (same keys as self.assets)
+        self.assetList    = []  # list of assigned assets (vessels or ports) required to perform the action
+        self.requirements = {}  # dictionary of requirements (keys) and a boolean (True/False) indicating whether they're needed or not (values)
         self.objectList   = []  # all objects that could be acted on
+        self.materialList = []  # all materials that could be acted on
         self.dependencies = {}  # list of other actions this one depends on
         
         self.actionType = actionType  # <— keep the YAML dict on the instance
-        
+        self.allReq     = allReq      # <— keep the full requirements dict on the instance
+
         self.type = getFromDict(actionType, 'type', dtype=str)
         self.name = name
         self.status = 0  # 0, waiting;  1=running;  2=finished
@@ -149,11 +154,10 @@ class Action():
                     raise Exception(f"Object type '{objType}' is not in the action's supported list.")
         '''
         
-        # Create placeholders for asset roles based on the "requirements"
-        if 'roles' in actionType:
-            for role, caplist in actionType['roles'].items():
-                self.requirements[role] = {key: {} for key in caplist}  # each role requirment holds a dict of capabilities with each capability containing a dict of metrics and values, metrics dict set to empty for now. 
-                self.assets[role] = None  # placeholder for the asset assigned to this role
+        # Create placeholders for asset based on the "requirements"
+        if 'requirements' in actionType:
+            reqList = actionType['requirements']
+            self.requirements = {req: False for req in reqList}  # initialize all requirements to True (needed)
 
         # Process objects to be acted upon. NOTE: must occur after requirements and assets placeholders have been assigned. 
         # make list of supported object type names
@@ -167,6 +171,9 @@ class Action():
         if 'objects' in kwargs:
             self.assignObjects(kwargs['objects'])
 
+        # Based on the assigned objects, update what requirements/capabilities are needed
+        self.updateRequirements()
+
         # Process dependencies
         if 'dependencies' in kwargs:
             for dep in kwargs['dependencies']:
@@ -174,6 +181,38 @@ class Action():
         
         # Process some optional kwargs depending on the action type
     
+    def updateRequirements(self):
+        '''
+        Updates requirements based on the assigned objects or materials.
+        '''
+        if not self.objectList:
+            raise Exception("No objects assigned to action; cannot update requirements.")
+        if not self.requirements:
+            raise Warning("No requirements defined for action; cannot update requirements.")
+            return
+
+        for req in self.requirements.keys():
+            # Does this requirement require specific objects or material?
+            objReq = self.allReq[req]['objects']
+            matReq = self.allReq[req]['material']
+            if objReq:
+                for obj in self.objectList:
+                    if obj in self.allReq[req]['objects']:
+                        objType = obj.__class__.__name__.lower()
+                        if matReq:
+                            if objType=='mooring':
+                                for sec in obj.dd['sections']:
+                                    if sec['type'] in matReq:
+                                        self.requirements[req] = True
+                                        break
+                            else:  # TODO: need to figure out how to deal with different objects
+                                pass
+                        else:
+                            self.requirements[req] = True
+            
+            # If there are no specific object or material requirements, just set to True
+            if not (objReq or matReq):
+                self.requirements[req] = True
         
     def addDependency(self, dep):
         '''
@@ -780,10 +819,29 @@ class Action():
 
                         self.requirements[role][cap] = metrics  # assign metric of capability cap based on value required by obj
                 # MH: commenting our for now just so the code will run, but it may be better to make the above a separate step anyway
+                # RA: under progress, this is to be handled in updateRequirements now.
                 '''
                 self.objectList.append(obj)
 
-    
+    def assignMaterials(self, materials):
+        '''
+        Adds a list of materials to the actions materials list.
+
+        Inputs
+        ------
+        `materials` : `list`
+            A list of material dicts to be added to the action.
+
+        Returns
+        -------
+        `None`
+        ''' 
+
+        for mat in materials:
+            if mat in self.materialList:
+                print(f"Warning: Material '{mat['name']}' is already in the action's material list.")
+            self.materialList.append(mat)
+
     def checkAsset(self, role_name, asset):
         '''
         Checks if a specified asset has sufficient capabilities to fulfil
@@ -806,7 +864,7 @@ class Action():
 
         # Make sure role_name is valid for this action
         if not role_name in self.assets.keys():
-            raise Exception(f"The specified role '{role_name}' is not a named in this action.")
+            raise Exception(f"The specified role '{role_name}' is not named in this action.")
         
         if self.assets[role_name] is not None: 
             return False, f"Role '{role_name}' is already filled in action '{self.name}'."
@@ -1379,8 +1437,8 @@ class Action():
 
         duration, cost = self.calcDurationAndCost()
 
-        for role_name in assets.keys(): # Clear the assets dictionary
-            assets[role_name] = None
+        # Clear assets assigned for evaluation
+        self.clearAssets()
 
         return duration, cost # values returned here rather than set because will be used to check compatibility and not set properties of action
     
@@ -1444,7 +1502,21 @@ class Action():
 
         self.calcDurationAndCost()
     
-    
+    def clearAssets(self):
+        '''
+        Clears all assigned assets from the action.
+
+        Inputs
+        ------
+        `None`
+
+        Returns
+        -------
+        `None`
+        '''
+        for role_name in self.assets.keys():
+            self.assets[role_name] = None
+
     # ----- Below are drafts of methods for use by the engine -----
     """
     def begin(self):
