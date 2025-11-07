@@ -16,7 +16,6 @@ except:
     pass
 
 #from shapely.geometry import Point, Polygon, LineString
-from famodel.seabed import seabed_tools as sbt
 from famodel.mooring.mooring import Mooring
 from famodel.platform.platform import Platform
 from famodel.anchors.anchor import Anchor
