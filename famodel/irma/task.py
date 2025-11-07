@@ -519,4 +519,3 @@ class Task():
             The axes object containing the Gantt chart.
         '''
         pass
-        

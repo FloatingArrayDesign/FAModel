@@ -120,6 +120,8 @@ class Action():
         self.objectList   = []  # all objects that could be acted on
         self.dependencies = {}  # list of other actions this one depends on
         
+        self.actionType = actionType  # <— keep the YAML dict on the instance
+        
         self.type = getFromDict(actionType, 'type', dtype=str)
         self.name = name
         self.status = 0  # 0, waiting;  1=running;  2=finished
@@ -842,7 +844,7 @@ class Action():
         -------
         `None`
         '''
-        
+
         # Check that all roles in the action are filled
         for role_name in self.requirements.keys():
             if self.assets[role_name] is None:
@@ -850,8 +852,8 @@ class Action():
             
         # Initialize cost and duration
         self.cost = 0.0 # [$]
-        self.duration = 0.0 # [days]
-
+        self.duration = 0.0 # [h]
+        
         """
         Note to devs:
         The code here calculates the cost and duration of an action. Each action in the actions.yaml has a hardcoded 'model' 
@@ -863,24 +865,324 @@ class Action():
         Some good preliminary work on this is in https://github.com/FloatingArrayDesign/FAModel/blob/IOandM_development/famodel/installation/
         and in assets.py
         """
+        
+        # --- Mobilization ---
+        if self.type == 'mobilize':
+            # Hard-coded example of mobilization times based on vessel type
+            durations = {
+                'crane_barge': 3.0,
+                'research_vessel': 1.0
+            }
+            for role_name, vessel in self.assets.items():
+                vessel_type = vessel['type'].lower()
+                for key, duration in durations.items():
+                    if key in vessel_type:
+                        self.duration += duration
+                        break
+
+        elif self.type == 'demobilize':
+            # Hard-coded example of demobilization times based on vessel type
+            durations = {
+                'crane_barge': 3.0,
+                'research_vessel': 1.0
+            }
+            for role_name, vessel in self.assets.items():
+                vessel_type = vessel['type'].lower()
+                for key, duration in durations.items():
+                    if key in vessel_type:
+                        self.duration += duration
+        elif self.type == 'load_cargo':
+            pass
 
         # --- Towing & Transport ---
-        if self.type == 'tow':
+        elif self.type == 'tow':
+            pass
+        
+        elif self.type == 'transit_linehaul_self':
+            # YAML override
+            try:
+                v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
+            except ValueError:
+                try:
+                    v = getFromDict(self.actionType, 'default_duration_h', dtype=float); self.duration += v
+                except ValueError:
+                    vessel = self.assets.get('vessel') or self.assets.get('operator') or self.assets.get('carrier')
+                    if vessel is None:
+                        raise ValueError('transit_linehaul_self: no vessel assigned.')
+        
+                    tr = vessel['transport']
+                    
+                    # distance
+                    dist_m = float(tr['route_length_m'])
+                    
+                    # speed: linehaul uses transport.cruise_speed_mps
+                    speed_mps = float(tr['cruise_speed_mps'])
+
+                    dur_h = dist_m/speed_mps/3600.0
+                    self.duration += dur_h
+            # cost
+            rate_per_hour = 0.0
+            for _, asset in self.assets.items():
+                rate_per_hour += float(asset['day_rate'])/24.0
+            self.cost += self.duration*rate_per_hour
+            return self.duration, self.cost
+                                                                                        
+
+        elif self.type == 'transit_linehaul_tug':
+            # YAML override
+            try:
+                v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
+            except ValueError:
+                try:
+                    v = getFromDict(self.actionType, 'default_duration_h', dtype=float); self.duration += v
+                except ValueError:
+                    tug   = self.assets.get('operator') or self.assets.get('vessel')
+                    barge = self.assets.get('carrier')
+                    if tug is None or barge is None:
+                        raise ValueError('transit_linehaul_tug: need tug (operator) and barge (carrier).')
+        
+                    tr_b = barge.get('transport', {})
+                    tr_t = tug.get('transport', {})
+                    
+                    # distance: prefer barge’s transport
+                    dist_m = float(tr_b.get('route_length_m', tr_t['route_length_m']))
+                    
+                    # speed for convoy linehaul: barge (operator) cruise speed
+                    operator = self.assets.get('operator') or self.assets.get('vessel')
+                    if operator is None:
+                        raise ValueError('transit_linehaul_tug: operator (barge) missing.')
+                    
+                    speed_mps = float(operator['transport']['cruise_speed_mps'])
+
+                    dur_h = dist_m/speed_mps/3600.0
+                    
+                    
+                    self.duration += dur_h
+
+            # cost
+            rate_per_hour = 0.0
+            for _, asset in self.assets.items():
+                rate_per_hour += float(asset['day_rate'])/24.0
+            self.cost += self.duration*rate_per_hour
+            return self.duration, self.cost
+
+        elif self.type == 'transit_onsite_self':
+            # YAML override
+            try:
+                v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
+            except ValueError:
+                try:
+                    v = getFromDict(self.actionType, 'default_duration_h', dtype=float); self.duration += v
+                except ValueError:
+                    # vessel (Beyster) required
+                    vessel = self.assets.get('vessel') or self.assets.get('operator') or self.assets.get('carrier')
+                    if vessel is None:
+                        raise ValueError('transit_onsite_self: no vessel assigned.')
+        
+                    # NEW: quick vessel print
+                    try:
+                        print(f"[onsite_self] {self.name}: vessel={vessel.get('type')}")
+                    except Exception:
+                        pass
+        
+                    # destination anchor from objects (required)
+                    if not self.objectList:
+                        raise ValueError('transit_onsite_self: destination anchor missing in objects.')
+                    dest = self.objectList[0]
+                    r_dest = getattr(dest, 'r', None)
+        
+                    # NEW: print dest
+                    try:
+                        print(f"[onsite_self] {self.name}: r_dest={r_dest}")
+                    except Exception:
+                        pass
+        
+                    # infer start from dependency chain (BFS up to depth 3)
+                    r_start = None
+                    from collections import deque
+                    q, seen = deque(), set()
+                    for dep in self.dependencies.values():
+                        q.append((dep, 0)); seen.add(id(dep))
+                    while q:
+                        node, depth = q.popleft()
+                        if node.objectList and hasattr(node.objectList[0], 'r'):
+                            r_start = node.objectList[0].r
+                            break
+                        # if depth < 3:
+                        #     for nxt in node.dependencies.values():
+                        #         if id(nxt) in seen: continue
+                        #         seen.add(id(nxt)); q.append((nxt, depth+1))
+        
+                    # NEW: print BFS result
+                    try:
+                        print(f"[onsite_self] {self.name}: r_start(BFS)={r_start}")
+                    except Exception:
+                        pass
+        
+                    # CHANGED: fallback for first onsite leg → try centroid, else keep old zero-distance fallback
+                    if r_start is None and r_dest is not None:
+                        # NEW: centroid read (linehaul_to_site should set it on this action)
+                        cent = (getattr(self, 'meta', {}) or {}).get('anchor_centroid')
+                        if cent is None:
+                            cent = (getattr(self, 'params', {}) or {}).get('anchor_centroid')
+                        if cent is not None and len(cent) >= 2:
+                            r_start = (float(cent[0]), float(cent[1]))
+                            try:
+                                print(f"[onsite_self] {self.name}: using centroid as r_start={r_start}")
+                            except Exception:
+                                pass
+                        else:
+                            # ORIGINAL behavior: assume zero in-field distance
+                            r_start = r_dest
+                            try:
+                                print(f"[warn] {self.name}: could not infer start from deps; assuming zero in-field distance.")
+                            except Exception:
+                                pass
+        
+                    # 2D distance [m]
+                    from math import hypot
+                    dx = float(r_dest[0]) - float(r_start[0])
+                    dy = float(r_dest[1]) - float(r_start[1])
+                    dist_m = hypot(dx, dy)
+        
+                    # NEW: print distance
+                    try:
+                        print(f"[onsite_self] {self.name}: dist_m={dist_m:.1f} (start={r_start} → dest={r_dest})")
+                    except Exception:
+                        pass
+        
+                    # onsite speed from capabilities.engine (SI)
+                    cap_eng = vessel.get('capabilities', {}).get('engine', {})
+                    speed_mps = float(cap_eng['site_speed_mps'])
+
+                    self.duration += dist_m/speed_mps/3600.0
+        
+                    # NEW: print duration increment
+                    try:
+                        print(f"[onsite_self] {self.name}: speed_mps={speed_mps:.3f}, dT_h={dist_m/speed_mps/3600.0:.3f}, total={self.duration:.3f}")
+                    except Exception:
+                        pass
+        
+            # cost
+            rate_per_hour = 0.0
+            for _, asset in self.assets.items():
+                rate_per_hour += float(asset['day_rate'])/24.0
+            self.cost += self.duration*rate_per_hour
+            return self.duration, self.cost
+
+        elif self.type == 'transit_onsite_tug':
+            # YAML override
+            try:
+                v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
+            except ValueError:
+                try:
+                    v = getFromDict(self.actionType, 'default_duration_h', dtype=float); self.duration += v
+                except ValueError:
+                    # assets required (operator = San_Diego tug; carrier = Jag barge)
+                    operator = self.assets.get('operator') or self.assets.get('vessel')
+                    carrier  = self.assets.get('carrier')
+                    if operator is None and carrier is None:
+                        raise ValueError('transit_onsite_tug: no operator/carrier assigned.')
+        
+                    # quick prints
+                    try:
+                        op_name = operator.get('type') if operator else None
+                        ca_name = carrier.get('type')  if carrier  else None
+                        print(f"[onsite_tug] {self.name}: operator={op_name} carrier={ca_name}")
+                    except Exception:
+                        pass
+        
+                    # destination anchor from objects (required)
+                    if not self.objectList:
+                        raise ValueError('transit_onsite_tug: destination anchor missing in objects.')
+                    dest = self.objectList[0]
+                    r_dest = getattr(dest, 'r', None)
+        
+                    try:
+                        print(f"[onsite_tug] {self.name}: r_dest={r_dest}")
+                    except Exception:
+                        pass
+        
+                    # infer start from dependency chain (BFS up to depth 3)
+                    r_start = None
+                    from collections import deque
+                    q, seen = deque(), set()
+                    for dep in self.dependencies.values():
+                        q.append((dep, 0)); seen.add(id(dep))
+                    while q:
+                        node, depth = q.popleft()
+                        if node.objectList and hasattr(node.objectList[0], 'r'):
+                            r_start = node.objectList[0].r
+                            break
+                        # if depth < 3:
+                        #     for nxt in node.dependencies.values():
+                        #         if id(nxt) in seen: continue
+                        #         seen.add(id(nxt)); q.append((nxt, depth+1))
+        
+                    try:
+                        print(f"[onsite_tug] {self.name}: r_start(BFS)={r_start}")
+                    except Exception:
+                        pass
+        
+                    # fallback for first onsite leg: use centroid if present, else zero-distance fallback
+                    if r_start is None and r_dest is not None:
+                        cent = (getattr(self, 'meta', {}) or {}).get('anchor_centroid')
+                        if cent is None:
+                            cent = (getattr(self, 'params', {}) or {}).get('anchor_centroid')
+                        if cent is not None and len(cent) >= 2:
+                            r_start = (float(cent[0]), float(cent[1]))
+                            try:
+                                print(f"[onsite_tug] {self.name}: using centroid as r_start={r_start}")
+                            except Exception:
+                                pass
+                        else:
+                            r_start = r_dest
+                            try:
+                                print(f"[warn] {self.name}: could not infer start from deps; assuming zero in-field distance.")
+                            except Exception:
+                                pass
+        
+                    # 2D distance [m]
+                    from math import hypot
+                    dx = float(r_dest[0]) - float(r_start[0])
+                    dy = float(r_dest[1]) - float(r_start[1])
+                    dist_m = hypot(dx, dy)
+        
+                    try:
+                        print(f"[onsite_tug] {self.name}: dist_m={dist_m:.1f} (start={r_start} → dest={r_dest})")
+                    except Exception:
+                        pass
+        
+                    # speed for convoy onsite: barge (operator) site speed
+                    operator = self.assets.get('operator') or self.assets.get('vessel')
+                    if operator is None:
+                        raise ValueError('transit_onsite_tug: operator (barge) missing.')
+                    
+                    cap_eng = operator.get('capabilities', {}).get('bollard_pull', {})
+                    speed_mps = float(cap_eng['site_speed_mps'])
+
+                    self.duration += dist_m/speed_mps/3600.0
+        
+                    try:
+                        print(f"[onsite_tug] {self.name}: speed_mps={speed_mps:.3f}, dT_h={dist_m/speed_mps/3600.0:.3f}, total={self.duration:.3f}")
+                    except Exception:
+                        pass
+        
+            # cost (unchanged)
+            rate_per_hour = 0.0
+            for _, asset in self.assets.items():
+                rate_per_hour += float(asset['day_rate'])/24.0
+            self.cost += self.duration*rate_per_hour
+            return self.duration, self.cost
+
+        elif self.type == 'at_site_support':
             pass
         elif self.type == 'transport_components':
             pass
 
         # --- Mooring & Anchors ---
-        elif self.type == 'install_anchor':
-
-            # Place holder duration, will need a mini-model to calculate
-            self.duration += 0.2 # 0.2 days
-            self.cost += self.duration * (self.assets['carrier']['day_rate'] + self.assets['operator']['day_rate'])
-
-        elif self.type == 'retrieve_anchor':
-            pass
+        
         elif self.type == 'load_mooring':
-
             # Example model assuming line will be winched on to vessel. This can be changed if not most accurate
             duration_min = 0
             for obj in self.objectList:
@@ -891,11 +1193,56 @@ class Action():
             self.duration += duration_min / 60 / 24 # convert minutes to days
             self.cost += self.duration * (self.assets['carrier1']['day_rate'] + self.assets['carrier2']['day_rate'] + self.assets['operator']['day_rate']) # cost of all assets involved for the duration of the action [$]
 
-            # check for deck space availability, if carrier 1 met transition to carrier 2.
+        elif self.type == 'install_anchor':
+            # YAML override (no model if present)
+            default_duration = None
+            try:
+                default_duration = getFromDict(self.actionType, 'duration_h', dtype=float)
+            except ValueError:
+                default_duration = None
+        
+            if default_duration is not None:
+                computed_duration_h = default_duration
+       
+            else:
+                # Expect an anchor object in self.objectList
+                if not self.objectList:
+                    raise ValueError("install_anchor: no anchor object provided in 'objects'.")
+                                
+                # 1) Relevant metrics for cost and duration
+                anchor = self.objectList[0]
+                L = anchor.dd['design']['L']
+                depth_m = abs(float(anchor.r[2]))
+                
+                # 2) Winch vertical speed [mps]
+                v_mpm = float(self.assets['carrier']['capabilities']['winch']['speed_mpm'])
+                t_lower_min = depth_m/v_mpm
+                
+                # 3) Penetration time ~ proportional to L 
+                rate_pen = 15. # [min] per [m]
+                t_pen_min = L*rate_pen
+                
+                # 4) Connection / release (fixed)
+                t_ops_min = 15
+                
+                duration_min = t_lower_min + t_pen_min + t_ops_min
+                computed_duration_h = duration_min/60.0 # [h]
+                
+            # print(f'[install_anchor] yaml_duration={yaml_duration} -> used={computed_duration_h} h')
+            
+            # Duration addition
+            self.duration += computed_duration_h 
+            
+            # Cost assessment
+            rate_per_hour = 0.0
+            for _, asset in self.assets.items():
+                rate_per_hour += float(asset['day_rate'])/24.0
+            
+            self.cost += self.duration*rate_per_hour
 
-            # think through operator costs, carrier 1 costs.
-
-        elif self.type == 'lay_mooring':
+        elif self.type == 'retrieve_anchor':
+            pass       
+        elif self.type == 'install_mooring':
             pass
         elif self.type == 'mooring_hookup':
             pass
@@ -915,6 +1262,8 @@ class Action():
         # --- Cable Operations ---
         elif self.type == 'lay_cable':
             pass
+        elif self.type == 'cable_hookup':
+            pass
         elif self.type == 'retrieve_cable':
             pass
         elif self.type == 'lay_and_bury_cable':
@@ -925,8 +1274,66 @@ class Action():
         # --- Survey & Monitoring ---
         elif self.type == 'site_survey':
             pass
+        
         elif self.type == 'monitor_installation':
-            pass
+            # 1) YAML override first
+            try:
+                v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
+            except ValueError:
+                try:
+                    v = getFromDict(self.actionType, 'default_duration_h', dtype=float); self.duration += v
+                except ValueError:
+                    # --- find the paired install ---
+                    ref_install = getattr(self, 'paired_install', None)
+        
+                    # fallback: BFS through deps to find an install on the same anchor
+                    if ref_install is None:
+                        anchor_obj = self.objectList[0] if self.objectList else None
+                        from collections import deque
+                        q, seen = deque(), set()
+                        for dep in self.dependencies.values():
+                            q.append((dep, 0)); seen.add(id(dep))
+                        while q:
+                            node, depth = q.popleft()
+                            if getattr(node, 'type', None) == 'install_anchor':
+                                if anchor_obj and node.objectList and node.objectList[0] is anchor_obj:
+                                    ref_install = node
+                                    break
+                                if ref_install is None:
+                                    ref_install = node
+                            if depth < 3:
+                                for nxt in node.dependencies.values():
+                                    if id(nxt) in seen: continue
+                                    seen.add(id(nxt)); q.append((nxt, depth+1))
+        
+                    # --- get install duration, compute-on-demand if needed (no side effects) ---
+                    inst_dur = 0.0
+                    if ref_install is not None:
+                        inst_dur = float(getattr(ref_install, 'duration', 0.0) or 0.0)
+        
+                        # if not computed yet, safely compute and restore
+                        if inst_dur <= 0.0 and not getattr(ref_install, '_in_monitor_pull', False):
+                            try:
+                                ref_install._in_monitor_pull = True  # guard re-entrancy
+                                prev_cost = ref_install.cost
+                                prev_dur  = ref_install.duration
+                                d, _ = ref_install.calcDurationAndCost()
+                                inst_dur = float(d) if d is not None else 0.0
+                                # restore to avoid double counting later
+                                ref_install.cost = prev_cost
+                                ref_install.duration = prev_dur
+                            finally:
+                                ref_install._in_monitor_pull = False
+        
+                    self.duration += inst_dur
+        
+            # cost (same pattern you use elsewhere)
+            rate_per_hour = 0.0
+            for _, asset in self.assets.items():
+                rate_per_hour += float(asset['day_rate'])/24.0
+            self.cost += self.duration * rate_per_hour
+            return self.duration, self.cost
+
         else:
             raise ValueError(f"Action type '{self.type}' not recognized.")
         

@@ -9,12 +9,23 @@
 # for allowing conventional unit inputs. <<<
 
 # --- Vessel (on-board) ---
+ - name: engine
+  # description: Engine on-board of the vessel
+  # fields:
+   power_hp:                # power [horsepower]
+   site_speed_mps:          # speed [m/s]
 
+ - name: bollard_pull
+  # description: Towing/holding force capability
+  # fields:
+   max_force_t:             # bollard pull [t]
+   site_speed_mps:          # speed [m/s]
+ 
  - name: deck_space
   # description: Clear usable deck area and allowable load
   # fields:
-   area_m2:                # usable area [m2]
-   max_load_t:             # allowable deck load [t]
+   area_m2:                 # usable area [m2]
+   max_load_t:              # allowable deck load [t]
 
  - name: chain_locker
   # description: Chain storage capacity
@@ -40,10 +51,10 @@
    brake_load_t:            # static brake holding load [t]
    speed_mpm:               # payout/haul speed [m/min]
 
- - name: bollard_pull
-  # description: Towing/holding force capability
-  # fields:
-   max_force_t:             # bollard pull [t]
+                     
+                                                
+           
+                                              
 
  - name: crane
   # description: Main crane lifting capability
