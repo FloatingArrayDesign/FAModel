@@ -154,10 +154,11 @@ class Action():
                     raise Exception(f"Object type '{objType}' is not in the action's supported list.")
         '''
         
-        # Create placeholders for asset based on the "requirements"
+        # Determine requirements based on action type
         if 'requirements' in actionType:
             reqList = actionType['requirements']
-            self.requirements = {req: False for req in reqList}  # initialize all requirements to True (needed)
+            self.requirements = {req: True for req in reqList}  # initialize all requirements to True (needed)
+            self.requirements_met = {req: False for req in reqList}  # dictionary to track if requirements are met (by assigned assets). Initialized to False.
 
         # Process objects to be acted upon. NOTE: must occur after requirements and assets placeholders have been assigned. 
         # make list of supported object type names
@@ -172,7 +173,8 @@ class Action():
             self.assignObjects(kwargs['objects'])
 
         # Based on the assigned objects, update what requirements/capabilities are needed
-        self.updateRequirements()
+        if False:  # let's assume for now that all requirements are True.
+            self.updateRequirements()
 
         # Process dependencies
         if 'dependencies' in kwargs:
@@ -185,6 +187,7 @@ class Action():
         '''
         Updates requirements based on the assigned objects or materials.
         '''
+        # RA: let's rethink this function or brainstorm more.
         if not self.objectList:
             raise Exception("No objects assigned to action; cannot update requirements.")
         if not self.requirements:
@@ -842,50 +845,76 @@ class Action():
                 print(f"Warning: Material '{mat['name']}' is already in the action's material list.")
             self.materialList.append(mat)
 
-    def checkAsset(self, role_name, asset):
+    def checkAsset(self, asset):
         '''
         Checks if a specified asset has sufficient capabilities to fulfil
-        a specified role in this action.
+        all requirements in this action.
 
         Inputs
         ------
-        `role_name` : `string`
-            The name of the role to check.
         `asset` : `dict`
-            The asset to check against the role's requirements. 
+            The asset to check against the requirements. 
 
         Returns
         -------
         `bool`
-            True if the asset meets the role's requirements, False otherwise.
+            True if the asset meets the requirements, False otherwise.
         `str`
             A message providing additional information about the check.
         '''        
 
-        # Make sure role_name is valid for this action
-        if not role_name in self.assets.keys():
-            raise Exception(f"The specified role '{role_name}' is not named in this action.")
-        
-        if self.assets[role_name] is not None: 
-            return False, f"Role '{role_name}' is already filled in action '{self.name}'."
-
-        for capability in self.requirements[role_name].keys():
-
-            if capability in asset['capabilities'].keys(): # check capability is in asset
-                
-                # TODO: does this work if there are no metrics in a capability? This should be possible, as not all capabilities will require a constraint. 
-                for metric in self.requirements[role_name][capability].keys(): # loop over the capacity requirements for the capability (if more than one)
-                    
-                    if metric not in asset['capabilities'][capability].keys(): # value error because capabilities are defined in capabilities.yaml. This should only be triggered if something has gone wrong (i.e. overwriting values somewhere)
-                        raise ValueError(f"The '{capability}' capability does not have metric: '{metric}'.")
-
-                    if self.requirements[role_name][capability][metric] > asset['capabilities'][capability][metric]: # check requirement is met
-                        return False, f"The asset does not have sufficient '{metric}' for '{capability}' capability in '{role_name}' role of '{self.name}' action."
-
-                return True, 'All capabilities in role met'
-            
+        requirements_met = {}
+        for req, needed in self.requirements.items():
+            if needed: 
+                has_cap = any(cap in asset['capabilities'] for cap in self.allReq[req]['capabilities'])
+                requirements_met[req] = has_cap
             else:
-                return False, f"The asset does not have the '{capability}' capability for '{role_name}' role of '{self.name}' action."  # a capability is not met
+                requirements_met[req] = True  # requirement not needed, so considered met
+
+        assignable = all(requirements_met.values()) 
+
+        # message:
+        if assignable:
+            message = "Asset meets all required capabilities."
+        else:
+            unmet = [req for req, met in requirements_met.items() if not met]
+            detailed = []
+            for req in unmet:
+                expected = self.allReq[req]['capabilities']
+                detailed.append(f"- {req}: requires one of {expected}.")
+                detailed_msg = "\n".join(detailed)
+            
+            detailed_msg += f"\nAsset has the following capabilities: {[cap for cap in asset['capabilities'].keys()]}"
+            message = "Asset does not meet the following required capabilities:\n" + detailed_msg
+        
+        
+        return assignable, message
+                    
+        # Old method:
+        # # Make sure role_name is valid for this action
+        # if not role_name in self.assets.keys():
+        #     raise Exception(f"The specified role '{role_name}' is not named in this action.")
+        
+        # if self.assets[role_name] is not None: 
+        #     return False, f"Role '{role_name}' is already filled in action '{self.name}'."
+
+        # for capability in self.requirements[role_name].keys():
+
+        #     if capability in asset['capabilities'].keys(): # check capability is in asset
+                
+        #         # TODO: does this work if there are no metrics in a capability? This should be possible, as not all capabilities will require a constraint. 
+        #         for metric in self.requirements[role_name][capability].keys(): # loop over the capacity requirements for the capability (if more than one)
+                    
+        #             if metric not in asset['capabilities'][capability].keys(): # value error because capabilities are defined in capabilities.yaml. This should only be triggered if something has gone wrong (i.e. overwriting values somewhere)
+        #                 raise ValueError(f"The '{capability}' capability does not have metric: '{metric}'.")
+
+        #             if self.requirements[role_name][capability][metric] > asset['capabilities'][capability][metric]: # check requirement is met
+        #                 return False, f"The asset does not have sufficient '{metric}' for '{capability}' capability in '{role_name}' role of '{self.name}' action."
+
+        #         return True, 'All capabilities in role met'
+            
+        #     else:
+        #         return False, f"The asset does not have the '{capability}' capability for '{role_name}' role of '{self.name}' action."  # a capability is not met
      
     
     def calcDurationAndCost(self):
@@ -903,9 +932,9 @@ class Action():
         '''
 
         # Check that all roles in the action are filled
-        for role_name in self.requirements.keys():
-            if self.assets[role_name] is None:
-                raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.")
+        for req, met in self.requirements_met.items():
+            if not met:
+                raise Exception(f"Requirement '{req}' is not met in action '{self.name}'. Cannot calculate duration and cost.")
             
         # Initialize cost and duration
         self.cost = 0.0 # [$]
@@ -925,29 +954,30 @@ class Action():
         
         # --- Mobilization ---
         if self.type == 'mobilize':
-            # Hard-coded example of mobilization times based on vessel type
+            # Hard-coded example of mobilization times based on vessel type - from the calwave installation example.
             durations = {
                 'crane_barge': 3.0,
                 'research_vessel': 1.0
             }
-            for role_name, vessel in self.assets.items():
-                vessel_type = vessel['type'].lower()
+            for asset in self.assetList:
+                asset_type = asset['type'].lower()
                 for key, duration in durations.items():
-                    if key in vessel_type:
+                    if key in asset_type:
                         self.duration += duration
                         break
 
         elif self.type == 'demobilize':
-            # Hard-coded example of demobilization times based on vessel type
+            # Hard-coded example of demobilization times based on vessel type - from the calwave installation example.
             durations = {
                 'crane_barge': 3.0,
                 'research_vessel': 1.0
             }
-            for role_name, vessel in self.assets.items():
-                vessel_type = vessel['type'].lower()
+            for asset in self.assetList:
+                asset_type = asset['type'].lower()
                 for key, duration in durations.items():
-                    if key in vessel_type:
+                    if key in asset_type:
                         self.duration += duration
+
         elif self.type == 'load_cargo':
             pass
 
@@ -956,6 +986,7 @@ class Action():
             pass
         
         elif self.type == 'transit_linehaul_self':
+            # TODO: RA: Needs to be updated based on new format (no roles)! - Note to dev: try to reduce (try/except) statements
             # YAML override
             try:
                 v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
@@ -986,6 +1017,7 @@ class Action():
                                                                                         
 
         elif self.type == 'transit_linehaul_tug':
+            # TODO: RA: Needs to be updated based on new format (no roles)! - Note to dev: try to reduce (try/except) statements
             # YAML override
             try:
                 v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
@@ -1024,6 +1056,7 @@ class Action():
             return self.duration, self.cost
 
         elif self.type == 'transit_onsite_self':
+            # TODO: RA: Needs to be updated based on new format (no roles)! - Note to dev: try to reduce (try/except) statements
             # YAML override
             try:
                 v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
@@ -1128,6 +1161,7 @@ class Action():
             return self.duration, self.cost
 
         elif self.type == 'transit_onsite_tug':
+            # TODO: RA: Needs to be updated based on new format (no roles)! - Note to dev: try to reduce (try/except) statements
             # YAML override
             try:
                 v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
@@ -1240,6 +1274,7 @@ class Action():
         # --- Mooring & Anchors ---
         
         elif self.type == 'load_mooring':
+            # TODO: RA: Needs to be updated based on new format (no roles)!
             # Example model assuming line will be winched on to vessel. This can be changed if not most accurate
             duration_min = 0
             for obj in self.objectList:
@@ -1272,7 +1307,16 @@ class Action():
                 depth_m = abs(float(anchor.r[2]))
                 
                 # 2) Winch vertical speed [mps]
-                v_mpm = float(self.assets['carrier']['capabilities']['winch']['speed_mpm'])
+                # TODO: RA: work needs to be done to determine which capability is used to perform the action based on the req-cap matrix.
+                # TODO: RA: Also, what if the anchor is using 'barge' for 'storage' (anchor is in the barge) but another asset has the winch? This is not a problem if the other asset uses the crane to install the anchor.
+                winch = True
+                if winch:
+                    # Find the asset that has the winch capability
+                    for asset in self.assetList:
+                        if 'winch' in asset['capabilities']:
+                            v_mpm = float(asset['capabilities']['winch']['speed_mpm'])
+                            break
+                # v_mpm = float(self.assets['carrier']['capabilities']['winch']['speed_mpm'])
                 t_lower_min = depth_m/v_mpm
                 
                 # 3) Penetration time ~ proportional to L 
@@ -1292,7 +1336,7 @@ class Action():
             
             # Cost assessment
             rate_per_hour = 0.0
-            for _, asset in self.assets.items():
+            for asset in self.assetList:
                 rate_per_hour += float(asset['day_rate'])/24.0
             
             self.cost += self.duration*rate_per_hour
@@ -1333,6 +1377,7 @@ class Action():
             pass
         
         elif self.type == 'monitor_installation':
+            # TODO: RA: Needs to be updated based on new format (no roles)! - Note to dev: try to reduce (try/except) statements
             # 1) YAML override first
             try:
                 v = getFromDict(self.actionType, 'duration_h', dtype=float); self.duration += v
@@ -1420,19 +1465,22 @@ class Action():
         '''
         
         # Check each specified asset for its respective role
-        for role_name, asset in assets.items():
-            assignable, message = self.checkAsset(role_name, asset)
+        for asset in assets:
+            assignable, message = self.checkAsset(asset)
             if assignable:
-                self.assets[role_name] = asset # Assignment required for calcDurationAndCost(), will be cleared later
+                self.assetList.append(asset) # Assignment required for calcDurationAndCost(), will be cleared later
+                self.requirements_met = {req: True for req in self.requirements_met.keys()}  # all requirements met. Will be clearer later
+                []
             else:
                 print('INFO: '+message+' Action cannot be completed by provided asset list.')
                 return -1, -1 # return negative values to indicate incompatibility. Loop is terminated becasue assets not compatible for roles. 
         
-        # Check that all roles in the action are filled
-        for role_name in self.requirements.keys():
-            if self.assets[role_name] is None:
+        # RA: This is not needed now as we evaluate requirements being met in checkAsset:
+        # # Check that all roles in the action are filled
+        # for role_name in self.requirements.keys():
+        #     if self.assets[role_name] is None:
 
-                raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
+        #         raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
 
 
         duration, cost = self.calcDurationAndCost()
@@ -1443,48 +1491,88 @@ class Action():
         return duration, cost # values returned here rather than set because will be used to check compatibility and not set properties of action
     
 
-    def assignAsset(self, role_name, asset):
+    def assignAsset(self, asset):
         '''
         Checks if asset can be assigned to an action. 
         If yes, assigns asset to role in the action.
 
         Inputs
         ------
-        `role_name` : `str`
-            The name of the role to which the asset will be assigned.
         `asset` : `dict`
-            The asset to be assigned to the role.
+            The asset to be assigned.
 
         Returns
         -------
         `None`
         '''
-        # Make sure role_name is valid for this action
-        if not role_name in self.assets.keys():
-            raise Exception(f"The specified role name '{role_name}' is not in this action.")
+        # RA: we removed roles, we don't do this anymore.
+        # # Make sure role_name is valid for this action
+        # if not role_name in self.assets.keys():
+        #     raise Exception(f"The specified role name '{role_name}' is not in this action.")
 
-        if self.assets[role_name] is not None:
-            raise Exception(f"Role '{role_name}' is already filled in action '{self.name}'.")
+        # New Method: RA
 
-        assignable, message = self.checkAsset(role_name, asset)
-        if assignable:
-            self.assets[role_name] = asset
-        else:
-            raise Exception(message) # throw error message
+        # Let's check the asset first
+        ok, msg = self.checkAsset(asset)
+
+        if not ok:
+            raise Exception(f"Asset '{asset['type']}' cannot be assigned to action '{self.name}': {msg}")
+        
+        # Now, does it make sense to assign this asset if it's only meeting requirements that have already been met?
+        # Which requirements are currently unmet:
+        unmet = [req for req, met in self.requirements_met.items() if not met]
+
+        # If no requirements remain unmet, then adding this asset is pointless
+        if not unmet:
+            raise Exception(f"All requirements for action '{self.name}' are already met. Asset '{asset['type']}' cannot be assigned.")
+        
+        # Now, determine whether this asset provides something we need
+        assetCaps  = set(asset['capabilities'].keys())
+        neededCaps = set()
+        for req in unmet:
+            neededCaps.update(self.allReq[req]['capabilities'])
+
+        # We can check if asset provides any needed capabilities by 'intersecting' the two sets
+        if len(assetCaps.intersection(neededCaps)) == 0:
+            raise Exception(
+                f"Asset '{asset['name']}' does not provide any needed capabilities.\n"
+                f"Unmet requirements: {unmet}\n"
+                f"Asset capabilities: {assetCaps}\n"
+                f"Needed capabilities: {neededCaps}"
+            )                
+        
+        # if we reach here, asset is useful.
+        self.assetList.append(asset)
+
+        # Update requirements_met based on this asset
+        for req in unmet:
+            if any(cap in assetCaps for cap in self.allReq[req]['capabilities']):
+                self.requirements_met[req] = True
+
+
+        # Old Method:
+        # if self.assets[role_name] is not None:
+        #     raise Exception(f"Role '{role_name}' is already filled in action '{self.name}'.")
+
+        # assignable, message = self.checkAsset(role_name, asset)
+        # if assignable:
+        #     self.assets[role_name] = asset
+        # else:
+        #     raise Exception(message) # throw error message
 
     def assignAssets(self, assets):
         '''
         Assigns assets to all the roles in the action. This calls
-        `assignAsset()` for each role/asset pair and then calculates the
-        duration and cost for the action. Similar to `evaluateAssets()`
+        `assignAsset()` that calculates the
+        duration and cost for the action (if assignable). Similar to `evaluateAssets()`
         however here assets are assigned and duration and cost are 
         set after evaluation.
 
         Inputs
         ------
-        `assets` : `dict`
-            Dictionary of {role_name: asset} pairs for assignment of the 
-            assets to the roles in the action.
+        `assets` : `list`
+            list of assets for assignment of the 
+            assets to the requirements in the action.
 
         Returns
         -------
@@ -1492,13 +1580,14 @@ class Action():
         '''
         
         # Assign each specified asset to its respective role
-        for role_name, asset in assets.items():
-            self.assignAsset(role_name, asset)
+        for asset in assets:
+            self.assignAsset(asset)
         
-        # Check that all roles in the action are filled
-        for role_name in self.requirements.keys():
-            if self.assets[role_name] is None:
-                raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
+        # RA: we already check that inside calcDurationAndCost.
+        # # Check that all roles in the action are filled
+        # for role_name in self.requirements.keys():
+        #     if self.assets[role_name] is None:
+        #         raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
 
         self.calcDurationAndCost()
     
@@ -1514,8 +1603,8 @@ class Action():
         -------
         `None`
         '''
-        for role_name in self.assets.keys():
-            self.assets[role_name] = None
+        self.assetList = []
+        self.requirements_met = {req: False for req in self.requirements_met.keys()}
 
     # ----- Below are drafts of methods for use by the engine -----
     """
@@ -1596,3 +1685,39 @@ class Action():
                 self.end()
         
 
+if __name__ == "__main__":
+
+
+    # simple example
+    from famodel.project import Project
+    from famodel.irma.irma import Scenario
+
+    project = Project(file='../../examples/OntologySample200m_1turb.yaml', raft=False)
+    sc = Scenario()  # class instance holding most of the info
+    akey = 'fowt0a'
+    anchor = project.anchorList[akey]
+    act = sc.addAction('install_anchor', f'install_anchor-{akey}', sc.requirements, objects=[anchor])
+
+    # Check asset
+    asset1 = sc.vessels['AHTS_alpha']
+    asset2 = sc.vessels['Barge_squid']
+    act.requirements['station_keeping'] = False   # <<< temporary fix, station_keeping is not listed under capabilities in vessels.yaml for some reason! investigate.
+    assignable_AHTS, message_AHTS = act.checkAsset(asset1)
+    assignable_BRGE, message_BRGE = act.checkAsset(asset2)
+    
+    print(message_AHTS)
+    print(message_BRGE)
+
+    assert assignable_AHTS==True,  "Asset AHTS_alpha should be assignable to install_anchor action."
+    assert assignable_BRGE==False, "Asset Barge_squid should NOT be assignable to install_anchor action."
+
+    # Evaluate asset
+    duration, cost = act.evaluateAssets([asset1])
+    print(f"Case1: Evaluated duration: {duration} h, cost: ${cost}")
+    duration, cost = act.evaluateAssets([asset2])
+    print(f"Case2: Evaluated duration: {duration} h, cost: ${cost}")
+    
+    # Assign asset
+    act.assignAsset(asset1)
+    assert abs(act.duration - 4.5216) < 0.01, "Assigned duration does not match expected value."
+    assert abs(act.cost - 20194.7886) < 0.01, "Assigned cost     does not match expected value."

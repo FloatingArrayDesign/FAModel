@@ -145,6 +145,7 @@ class Scenario():
         # ----- Load database of supported things -----
         
         actionTypes = loadYAMLtoDict('actions.yaml', already_dict=True)  # Descriptions of actions that can be done
+        requirements = loadYAMLtoDict('requirements.yaml', already_dict=True)  # Descriptions of requirements that can be done
         capabilities = loadYAMLtoDict('capabilities.yaml')
         vessels = loadYAMLtoDict('vessels.yaml', already_dict=True)
         objects = loadYAMLtoDict('objects.yaml', already_dict=True)
@@ -229,6 +230,7 @@ class Scenario():
         # Store some things
         self.actionTypes  = actionTypes
         
+        self.requirements  = requirements
         self.capabilities = capabilities  
         self.vessels      = vessels
         self.objects      = objects
@@ -259,7 +261,7 @@ class Scenario():
         self.actions[action.name] = action
         
         
-    def addAction(self, action_type_name, action_name, **kwargs):
+    def addAction(self, action_type_name, action_name, allReq, **kwargs):
         '''Creates and action and adds it to the register'''
         
         if not action_type_name in self.actionTypes:
@@ -269,7 +271,7 @@ class Scenario():
         action_type = self.actionTypes[action_type_name]
         
         # Create the action
-        act = Action(action_type, action_name, **kwargs)        
+        act = Action(action_type, action_name, allReq, **kwargs)        
         
         # Register the action
         self.registerAction(act)

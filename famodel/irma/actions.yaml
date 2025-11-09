@@ -40,8 +40,14 @@ demobilize:
 load_cargo:
   objects: [anchor, mooring, cable, platform, component]
   requirements:
+    - chain_storage
+    - rope_storage
+    - line_handling
     - lifting
     - storage
+    - station_keeping
+    - cable_storage
+    - cable_handling
   duration_h:
   Hs_m:
   description: "Load-out of mooring systems and components from port or vessel onto vessel." 
@@ -135,17 +141,6 @@ retrieve_anchor:
   Hs_m:
   description: "Anchor retrieval, including break-out and recovery to deck."
 
-load_cargo:
-  object: [anchor, mooring, cable, platform, component]
-  requirements:
-    - chain_storage
-    - rope_storage
-    - line_handling
-    - lifting
-    - storage
-    - station_keeping
-    - cable_storage
-    - cable_handling
 
 load_mooring:
   objects: [mooring, component]
