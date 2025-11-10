@@ -20,8 +20,8 @@ propulsion:
   capabilities:
     - engine
 
-bollard_pull:
-  description: "Ability to exert or resist towline force during towing or station-keeping."
+towing:
+  description: "Ability to exert or resist towline force during towing."
   capabilities:
     - bollard_pull
 
@@ -88,13 +88,35 @@ lifting:
   capabilities:
     - crane
 
-anchor_handling:
-  description: "Capability to overboard, lower, orient, deploy, or recover anchors."
+anchor_overboarding: 
+  description: "Capability to overboard an anchor."
+  objects: [anchor]
+  capabilities:
+    - crane
+    - stern_roller
+
+anchor_lowering: 
+  description: "Capability to lower an anchor to seabed."
+  objects: [anchor]
+  capabilities:
+    - crane
+    - winch
+
+anchor_orienting:
+  description: "Capability to orient an anchor during installation."
   objects: [anchor]
   capabilities:
     - winch
-    - crane
-    - stern_roller
+    - rov
+    - divers
+  
+# anchor_handling:
+#   description: "Capability to overboard, lower, orient, deploy, or recover anchors."
+#   objects: [anchor]
+#   capabilities:
+#     - winch
+#     - crane
+#     - stern_roller
 
 anchor_embedding:
   description: "Capability to embed anchors into seabed using mechanical, hydraulic, or suction means."

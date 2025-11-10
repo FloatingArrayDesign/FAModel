@@ -121,7 +121,9 @@ install_anchor:
   objects: [anchor, component]
   requirements:
     - storage
-    - anchor_handling
+    - anchor_overboarding
+    - anchor_lowering
+    - anchor_orienting
     - anchor_embedding
     - station_keeping
     - monitoring_system
@@ -135,7 +137,6 @@ retrieve_anchor:
   requirements:
     - storage
     - anchor_removal
-    - anchor_handling
     - station_keeping
   duration_h:
   Hs_m:

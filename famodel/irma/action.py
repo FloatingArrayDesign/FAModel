@@ -258,6 +258,30 @@ class Action():
                         
                         req['deck_space']['area_m2'] += A
             
+            elif reqname == 'anchor_overboarding' or reqname == 'anchor_lowering':
+                for obj in self.objectList:
+                    if isinstance(obj, Anchor):
+                        
+                        if obj.mass:
+                            mass = obj.mass / 1e3 # tonnes
+                        else:  # rough estimate based on size
+                            wall_thickness = (6.35 + obj.dd['design']['D']*20)/1e3  # Suction pile wall thickness (m), API RP2A-WSD. It changes for different anchor concepts
+                            mass = (np.pi * ((obj.dd['design']['D']/2)**2 - (obj.dd['design']['D']/2 - wall_thickness)**2) * obj.dd['design']['L'] * 7850) / 1e3  # rough mass estimate [tonne]
+                        req['crane']['capacity_t'] = mass * 1.2  # <<< replace with proper estimate
+                        req['crane']['hook_height_m'] = obj.dd['design']['L'] * 1.2  # <<< replace with proper estimate
+                        if reqname == 'anchor_overboarding':
+                            req['stern_roller']['width_m'] = obj.dd['design']['D'] * 1.2  # <<< replace with proper estimate
+                        else:  # anchor lowering
+                            req['winch']['max_line_pull_t'] = mass * 1.2 # <<< replace with proper estimate
+                            req['winch']['speed_mpm'] = 0.0001  # <<< replace with proper estimate [m/min]. RA: I just put a very small number here to indicate winch is needed (but it doesn't matter how fast the winch is).
+
+            elif reqname == 'anchor_orienting':
+                for obj in self.objectList:
+                    if isinstance(obj, Anchor):
+                        
+                        # req['winch']['max_line_pull_t'] =
+                        req['rov']['depth_rating_m'] = abs(obj.r[-1]) * 1.2  # <<< replace with proper estimate
+                        req['divers']['max_depth_m'] = abs(obj.r[-1]) * 1.2  # <<< replace with proper estimate / basically, if anchor is too deep, divers might not be an option
             
             elif reqname == 'anchor_embedding':
                 
@@ -936,6 +960,11 @@ class Action():
         '''        
         
         # Sum up the asset capabilities and their specs (not sure this is useful/valid)
+        
+        # Here's a list of specs we might want to take the max of instead of sum: Add more as needed
+        specs_to_max = ['hook_height_m', 'depth_rating_m',
+                        'max_depth_m', 'accuracy_m',
+                        'speed_mpm', 'capacity_t']  # capacity_t is here because it doesn't make sense to have two cranes to lift a single anchor. 
         asset_caps = {}
         for asset in assets:
             for cap, specs in asset['capabilities'].items():
@@ -943,7 +972,10 @@ class Action():
                     asset_caps[cap] = {}
                 for key, val in specs.items():
                     if key in asset_caps[cap]:
-                        asset_caps[cap][key] += val  # add to the spec
+                        if key in specs_to_max:
+                            asset_caps[cap][key] = max(asset_caps[cap][key], val)
+                        else:
+                            asset_caps[cap][key] += val  # add to the spec
                     else:
                         asset_caps[cap][key] = val  # create the spec
         
@@ -965,28 +997,47 @@ class Action():
             requirements_met[req] = False  # start assume it is not met
 
             for cap, specs in caps.items():  # go throuch capability of the requirement
-                if cap in asset_caps:  # check capability is in asset
-                    requirements_met[req] = True  # assume met, unless we find a shortfall
+                if cap not in asset_caps: # assets don't have this capability, move on
+                    continue
+                
+                # Let's check if this capability is sufficient
+                capable = True
+                for key, val in specs.items():  # go through each spec for this capability
                     
-                    for key, val in specs.items():  # go through each spec for this capability
+                    if val == 0:  # if zero value, no spec required, move on
+                        continue
+                    if key not in asset_caps[cap]:  # if the spec is missing, fail
+                        capable = False
+                        print(f"Warning: capability '{cap}' does not have metric '{key}'.")
+                        break
+                    if asset_caps[cap][key] < val: # if spec is too small, fail
+                        # note: may need to add handling for lists/strings, or standardize specs more
+                        capable = False
+                        print(f"Warning: capability '{cap}' does not meet metric '{key}' requirement of {val:.2f} (has {asset_caps[cap][key]:.2f}).")
+                        break
                     
-                        if val == 0:  # if zero value, no spec required, move on
-                            pass
-                        elif key in asset_caps[cap]:  # if the spec is included in the asset capacities
-                            if asset_caps[cap][key] < val:  # if spec is too small, fail
-                                # note: may need to add handling for lists/strings, or standardize specs more
-                                requirements_met[req] = False
-                                break
-                        else:  # if spec is missing, fail
-                            requirements_met[req] = False
-                            print(f"Warning: capability '{cap}' does not have metric '{key}'.")
-                            break
-                    
-                    if requirements_met[req] == False:
-                        print(f"Warning: requirement '{req}' is not met.")
+                if capable:
+                    requirements_met[req] = True  # one capability fully satisfies the requirement
+                    break                         # no need to check other capabilities for this requirement
+            
+            if not requirements_met[req]:
+                print(f"Requirement '{req}' is not met by asset(s): {assets}.")
         
-        # (could copy over some informative pritn statements from checkAsset)
-        return all(requirements_met.values())       
+        assignable = all(requirements_met.values())
+
+        # message:
+        if assignable:
+            message = "Asset meets all required capabilities."
+        else:
+            unmet = [req for req, met in requirements_met.items() if not met]
+            detailed = []
+            for req in unmet:
+                expected = [cap for cap in self.requirements[req].keys()]
+                detailed.append(f"- {req}: {expected}.")
+                detailed_msg = "\n".join(detailed)
+            
+            message = "Asset does not meet the following required capabilities:\n" + detailed_msg        
+        return assignable, message
     
     
     def checkAsset(self, asset):
@@ -1609,15 +1660,17 @@ class Action():
         '''
         
         # Check each specified asset for its respective role
-        for asset in assets:
-            assignable, message = self.checkAsset(asset)
-            if assignable:
-                self.assetList.append(asset) # Assignment required for calcDurationAndCost(), will be cleared later
-                self.requirements_met = {req: True for req in self.requirements_met.keys()}  # all requirements met. Will be clearer later
-                []
-            else:
-                print('INFO: '+message+' Action cannot be completed by provided asset list.')
-                return -1, -1 # return negative values to indicate incompatibility. Loop is terminated becasue assets not compatible for roles. 
+        
+        if not isinstance(assets, list):
+            assets = [assets]
+
+        assignable, message = self.checkAssets(assets)
+        if assignable:
+            self.assetList.extend(assets) # Assignment required for calcDurationAndCost(), will be cleared later
+            self.requirements_met = {req: True for req in self.requirements_met.keys()}  # all requirements met. Will be clearer later
+        else:
+            print('INFO: '+message+' Action cannot be completed by provided asset list.')
+            return -1, -1 # return negative values to indicate incompatibility. Loop is terminated becasue assets not compatible for roles. 
         
         # RA: This is not needed now as we evaluate requirements being met in checkAsset:
         # # Check that all roles in the action are filled
@@ -1849,9 +1902,13 @@ if __name__ == "__main__":
     asset1 = sc.vessels['AHTS_alpha']
     asset2 = sc.vessels['Barge_squid']
     
-    print(act.checkAssets([asset1])        )
-    print(act.checkAssets([asset2])        )
-    print(act.checkAssets([asset1, asset2]))
+    _, msg1  = act.checkAssets([asset1])        
+    _, msg2  = act.checkAssets([asset2])        
+    _, msg12 = act.checkAssets([asset1, asset2])
+
+    print(msg1 )
+    print(msg2 )
+    print(msg12)
     '''
     act.requirements['station_keeping'] = False   # <<< temporary fix, station_keeping is not listed under capabilities in vessels.yaml for some reason! investigate.
     assignable_AHTS, message_AHTS = act.checkAsset(asset1)
@@ -1862,14 +1919,17 @@ if __name__ == "__main__":
 
     assert assignable_AHTS==True,  "Asset AHTS_alpha should be assignable to install_anchor action."
     assert assignable_BRGE==False, "Asset Barge_squid should NOT be assignable to install_anchor action."
-    '''
+    
     # Evaluate asset
     duration, cost = act.evaluateAssets([asset1])
     print(f"Case1: Evaluated duration: {duration} h, cost: ${cost}")
     duration, cost = act.evaluateAssets([asset2])
     print(f"Case2: Evaluated duration: {duration} h, cost: ${cost}")
+    duration, cost = act.evaluateAssets([asset1, asset2])
+    print(f"Case3: Evaluated duration: {duration} h, cost: ${cost}")
     
     # Assign asset
     act.assignAsset(asset1)
     assert abs(act.duration - 4.5216) < 0.01, "Assigned duration does not match expected value."
     assert abs(act.cost - 20194.7886) < 0.01, "Assigned cost     does not match expected value."
+    '''

@@ -58,7 +58,7 @@ winch:
 crane:
   # description: Main crane lifting capability
   # fields:
-   capacity_t:              # SWL at specified radius [t]
+   capacity_t:              # SWL at specified radius [t]  <<< field description is non-sensical.
    hook_height_m:           # max hook height [m]
 
 station_keeping_by_dynamic_positioning:
@@ -80,7 +80,6 @@ station_keeping_by_bowt:
 stern_roller:
   # description: Stern roller for overboarding/lowering lines/cables over stern
   # fields:
-   diameter_m:              # roller diameter [m]
    width_m:                 # roller width [m]
  
 shark_jaws:
@@ -175,6 +174,12 @@ rov:
    depth_rating_m: 
    weight_t: 
    dimensions_m:      # LxWxH
+
+divers:
+  # description: Diver support system
+  # fields:
+   max_depth_m: 
+   diver_count:
 
 positioning_system:
   # description: Seabed placement/positioning aids

@@ -79,8 +79,7 @@ MPSV_01:
         #     shark_jaws: true
         #     towing_pin_rating_t: 300
         stern_roller:
-            diameter_m: 1.5    # m <<eventually we'll remove suffixes>>
-            width_m: 3.0       # m
+            width_m: 3.0    # m <<eventually we'll remove suffixes>>
         shark_jaws:
             max_load_t: 200    # t
         positioning_system:
