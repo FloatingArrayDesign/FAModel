@@ -91,7 +91,7 @@ class Action():
     subclasses.
     '''
     
-    def __init__(self, actionType, name, allReq, **kwargs):
+    def __init__(self, actionType, name, **kwargs): # allReq, **kwargs):
         '''Create an action object...
         It must be given a name.
         The remaining parameters should correspond to items in the actionType dict...
@@ -118,13 +118,13 @@ class Action():
         
         # list of things that will be controlled during this action
         self.assetList    = []  # list of assigned assets (vessels or ports) required to perform the action
-        self.requirements = {}  # dictionary of requirements (keys) and a boolean (True/False) indicating whether they're needed or not (values)
+        self.requirements = {}  # dictionary of requirements (keys) and associated required capabilities
         self.objectList   = []  # all objects that could be acted on
-        self.materialList = []  # all materials that could be acted on
+        #self.materialList = []  # all materials that could be acted on
         self.dependencies = {}  # list of other actions this one depends on
         
         self.actionType = actionType  # <— keep the YAML dict on the instance
-        self.allReq     = allReq      # <— keep the full requirements dict on the instance
+        #self.allReq     = allReq      # <— keep the full requirements dict on the instance
 
         self.type = getFromDict(actionType, 'type', dtype=str)
         self.name = name
@@ -156,10 +156,10 @@ class Action():
         
         # Determine requirements based on action type
         if 'requirements' in actionType:
-            reqList = actionType['requirements']
-            self.requirements = {req: True for req in reqList}  # initialize all requirements to True (needed)
-            self.requirements_met = {req: False for req in reqList}  # dictionary to track if requirements are met (by assigned assets). Initialized to False.
-
+            self.requirements = actionType['requirements']  # copy over the requirements with zero-valued capability specs
+            #self.requirements = {req: True for req in actionType['requirements']}  # initialize all requirements to True (needed)
+            self.requirements_met = {req: False for req in actionType['requirements']}  # dictionary to track if requirements are met (by assigned assets). Initialized to False.
+         
         # Process objects to be acted upon. NOTE: must occur after requirements and assets placeholders have been assigned. 
         # make list of supported object type names
         if 'objects' in actionType:  
@@ -173,8 +173,7 @@ class Action():
             self.assignObjects(kwargs['objects'])
 
         # Based on the assigned objects, update what requirements/capabilities are needed
-        if False:  # let's assume for now that all requirements are True.
-            self.updateRequirements()
+        self.updateRequirements()
 
         # Process dependencies
         if 'dependencies' in kwargs:
@@ -182,6 +181,7 @@ class Action():
                 self.dependencies[dep.name] = dep
         
         # Process some optional kwargs depending on the action type
+    
     
     def updateRequirements(self):
         '''
@@ -193,7 +193,8 @@ class Action():
         if not self.requirements:
             raise Warning("No requirements defined for action; cannot update requirements.")
             return
-
+        
+        '''
         for req in self.requirements.keys():
             # Does this requirement require specific objects or material?
             objReq = self.allReq[req]['objects']
@@ -216,7 +217,85 @@ class Action():
             # If there are no specific object or material requirements, just set to True
             if not (objReq or matReq):
                 self.requirements[req] = True
+        '''
+            
+        # ----- Fill in required capabilities and their specifications -----
+        # Note: this will eventually be populated with calculations for all
+        # requirement types and capability types, drawing/building from what's
+        # in getMetrics (which will no longer be used).
         
+        def printNotSupported(st):
+            '''Prints that a certain thing isn't supported yet in this method.'''
+            print(f"{st} is not currently supported in Action.updateRequirements.")
+        
+        
+        # Go through every requirement (each may involve different calculations, even
+        # if for the same capabilities)
+        for reqname, req in self.requirements.items():
+            
+            if reqname == 'chain_storage':  # Storage specifically for chain
+        
+                chain_L = 0
+                chain_vol = 0
+                
+                for obj in self.objectList:
+                    if isinstance(obj, Mooring):
+                        for sec in obj.dd['sections']:
+                            if 'chain' in sec['type']['material']:  # if chain section
+                                chain_vol += sec['L'] * np.pi * (sec['type']['d_nom'] / 2) ** 2 # volume [m^3]
+                                chain_L += sec['L']                     # length [m]
+                        
+                req['chain_locker']['volume_m3'] += chain_vol # <<< replace with proper estimate
+                req['deck_space']['area_m2'] += chain_vol*4.0 # <<< replace with proper estimate
+            
+            
+            elif reqname == 'storage':  # Generic storage, such as for anchors
+                
+                for obj in self.objectList:
+                    if isinstance(obj, Anchor):
+                        
+                        A = 30 * obj.dd['design']['L'] * obj.dd['design']['D'] # <<< replace with proper estimate
+                        
+                        req['deck_space']['area_m2'] += A
+            
+            
+            elif reqname == 'anchor_embedding':
+                
+                for obj in self.objectList:
+                    if isinstance(obj, Anchor):
+                        
+                        if obj.dd['type'] == 'DEA':
+                            
+                            req['bollard_pull']['max_force_t'] = 270  # <<< replace with proper estimate
+                        
+                        elif obj.dd['type'] == 'suction':
+                            
+                            req['pump_subsea']['pressure_bar'] = 12  # <<< replace with proper estimate
+            
+                        else:
+                            printNotSupported(f"Anchor type {obj.dd['type']}")
+            
+            # to be continued...
+            
+            else:
+                printNotSupported(f"Requirement {reqname}")
+        
+        # Make a copy of the requirements dict that only keeps entries > 0
+        new_reqs = {}
+        
+        for reqname, req in self.requirements.items():
+            for capname, cap in req.items():
+                for key, val in cap.items():
+                    if val > 0:
+                        if not reqname in new_reqs:
+                            new_reqs[reqname] = {}
+                        if not capname in new_reqs[reqname]:
+                            new_reqs[reqname][capname] = {}
+                        new_reqs[reqname][capname][key] = val
+        
+        self.requirements = new_reqs
+    
+    
     def addDependency(self, dep):
         '''
         Registers other action as a dependency of this one.
@@ -305,8 +384,7 @@ class Action():
 
         A completed example of what this can look like is the line_reel capability.
         """
-
-
+        
         if cap == 'deck_space':
             # logic for deck_space capability (platforms and sites not compatible)
             # TODO: how do we account for an action like load_mooring (which has two roles, 
@@ -845,6 +923,72 @@ class Action():
                 print(f"Warning: Material '{mat['name']}' is already in the action's material list.")
             self.materialList.append(mat)
 
+    
+    
+    def checkAssets(self, assets):
+        '''
+        Checks if a specified set of assets has sufficient capabilities and 
+        specs to fulfill all requirements in this action.
+        
+        Parameters
+        ----------
+        asset : list of assets
+        '''        
+        
+        # Sum up the asset capabilities and their specs (not sure this is useful/valid)
+        asset_caps = {}
+        for asset in assets:
+            for cap, specs in asset['capabilities'].items():
+                if not cap in asset_caps:  # add the capability entry if absent
+                    asset_caps[cap] = {}
+                for key, val in specs.items():
+                    if key in asset_caps[cap]:
+                        asset_caps[cap][key] += val  # add to the spec
+                    else:
+                        asset_caps[cap][key] = val  # create the spec
+        
+        print('Combined asset specs are as follows:')
+        for cap, specs in asset_caps.items():
+            print(f'  Capability {cap}')
+            for key, val in specs.items():
+                 print(f'    Total spec {key} = {val}')
+        
+        
+        
+        requirements_met = {}
+        for req, caps in self.requirements.items():  # go through each requirement
+            
+            # The following logic should mark a requirement as met if any one of 
+            # the requirement's needed capabilities has all of its specs by the
+            # combined spec values of the assets
+            
+            requirements_met[req] = False  # start assume it is not met
+
+            for cap, specs in caps.items():  # go throuch capability of the requirement
+                if cap in asset_caps:  # check capability is in asset
+                    requirements_met[req] = True  # assume met, unless we find a shortfall
+                    
+                    for key, val in specs.items():  # go through each spec for this capability
+                    
+                        if val == 0:  # if zero value, no spec required, move on
+                            pass
+                        elif key in asset_caps[cap]:  # if the spec is included in the asset capacities
+                            if asset_caps[cap][key] < val:  # if spec is too small, fail
+                                # note: may need to add handling for lists/strings, or standardize specs more
+                                requirements_met[req] = False
+                                break
+                        else:  # if spec is missing, fail
+                            requirements_met[req] = False
+                            print(f"Warning: capability '{cap}' does not have metric '{key}'.")
+                            break
+                    
+                    if requirements_met[req] == False:
+                        print(f"Warning: requirement '{req}' is not met.")
+        
+        # (could copy over some informative pritn statements from checkAsset)
+        return all(requirements_met.values())       
+    
+    
     def checkAsset(self, asset):
         '''
         Checks if a specified asset has sufficient capabilities to fulfil
@@ -1573,11 +1717,11 @@ class Action():
         `assets` : `list`
             list of assets for assignment of the 
             assets to the requirements in the action.
-
-        Returns
-        -------
-        `None`
         '''
+        
+        #MHnote: this should at some point have logic that figures out
+        # which asset(s) meet which requirements, and then store that
+        # somewhere.
         
         # Assign each specified asset to its respective role
         for asset in assets:
@@ -1590,6 +1734,7 @@ class Action():
         #         raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
 
         self.calcDurationAndCost()
+    
     
     def clearAssets(self):
         '''
@@ -1696,11 +1841,18 @@ if __name__ == "__main__":
     sc = Scenario()  # class instance holding most of the info
     akey = 'fowt0a'
     anchor = project.anchorList[akey]
-    act = sc.addAction('install_anchor', f'install_anchor-{akey}', sc.requirements, objects=[anchor])
+    #act = sc.addAction('install_anchor', f'install_anchor-{akey}', sc.requirements, objects=[anchor])
+    act = sc.addAction('install_anchor', f'install_anchor-{akey}', objects=[anchor])
+
 
     # Check asset
     asset1 = sc.vessels['AHTS_alpha']
     asset2 = sc.vessels['Barge_squid']
+    
+    print(act.checkAssets([asset1])        )
+    print(act.checkAssets([asset2])        )
+    print(act.checkAssets([asset1, asset2]))
+    '''
     act.requirements['station_keeping'] = False   # <<< temporary fix, station_keeping is not listed under capabilities in vessels.yaml for some reason! investigate.
     assignable_AHTS, message_AHTS = act.checkAsset(asset1)
     assignable_BRGE, message_BRGE = act.checkAsset(asset2)
@@ -1710,7 +1862,7 @@ if __name__ == "__main__":
 
     assert assignable_AHTS==True,  "Asset AHTS_alpha should be assignable to install_anchor action."
     assert assignable_BRGE==False, "Asset Barge_squid should NOT be assignable to install_anchor action."
-
+    '''
     # Evaluate asset
     duration, cost = act.evaluateAssets([asset1])
     print(f"Case1: Evaluated duration: {duration} h, cost: ${cost}")

@@ -50,7 +50,7 @@ load_cargo:
     - cable_handling
   duration_h:
   Hs_m:
-  description: "Load-out of mooring systems and components from port or vessel onto vessel." 
+  description: "Load-out of generic components from port or vessel onto vessel." 
 
 
 # --- Towing & Transport ---
@@ -199,7 +199,7 @@ install_semisub:
   requirements:
     - storage
     - lifting
-    - pumping
+    #- pumping
     - bollard_pull
     - station_keeping
     - monitoring_system
@@ -212,7 +212,7 @@ install_spar:
   requirements:
     - storage
     - lifting
-    - pumping
+    #- pumping
     - bollard_pull
     - station_keeping
     - monitoring_system
@@ -225,7 +225,7 @@ install_tlp:
   requirements:
     - storage
     - lifting
-    - pumping
+    #- pumping
     - bollard_pull
     - station_keeping
     - monitoring_system

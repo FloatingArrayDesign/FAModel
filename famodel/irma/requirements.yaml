@@ -100,8 +100,8 @@ anchor_embedding:
   description: "Capability to embed anchors into seabed using mechanical, hydraulic, or suction means."
   objects: [anchor]
   capabilities:
-    - bullard_pull
-    - propulsion
+    - bollard_pull
+    - engine
     - pump_subsea
     - pump_surface
     - hydraulic_hammer
@@ -139,12 +139,7 @@ platform_handling:
     - crane
     - pumping
 
-pumping:
-  description: "Capability to perform controlled ballasting, de-ballasting, or fluid transfer."
-  capabilities:
-    - pump_surface
-    - pump_subsea
-    - pump_grout
+# (removed pumping. requirements should be based on the purpose they serve)
 
 
 # --- Cable & Subsea Work ------------------------------------------------

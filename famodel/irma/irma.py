@@ -146,7 +146,7 @@ class Scenario():
         
         actionTypes = loadYAMLtoDict('actions.yaml', already_dict=True)  # Descriptions of actions that can be done
         requirements = loadYAMLtoDict('requirements.yaml', already_dict=True)  # Descriptions of requirements that can be done
-        capabilities = loadYAMLtoDict('capabilities.yaml')
+        capabilities = loadYAMLtoDict('capabilities.yaml', already_dict=True)
         vessels = loadYAMLtoDict('vessels.yaml', already_dict=True)
         objects = loadYAMLtoDict('objects.yaml', already_dict=True)
         
@@ -257,11 +257,21 @@ class Scenario():
             if not dep in self.actions.values():
                 raise Exception(f"New action '{action.name}' has a dependency '{dep.name}' this is not in the action list.")        
         
+        # Check that all the requirements of all actions conform to the
+        # options in requirements.yaml.
+        for reqname, req in action.requirements.items():
+            if reqname in self.requirements:  # ensure this requirement is listed
+                for cap in req:
+                    if not cap in self.capabilities:
+                        raise Exception(f"Requirement '{reqname}' capability '{cap}' is not in the global capability list.")
+            else:
+                raise Exception(f"Action {action.name} requirement {reqname} is not in requirements.yaml")
+
         # Add it to the actions dictionary
         self.actions[action.name] = action
         
         
-    def addAction(self, action_type_name, action_name, allReq, **kwargs):
+    def addAction(self, action_type_name, action_name, **kwargs):
         '''Creates and action and adds it to the register'''
         
         if not action_type_name in self.actionTypes:
@@ -270,8 +280,24 @@ class Scenario():
         # Get dictionary of action type information
         action_type = self.actionTypes[action_type_name]
         
+        # Initialize full zero-valued dictionary of possible required capability specs
+        reqs = {}  # Start a dictionary to hold the requirements -> capabilities -> specs
+        for req in action_type['requirements']:
+            reqs[req] = {}
+            #print(f' {req}')
+            # add the caps of the req
+            for cap in self.requirements[req]['capabilities']: 
+                reqs[req][cap] = {}
+                #print(f'   {cap}')
+                # add the specs of the capability
+                for spec in self.capabilities[cap]:
+                    reqs[req][cap][spec] = 0
+                    #print(f'     {spec} = 0')
+        # swap in the filled-out dict
+        action_type['requirements'] = reqs
+        
         # Create the action
-        act = Action(action_type, action_name, allReq, **kwargs)        
+        act = Action(action_type, action_name, **kwargs)        
         
         # Register the action
         self.registerAction(act)

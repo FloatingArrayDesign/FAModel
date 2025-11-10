@@ -12,82 +12,78 @@
 # for allowing conventional unit inputs. <<<
 
 # --- Vessel (on-board) ---
- - name: engine
+engine:
   # description: Engine on-board of the vessel
   # fields:
    power_hp:                # power [horsepower]
    site_speed_mps:          # speed [m/s]
 
- - name: bollard_pull
+bollard_pull:
   # description: Towing/holding force capability
   # fields:
    max_force_t:             # bollard pull [t]
    site_speed_mps:          # speed [m/s]
  
- - name: deck_space
+deck_space:
   # description: Clear usable deck area and allowable load
   # fields:
    area_m2:                 # usable area [m2]
    max_load_t:              # allowable deck load [t]
 
- - name: chain_locker
+chain_locker:
   # description: Chain storage capacity
   # fields:
    volume_m3:               # storage volume [m3]
 
- - name: line_reel
+line_reel:
   # description: Chain/rope storage on drum or carousel
   # fields:
    volume_m3:               # storage volume [m3]
    rope_capacity_m:         # total rope length storage [m]
 
- - name: cable_reel
+cable_reel:
   # description: Cable storage on drum or carousel
   # fields:
    volume_m3:               # storage volume [m3]
    cable_capacity_m:        # total cable length stowable [m]
 
- - name: winch
+winch:
   # description: Deck winch pulling capability
   # fields:
    max_line_pull_t:         # continuous line pull [t]
    brake_load_t:            # static brake holding load [t]
    speed_mpm:               # payout/haul speed [m/min]
 
-                     
-                                                
-           
-                                              
 
- - name: crane
+crane:
   # description: Main crane lifting capability
   # fields:
    capacity_t:              # SWL at specified radius [t]
    hook_height_m:           # max hook height [m]
 
- - name: station_keeping_by_dynamic_positioning
+station_keeping_by_dynamic_positioning:
   # description: DP vessel capability for station keeping
   # fields:
    type:                   
   #  TODO: maybe information about thrusters here?
 
- - name: station_keeping_by_anchor
+station_keeping_by_anchor:
   # description: Anchor-based station keeping capability
   # fields:
    max_hold_force_t:        # maximum holding force [t]
  
- - name: station_keeping_by_bowt
+station_keeping_by_bowt:
   # description: Station keeping by bowt
   # fields:
    max_hold_force_t:        # maximum holding force [t]
 
- - name: stern_roller
+stern_roller:
   # description: Stern roller for overboarding/lowering lines/cables over stern
   # fields:
    diameter_m:              # roller diameter [m]
    width_m:                 # roller width [m]
  
- - name: shark_jaws
+shark_jaws:
   # description: Chain stoppers/jaws for holding chain under tension
   # fields:
    max_load_t:              # maximum holding load [t]
@@ -95,7 +91,7 @@
 
 # --- Equipment (portable) ---
 
- - name: pump_surface
+pump_surface:
   # description: Surface-connected suction pump
   # fields:
    power_kW: 
@@ -103,7 +99,7 @@
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: pump_subsea
+pump_subsea:
   # description: Subsea suction pump (electric/hydraulic)
   # fields:
    power_kW: 
@@ -111,7 +107,7 @@
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: pump_grout
+pump_grout:
   # description: Grout mixing and pumping unit
   # fields:
    power_kW: 
@@ -120,7 +116,7 @@
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: hydraulic_hammer
+hydraulic_hammer:
   # description: Impact hammer for pile driving
   # fields:
    power_kW: 
@@ -128,7 +124,7 @@
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: vibro_hammer
+vibro_hammer:
   # description: Vibratory hammer
   # fields:
    power_kW: 
@@ -136,14 +132,14 @@
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: drilling_machine
+drilling_machine:
   # description: Drilling/rotary socket machine
   # fields:
    power_kW: 
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: torque_machine
+torque_machine:
   # description: High-torque rotation unit
   # fields:
    power_kW: 
@@ -151,14 +147,14 @@
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: cable_plough
+cable_plough:
   # description:
   # fields:
    power_kW: 
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: rock_placement
+rock_placement:
   # description: System for controlled placement of rock for trench backfill, scour protection, and seabed stabilization.
   # fields:
    placement_method:   # e.g., fall_pipe, side_dump, grab
@@ -166,13 +162,13 @@
    accuracy_m:         # placement accuracy on seabed
    rock_size_range_mm: # min and max rock/gravel size
 
- - name: container
+container:
   # description: Control/sensors container for power pack and monitoring
   # fields:
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: rov
+rov:
   # description: Remotely Operated Vehicle
   # fields:
    class:             # e.g., OBSERVATION, LIGHT, WORK-CLASS
@@ -180,19 +176,19 @@
    weight_t: 
    dimensions_m:      # LxWxH
 
- - name: positioning_system
+positioning_system:
   # description: Seabed placement/positioning aids
   # fields:
    accuracy_m: 
    methods:           # e.g., [USBL, LBL, DVL, INS]
 
- - name: monitoring_system
+monitoring_system:
   # description: Installation performance monitoring
   # fields:
    metrics:           # e.g., [pressure, flow, tilt, torque, bathymetry, berm_shape...]
    sampling_rate_hz: 
 
- - name: sonar_survey
+sonar_survey:
   # description: Sonar systems for survey and verification
   # fields:
    types:             # e.g., [MBES, SSS, SBP]
