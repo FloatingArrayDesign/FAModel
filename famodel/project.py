@@ -1325,10 +1325,11 @@ class Project():
         using a default thickness and assuming uniform clay profile.
         Matches the structure of layered CPT-based soil profiles.
         '''
-        self.profile_map = {}
+        self.profile_map = []
 
         for name, props in self.soilProps.items():
             name = str(name)
+
             gamma = float(props['gamma'][0])
             Su0 = float(props['Su0'][0])
             k = float(props['k'][0])
@@ -1342,7 +1343,8 @@ class Project():
                 'Su_top': Su0,
                 'Su_bot': Su0 + k * default_layer}
 
-            self.profile_map[name] = [layer]  # just layers!
+            profile_entry = {'name': name, 'layers': [layer]}
+            self.profile_map.append(profile_entry)
             
     def convertLayeredToUniform(self):
         '''
