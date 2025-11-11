@@ -240,21 +240,43 @@ class Action():
                 
                 for obj in self.objectList:
                     if isinstance(obj, Mooring):
-                        for sec in obj.dd['sections']:
-                            if 'chain' in sec['type']['material']:  # if chain section
-                                chain_vol += sec['L'] * np.pi * (sec['type']['d_nom'] / 2) ** 2 # volume [m^3]
-                                chain_L += sec['L']                     # length [m]
+                        for sec in obj.dd['subcomponents']:
+                            if 'L' in sec.keys():
+                                if 'chain' in sec['type']['material']:  # if chain section
+                                    chain_vol += sec['L'] * np.pi * (sec['type']['d_nom'] / 2) ** 2 * (2) # volume [m^3]
+                                    chain_L += sec['L']                     # length [m]
                         
                 req['chain_locker']['volume_m3'] += chain_vol # <<< replace with proper estimate
-                req['deck_space']['area_m2'] += chain_vol*4.0 # <<< replace with proper estimate
+                req['deck_space']['area_m2'] += chain_L*0.205 # m^2
+            
+
+            elif reqname == 'rope_storage':  # Storage specifically for chain
+        
+                rope_L = 0
+                rope_vol = 0
+                
+                for obj in self.objectList:
+                    if isinstance(obj, Mooring):
+                        for sec in obj.dd['subcomponents']:
+                            if 'L' in sec.keys():
+                                if 'rope' in sec['type']['material'] or 'polyester' in sec['type']['material']:
+                                    rope_vol += sec['L'] * np.pi * (sec['type']['d_nom'] / 2) ** 2 # volume [m^3]
+                                    rope_L += sec['L']                     # length [m]
+                        
+                req['line_reel']['volume_m3'] += rope_vol
+                req['deck_space']['area_m2'] += np.ceil((0.0184*rope_L)/13.5)*13.5 # m^2
             
             
             elif reqname == 'storage':  # Generic storage, such as for anchors
                 
                 for obj in self.objectList:
                     if isinstance(obj, Anchor):
-                        
-                        A = 30 * obj.dd['design']['L'] * obj.dd['design']['D'] # <<< replace with proper estimate
+
+                        if 'suction' in obj.dd['type']:
+                            # if the suction piles are to be laying down
+                            A = (obj.dd['design']['L']+(10/3.28084)) * (obj.dd['design']['D']+(10/3.28084))
+                            # if the suction piles are to be standing up    # <<<<<< how to implement this? Depends on the asset assignment
+                            # A = (obj.dd['design']['D']+(10/3.28084))**2
                         
                         req['deck_space']['area_m2'] += A
             
@@ -273,7 +295,7 @@ class Action():
                             req['stern_roller']['width_m'] = obj.dd['design']['D'] * 1.2  # <<< replace with proper estimate
                         else:  # anchor lowering
                             req['winch']['max_line_pull_t'] = mass * 1.2 # <<< replace with proper estimate
-                            req['winch']['speed_mpm'] = 0.0001  # <<< replace with proper estimate [m/min]. RA: I just put a very small number here to indicate winch is needed (but it doesn't matter how fast the winch is).
+                            req['winch']['speed_mpm'] = 18  # meters per minute
 
             elif reqname == 'anchor_orienting':
                 for obj in self.objectList:

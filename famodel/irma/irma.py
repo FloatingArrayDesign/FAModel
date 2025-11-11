@@ -404,8 +404,8 @@ class Scenario():
         '''
         
         # Figure out task durations (for a given set of asset assignments?)
-        for task in self.tasks.values():
-            task.calcTiming()
+        #for task in self.tasks.values():
+            #task.calcTiming()
         
         # Figure out timing constraints between tasks based on action dependencies
         n = len(self.tasks)
@@ -449,13 +449,13 @@ def findTaskDependencies(task1, task2):
     print(time_1_to_2)
     print(time_2_to_1)
     
-    dt_min_1_2 = min(time_1_to_2)  # minimum time required from t1 start to t2 start
-    dt_min_2_1 = min(time_2_to_1)  # minimum time required from t2 start to t1 start
+    dt_min_1_2 = min(time_1_to_2) if time_1_to_2 else 0  # minimum time required from t1 start to t2 start
+    dt_min_2_1 = min(time_2_to_1) if time_2_to_1 else 0  # minimum time required from t2 start to t1 start
     
     if dt_min_1_2 + dt_min_2_1 > 0:
         print(f"The timing between these two tasks seems to be impossible...")
     
-    breakpoint()
+    #breakpoint()
     return dt_min_1_2, dt_min_2_1
 
 
@@ -616,9 +616,15 @@ if __name__ == '__main__':
     implementStrategy_staged(sc)
     
 
-    # dt_min = sc.figureOutTaskRelationships()
-    
-    
+    dt_min = sc.figureOutTaskRelationships()
+    '''
+    # inputs for scheduler
+    offsets_min = {}        # min: 'taskA->taskB': offset     max: 'taskA->taskB': (offset, 'exact')
+    for taskA_index, taskA_name in enumerate(sc.tasks.keys()):
+        for taskB_index, taskB_name in enumerate(sc.tasks.keys()):
+            if dt_min[taskA_index, taskB_index] != 0:
+                offsets_min[f'{taskA_name}->{taskB_name}'] = dt_min[taskA_index, taskB_index]
+    '''
     
     # ----- Check tasks for suitable vessels and the associated costs/times -----
     
