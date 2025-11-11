@@ -2134,9 +2134,10 @@ class Project():
             platform.r[1] = platform.body.r6[1]
         
     
-    def plot2d(self, ax=None, plot_seabed=False, plot_soil=False,
+    def plot2d(self, ax=None, plot_soil=False,
                plot_bathymetry=True, plot_boundary=True, color_lineDepth=False, 
-               bare=False, axis_equal=True,save=False,**kwargs):
+               plot_bathy_contours=False, bare=False, axis_equal=True,
+               save=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2144,6 +2145,20 @@ class Project():
         Parameters
         ----------
         ...
+        ax : matplotlib.pyplot axis
+            Default is None
+        plot_soil : bool
+            If True, plot soil conditions
+        plot_bathymetry : bool
+            If True, plot bathymetry 
+        plot_boundary : bool
+            If True, plot lease area boundary
+        plot_bathy_contours : bool
+            If True, plot bathymetry line contours
+        axis_equal : bool
+            If True, set axes to equal scales to prevent visual distortions
+        save : bool
+            If True, save the figure
         bare : bool
             If True, supress display of extra labeling like the colorbar.
         color_lineDepth: bool
@@ -2157,6 +2172,7 @@ class Project():
         alpha = kwargs.get('alpha',0.5)
         return_contour = kwargs.get('return_contour',False)
         cmap_cables = kwargs.get('cmap_cables',None)
+        cmap_soil = kwargs.get('cmpa_soil', None)
         plot_platforms = kwargs.get('plot_platforms',True)
         plot_anchors = kwargs.get('plot_anchors',True)
         plot_moorings = kwargs.get('plot_moorings',True)
@@ -2164,10 +2180,11 @@ class Project():
         cable_labels = kwargs.get('cable_labels', False)
         depth_vmin = kwargs.get('depth_vmin', None)
         depth_vmax = kwargs.get('depth_vmax', None)
-        bath_levels = kwargs.get('bath_levels', None)
+        bath_levels = kwargs.get('bath_levels', 50)
         plot_legend = kwargs.get('plot_legend', True)
         legend_x = kwargs.get('legend_x', 0.5)
         legend_y = kwargs.get('legend_y', -0.1)
+        plot_landmask = kwargs.get('plot_landmask', False) # mask land areas 
         
         max_line_depth = kwargs.get('max_line_depth', None)  # max depth for line coloring if color_lineDepth is True
         only_shared    = kwargs.get('only_shared', False)   # if color_lineDepth is True, only color shared lines
@@ -2181,18 +2198,17 @@ class Project():
         
         # Bathymetry 
         if plot_bathymetry:
-            if plot_seabed:
-                raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time')
+            if plot_soil:
+                raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time. Use plot_bathy_contours=True instead')
             if len(self.grid_x) > 1 and len(self.grid_y) > 1:
                 
                 X, Y = np.meshgrid(self.grid_x, self.grid_y)
 
-                num_levels = bath_levels if bath_levels is not None else 50
                 vmin = depth_vmin if depth_vmin is not None else np.min(self.grid_depth)
                 vmax = depth_vmax if depth_vmax is not None else np.max(self.grid_depth)
                 grid_depth = np.clip(self.grid_depth, vmin, vmax)
 
-                contourf = ax.contourf(X, Y, grid_depth, num_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
+                contourf = ax.contourf(X, Y, grid_depth, bath_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
 
                 contourf.set_clim(depth_vmin, depth_vmax)
 
@@ -2201,21 +2217,47 @@ class Project():
                     cbar = plt.colorbar(contourf, ax=ax, fraction=0.04, label='Water Depth (m)', format=tkr.FormatStrFormatter('%.0f'))
 
 
-        if plot_seabed:
+        if plot_soil:
             if plot_bathymetry:
-                raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time')
-            import matplotlib.colors as mcolors
-            soil_types = np.unique(self.soil_names)
+                raise ValueError('The bathymetry grid and soil grid cannot yet be plotted at the same time. Use plot_bathy_contours=True instead')
+
+            soil_types = np.unique(self.soil_names).tolist()
+            if not cmap_soil:
+                cmap_soil = plt.cm.YlOrRd
+            bounds = [i for i in range(len(soil_types)+1)]
             soil_type_to_int = {name: i for i,name in enumerate(soil_types)}
-            soil_colors = {'mud':'green', 'hard':'brown'}
             soil_int = np.vectorize(soil_type_to_int.get)(self.soil_names)
-            cmap = mcolors.ListedColormap([soil_colors.get(name, 'white') for name in soil_types])
-
+            from matplotlib.colors import BoundaryNorm
+            norm = BoundaryNorm(bounds, cmap_soil.N)
+            #cmap = mcolors.ListedColormap([soil_colors.get(name, 'white') for name in soil_types])
+            # prepare for plot seabed data   
+            #soil_types.remove("-")                          # delete nan like value manualy 
+            levels = np.arange(0, len(soil_types))          # create index matches unique soil name
+            ticks = levels + 0.5                        # shift label position to place center between colors
             X, Y = np.meshgrid(self.soil_x, self.soil_y)
-            ax.pcolormesh(X, Y, soil_int, cmap=cmap, shading='auto')
-
-            soil_handles = [plt.Line2D([0], [0], marker='s', color='w', label=name, markerfacecolor=soil_colors.get(name, 'white'), markersize=10) for name in soil_types if name != '0' ]
+            contourf = ax.pcolormesh(X, Y, soil_int, cmap=cmap_soil, norm=norm, shading='auto')
+            if not bare:
+                cbar = plt.colorbar(contourf,
+                                    ax=ax, norm=norm, 
+                                    fraction=0.04, label='Soil Type', ticks=ticks) # color bar for soil name 
+                cbar.ax.set_yticklabels(soil_types) # label of color bar
+            #soil_handles = [plt.Line2D([0], [0], marker='s', color='w', label=name, markerfacecolor=soil_colors.get(name, 'white'), markersize=10) for name in soil_types if name != '0' ]
         
+        if plot_bathy_contours:
+            # plot the bathymetry in matplotlib using a plot_surface
+            X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+            plot_depths = self.grid_depth
+            contour = ax.contour(X, Y, plot_depths, vmin=np.min(self.grid_depth), 
+                       vmax=np.max(self.grid_depth), levels=bath_levels, 
+                       colors='black', linewidths=0.5) # bathymetry contour line
+            ax.clabel(contour)
+        
+        if plot_landmask:
+            # mask the land area (where depth>0)
+            landMask = np.ones_like(self.grid_depth) # create land mask(sea: NaN, Land: 1)
+            landMask[self.grid_depth > 0] = np.nan # replace water depth > 0 as NaN 
+            contourf = ax.contourf(self.grid_x,self.grid_y, landMask, colors='gray') # landmask
+            landmask_handle = plt.Line2D([0], [0], marker='s', color='w', label='Land', markerfacecolor='gray', markersize=10)
                     
         if plot_boundary:
             if len(self.boundary) > 1:
@@ -2402,9 +2444,11 @@ class Project():
             ax.set_aspect('equal',adjustable='box')
 
         handles, labels = ax.get_legend_handles_labels()
-        if plot_seabed:
-            handles += soil_handles
-            labels += [h.get_label() for h in soil_handles]
+        # add in land mask label if necessary
+        if plot_landmask:
+            handles += [landmask_handle]
+            labels += ['Land']
+        # zip labels and handles into a dictionary
         by_label = dict(zip(labels, handles))  # Removing duplicate labels
         
         if plot_legend:
@@ -2430,7 +2474,8 @@ class Project():
     def plot3d(self, ax=None, figsize=(10,8), plot_fowt=False, save=False,
                plot_boundary=True, plot_boundary_on_bath=True, args_bath={}, 
                plot_axes=True, plot_bathymetry=True, plot_soil=False, color=None,
-               colorbar=True, boundary_only=False,**kwargs):
+               colorbar=True, boundary_only=False, plot_bathy_contours=False,
+               **kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
         TODO - harmonize a lot of the seabed stuff with MoorPy System.plot...
@@ -2526,9 +2571,9 @@ class Project():
 
                     self.setGrid(xs, ys)
             
-                    # plot the bathymetry in matplotlib using a plot_surface
-                    X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
-                    plot_depths = -self.grid_depth
+                # plot the bathymetry in matplotlib using a plot_surface
+                X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
+                plot_depths = -self.grid_depth
                 '''
                 # interpolate soil rockyness factor onto this grid
                 xs = self.grid_x

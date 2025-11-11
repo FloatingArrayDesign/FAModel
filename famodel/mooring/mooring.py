@@ -218,7 +218,13 @@ class Mooring(Edge):
         reset the subsystem and the applied_states dictionary.
         '''
         # create pristine subsystem
-        self.createSubsystem()
+        if self.shared and self.symmetric:
+            case = 2
+        elif self.shared:
+            case = 1 
+        else:
+            case = 0
+        self.createSubsystem(case=case)
         # reset applied_states dictionary values
         for state in self.applied_states:
             self.applied_states[state] = None

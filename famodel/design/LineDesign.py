@@ -247,11 +247,14 @@ class LineDesign(Mooring):
         
         Mooring.__init__(self, dd=dd, rho=rho, g=g, shared=shared, lineProps=self.lineProps)        
         # The above will also create Mooring self parameters like self.rad_anch
-        
+        if shareCase==2:
+            self.symmetric=True
+            # symmetrical suspended case - pre-set rA so createSubsystem doesn't put rA back at Mooring default of [-span, 0, z_anch]
+            self.rA = np.array([-0.5*self.span-self.rad_fair, 0, -1])  # shared line midpoint coordinates
         # Save a copy of the original anchoring radius to use with the 
         # solve_for=ghost option to adjust the chain length.
         self.rad_anch0 = float(self.rad_anch) 
-        
+
         self.createSubsystem(case=int(shareCase))  
         if self.shared==1:
             self.ss.rA[2] = self.rBFair[2]
@@ -507,7 +510,7 @@ class LineDesign(Mooring):
                 self.ms.pointList[2*i+1].attachLine(i+1, 1)
             
             self.ms.initialize()
-        
+
         # initialize the created mooring system
         self.ss.initialize(daf_dict = {'DAFs': self.DAFs})
         self.ss.setOffset(0)
@@ -520,7 +523,7 @@ class LineDesign(Mooring):
         start_time = time.time()
         
         # reset modifiers to mooring design (corrosion/creep/marine_growth)
-        self.reset()
+        #self.reset()
 
         # Design vector error checks
         if len(X)==0:                   # if any empty design vector is passed (useful for checking constraints quickly)
@@ -637,9 +640,8 @@ class LineDesign(Mooring):
 
             # >>> TODO: check for negative line lengths that somehow get set <<<
 
-
             Lmax = 0.95*(self.ss.span + self.depth+self.rBFair[2])
-            
+
             if sum([self.ss.lineList[i].L for i in range(self.nLines)]) > Lmax:     # check to make sure the total length of line is less than the maximum L shape (helpful for GA optimizations)
                 
                 if self.solve_for=='none':
@@ -722,7 +724,6 @@ class LineDesign(Mooring):
                         cMin = self.ss.getMinSF(display=display) - 2.0          # compute the constraint value     
                         
                         print(f" xmax={xCurrent[0]:8.2f}  L={x[0]:8.3f}  dFx={y[0]:8.0f}  minSF={self.getMinSF():7.3f}")
-                        #breakpoint()
                         
                         return np.array([cMin]), dict(status=1), stopFlag     # return the constraint value - we'll actually solve for this to be zero - finding the offset that just barely satisifes the SFs
                     
@@ -807,7 +808,6 @@ class LineDesign(Mooring):
                 # Evaluate any constraints in the list, at the appropriate displacements.
                 # The following function calls will fill in the self.convals array.
                 
-                
                 # ZERO OFFSET:
                 self.ss.setOffset(0)
                 
@@ -869,7 +869,6 @@ class LineDesign(Mooring):
                 ############################################################  
             
             # ----- Evaluate objective function -----
-            
             # Calculate the cost from all components in the Mooring
             self.lineCost = 0.0
             for line in self.ss.lineList:
