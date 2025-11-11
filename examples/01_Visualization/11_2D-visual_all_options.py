@@ -22,7 +22,7 @@ plot_2d_settings = {
     'plot_bathymetry' : True, # bool, if True plots bathymetry. plot_soil & plot_bathymetry can not both be True, but you can plot bathy contours with soil.
     'plot_boundary' : True,  # bool, if True plots lease boundary
     'color_lineDepth' : False, # If True, color mooring lines based on depth. Only works if plot_bathymetry=False.
-    'plot_bathy_contours' : False, # bool, if True plots bathymetry contour lines. Can be used with plot_soil or plot_bathymetry
+    'plot_bathymetry_contours' : False, # bool, if True plots bathymetry contour lines. Can be used with plot_soil or plot_bathymetry
     'bare' : False, # bool, if True does not plot extra things like colorbars
     'axis_equal' : True, # bool, if True plots x and y axes at same scale to prevent distortions
     'save' : False, # bool, if True saves the figure
@@ -40,26 +40,28 @@ plot_2d_settings = {
     'cable_labels' : False, # bool, if True adds labels of cable names to the plot
     'depth_vmin' : None, # minimum depth to plot. If None, defaults to minimum depth in the bathymetry information
     'depth_vmax' : None, # maximum depth to plot. If None, defaults to maximum depths in the bathymetry information
-    'bath_levels' : 50, # number of bathymetry contour levels, for either contour lines or the filled contour
+    'bathymetry_levels' : 50, # number of bathymetry contour levels, for either contour lines or the filled contour
     'plot_legend' : True, # bool, if True plots the legend
     'legend_x' : 0.5, # x location of the legend
     'legend_y' : -0.1, # y location of the legend
     'plot_landmask': False, # bool, if True plots a gray mask over land areas     
     'max_line_depth': None,  # max depth for line coloring if color_lineDepth is True
     'only_shared' : False,   # if color_lineDepth is True, only color shared lines
-    'linewidth_multiplier' : 2  # multiplier for line widths if color_lineDepth is True
+    'linewidth_multiplier' : 2,  # multiplier for line widths if color_lineDepth is True
+    'soil_alpha' : 0.5 # opacity of soil colormap
     }
 
 
 project.plot2d(**plot_2d_settings) # unpack settings dictionary and plot
 
-# Let's change some settings 
-
-plot_2d_settings['cable_labels'] = True
-plot_2d_settings['plot_bathymetry'] = False
-plot_2d_settings['plot_soil'] = True
-plot_2d_settings['bath_levels'] = 6
-plot_2d_settings['plot_bathy_contours'] = True
+# Let's change some settings!
+plot_2d_settings['cable_labels'] = True # add cable labels
+plot_2d_settings['plot_bathymetry'] = False # turn off bathymetry
+plot_2d_settings['plot_soil'] = True # turn on soil 
+plot_2d_settings['bathymetry_levels'] = 6 # use 6 bathymetry levels for contour lines
+plot_2d_settings['plot_bathymetry_contours'] = True # turn on contour lines
+plot_2d_settings['cmap_soil'] = 'Greens' # change soil colormap to shades of green
+plot_2d_settings['soil_alpha'] = 0.35 # change soil opacity to 35%
 
 project.plot2d(**plot_2d_settings)
 

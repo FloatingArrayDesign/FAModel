@@ -18,12 +18,14 @@ input_file = os.path.join(dir,'10_2D-visual_soil_bathy-contours.yaml')
 project = Project(file=input_file,raft=False)
 
 # plot the soil types with the bathymetry contour lines (must turn off bathymetry colorplot)
-project.plot2d(plot_soil=True, plot_bathymetry=False, plot_bathy_contours=True,
-               bath_levels=10) # choose # of contour lines to show
+project.plot2d(plot_soil=True, plot_bathymetry=False, 
+               plot_bathymetry_contours=True,
+               bathymetry_levels=10) # choose # of contour lines to show
 
 # Let's change the number of contour levels
-project.plot2d(plot_soil=True, plot_bathymetry=False, plot_bathy_contours=True,
-               bath_levels=5) # choose # of contour lines to show
+project.plot2d(plot_soil=True, plot_bathymetry=False, 
+               plot_bathymetry_contours=True,
+               bathymetry_levels=5) # choose # of contour lines to show
 
 
 plt.show()

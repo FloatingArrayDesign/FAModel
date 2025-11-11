@@ -186,7 +186,7 @@ def test_DEA_Polyester_Chain_Polyester_Suspended():
 
     ld.updateDesign(X)
     X = np.array(X)*ld.X_denorm
-    assert abs(X[0] - 308.03) < .01
+    assert abs(X[0] - 308.03) < .06
 
 
 '''

@@ -2138,7 +2138,7 @@ class Project():
     
     def plot2d(self, ax=None, plot_soil=False,
                plot_bathymetry=True, plot_boundary=True, color_lineDepth=False, 
-               plot_bathy_contours=False, bare=False, axis_equal=True,
+               plot_bathymetry_contours=False, bare=False, axis_equal=True,
                save=False,**kwargs):
         '''Plot aspects of the Project object in matplotlib in 3D.
         
@@ -2174,7 +2174,7 @@ class Project():
         alpha = kwargs.get('alpha',0.5)
         return_contour = kwargs.get('return_contour',False)
         cmap_cables = kwargs.get('cmap_cables',None)
-        cmap_soil = kwargs.get('cmpa_soil', None)
+        cmap_soil = kwargs.get('cmap_soil', None)
         plot_platforms = kwargs.get('plot_platforms',True)
         plot_anchors = kwargs.get('plot_anchors',True)
         plot_moorings = kwargs.get('plot_moorings',True)
@@ -2182,12 +2182,12 @@ class Project():
         cable_labels = kwargs.get('cable_labels', False)
         depth_vmin = kwargs.get('depth_vmin', None)
         depth_vmax = kwargs.get('depth_vmax', None)
-        bath_levels = kwargs.get('bath_levels', 50)
+        bathymetry_levels = kwargs.get('bathymetry_levels', 50)
         plot_legend = kwargs.get('plot_legend', True)
         legend_x = kwargs.get('legend_x', 0.5)
         legend_y = kwargs.get('legend_y', -0.1)
         plot_landmask = kwargs.get('plot_landmask', False) # mask land areas 
-        
+        soil_alpha = kwargs.get('soil_alpha', 0.5)
         max_line_depth = kwargs.get('max_line_depth', None)  # max depth for line coloring if color_lineDepth is True
         only_shared    = kwargs.get('only_shared', False)   # if color_lineDepth is True, only color shared lines
         linewidth_multiplier = kwargs.get('linewidth_multiplier', 2)  # multiplier for line widths if color_lineDepth is True
@@ -2210,7 +2210,11 @@ class Project():
                 vmax = depth_vmax if depth_vmax is not None else np.max(self.grid_depth)
                 grid_depth = np.clip(self.grid_depth, vmin, vmax)
 
-                contourf = ax.contourf(X, Y, grid_depth, bath_levels, cmap='Blues', vmin=np.min(self.grid_depth), vmax=np.max(self.grid_depth))
+                contourf = ax.contourf(X, Y, grid_depth, 
+                                       bathymetry_levels, 
+                                       cmap='Blues', 
+                                       vmin=np.min(self.grid_depth), 
+                                       vmax=np.max(self.grid_depth))
 
                 contourf.set_clim(depth_vmin, depth_vmax)
 
@@ -2226,6 +2230,8 @@ class Project():
             soil_types = np.unique(self.soil_names).tolist()
             if not cmap_soil:
                 cmap_soil = plt.cm.YlOrRd
+            else:
+                cmap_soil = plt.colormaps[cmap_soil]
             bounds = [i for i in range(len(soil_types)+1)]
             soil_type_to_int = {name: i for i,name in enumerate(soil_types)}
             soil_int = np.vectorize(soil_type_to_int.get)(self.soil_names)
@@ -2237,7 +2243,7 @@ class Project():
             levels = np.arange(0, len(soil_types))          # create index matches unique soil name
             ticks = levels + 0.5                        # shift label position to place center between colors
             X, Y = np.meshgrid(self.soil_x, self.soil_y)
-            contourf = ax.pcolormesh(X, Y, soil_int, cmap=cmap_soil, norm=norm, shading='auto')
+            contourf = ax.pcolormesh(X, Y, soil_int, cmap=cmap_soil, norm=norm, shading='auto', alpha=soil_alpha)
             if not bare:
                 cbar = plt.colorbar(contourf,
                                     ax=ax, norm=norm, 
@@ -2245,12 +2251,12 @@ class Project():
                 cbar.ax.set_yticklabels(soil_types) # label of color bar
             #soil_handles = [plt.Line2D([0], [0], marker='s', color='w', label=name, markerfacecolor=soil_colors.get(name, 'white'), markersize=10) for name in soil_types if name != '0' ]
         
-        if plot_bathy_contours:
+        if plot_bathymetry_contours:
             # plot the bathymetry in matplotlib using a plot_surface
             X, Y = np.meshgrid(self.grid_x, self.grid_y)  # 2D mesh of seabed grid
             plot_depths = self.grid_depth
             contour = ax.contour(X, Y, plot_depths, vmin=np.min(self.grid_depth), 
-                       vmax=np.max(self.grid_depth), levels=bath_levels, 
+                       vmax=np.max(self.grid_depth), levels=bathymetry_levels, 
                        colors='black', linewidths=0.5) # bathymetry contour line
             ax.clabel(contour)
         
