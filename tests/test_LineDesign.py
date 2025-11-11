@@ -146,6 +146,47 @@ def test_DEA_Chain_COBYLA_tension():
     assert abs(ld3.ss.lineList[0].L - 1036.553) < 0.01
     assert abs(X3[1] -  102.869) < 0.01
 
+def test_DEA_Polyester_Chain_Polyester_Suspended():
+    depth = 800
+
+    settings = {}
+    settings['shared'] = True
+    settings['rBFair'] = [58,0,-14]
+    settings['rho'] = 1025
+    settings['g'] = 9.81
+    settings['span'] = 1304.0
+    settings['fx_target'] = 2e6
+    settings['solve_for'] = 'tension'
+
+    settings['name'] = 'shared-outer'
+    settings['lineTypeNames'] = ['polyester', 'chain', 'polyester']
+    settings['allVars'] = [ 0 ,  400,  280,  0 , 250 , 170, 0, 250, 280]
+    settings['Xindices'] = ['c', 's' ,   0, 'c', 'c' , 'c', 'c', 'c', 0]
+    settings['Xmin'] = [10]
+    settings['Xmax'] = [500]
+    settings['dX_last'] = [10]
+
+    settings['x_mean_in'] = 28.47071193414532
+    settings['x_mean_out'] = 28.719601624957555
+    settings['x_ampl'] = 11.11
+
+    settings['constraints'] = [dict(name='min_sag'               , index=0, threshold=-60 , offset='max'),
+                               dict(name='min_Kx'                , index=0, threshold=26714, offset='zero')]
+
+    for j in range(len(settings['lineTypeNames'])):
+        settings['constraints'].append(dict(name='tension_safety_factor', index=j, threshold=1.67, offset='max'))
+
+    ld = LineDesign(depth, **settings)
+
+
+    ld.setNormalization()
+
+    # 1st Run
+    X, min_cost = ld.optimize(maxIter=400, plot=False, display=1, stepfac=5, method='COBYLA')
+
+    ld.updateDesign(X)
+    X = np.array(X)*ld.X_denorm
+    assert abs(X[0] - 308.03) < .01
 
 
 '''

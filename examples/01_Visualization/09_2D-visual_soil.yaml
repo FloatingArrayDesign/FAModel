@@ -1,0 +1,5 @@
+# Site condition information
+site:
+    general: {}
+    seabed:
+        file: '../GulfOfMaine_soil_uniform_100x100.txt'
