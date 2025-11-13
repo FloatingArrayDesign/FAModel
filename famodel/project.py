@@ -1307,7 +1307,7 @@ class Project():
 
             if self.soil_mode == 'uniform':
                 soil_info = self.soilProps[soil_id]               
-                if not hasattr(self, 'profile_map') or not self.profile_map:
+                if not self.profile_map:
                     self.convertUniformToLayered(default_layer=50.0)
                     
                 # Replace with a single entry corresponding to this soil_id
@@ -1315,10 +1315,14 @@ class Project():
                     next(e for e in self.profile_map if e['name'] == str(soil_id))]
                 self.profile_map[0]['layers']
                 
+                return soil_id, soil_info
+                
             elif self.soil_mode == 'layered':
                 layers = self.soilProps[soil_id]  # list of layer dicts
                 profile_entry = {'name': str(soil_id), 'layers': layers}
                 self.profile_map.append(profile_entry)
+                
+                return soil_id, layers
                 
             else:
                 raise ValueError(f"Unknown soil_mode: {self.soil_mode}")
