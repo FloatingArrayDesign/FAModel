@@ -1257,7 +1257,7 @@ class Project():
         else:
             raise ValueError("Invalid combination of filename/yaml inputs")
 
-        # --- Set defaults only for uniform mode ---
+        # --- Set defaults only for uniform mode (when values are missing) ---
         if soil_mode == 'uniform':
             for key, props in soilProps.items():
                 props['Su0']   = getFromDict(props, 'Su0',   shape=-1, dtype=list, default=[2.39])
@@ -1298,24 +1298,34 @@ class Project():
         -------
         (str, dict or list): soil name or profile ID, and associated soil properties or layered profile
         '''
+        self.profile_map = []
+        
         if self.soil_x is not None:
             ix = np.argmin([abs(x - sx) for sx in self.soil_x])
             iy = np.argmin([abs(y - sy) for sy in self.soil_y])
             soil_id = self.soil_names[iy, ix]  # could be label or profile_id
 
             if self.soil_mode == 'uniform':
-                soil_info = self.soilProps[soil_id]
-                return soil_id, soil_info
-
+                soil_info = self.soilProps[soil_id]               
+                if not hasattr(self, 'profile_map') or not self.profile_map:
+                    self.convertUniformToLayered(default_layer=50.0)
+                    
+                # Replace with a single entry corresponding to this soil_id
+                self.profile_map = [
+                    next(e for e in self.profile_map if e['name'] == str(soil_id))]
+                self.profile_map[0]['layers']
+                
             elif self.soil_mode == 'layered':
-                profile_layers = self.soilProps[soil_id]  # list of layer dicts
-                return soil_id, profile_layers
-
+                layers = self.soilProps[soil_id]  # list of layer dicts
+                profile_entry = {'name': str(soil_id), 'layers': layers}
+                self.profile_map.append(profile_entry)
+                
             else:
                 raise ValueError(f"Unknown soil_mode: {self.soil_mode}")
 
             print(f"[DEBUG] soil_id at location ({x}, {y}) is: {soil_id}")
             print(f"[DEBUG] Available soilProps keys: {list(self.soilProps.keys())}")
+        
         else:
             raise ValueError("No soil grid defined")
             
@@ -1331,8 +1341,8 @@ class Project():
             name = str(name)
 
             gamma = float(props['gamma'][0])
-            Su0 = float(props['Su0'][0])
-            k = float(props['k'][0])
+            Su0   = float(props['Su0'][0])
+            k     = float(props['k'][0])
 
             layer = {
                 'soil_type': 'clay',
@@ -1341,7 +1351,7 @@ class Project():
                 'gamma_top': gamma,
                 'gamma_bot': gamma,
                 'Su_top': Su0,
-                'Su_bot': Su0 + k * default_layer}
+                'Su_bot': Su0 + k*default_layer}
 
             profile_entry = {'name': name, 'layers': [layer]}
             self.profile_map.append(profile_entry)

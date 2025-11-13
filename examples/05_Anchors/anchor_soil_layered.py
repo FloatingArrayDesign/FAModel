@@ -10,21 +10,17 @@ proj.loadSoil(
     soil_mode='layered',
     profile_source='inputs/GulfOfMaine_soil_profiles.yaml')
 
-for label, props in proj.soilProps.items():
-    print(f"{label}: {props}")
-
 # Step 2: Create and register an anchor at a known position in the grid
 anchor = Anchor(
     dd = {'type': 'suction', 'design': {'D': 3.5, 'L': 12.0, 'zlug': 9.67}},
     r  = [54.0, -4450.0, 0.0])
 
 # Step 3: Assign local soil profile from project (nearest neighbor lookup)
-soil_id, soil_profile = proj.getSoilAtLocation(anchor.r[0], anchor.r[1])
-anchor.soilProps = {soil_id: soil_profile}
-anchor.setSoilProfile([{'name': soil_id, 'layers': soil_profile}])  # ensures `anchor.soil_profile` is set
+proj.getSoilAtLocation(anchor.r[0], anchor.r[1])
+anchor.setSoilProfile(proj.profile_map)  
 
 # Step 4: Assign loads and line
-anchor.loads = {'Hm': 2e6, 'Vm': 1.5e6}
+anchor.loads = {'Hm': 1e6, 'Vm': 1.5e6}
 anchor.line_type = 'chain'
 anchor.d = 0.16
 anchor.w = 5000.0
@@ -52,7 +48,7 @@ results = anchor.getSizeAnchor(
     loads = None,
     lambdap_con = [3, 6],
     zlug_fix = False,
-    safety_factor = {'SF_combined': 1},
+    safety_factor = {'SF_combined': 2},
     plot = True)
 
 # Step 6: Report

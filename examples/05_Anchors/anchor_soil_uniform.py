@@ -6,27 +6,23 @@ from famodel.anchors.anchor import Anchor
 proj = Project()
 proj.loadSoil(
     filename='inputs/GulfOfMaine_soil_layered_100x100.txt',
-    soil_mode='uniform')  # 'uniform' soil does not need from the profile_source yaml file
-
-for label, props in proj.soilProps.items():
-    print(f"{label}: {props}")
+    soil_mode='uniform')  # 'uniform' soil mode does not need from the profile_source yaml file
     
-# Convert to profile_map format so anchor capacity models can use it
-proj.convertUniformToLayered(default_layer=50.0)
-
-for label, props in proj.profile_map.items():
-    print(f"{label}: {props}")
-
 # Step 2: Create and register an anchor at a known position in the grid
 anchor = Anchor(
     dd = {'type': 'suction', 'design': {'D': 3.5, 'L': 12.0, 'zlug': 9.67}},
     r  = [54.0, -4450.0, 0.0])
 
-# Step 3: Assign local soil profile from project (nearest neighbor lookup)
-soil_id, _ = proj.getSoilAtLocation(anchor.r[0], anchor.r[1])
-soil_profile = proj.profile_map[soil_id]  # get compatible layered format
-anchor.soilProps = {soil_id: soil_profile}
-anchor.setSoilProfile([{'name': soil_id, 'layers': soil_profile}])  # ensures `anchor.soil_profile` is set
+# SELECT option 3a or 3b
+# ======================
+# Step 3a: Convert to profile_map format from uniform soil data
+# proj.convertUniformToLayered(default_layer=50.0)
+# profile_map = proj.profile_map[3]     # manually take relevant soil profile from the list
+# anchor.setSoilProfile(profile_map)    # automatically turns dict to list 
+
+# Step 3b: Assign local soil profile from project (nearest neighbor lookup)
+proj.getSoilAtLocation(anchor.r[0], anchor.r[1])
+anchor.assignSoilProfile(proj.profile_map)   
 
 # Step 4: Assign loads and line
 anchor.loads = {'Hm': 1e6, 'Vm': 5e4}

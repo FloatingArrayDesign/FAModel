@@ -52,7 +52,7 @@ anchor = Anchor(
     r = [250.0, 250.0, 000.0])
 
 # --- Step 0: Create anchor based grid CPTs ---
-anchor.interpolateSoilProfile(profile_map)
+anchor.assignSoilProfile(profile_map)
 
 # --- Step 1: Plot suction pile and soil profile ---
 # Access anchor geometrical properties
@@ -67,8 +67,8 @@ plot_suction(layers, L=L, D=D, z0=z0, zlug=zlug)
 
 # Assign loads manually
 anchor.loads = {
-    'Hm': 3.0e6,    # Horizontal mudline load (N)
-    'Vm': 1.0e6     # Vertical mudline load (N)
+    'Hm': 2.0e6,    # Horizontal mudline load (N)
+    'Vm': 8.0e5     # Vertical mudline load (N)
 }
 
 # Assign line properties manually
@@ -109,7 +109,6 @@ for key, value in anchor.anchorCapacity.items():
 anchor.getCost()  
 
 print(f"Mass: {anchor.anchorCapacity['Weight pile']/9.81:.2f} kg")
-print(f"Material unit cost: {anchor.cost['unit_cost']:.2f} USD/kg")
 print(f'Material cost: {anchor.cost["Material cost"]:.2f} USD [2024]')
 
 #%%
@@ -121,7 +120,7 @@ anchor.getSizeAnchor(
     loads = None,
     lambdap_con = [3, 6],
     zlug_fix = False,
-    safety_factor = {'SF_horizontal': 2, 'SF_vertical': 3},
+    safety_factor = {'SF_combined': 2},
     plot = True)
 
 print('\nFinal Optimized Anchor:')
@@ -132,8 +131,5 @@ print('Capacity Results:', anchor.anchorCapacity)
 anchor.getCost()  
 
 print(f"Mass: {anchor.anchorCapacity['Weight pile']/9.81:.2f} kg")
-print(f"Material unit cost: {anchor.cost['unit_cost']:.2f} USD/kg")
 print(f'Material cost: {anchor.cost["Material cost"]:.2f} USD [2024]')
 
-# --- Step 7: Visualize Anchor Geometry ---
-# anchor.getCombinedPlot()

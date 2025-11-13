@@ -130,6 +130,14 @@ class Anchor(Node):
         Assign a soil profile directly from a single CPT.
         Assumes profile_map is a list with only one entry.
         '''
+        
+        if isinstance(profile_map, dict):
+            profile_map = [profile_map]    
+        elif isinstance(profile_map, list):
+            pass  # leave it as it is
+        else:
+            raise TypeError('setSoilProfile expects a dict or a list/tuple with one dict.')
+            
         if len(profile_map) != 1:
             raise ValueError("setSoilProfile expects a profile_map with exactly one CPT.")
 
@@ -214,6 +222,42 @@ class Anchor(Node):
         self.soilProps = dict(soilProps)
 
         if self.display > 0: print(f"[Anchor] Interpolated soil profile: {self.profile_name} with soil types {self.soil_type_list}")
+        
+    def assignSoilProfile(self, profile_map):
+        '''
+        High-level soil assignment:
+
+        - If a single CPT is provided → call setSoilProfile
+        - If 4 or more CPTs are provided → call interpolateSoilProfile
+        - Otherwise → complain (not enough info for interpolation)
+
+        Accepts:
+          - dict (single CPT)
+          - list of CPT dicts
+        '''
+        # Normalize input
+        if isinstance(profile_map, dict):
+            profile_list = [profile_map]
+        elif isinstance(profile_map, list):
+            profile_list = profile_map
+        else:
+            raise TypeError('applySoilProfile expects a dict or a list of dicts.')
+
+        n = len(profile_list)
+
+        if n == 1:
+            # delegate to existing set logic
+            return self.setSoilProfile(profile_list)
+
+        elif n >= 4:
+            # delegate to existing interpolation logic
+            return self.interpolateSoilProfile(profile_list)
+
+        else:
+            # 2 or 3 CPTs: ambiguous use-case
+            raise ValueError(
+                f'applySoilProfile received {n} CPTs: '
+                'need exactly 1 for direct assignment or ≥4 for interpolation.')
         
     def makeMoorPyAnchor(self, ms):
         '''
