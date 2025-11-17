@@ -73,10 +73,12 @@ For non-development use:
 run ```python setup.py``` or ```pip install .``` from the command line in 
 the main FAD-Toolset directory.
 
-FAD requires MoorPy and we currently install it separately. If you don't already have it,
+You can test the installation by running ```pytest``` from the main FAD-Toolset directory.
+
+<!-- FAD requires MoorPy and we currently install it separately. If you don't already have it,
 you can install MoorPy with ```git clone https://github.com/NREL/MoorPy.git```
 then navigate to the MoorPy folder and install with ```pip install .```.
-Make sure your virtual enviroment is activated before installing MoorPy.
+Make sure your virtual enviroment is activated before installing MoorPy. -->
 
 
 ## Subpackages
