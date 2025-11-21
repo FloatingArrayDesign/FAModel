@@ -4923,7 +4923,7 @@ class Project():
                 for att in pf.attachments.values():
                     if isinstance(att['obj'],Turbine):
                         if hasattr(att['obj'], 'D'):
-                            D = att['obj'].D
+                            D = int(att['obj'].D)
                         else:
                             D = 242
                         zhub = att['obj'].dd['hHub']
