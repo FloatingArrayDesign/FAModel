@@ -4988,6 +4988,7 @@ class Project():
         removeBody       = opts["removeBody"]
         outputList       = opts["outputList"]
         bathymetryFile   = opts["bathymetryFile"]
+        dynamicStiffness = opts["dynamicStiffness"]
 
         flag             = opts["flag"]
         factor           = opts["factor"]
