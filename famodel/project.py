@@ -4951,6 +4951,7 @@ class Project():
         MDoptionsDict: dict, optional
             MoorDyn Options. If not given, default options are considered.
         **kwargs : optional
+            dynamicStiffness : bool
             unrotateTurbines : bool
                 A flag to unrotate turbine (body) objects when passing it to MoorPy unload function 
                 [FFarm takes fairlead points in the local-unrotated reference frame]
@@ -4969,6 +4970,7 @@ class Project():
         # --- Default values ---
         defaults = {
             "unrotateTurbines": True,
+            "dynamicStiffness": False,
             "renameBody": True,
             "removeBody": True,
             "outputList": [],
@@ -4978,7 +4980,7 @@ class Project():
         }
 
         # Merge defaults with kwargs
-        opts = {**defaults, **kwargs}
+        opts = {**defaults, **kwargs}  # Basically, it srything in the defaults dictionary, then overwrite any entries with the values provided in kwargs.
 
         # Assign variables for convenience
         unrotateTurbines = opts["unrotateTurbines"]
@@ -5020,7 +5022,7 @@ class Project():
         for body in bodies_to_be_deleted:
             ms_temp.bodyList.remove(body)
 
-        ms_temp.unload(fileName=filename, phi=phi, MDoptionsDict=MDoptionsDict, outputList=outputList, flag=flag)
+        ms_temp.unload(fileName=filename, phi=phi, dynamicStiffness=dynamicStiffness, MDoptionsDict=MDoptionsDict, outputList=outputList, flag=flag)
         
         # rename Body to Turbine if needed
         if renameBody:
