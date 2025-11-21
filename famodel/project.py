@@ -4942,7 +4942,7 @@ class Project():
     
     def FFarmCompatibleMDOutput(self, filename, MDoptionsDict=None, **kwargs):
         '''
-        Function to create FFarm-compatible MoorDyn input file:
+        Function to create FFarm-compatible MoorDyn input file (assumes project.ms is already created and if subsystem converted to lines):
 
         Parameters
         ----------
@@ -4997,8 +4997,7 @@ class Project():
             MDoptionsDict = {}       
         from moorpy.helpers import ss2lines    
         
-        # convert SS to lines
-        ms_temp = ss2lines(self.ms)
+        ms = self.ms
         
         # Unrotate turbines if needed
         if unrotateTurbines:
@@ -5012,18 +5011,9 @@ class Project():
         # Setup nNodes of lines manually based on the segment length desired.
         from moorpy.helpers import lengthAwareSegmentation
         
-        lengthAwareSegmentation(ms_temp.lineList, factor=factor)
+        lengthAwareSegmentation(ms.lineList, factor=factor)
 
-        # Remove anchors from ms_temp
-        bodies_to_be_deleted = []
-        for body in ms_temp.bodyList:
-            if body.r6[2] < 0:
-                # this is an anchor, remove it
-                bodies_to_be_deleted.append(body)
-        for body in bodies_to_be_deleted:
-            ms_temp.bodyList.remove(body)
-
-        ms_temp.unload(fileName=filename, phi=phi, dynamicStiffness=dynamicStiffness, MDoptionsDict=MDoptionsDict, outputList=outputList, flag=flag)
+        ms.unload(fileName=filename, phi=phi, dynamicStiffness=dynamicStiffness, MDoptionsDict=MDoptionsDict, outputList=outputList, flag=flag)
         
         # rename Body to Turbine if needed
         if renameBody:
