@@ -5,6 +5,8 @@ mooring:   # object name
   - length # list of supported attributes...
   - pretension
   - weight
+  - mass
+  - volume
 
 platform: # can be wec
   - mass

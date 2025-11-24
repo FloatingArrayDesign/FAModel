@@ -60,6 +60,7 @@ crane:
   # fields:
    capacity_t:              # SWL at specified radius [t]  <<< field description is non-sensical.
    hook_height_m:           # max hook height [m]
+   speed_mpm:               # crane speed [m/s]
 
 station_keeping_by_dynamic_positioning:
   # description: DP vessel capability for station keeping

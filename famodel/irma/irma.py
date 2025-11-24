@@ -42,7 +42,7 @@ from task import Task
 from assets import Vessel, Port
 
 
-        
+
 def loadYAMLtoDict(info, already_dict=False):
     '''Reads a list or YAML file and prepares a dictionary'''
     
@@ -260,19 +260,19 @@ class Scenario():
         # Check that all the requirements of all actions conform to the
         # options in requirements.yaml.
         for reqname, req in action.requirements.items():
-            if reqname in self.requirements:  # ensure this requirement is listed
-                for cap in req:
+            if req['base'] in self.requirements:  # ensure this requirement is listed
+                for cap in req['capabilities']:
                     if not cap in self.capabilities:
                         raise Exception(f"Requirement '{reqname}' capability '{cap}' is not in the global capability list.")
             else:
-                raise Exception(f"Action {action.name} requirement {reqname} is not in requirements.yaml")
+                raise Exception(f"Action {action.name} requirement {req['base']} is not in requirements.yaml")
 
         # Add it to the actions dictionary
         self.actions[action.name] = action
         
         
     def addAction(self, action_type_name, action_name, **kwargs):
-        '''Creates and action and adds it to the register'''
+        '''Creates an action and adds it to the register'''
         
         if not action_type_name in self.actionTypes:
             raise Exception(f"Specified action type name {'action_type_name'} is not in the list of loaded action types.")
@@ -283,15 +283,35 @@ class Scenario():
         # Initialize full zero-valued dictionary of possible required capability specs
         reqs = {}  # Start a dictionary to hold the requirements -> capabilities -> specs
         for req in action_type['requirements']:
-            reqs[req] = {}
-            #print(f' {req}')
+            
+            # make sure it's a valid requirement
+            if '-in' in req:  
+                req_dir = 1  # this means the req is for storage and storage is being filled
+                req_base = req[:-3]  # this is the name of the req as in requirements.yaml, no suffix
+            elif '-out' in req:  
+                req_dir = -1
+                req_base = req[:-4]
+            else:
+                req_dir = 0
+                req_base = req
+            
+            # Make sure the requirement and its direction are supported in the requirements yaml
+            if not req_base in self.requirements:
+                raise Exception(f"Requirement '{req_base}' is not in the requirements yaml.")
+            if abs(req_dir) > 0 and ('directions' not in self.requirements[req_base] 
+                                     or req_dir not in self.requirements[req_base]['directions']):
+                raise Exception(f"Requirement '{req_base}' direction '{req_dir}' is not supported in the requirements yaml.")
+            
+            # Make the new requirements entry
+            reqs[req] = {'base':req_base, 'direction':req_dir, 'capabilities':{}}
+            
             # add the caps of the req
-            for cap in self.requirements[req]['capabilities']: 
-                reqs[req][cap] = {}
+            for cap in self.requirements[req_base]['capabilities']: 
+                reqs[req]['capabilities'][cap] = {}
                 #print(f'   {cap}')
                 # add the specs of the capability
                 for spec in self.capabilities[cap]:
-                    reqs[req][cap][spec] = 0
+                    reqs[req]['capabilities'][cap][spec] = 0
                     #print(f'     {spec} = 0')
         # swap in the filled-out dict
         action_type['requirements'] = reqs
@@ -399,7 +419,7 @@ class Scenario():
 
 
     def figureOutTaskRelationships(self):
-        '''Calculate timing within tasks and then figure out constraints
+        '''Calculate time constraints
         between tasks.
         '''
         
@@ -449,8 +469,10 @@ def findTaskDependencies(task1, task2):
     print(time_1_to_2)
     print(time_2_to_1)
     
-    dt_min_1_2 = min(time_1_to_2) if time_1_to_2 else 0  # minimum time required from t1 start to t2 start
-    dt_min_2_1 = min(time_2_to_1) if time_2_to_1 else 0  # minimum time required from t2 start to t1 start
+    # TODO: provide cleaner handling of whether or not there is a time constraint in either direction <<<
+    
+    dt_min_1_2 = min(time_1_to_2) if time_1_to_2 else -np.inf  # minimum time required from t1 start to t2 start
+    dt_min_2_1 = min(time_2_to_1) if time_2_to_1 else -np.inf  # minimum time required from t2 start to t1 start
     
     if dt_min_1_2 + dt_min_2_1 > 0:
         print(f"The timing between these two tasks seems to be impossible...")
@@ -541,13 +563,34 @@ if __name__ == '__main__':
     project.plot2d(save=True, plot_bathymetry=False)
     '''
     
-    
-    # ----- Initialize the action stuff -----
+    # Tally up some object properties (eventually make this built-in Project stuff)
+    for mooring in project.mooringList.values():
+        # sum up mooring quantities of interest
+        L = 0  # length
+        m = 0  # mass
+        V = 0  # volume
+
+        for sec in mooring.sections(): # add up the length of all sections in the mooring
+            L += sec['L']
+            m += sec['L'] * sec['type']['m']
+            V += sec['L'] * np.pi/4 * sec['type']['d_vol']**2
+        
+        mooring.props = {}
+        mooring.props['length'] = L
+        mooring.props['pretension'] = 0   # <<< get this from MoorPy once this is moved into Mooring class?
+        mooring.props['weight'] = 9.8*(m - 1025*V)
+        mooring.props['mass'] = m
+        mooring.props['volume'] = V
+        
+    print("should do the same for platforms and anchors...") # <<<
     
     sc = Scenario()  # class instance holding most of the info
                 
     
-    # Parse out the install steps required
+    # ----- Create the interrelated actions (including their individual requirements) -----
+    print("===== Create Actions =====")
+    # When an action is created, its requirements will be calculated based on
+    # the nature of the action and the objects involved.
     
     for akey, anchor in project.anchorList.items():
         
@@ -555,8 +598,8 @@ if __name__ == '__main__':
 
         # add and register anchor install action(s)
         a1 = sc.addAction('install_anchor', f'install_anchor-{akey}', objects=[anchor])
-        duration, cost = a1.evaluateAssets({'carrier' : sc.vessels["MPSV_01"], 'operator':sc.vessels["AHTS_alpha"]})
-        print(f'Anchor install action {a1.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
+        #duration, cost = a1.evaluateAssets({'carrier' : sc.vessels["MPSV_01"], 'operator':sc.vessels["AHTS_alpha"]})
+        #print(f'Anchor install action {a1.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
         
         # register the actions as necessary for the anchor <<< do this for all objects??
         anchor.install_dependencies = [a1]
@@ -575,14 +618,14 @@ if __name__ == '__main__':
         # create load vessel action
         a2 = sc.addAction('load_mooring', f'load_mooring-{mkey}', objects=[mooring])
         #duration, cost = a2.evaluateAssets({'carrier2' : sc.vessels["HL_Giant"], 'carrier1' : sc.vessels["Barge_squid"], 'operator' : sc.vessels["HL_Giant"]})
-        print(f'Mooring load action {a2.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
+        #print(f'Mooring load action {a2.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
 
         # create ship out mooring action
         
         # create lay mooring action
         a3 = sc.addAction('lay_mooring', f'lay_mooring-{mkey}', objects=[mooring], dependencies=[a2])
         sc.addActionDependencies(a3, mooring.attached_to[0].install_dependencies) # in case of shared anchor
-        print(f'Lay mooring action {a3.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
+        #print(f'Lay mooring action {a3.name} duration: {duration:.2f} days, cost: ${cost:,.0f}')
         
         # mooring could be attached to anchor here - or could be lowered with anchor!!
         #(r=r_anch, mooring=mooring, anchor=mooring.anchor...)
@@ -603,20 +646,44 @@ if __name__ == '__main__':
         sc.addActionDependencies(a, [a5])  # make each hookup action dependent on the FOWT being towed out
     
 
-    
-    # ----- Generate tasks (groups of Actions according to specific strategies) -----
-
-    #t1 = Task(sc.actions, 'install_mooring_system')
-
     # ----- Do some graph analysis -----
     
-    G = sc.visualizeActions()
+    #G = sc.visualizeActions()
     
-    # make some tasks with one strategy...
+    # ----- Generate tasks (sequences of Actions following specific strategies) -----
+    print('Generating tasks')
+    # Call one of the task strategy implementers, which will create the tasks
+    # (The created tasks also contain information about their summed requirements)
     implementStrategy_staged(sc)
     
-
-    dt_min = sc.figureOutTaskRelationships()
+    
+    # ----- Try assigning assets to the tasks -----
+    print('Trying to assign assets to tasks')
+    for task in sc.tasks.values():
+        print(f"--- Looking at task {task.name} ---")
+        if task.checkAssets([sc.vessels['AHTS_alpha']], display=1)[0]:
+            print('Assigned AHTS')
+            task.assignAssets([sc.vessels['AHTS_alpha']])
+        elif task.checkAssets([sc.vessels['CSV_A']], display=1)[0]:
+            print('Assigned CSV_A')
+            task.assignAssets([sc.vessels['CSV_A']])
+        else:
+            task.checkAssets([sc.vessels['AHTS_alpha'], sc.vessels['HL_Giant'], sc.vessels['CSV_A']], display=1)
+            print('assigning the kitchen sink')
+            task.assignAssets([sc.vessels['AHTS_alpha'], sc.vessels['HL_Giant'], sc.vessels['CSV_A']])
+        
+        # Calculation durations of the actions, and then of the task
+        for a in task.actions.values():
+            a.calcDurationAndCost()
+        task.calcDuration()
+    
+   
+    # Example task time adjustment and plot
+    sc.tasks['tow_and_hookup'].setStartTime(5)
+    sc.tasks['tow_and_hookup'].chart()
+    
+    #dt_min = sc.figureOutTaskRelationships()
+    
     '''
     # inputs for scheduler
     offsets_min = {}        # min: 'taskA->taskB': offset     max: 'taskA->taskB': (offset, 'exact')
@@ -627,11 +694,11 @@ if __name__ == '__main__':
     '''
     
     # ----- Check tasks for suitable vessels and the associated costs/times -----
-    
+    '''
     # preliminary/temporary test of anchor install asset suitability
     for akey, anchor in project.anchorList.items():
         for a in anchor.install_dependencies:  # go through required actions (should just be the anchor install)
-            a.evaluateAssets({'carrier' : sc.vessels["MPSV_01"]})  # see if this example vessel can do it
+            a.evaluateAssets([sc.vessels["MPSV_01"]])  # see if this example vessel can do it
 
 
     # ----- Generate the task_asset_matrix for scheduler -----
@@ -642,16 +709,16 @@ if __name__ == '__main__':
         if row.shape != (len(sc.vessels), 2):
             raise Exception(f"Task '{task.name}' get_row output has wrong shape {row.shape}, should be {(2, len(sc.vessels))}")
         task_asset_matrix[i, :] = row
-
+    '''
     # ----- Call the scheduler -----
     # for timing with weather windows and vessel assignments 
     
     records = []
     for task in sc.tasks.values():
-        print('XXXXXXX')
+        print('')
         print(task.name)
         for act in task.actions.values():
-            print(f" {act.name}:  duration: {act.duration}   start time: {task.actions_ti[act.name]}")
+            print(f" {act.name}:  duration: {act.duration:8.2f}   start time: {task.actions_ti[act.name]:8.2f}")
             # start = float(task.actions_ti[name])      # start time [hr]
             # dur   = float(act.duration)               # duration [hr]
             # end   = start + dur
@@ -689,13 +756,8 @@ if __name__ == '__main__':
         for v in self.vesselList:
             v.timestep()
        
-        
-        
         # log the state of everything...
-    '''    
+    '''
         
-    
-    
-    
     plt.show()
     

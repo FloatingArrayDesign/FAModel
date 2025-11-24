@@ -183,9 +183,29 @@ class Action():
         # Process some optional kwargs depending on the action type
     
     
+    def dependsOn(self, act, recur=0):
+        '''Returns True if this action depends on the passed in action.
+        This looks through all dependencies, not just immediate.'''
+        
+        if recur > 10:
+            print("WARNGING, there seems to be a recursive action dependency...")
+            breakpoint()
+        
+        if act.name in self.dependencies:
+            return True
+        else:  # Recursive search through dependent tasks
+            for act2 in self.dependencies.values():
+                if act2.dependsOn(act, recur=recur+1):
+                    return True
+        
+        return False
+                
+    
     def updateRequirements(self):
         '''
         Updates requirements based on the assigned objects or materials.
+        Note: any requirements whose values are not set in this method will be 
+        subsequently removed from consideration. 
         '''
         # RA: let's rethink this function or brainstorm more.
         if not self.objectList:
@@ -226,14 +246,31 @@ class Action():
         
         def printNotSupported(st):
             '''Prints that a certain thing isn't supported yet in this method.'''
-            print(f"{st} is not currently supported in Action.updateRequirements.")
+            print(f"{st} is not yet in Action.updateRequirements.")
         
         
         # Go through every requirement (each may involve different calculations, even
         # if for the same capabilities)
-        for reqname, req in self.requirements.items():
+        for reqname_full, vals in self.requirements.items():
             
-            if reqname == 'chain_storage':  # Storage specifically for chain
+            reqname = vals['base']  # name of requirement without direction suffix
+            req = vals['capabilities']  # should rename this to caps
+            
+            
+            if reqname == 'towing':
+                
+                mass = 1
+                
+                for obj in self.objectList:
+                    try:
+                        mass += obj.props['mass']
+                    except:
+                        pass
+                        
+                req['bollard_pull']['max_force_t'] = 0.01*mass/1e4  # <<< can add a better calculation for towing force required
+                
+            
+            elif reqname == 'chain_storage':  # Storage specifically for chain
         
                 chain_L = 0
                 chain_vol = 0
@@ -321,7 +358,20 @@ class Action():
                         else:
                             printNotSupported(f"Anchor type {obj.dd['type']}")
             
-            # to be continued...
+            elif reqname == 'line_handling':
+                req['winch']['max_line_pull_t'] = 1
+                req['crane']['capacity_t'] = 27  # should set to mooring weight <<<
+                #req['']['']
+             
+            elif reqname == 'subsea_connection':
+                
+                for obj in self.objectList:
+                    if isinstance(obj, Mooring):
+                        
+                        depth = abs(obj.rA[2])  # depth assumed needed for the connect/disconnect work
+                        req['rov']['depth_rating_m'] = depth
+                        if depth < 200:  # don't consider divers if deeper than this
+                            req['divers']['max_depth_m'] = depth  # 
             
             else:
                 printNotSupported(f"Requirement {reqname}")
@@ -330,14 +380,15 @@ class Action():
         new_reqs = {}
         
         for reqname, req in self.requirements.items():
-            for capname, cap in req.items():
+            for capname, cap in req['capabilities'].items():
                 for key, val in cap.items():
                     if val > 0:
                         if not reqname in new_reqs:
-                            new_reqs[reqname] = {}
-                        if not capname in new_reqs[reqname]:
-                            new_reqs[reqname][capname] = {}
-                        new_reqs[reqname][capname][key] = val
+                            new_reqs[reqname] = {'base':req['base'], 'capabilities':{},
+                                                'direction':req['direction']}
+                        if not capname in new_reqs[reqname]['capabilities']:
+                            new_reqs[reqname]['capabilities'][capname] = {}
+                        new_reqs[reqname]['capabilities'][capname][key] = val
         
         self.requirements = new_reqs
     
@@ -1007,10 +1058,15 @@ class Action():
             for key, val in specs.items():
                  print(f'    Total spec {key} = {val}')
         
-        
+        # <<< maybe instead of all this we should do an approach that looks by asset
+        #     because that could then also be used to decide asset assignment
+        #     to each requirement >>>
         
         requirements_met = {}
-        for req, caps in self.requirements.items():  # go through each requirement
+        for req, vals in self.requirements.items():  # go through each requirement
+            
+            caps = vals['capabilities']
+            dir = vals['direction']
             
             # The following logic should mark a requirement as met if any one of 
             # the requirement's needed capabilities has all of its specs by the
@@ -1043,7 +1099,8 @@ class Action():
                     break                         # no need to check other capabilities for this requirement
             
             if not requirements_met[req]:
-                print(f"Requirement '{req}' is not met by asset(s): {assets}.")
+                print(f"Requirement '{req}' is not met by asset(s):")
+                # print(f"{assets}.")
         
         assignable = all(requirements_met.values())
 
@@ -1149,13 +1206,19 @@ class Action():
         '''
 
         # Check that all roles in the action are filled
+        '''
         for req, met in self.requirements_met.items():
             if not met:
                 raise Exception(f"Requirement '{req}' is not met in action '{self.name}'. Cannot calculate duration and cost.")
-            
-        # Initialize cost and duration
-        self.cost = 0.0 # [$]
-        self.duration = 0.0 # [h]
+        '''
+        
+        if len(self.assetList) == 0:
+            raise Exception(f"Cannot calculate action {self.name} because no assets have been succesfully assigned.")
+        
+        
+        # Initialize itimized cost and duration dictionaries
+        self.costs = {} # [$]
+        self.durations = {} # [h]
         
         """
         Note to devs:
@@ -1176,12 +1239,16 @@ class Action():
                 'crane_barge': 3.0,
                 'research_vessel': 1.0
             }
+            mob_times = []  # store time of each vessel  (the next lines of code could maybe be simplified)
             for asset in self.assetList:
                 asset_type = asset['type'].lower()
                 for key, duration in durations.items():
                     if key in asset_type:
-                        self.duration += duration
-                        break
+                        mob_times.append(duration)
+            
+            # vessels mobilize in parallel so store the max time
+            self.durations['mobilize'] = max(mob_times)  
+
 
         elif self.type == 'demobilize':
             # Hard-coded example of demobilization times based on vessel type - from the calwave installation example.
@@ -1189,18 +1256,30 @@ class Action():
                 'crane_barge': 3.0,
                 'research_vessel': 1.0
             }
+            mob_times
             for asset in self.assetList:
                 asset_type = asset['type'].lower()
                 for key, duration in durations.items():
                     if key in asset_type:
-                        self.duration += duration
+                        mob_times.append(duration)
+            
+            # vessels demobilize in parallel so store the max time
+            self.durations['demobilize'] = max(mob_times)
 
+        
         elif self.type == 'load_cargo':
             pass
 
         # --- Towing & Transport ---
         elif self.type == 'tow':
-            pass
+            
+            req = self.requirements['towing']  # look at bollard pull requirement
+                
+            distance = 2500 # <<< need to eventually compute distances based on positions
+            
+            speed = req['assigned_assets'][0]['capabilities']['bollard_pull']['site_speed_mps']
+            
+            self.durations['tow'] = distance / speed / 60 / 60 # duration [hr]
         
         elif self.type == 'transit_linehaul_self':
             # TODO: RA: Needs to be updated based on new format (no roles)! - Note to dev: try to reduce (try/except) statements
@@ -1211,7 +1290,7 @@ class Action():
                 try:
                     v = getFromDict(self.actionType, 'default_duration_h', dtype=float); self.duration += v
                 except ValueError:
-                    vessel = self.assets.get('vessel') or self.assets.get('operator') or self.assets.get('carrier')
+                    vessel = self.assetList[0]  # MH: using first asset for now <<<
                     if vessel is None:
                         raise ValueError('transit_linehaul_self: no vessel assigned.')
         
@@ -1227,7 +1306,7 @@ class Action():
                     self.duration += dur_h
             # cost
             rate_per_hour = 0.0
-            for _, asset in self.assets.items():
+            for _, asset in self.assetList:
                 rate_per_hour += float(asset['day_rate'])/24.0
             self.cost += self.duration*rate_per_hour
             return self.duration, self.cost
@@ -1491,17 +1570,34 @@ class Action():
         # --- Mooring & Anchors ---
         
         elif self.type == 'load_mooring':
-            # TODO: RA: Needs to be updated based on new format (no roles)!
-            # Example model assuming line will be winched on to vessel. This can be changed if not most accurate
-            duration_min = 0
-            for obj in self.objectList:
-                if obj.__class__.__name__.lower() == 'mooring':
-                    for i, sec in enumerate(obj.dd['sections']): # add up the length of all sections in the mooring
-                        duration_min += sec['L'] / self.assets['carrier2']['winch']['speed_mpm'] # duration [minutes]
             
-            self.duration += duration_min / 60 / 24 # convert minutes to days
-            self.cost += self.duration * (self.assets['carrier1']['day_rate'] + self.assets['carrier2']['day_rate'] + self.assets['operator']['day_rate']) # cost of all assets involved for the duration of the action [$]
-
+            # total mooring length that needs to be loaded
+            L = 0
+            m = 0
+            
+            # list of just the mooring objects (should be all of them)
+            moorings = [obj for obj in self.objectList if isinstance(obj, Mooring)]  
+            
+            # for obj in self.objectList:
+            #     if isinstance(obj, Mooring):
+            #         L += obj.props['length']
+            
+            req = self.requirements['line_handling']  # look at line handling requirement
+            
+            if 'winch' in req['selected_capability']:  # using a winch to load
+                
+                speed = req['assigned_assets'][0]['capabilities']['winch']['speed_mpm']
+                
+                L = sum([mooring['length'] for mooring in moorings])
+                
+                self.durations['load mooring by winch'] = L / speed / 60 # duration [hr]
+            
+            elif 'crane' in req['selected_capability']:  # using a crane to load
+                
+                # temporarily estimate 1h per crane loading <<<
+                self.durations['load mooring by crane'] = 1.0 * len(moorings)
+        
+        
         elif self.type == 'install_anchor':
             # YAML override (no model if present)
             default_duration = None
@@ -1524,46 +1620,90 @@ class Action():
                 depth_m = abs(float(anchor.r[2]))
                 
                 # 2) Winch vertical speed [mps]
-                # TODO: RA: work needs to be done to determine which capability is used to perform the action based on the req-cap matrix.
                 # TODO: RA: Also, what if the anchor is using 'barge' for 'storage' (anchor is in the barge) but another asset has the winch? This is not a problem if the other asset uses the crane to install the anchor.
-                winch = True
-                if winch:
-                    # Find the asset that has the winch capability
-                    for asset in self.assetList:
-                        if 'winch' in asset['capabilities']:
-                            v_mpm = float(asset['capabilities']['winch']['speed_mpm'])
-                            break
-                # v_mpm = float(self.assets['carrier']['capabilities']['winch']['speed_mpm'])
-                t_lower_min = depth_m/v_mpm
+                req = self.requirements['anchor_lowering']  # calculate the time for anchor lowering
                 
+                v_mpm = None
+                if 'winch' in req['selected_capability']:  # using a winch to lower
+                    v_mpm = req['assigned_assets'][0]['capabilities']['winch']['speed_mpm']
+                elif 'crane' in req['selected_capability']:  # using a crane to lower
+                    v_mpm = req['assigned_assets'][0]['capabilities']['crane']['speed_mpm']
+                
+                if v_mpm:  # there is only a lowering time if a winch or crane is involved
+                    self.durations['anchor lowering'] = depth_m/v_mpm /60 # [h]
+
                 # 3) Penetration time ~ proportional to L 
-                rate_pen = 15. # [min] per [m]
-                t_pen_min = L*rate_pen
+                if 'anchor_embedding' in self.requirements:
+                    req = self.requirements['anchor_embedding']
+                    if 'pump_subsea' in req['selected_capability']:  # using a winch to lower
+                        specs = req['assigned_assets'][0]['capabilities']['pump_subsea']  # pump specs
+                        embed_speed = 0.1*specs['power_kW']/(np.pi/4*anchor.dd['design']['D']**2) # <<< example of more specific calculation
+                    else:
+                        embed_speed = 0.07 # embedment rate [m/min]
+                    self.durations['anchor embedding'] = L*embed_speed / 60
                 
                 # 4) Connection / release (fixed)
-                t_ops_min = 15
-                
-                duration_min = t_lower_min + t_pen_min + t_ops_min
-                computed_duration_h = duration_min/60.0 # [h]
-                
-            # print(f'[install_anchor] yaml_duration={yaml_duration} -> used={computed_duration_h} h')
-            
-            # Duration addition
-            self.duration += computed_duration_h 
-            
-            # Cost assessment
-            rate_per_hour = 0.0
-            for asset in self.assetList:
-                rate_per_hour += float(asset['day_rate'])/24.0
-            
-            self.cost += self.duration*rate_per_hour
+                self.durations['anchor release'] = 15/60
 
         elif self.type == 'retrieve_anchor':
             pass       
-        elif self.type == 'install_mooring':
-            pass
+        elif self.type == 'lay_mooring':    #'install_mooring':
+            
+            mooring = self.objectList[0]  # assume there's one mooring for now
+            
+            # find installation depth of end A (assuming that's the end to be hooked up now)
+            depth = abs(mooring.rA[2])
+            # Note: Eventually could have logic in here to figure out if the mooring was
+            # already lowered/attached with the anchor in a previous step (based on the 
+            # previous action, which assets/objects were involved, attachments, etc.).
+            
+            if 'line_handling' in self.requirements:
+                req = self.requirements['line_handling']  # calculate the time for paying out line
+                
+                # note: some of this code is repeated and could be put in a function
+                v_mpm = None
+                if 'winch' in req['selected_capability']:  # using a winch to lower
+                    v_mpm = req['assigned_assets'][0]['capabilities']['winch']['speed_mpm']
+                elif 'crane' in req['selected_capability']:  # using a crane to lower
+                    v_mpm = req['assigned_assets'][0]['capabilities']['crane']['speed_mpm']
+                
+                if v_mpm:  # there is only a lowering time if a winch or crane is involved
+                    self.durations['mooring line lowering'] = depth/v_mpm /60 # [h]
+
+            if 'subsea_connection' in self.requirements:
+                req = self.requirements['subsea_connection']   
+                if 'rov' in req['selected_capability']:
+                    time = 1 + depth/500
+                elif 'divers' in req['selected_capability']:
+                    time = 1 + depth/100
+                    
+                self.durations['mooring-anchor connection'] = time
+            
+            
+            
         elif self.type == 'mooring_hookup':
-            pass
+        
+            mooring = self.objectList[0]  # assume there's one mooring for now
+            
+            # find resting depth of end A (assuming that's the end to be hooked up now)
+            depth = abs(mooring.rA[2])
+            
+            if 'line_handling' in self.requirements:
+                req = self.requirements['line_handling']  # calculate the time for paying out line
+                
+                # note: some of this code is repeated and could be put in a function
+                v_mpm = None
+                if 'winch' in req['selected_capability']:  # using a winch to lower
+                    v_mpm = req['assigned_assets'][0]['capabilities']['winch']['speed_mpm']
+                elif 'crane' in req['selected_capability']:  # using a crane to lower
+                    v_mpm = req['assigned_assets'][0]['capabilities']['crane']['speed_mpm']
+                
+                if v_mpm:  # there is only a lowering time if a winch or crane is involved
+                    self.durations['mooring line retrieval'] = depth/v_mpm /60 # [h]
+
+            # >>> tensioning could be added <<<
+            self.durations['generic hookup and tensioning time'] = 1
+
 
         # --- Heavy Lift & Installation ---
         elif self.type == 'install_wec':
@@ -1648,17 +1788,37 @@ class Action():
         
             # cost (same pattern you use elsewhere)
             rate_per_hour = 0.0
-            for _, asset in self.assets.items():
+            for _, asset in self.assetList:
                 rate_per_hour += float(asset['day_rate'])/24.0
             self.cost += self.duration * rate_per_hour
-            return self.duration, self.cost
 
         else:
             raise ValueError(f"Action type '{self.type}' not recognized.")
         
+        
+        # Sum up duration
+        self.duration = sum(self.durations.values())
+        
+        # Add cost of all assets involved for the duration of the action [$]
+        for asset in self.assetList:
+            self.costs[f"{asset['name']} day rate"] = self.duration * asset['day_rate']
+        
+        # Sum up cost
+        #self.cost += self.duration * sum([asset['day_rate'] for asset in self.assetList])
+        self.cost = sum(self.costs.values())
+        
         return self.duration, self.cost
 
+    
+    def setStartTime(self, start_time):
+        '''Update the start time of the action [in h].
+        '''
 
+        # Update task start and finish times
+        self.ti = start_time
+        self.tf = start_time + self.duration
+
+    
     def evaluateAssets(self, assets):
         '''
         Checks assets for all the roles in the action. This calls `checkAsset()`
@@ -1798,17 +1958,16 @@ class Action():
         # which asset(s) meet which requirements, and then store that
         # somewhere.
         
+        '''
         # Assign each specified asset to its respective role
         for asset in assets:
             self.assignAsset(asset)
         
-        # RA: we already check that inside calcDurationAndCost.
-        # # Check that all roles in the action are filled
-        # for role_name in self.requirements.keys():
-        #     if self.assets[role_name] is None:
-        #         raise Exception(f"Role '{role_name}' is not filled in action '{self.name}'. Cannot calculate duration and cost.") # possibly just a warning and not an exception?
-
+        
+        
         self.calcDurationAndCost()
+        '''
+        self.assetList = assets
     
     
     def clearAssets(self):

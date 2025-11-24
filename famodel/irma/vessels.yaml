@@ -17,6 +17,7 @@ AHTS_alpha:
             max_load_t: 1500
         bollard_pull:
             max_force_t: 200
+            site_speed_mps: 1.5 # <<< temporary value added
         winch:
             max_line_pull_t: 150
             brake_load_t: 300
@@ -24,6 +25,7 @@ AHTS_alpha:
         crane:
             capacity_t: 50
             hook_height_m: 25
+            speed_mpm: 10  # <<<
         chain_locker:
             volume_m3: 150
         line_reel:
@@ -69,6 +71,7 @@ MPSV_01:
         crane:
             capacity_t: 150
             hook_height_m: 45
+            speed_mpm: 10  # <<<
         winch:
             max_line_pull_t: 60
             brake_load_t: 120
@@ -120,6 +123,7 @@ CSV_A:
         crane:
             capacity_t: 250
             hook_height_m: 60
+            speed_mpm: 10  # <<<
         winch:
             max_line_pull_t: 75
             brake_load_t: 150
@@ -173,6 +177,7 @@ ROVSV_X:
         crane:
             capacity_t: 100
             hook_height_m: 35
+            speed_mpm: 10  # <<<
         rov:
             class: WORK-CLASS
             depth_rating_m: 3000
@@ -209,6 +214,7 @@ DSV_Moon:
         crane:
             capacity_t: 150
             hook_height_m: 40
+            speed_mpm: 10  # <<<
         positioning_system:
             accuracy_m: 0.5
             methods: [USBL, LBL, INS]
@@ -237,6 +243,7 @@ HL_Giant:
         crane:
             capacity_t: 5000
             hook_height_m: 150
+            speed_mpm: 10  # <<<
         positioning_system:
             accuracy_m: 1.0
             methods: [USBL, INS]
@@ -296,6 +303,7 @@ Barge_squid:
         crane:
             capacity_t: 250
             hook_height_m: 40
+            speed_mpm: 10  # <<<
     actions:
         transport_components: {}
         install_anchor: {}

@@ -6,14 +6,14 @@
 # Action requirements will be checked against vessel capabilities for evaluation and assignment.
 #
 #  Old format: roles, which lists asset roles, each with associated required capabilities
-#  New format: list of requirements
+#  New format: list of requirements, with optional -in/-out suffix
 
 # The code that models and checks these actions is action.calcDurationAndCost(). Structural changes here will not be reflected in the code unless changes are made there as well
 
 ### Example action ###
 
 # example_action:
-#   objects: [] or {} "The FAModel object types that are supported in this action"
+#   objects: [] "The FAModel object types that are expected for this action"
 #   requirements: [] "List of capability requirements that assets must meet to perform this action"
 #   duration_h: 0.0 "Duration in hours"
 #   Hs_m: 0.0 "Wave height constraints in meters"
@@ -39,14 +39,15 @@ demobilize:
   
 load_cargo:
   objects: [anchor, mooring, cable, platform, component]
+  # still have to figure out the aspect of loading from a port
   requirements:
-    - chain_storage
-    - rope_storage
+    - chain_storage-in
+    - rope_storage-in
     - line_handling
     - lifting
-    - storage
+    - storage-in
     - station_keeping
-    - cable_storage
+    - cable_storage-in
     - cable_handling
   duration_h:
   Hs_m:
@@ -80,7 +81,7 @@ transit_onsite_tug:
   objects: [anchor]
   requirements:
     - propulsion
-    - bollard_pull
+    - towing
   duration_h: 
   description: "Tug + barge in-field move between site locations"
   
@@ -89,7 +90,7 @@ tow:
   objects: [platform]
   requirements:
     - propulsion
-    - bollard_pull
+    - towing
     - station_keeping
   duration_h:
   Hs_m:
@@ -99,7 +100,6 @@ transport_components:
   objects: [component]
   requirements:
     - propulsion
-    - bollard_pull
     - storage
     - lifting
     - station_keeping
@@ -120,14 +120,14 @@ at_site_support:
 install_anchor:
   objects: [anchor, component]
   requirements:
-    - storage
+    - storage-out
     - anchor_overboarding
     - anchor_lowering
     - anchor_orienting
     - anchor_embedding
     - station_keeping
     - monitoring_system
-    - survey
+    # - survey  <-- typically done before installation?
   duration_h:
   Hs_m:
   description: "Anchor installation (suction, driven, helical, DEA, SEPLA) with tensioning and verification."
@@ -135,7 +135,7 @@ install_anchor:
 retrieve_anchor:
   objects: [anchor, component]
   requirements:
-    - storage
+    - storage-in
     - anchor_removal
     - station_keeping
   duration_h:
@@ -146,8 +146,8 @@ retrieve_anchor:
 load_mooring:
   objects: [mooring, component]
   requirements:
-    - chain_storage
-    - rope_storage
+    - chain_storage-in
+    - rope_storage-in
     - line_handling
     - station_keeping
   duration_h:
@@ -159,22 +159,23 @@ lay_mooring:
   objects: [mooring, component]
   requirements:
     - propulsion
-    - bollard_pull
-    - chain_storage
-    - rope_storage
+    - chain_storage-out
+    - rope_storage-out
+    - line_handling
     - station_keeping
+    - subsea_connection
   duration_h:
   Hs_m:
-  description: "Laying mooring lines, tensioning and connection to anchors and floaters."
+  description: "Laying mooring lines and connection to anchors."
 
 
 mooring_hookup:
   objects: [mooring, component, platform]
   requirements:
-    - chain_storage
-    - rope_storage
+    - chain_storage   # <-- what is this for?
+    - rope_storage   # <-- what is this for?
     - line_handling
-    - bollard_pull
+    - towing   #   <-- may want to tweak this to be a more generic term that includes bollard pull
     - mooring_work
     - station_keeping
     - monitoring_system
@@ -201,7 +202,7 @@ install_semisub:
     - storage
     - lifting
     #- pumping
-    - bollard_pull
+    - towing
     - station_keeping
     - monitoring_system
   duration_h:
@@ -214,7 +215,7 @@ install_spar:
     - storage
     - lifting
     #- pumping
-    - bollard_pull
+    - towing
     - station_keeping
     - monitoring_system
   duration_h:
@@ -227,7 +228,7 @@ install_tlp:
     - storage
     - lifting
     #- pumping
-    - bollard_pull
+    - towing
     - station_keeping
     - monitoring_system
   duration_h:
@@ -249,7 +250,7 @@ install_wtg:
 lay_cable:
   objects: [cable]
   requirements:
-    - cable_storage
+    - cable_storage-out
     - cable_laying
     - station_keeping
     - monitoring_system
@@ -262,16 +263,17 @@ cable_hookup:
   requirements:
     - cable_storage
     - cable_handling
-    - bollard_pull
+    - towing
     - station_keeping
     - monitoring_system
   duration_h:
   Hs_m:
   description: "Hook-up of cable to floating platforms, including pretensioning."
+  
 retrieve_cable:
   objects: [cable]
   requirements:
-    - cable_storage
+    - cable_storage-in
     - cable_handling
     - station_keeping
     - monitoring_system

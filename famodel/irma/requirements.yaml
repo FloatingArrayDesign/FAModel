@@ -3,6 +3,8 @@
 # ----------------------------------------------------------------------
 # This file maps requirements and optional capabilities to marine operations actions.
 # Each entry lists optional capabilities that an asset can have to fulfil the requirement.
+# A requirement's list of capabilities has "or" logic; only one of them needs
+# to be satisfied.
 
 # Example Entry:
 # chain_storage:
@@ -38,6 +40,7 @@ station_keeping:
 storage:
   description: "General onboard deck or cargo storage capacity for components or equipment."
   objects: [anchor, mooring, cable, platform, component]
+  directions : [-1, 1, 0]
   capabilities:
     - deck_space
 
@@ -45,6 +48,7 @@ chain_storage:
   description: "Dedicated storage capacity for chain sections in the mooring line."
   objects: [mooring]
   materials: [chain]
+  directions : [-1, 1, 0]
   capabilities:
     - chain_locker
     - deck_space
@@ -53,6 +57,7 @@ rope_storage:
   description: "Dedicated storage capacity for rope sections in the mooring line."
   objects: [mooring]
   materials: [rope]
+  directions : [-1, 1, 0]
   capabilities:
     - line_reel
     - deck_space
@@ -60,6 +65,7 @@ rope_storage:
 cable_storage:
   description: "Dedicated storage capacity for electrical cables or umbilicals on reels."
   objects: [cable]
+  directions : [-1, 1, 0]
   capabilities:
     - cable_reel
     - deck_space
@@ -70,8 +76,8 @@ line_handling:
   capabilities:
     - winch
     - crane
-    - shark_jaws
-    - stern_roller
+    # - shark_jaws <<< each capability should be an "or" option. Maybe these can be specs.
+    # - stern_roller
 
 cable_handling:
   description: "Ability to deploy, recover, and control subsea cables under tension."
@@ -79,8 +85,8 @@ cable_handling:
   capabilities:
     - winch
     - crane
-    - cable_reel
-    - stern_roller
+    #- cable_reel
+    #- stern_roller
 
 lifting:
   description: "Ability to lift and move heavy components vertically and horizontally."
@@ -151,6 +157,12 @@ mooring_work:
     - shark_jaws
     - stern_roller
 
+subsea_connection:
+  description: "Capability to connect or disconnect a mooring component under water (such as to an anchor)."
+  objects: [mooring]
+  capabilities:
+    - rov
+    - divers
 
 # --- Platform Handling & Heavy Lift ------------------------------------
 
