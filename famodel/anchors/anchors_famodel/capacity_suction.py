@@ -14,8 +14,8 @@ def getCapacitySuction(profile_map, location_name, D, L, zlug, Ha, Va, thetalug=
         Soil profile as a 2D array: (z, parameters)
             Clay soil profile (z (m), Su (kPa), gamma (kN/m³))
             Sand soil profile (z (m), phi (deg), gamma (kN/m³), Dr (%))
-    soil_type : string
-        Select soil condition, 'clay' or 'sand'
+    location_name : str
+        Name of the location in profile_map (e.g. 'CPT_1')
     D : float 
         Suction pile diameter (m)
     L : float 
