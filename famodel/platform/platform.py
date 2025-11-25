@@ -114,9 +114,17 @@ class Platform(Node):
                     # headings = [cab.subcomponents[0].headingA + pf_phis[0], cab.subcomponents[-1].headingB + pf_phis[1]]
                     
                     # reposition the cable
-                    cab.reposition(project=project)
-            
+                    cab.reposition(project=project)            
+                    
         self.updateMooringPoints()
+        
+        if not update_moorings:
+            # update span in case it changed if pf location changes but anchor does not 
+            for i, att in enumerate(self.attachments):
+                if isinstance(self.attachments[att]['obj'], Mooring):
+                    moor = self.attachments[att]['obj']
+                    moor.dd['span'] = np.linalg.norm(moor.rA[:2]-moor.rB[:2])
+                    moor.span=moor.dd['span']
     
     def mooringSystem(self,rotateBool=0,mList=None,bodyInfo=None, project=None):
         '''

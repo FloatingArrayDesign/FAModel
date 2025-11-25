@@ -38,7 +38,7 @@ includes a design dictionary with the following details:
 		- v : volume [kg/m^3]
 		- CdA 
 	
-The Mooring object contains subcomponent objects that represent each component of the full mooring line. Line segments are Section objects, while connectors between segments and at the ends of the lines are Connector objects. These segments alternate, and are listed in the subcomponents section of the design dictionary in order from end A to end B. If there are parallel sections, such as in the case of a bridle, the parallel sections are described with nested lists.
+The Mooring object contains subcomponent objects that represent each component of the full mooring line. Line segments (lengths of a mooring line with one material) are Section objects, while connectors between segments and at the ends of the lines are Connector objects. These components alternate, and are listed in the subcomponents section of the design dictionary in order from end A to end B. If there are parallel sections, such as in the case of a bridle, the parallel sections are described with nested lists.
 
 ## Mooring Properties
 - dd
@@ -60,15 +60,21 @@ The Mooring object contains subcomponent objects that represent each component o
 - rA : end A absolute coordinates
 - rB : end B absolute coordinates
 - heading : compass heading from B to A
-- ss : MoorPy subsystem representation of this Mooring, pristine
-- ss_mod : modified MoorPy subsystem of thie Mooring, could have marine growth etc
+- ss : MoorPy subsystem representation of this Mooring
 - span : 2D (x-y) distance from fairlead to anchor or fairlead to fairlead. If bridles, the distance is calculated from the midpoint of all bridle fairlead points
 - adjuster : custom function that can adjust mooring
 - shared : int for anchored line (0), shared line (1) or half of a shared line (2)
 - symmetric : boolean for if the mooring line is symmetric shared line
+- parallels : boolean for if there are any parallel sections (for example: bridles) in the mooring
+- i_con : indices of connectors in the subcomponents list property
+- i_sec : indices of sections in the subcomponents list property
 - rho : water density
 - g : acceleration due to gravity
 - envelopes : 2D motion envelopes, buffers, etc.
+- loads : 
+- safety_factors : dictionary of safety factor values based on material MBL and line loads from loads dictionary
+- env_impact : dictionary quantifying environmental impact factors such as disturbedSeabedArea for total seabed disturbance area
+- applied_states : dictionary keeping track of which states have been applied to the mooring line model, such as marine growth (marine_growth), creep, and corrosion. These states are automatically updated when mooring.updateState, setCreep, setCorrosion, addMarineGrowth are called
 - reliability : dictionary of reliability information on the line
 - cost : dictionary of line costs
 - failure_probability : dictionary of failure probabilities

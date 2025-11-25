@@ -84,7 +84,7 @@ class Mooring(Edge):
         
         # MoorPy subsystem that corresponds to the mooring line
         self.ss = subsystem
-        self.ss_mod = None
+
         # workaround for users who are making mooring objects based on pre-existing subsystems
         if self.ss and not self.dd:
             self.dd = {}
