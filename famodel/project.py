@@ -4891,7 +4891,7 @@ class Project():
         with open(file,'w') as f:    
             yaml.dump(output,f)
         
-    def extractFarmInfo(self, cmax=5, fmax=10/6, Cmeander=1.9, force=1e9, direction=0.0, retainForce=False):
+    def extractFarmInfo(self, cmax=5, fmax=10/6, Cmeander=1.9, force=1.95e6, direction=0.0, retainForce=False):
         '''
         Function to extract farm-level information required to create FAST.Farm case simulations. [Under developement]:
 
