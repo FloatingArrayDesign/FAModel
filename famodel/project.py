@@ -2857,7 +2857,7 @@ class Project():
                 mooring = att['obj']
                 
                 # create subsystem
-
+                
                 mooring.createSubsystem(ms=self.ms)
 
                 # set location of subsystem for simpler coding
@@ -4891,17 +4891,24 @@ class Project():
         with open(file,'w') as f:    
             yaml.dump(output,f)
         
-    def extractFarmInfo(self, cmax=5, fmax=10/6, Cmeander=1.9):
+    def extractFarmInfo(self, cmax=5, fmax=10/6, Cmeander=1.9, force=1e9, direction=0.0, retainForce=False):
         '''
         Function to extract farm-level information required to create FAST.Farm case simulations. [Under developement]:
 
         Parameters
         ----------
         cmax : float, optional
-            maximum blade chord (m)
-        fmax: maximum excitation frequency (Hz)
-        Cmeander: Meandering constant (-)
-        
+            Maximum rotor induction factor to be used in FAST.Farm simulations
+        fmax: float, optional
+            Maximum rotor frequency to be used in FAST.Farm simulations (Hz)
+        Cmeander: float, optional
+            Meandering coefficient to be used in FAST.Farm simulations
+        force: float, optional
+            Magnitude of the external force applied to each platform (N)
+        direction: float, optional
+            Direction of the applied force in degrees (0deg = +x +ve CCW)
+        retainForce: bool, optional
+            A flag to retain the applied force after extracting the platform offsets. If False, the force is removed and the equilibrium is re-solved.
         Returns
         -------
         wts : dict
@@ -4914,26 +4921,54 @@ class Project():
         # ----------- Extract Wind Farm Data
         wts = {}
         i = 0
-        yaw_init = np.zeros((1, len(self.platformList.items())))
+        yaw_init = np.zeros((1, len(self.platformList.items())))     
         for _, pf in self.platformList.items():
-            if pf.entity=='FOWT':
-                x, y, z   = pf.r[0], pf.r[1], pf.r[2]
-                phi_deg       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
-                phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
-                for att in pf.attachments.values():
-                    if isinstance(att['obj'],Turbine):
-                        if hasattr(att['obj'], 'D'):
-                            D = int(att['obj'].D)
-                        else:
-                            D = 242
-                        zhub = att['obj'].dd['hHub']
-                
-                wts[i] = {
-                    'x': x, 'y': y, 'z': z, 'phi_deg': phi_deg, 'D': D, 'zhub': zhub, 
-                    'cmax': cmax, 'fmax': fmax, 'Cmeander': Cmeander
-                    }
-                yaw_init[0, i] = -phi_deg
-                i += 1
+            x, y, z   = pf.r[0], pf.r[1], pf.r[2]
+            phi_deg       = np.degrees(pf.phi)  # float((90 - np.degrees(pf.phi)) % 360)  # Converting FAD's rotational convention (0deg N, +ve CW) into FF's rotational convention (0deg E, +ve CCW)
+            phi_deg       = (phi_deg + 180) % 360 - 180  # Shift range to -180 to 180
+            for att in pf.attachments.values():
+                if isinstance(att['obj'],Turbine):
+                    if hasattr(att['obj'], 'D'):
+                        D = int(att['obj'].D)
+                    else:
+                        D = 242
+                    zhub = att['obj'].dd['hHub']
+            
+            wts[i] = {
+                'x': x, 'y': y, 'z': z, 'phi_deg': phi_deg, 'D': D, 'zhub': zhub, 
+                'cmax': cmax, 'fmax': fmax, 'Cmeander': Cmeander
+                }
+            yaw_init[0, i] = -phi_deg
+            i += 1
+
+        # Apply force and compute initial platform offsets
+        fx = force*np.cos(np.radians(direction))
+        fy = force*np.sin(np.radians(direction))   
+        for _, pf in self.platformList.items():
+            # if pf.entity=='FOWT':        #TODO: Rudy - maybe this should be replaced with an attribute: operatingPlatform: True or False (or a percentage of curtailment) [because we do want all platforms available in project class to be transformed to FFarm and if platform is not operating, we still want its information]
+            pf.body.f6Ext = np.array([fx, fy, 0, 0, 0, 0])
+
+        
+        self.ms.solveEquilibrium3(DOFtype='both')
+        
+        i = 0
+        for _, pf in self.platformList.items():
+            x, y, z = wts[i]['x'], wts[i]['y'], wts[i]['z']
+            xi = pf.body.r6[0] - x
+            yi = pf.body.r6[1] - y
+            zi = pf.body.r6[2] - z
+            wts[i]['xi'] = xi
+            wts[i]['yi'] = yi
+            wts[i]['zi'] = zi
+            i += 1
+        
+        # Return to original status if requested
+        if retainForce:
+            for _, pf in self.platformList.items():   
+                pf.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
+
+            
+            self.ms.solveEquilibrium3(DOFtype='both')
 
         # store farm-level wind turbine information
         self.wts = wts
