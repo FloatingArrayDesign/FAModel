@@ -4963,7 +4963,7 @@ class Project():
             i += 1
         
         # Return to original status if requested
-        if retainForce:
+        if not retainForce:
             for _, pf in self.platformList.items():   
                 pf.body.f6Ext = np.array([0, 0, 0, 0, 0, 0])
 
