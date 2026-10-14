@@ -198,7 +198,12 @@ class Mooring(Edge):
             case = 1 
         else:
             case = 0
-        self.createSubsystem(case=case)
+        # preserve this mooring's slot in the parent MoorPy system (if any),
+        # otherwise the new subsystem gets appended instead of replacing the
+        # old (possibly marine-growth-modified) one, leaving a stale duplicate.
+        ms = self.ss.sys if self.ss else None
+        ss_number = self.ss.number if self.ss else None
+        self.createSubsystem(case=case, ms=ms, ss_number=ss_number)
         # reset applied_states dictionary values
         for state in self.applied_states:
             self.applied_states[state] = None
@@ -1260,10 +1265,12 @@ class Mooring(Edge):
 
             for i, line in enumerate(self.ss.lineList):
                 # check if the line type has a corrosion property in its MoorProps instead of checking for material name.
-                sec = self.getSubcomponent(self.i_sec[i])
-                mat = sec['type']['material']  
-                d_nom = sec['type']['d_nom']
-                mbl   = sec['type']['MBL']
+                # use the MoorPy line's own type dict rather than self.i_sec, since self.i_sec
+                # indexes into the pristine self.dd and won't match self.ss.lineList once lines
+                # have been split up by addMarineGrowth().
+                mat = line.type['material']  
+                d_nom = line.type['d_nom']
+                mbl   = line.type['MBL']
                 if mat not in self.lineProps:
                     raise ValueError(f'Line material {mat} not found in lineProps dictionary.')
                 else:
@@ -1307,9 +1314,11 @@ class Mooring(Edge):
             
         if self.ss:
             for i, line in enumerate(self.ss.lineList):
-                sec = self.getSubcomponent(self.i_sec[i])
-                mat = sec['type']['material']  
-                lgt = sec['L']              
+                # use the MoorPy line's own type/length rather than self.i_sec, since self.i_sec
+                # indexes into the pristine self.dd and won't match self.ss.lineList once lines
+                # have been split up by addMarineGrowth().
+                mat = line.type['material']  
+                lgt = line.L              
                 
                 # check if the line type has a creep property in its MoorProps instead of checking for material name.
                 if mat not in self.lineProps:
@@ -1355,15 +1364,17 @@ class Mooring(Edge):
 
         if self.ss:
             for i, line in enumerate(self.ss.lineList):
-                # Get the original material as stored in the design dict
-                sec = self.getSubcomponent(self.i_sec[i])
-                mat = sec['type']['material']  
+                # Get the original material
+                # use the MoorPy line's own type dict rather than self.i_sec, since self.i_sec
+                # indexes into the pristine self.dd and won't match self.ss.lineList once lines
+                # have been split up by addMarineGrowth().
+                mat = line.type['material']  
                 
                 # Get and apply the modified properties
                 mat_suffix = mat + suffix  # New material key to look for
                 if mat_suffix in self.lineProps:
                     # Get the new line properties
-                    newType = getLineProps(sec['type']['d_nom']*1e3, mat_suffix, self.lineProps)  # convert to mm for getLineProps
+                    newType = getLineProps(line.type['d_nom']*1e3, mat_suffix, self.lineProps)  # convert to mm for getLineProps
                     # Update the lineType properties in the Line in the MoorPy subsystem
                     line.type.update(newType) 
         else:
